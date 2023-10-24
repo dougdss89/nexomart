@@ -59,3 +59,39 @@ tmp_purchaseordline = (( spark
                                     )
                         )).load()
 
+#renaming columns
+orderframe = (( tmp_purchaseordline
+                    .withColumnRenamed('purchaseorderlineid', 'orderlineid')
+                    .withColumnRenamed('expectedunitpriceperouter', 'expectecunit')
+                    .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
+                    .withColumnRenamed('_airbyte_purchaseorderlines_hashid', 'purchaseorder_hashid')
+                    .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
+                    .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+            ))
+
+#repalace true-false for 0-1
+#reaming column
+#drop column
+
+purchaseorder = ((orderframe
+                    .select('*', 
+                                f.when(orderframe.isorderlinefinalized == 'true', 1)
+                                .otherwise('0')
+                    .alias('isfinalized'))
+                    
+                    #droping old column isorderlinefinalized
+                    .drop('isorderlinefinalized')
+                )) 
+
+#write to table
+(( 
+    purchaseorder
+        .write
+        .format('jdbc')
+        .option('url', pgconn)
+        .option('user', pguser)
+        .option('password', pgpwd)
+        .option('driver', pgdriver)
+        .option('dbtable', 'purchasing.testeinsert')
+        .save(mode= 'overwrite')
+    ))
