@@ -63,6 +63,8 @@ tmp_purchaseordline = (( spark
 orderframe = (( tmp_purchaseordline
                     .withColumnRenamed('purchaseorderlineid', 'orderlineid')
                     .withColumnRenamed('expectedunitpriceperouter', 'expectecunit')
+                    .withColumnRenamed('receivedouters', 'qtdreceived')
+                    .withColumnRenamed('orderedouters', 'qtdordered')
                     .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
                     .withColumnRenamed('_airbyte_purchaseorderlines_hashid', 'purchaseorder_hashid')
                     .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
