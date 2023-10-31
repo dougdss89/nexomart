@@ -182,6 +182,7 @@ df = renamedrop_df.withColumn('lastname', f.split('lastname', '[^A-Za-z0-9 '']')
 renamedrop_df = df.withColumn('lastname', df['lastname'].getItem(0))
 
 #organizing hierarchy columns
+#separate store from customers
 customerframe= ((
                 renamedrop_df
                     .select('customerid',
@@ -215,17 +216,98 @@ customerframe= ((
                             'customercategory_hashid',
                             'elt_buyergroup_hashid',
                             'buyergroup_hashid'
-                            )
+                            ).where('firstname not like "Tailspin%" and firstname not like "Wingtip%" ')
                     
-                    #change boolean for 'binary'
-                    .withColumn('isoncredithold', f.when(renamedrop_df['isoncredithold'] == 'true', 1).otherwise(0))
-                    .withColumn('isstatementsent', f.when(renamedrop_df['isstatementsent'] == 'true', 1).otherwise(0))
-        
+
 ))
 
-#write data on datawarehouse
-((
+#change boolean for 'binary' and empty for nulls
+#adjuste customer columns and remove nulls
+customer = ((
     customerframe
+        .withColumn('isoncredithold', f.when(renamedrop_df['isoncredithold'] == 'true', 1).otherwise(0))
+        .withColumn('isstatementsent', f.when(renamedrop_df['isstatementsent'] == 'true', 1).otherwise(0))
+        .withColumn('buyinggroupname', f.coalesce('buyinggroupname', f.lit('Personal Customer')))
+        .withColumn('place', f.when(renamedrop_df['place'] == "", None).otherwise(renamedrop_df['place']))
+        
+        #normalize null values without rename column
+        .withColumn('place', f.coalesce('place', f.lit('Not Available')))
+        .withColumn('elt_buyergroup_hashid', f.coalesce('elt_buyergroup_hashid', f.lit('Not Available')))
+        .withColumn('buyergroup_hashid', f.coalesce('buyergroup_hashid', f.lit('Not Available')))
+        .withColumnRenamed('firstname', 'customername')
+        .drop('lastname')
+))
+
+#create store table
+storeframe = (( 
+               renamedrop_df
+                .select(    'customerid',
+                            'customercategoryid',
+                            'billtocustomerid',
+                            'buyergroupid',
+                            'firstname',
+                            'lastname',
+                            'customercategoryname',
+                            'buyinggroupname',
+                            'accountopeneddate',
+                            'paymentdays',
+                            'creditlimit',
+                            'discountpercentage',
+                            'primarycontactid',
+                            'alternatecontactid',
+                            'deliverymethodid',
+                            'deliverycityid',
+                            'postalcityid',
+                            'postalcode',
+                            'primaryaddress',
+                            'alternateaddress',
+                            'postaladdress',
+                            'alternatepostaladdress',
+                            'place',
+                            'isoncredithold',
+                            'isstatementsent',
+                            'elt_customer_hashid',
+                            'customers_hashid',
+                            'elt_custcategory_hashid',
+                            'customercategory_hashid',
+                            'elt_buyergroup_hashid',
+                            'buyergroup_hashid')
+                .where('firstname like "Tailspin%" or firstname like "Wingtip%"')
+                .withColumnRenamed('lastname', 'businessunity')
+               ))
+
+
+
+#write to customer table
+((
+    customer
+        .write
+        .format('jdbc')
+            .option('url', pgconn)
+            .option('driver', pgdriver)
+            .option('user', pguser)
+            .option('password', pgpwd)
+            .option('dbtable', 'sales.testeinsert')
+        .save(mode= 'overwrite')
+))
+
+
+#write customer category table
+((
+    tmp_custmercategory
+        .write
+        .format('jdbc')
+            .option('url', pgconn)
+            .option('driver', pgdriver)
+            .option('user', pguser)
+            .option('password', pgpwd)
+            .option('dbtable', 'sales.testeinsert')
+        .save(mode= 'overwrite')
+))
+
+#write to table store table
+((
+    storeframe
         .write
         .format('jdbc')
             .option('url', pgconn)
