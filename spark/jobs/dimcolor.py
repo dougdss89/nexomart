@@ -14,6 +14,7 @@ pguser = os.getenv('POSTGRE_USER')
 pgpwd = os.getenv('POSTGRE_PWD')
 driver = os.getenv('PG_DRIVER')
 pgjar = os.getenv('POSTGRE_JAR')
+pgconn_dw = os.getenv('POSTGRE_CONN_DW')
 
 
 #create spark session 
@@ -50,8 +51,8 @@ def selectcolors(spark = spark, connurl = pgconn, dbuser = pguser, dbpwd = pgpwd
 
                                     wrh_c.colorid,
                                     wrh_c.colorname,
-                                    wrh_c._airbyte_ab_id as extract_id,
-                                    wrh_c._airbyte_ab_id as colors_hashid,
+                                    wrh_c._airbyte_ab_id as elt_hashid,
+                                    wrh_c._airbyte_ab_id as color_hashid,
                                     wrh_c._airbyte_emitted_at as elt_start,
                                     wrh_c._airbyte_normalized_at as elt_end
                         
@@ -74,13 +75,13 @@ def insertcolor(spark = spark, connurl = pgconn, dbuser = pguser, dbpwd = pgpwd,
     data.\
         write.\
         format('jdbc').\
-        option('url', connurl).\
+        option('url', pgconn_dw).\
         option('user', dbuser).\
-        option('dbtable', 'warehouse.testeinsert').\
+        option('dbtable', 'dimension.color').\
         option('mode', 'overwrite').\
         option('password', dbpwd).\
         option('driver', dbdriver).\
-    save(mode='append')
+    save(mode='overwrite')
     
 insertcolor()
 
