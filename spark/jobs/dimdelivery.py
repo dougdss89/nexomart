@@ -13,12 +13,13 @@ pgdriver = os.getenv('PG_DRIVER')
 pgjar = os.getenv('POSTGRE_JAR')
 pgpwd = os.getenv('POSTGRE_PWD')
 pguser = os.getenv('POSTGRE_USER')
+pgconn_dw = os.getenv('POSTGRE_CONN_DW')
 
 
 #creating session
 
 spark = (( 
-          SparkSession
+        SparkSession
             .builder
             .appName('dim_delivery')
             .config('spark.jars', f'{pgjar}')
@@ -29,51 +30,82 @@ spark = ((
 
 print('Session created')
 
-tmp_deliveryframe = (( spark
-                        .read
-                        .format('jdbc')
-                        .option('url', f'{pgconn}')
-                        .option('driver', f'{pgdriver}')
-                        .option('user', f'{pguser}')
-                        .option('password', f'{pgpwd}')
-                        .option('query', 
-                                
-                                """ 
-                                    select
+def createdelivery(spark = spark, conn= pgconn, driver = pgdriver, user = pguser, pwd = pgpwd):
+    
+    """ creating delivery dataframe from deliverymethods table """
+    tmp_deliveryframe = (( spark
+                            .read
+                            .format('jdbc')
+                            .option('url', f'{pgconn}')
+                            .option('driver', f'{pgdriver}')
+                            .option('user', f'{pguser}')
+                            .option('password', f'{pgpwd}')
+                            .option('query', 
                                     
-                                        deliverymethodid,
-                                        deliverymethodname,
-                                        _airbyte_ab_id,
-                                        _airbyte_deliverymethods_hashid,
-                                        _airbyte_emitted_at,
-                                        _airbyte_normalized_at
+                                    """ 
+                                        select
                                         
-                                    from application.deliverymethods
-                                
-                                """)
-                        
-                    )).load()
+                                            deliverymethodid,
+                                            deliverymethodname,
+                                            _airbyte_ab_id,
+                                            _airbyte_deliverymethods_hashid,
+                                            _airbyte_emitted_at,
+                                            _airbyte_normalized_at
+                                            
+                                        from application.deliverymethods
+                                    
+                                    """)
+                            
+                        )).load()
+    
+    return tmp_deliveryframe
 
-deliveryframe = (( 
-                    tmp_deliveryframe
-                        .withColumnRenamed('deliverymethodid', 'deliveryid')
-                        .withColumnRenamed('deliverymethodname', 'deliverytype')
-                        .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
-                        .withColumnRenamed('_airbyte_deliverymethods_hashid', 'deliverymethods_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
-                ))
+delivery = createdelivery()
 
+#renaming delivery dimension columns
 
-(( deliveryframe
-    .write
-        .format('jdbc')
-        .option('url', pgconn)
-        .option('driver', pgdriver)
-        .option('user', pguser)
-        .option('password', pgpwd)
-        .option('dbtable', 'application.testeinsert')
-    .save(mode= 'overwrite')
-))
+def renamecolumns(deliverydt = delivery):
+    
+    """renaming delivery dimension columns
 
-spark.stop()
+    Returns:
+        _type_: dataframe
+    """
+    
+    deliveryframe = (( 
+                        deliverydt
+                            .withColumnRenamed('deliverymethodid', 'deliveryid')
+                            .withColumnRenamed('deliverymethodname', 'deliverytype')
+                            .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
+                            .withColumnRenamed('_airbyte_deliverymethods_hashid', 'deliverymethods_hashid')
+                            .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
+                            .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+                    ))
+    
+    return deliveryframe
+
+delivery = renamecolumns()
+
+#writing data on dimension table
+def writedataframe(data = delivery, conn = pgconn_dw, driver = pgdriver, user = pguser, pwd = pgpwd):
+    
+    """writing data on data warehouse
+        table: dimension.deliverymethod
+    """
+    (( data
+        .write
+            .format('jdbc')
+            .option('url', conn)
+            .option('driver', driver)
+            .option('user', user)
+            .option('password', pwd)
+            .option('dbtable', 'dimension.deliverymethod')
+        .save(mode= 'overwrite')
+    ))
+    
+if __name__ == '__main__':
+
+    createdelivery()
+    renamecolumns()
+    writedataframe()
+    spark.stop()
