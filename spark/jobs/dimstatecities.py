@@ -1,4 +1,4 @@
-#this dimension belengs to application schema
+#this dimension belongs to application schema
 #creating statecities dimension
 
 from pyspark.sql.session import SparkSession
@@ -16,9 +16,9 @@ pgconn = os.getenv('POSTGRE_CONN')
 pgdriver = os.getenv('PG_DRIVER')
 pguser = os.getenv('POSTGRE_USER')
 pgpwd = os.getenv('POSTGRE_PWD')
+pgconn_dw = os.getenv('POSTGRE_CONN_DW')
 
 #session 
-
 spark = (( SparkSession
             .builder
             .appName('statecities')
@@ -28,126 +28,143 @@ spark = (( SparkSession
             .getOrCreate()
         ))
 
-#load cities data to dataframe
-tmp_citiesframe =  ((spark
+#loading cities data to dataframe
+def createcity(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+    
+    """ creating city and state dimension """
+    tmp_citiesframe =  ((spark
+                            .read
+                            .format('jdbc')
+                            .option('url', pgconn)
+                            .option('driver', pgdriver)
+                            .option('user', pguser)
+                            .option('password', pgpwd)
+                            .option('query', 
+                                    """ 
+                                        select 
+
+                                            apc.cityid,
+                                            apc.cityname,
+                                            apc.stateprovinceid,
+                                            apc.latestrecordedpopulation,
+                                            apc._airbyte_ab_id,
+                                            apc._airbyte_cities_hashid,
+                                            cast(apc._airbyte_emitted_at as date) as _airbyte_emitted_at,
+                                            cast(apc._airbyte_normalized_at as date) as _airbyte_normalized_at
+
+                                        from application.cities as apc
+
+                                        left join
+
+                                            application.cities_archive as apca
+                                        on apc.cityid = apca.cityid
+                                        
+                                        """) 
+                            )).load()
+    
+    return tmp_citiesframe
+
+
+#loading states and provinces to dataframe
+def createstate(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+    """ create country dimension to join with state """
+    
+    tmp_stateframe = ((spark
                         .read
                         .format('jdbc')
                         .option('url', pgconn)
                         .option('driver', pgdriver)
                         .option('user', pguser)
                         .option('password', pgpwd)
-                        .option('query', 
+                        .option('query',
                                 """ 
-                                    select 
+                                    select
 
-                                        apc.cityid,
-                                        apc.cityname,
-                                        apc.stateprovinceid,
-                                        apc.latestrecordedpopulation,
-                                        apc._airbyte_ab_id,
-                                        apc._airbyte_cities_hashid,
-                                        cast(apc._airbyte_emitted_at as date) as _airbyte_emitted_at,
-                                        cast(apc._airbyte_normalized_at as date) as _airbyte_normalized_at
-
-                                    from application.cities as apc
-
-                                    left join
-
-                                        application.cities_archive as apca
-                                    on apc.cityid = apca.cityid
+                                        asp.countryid,
+                                        asp.stateprovinceid,
+                                        asp.stateprovincename,
+                                        asp.salesterritory,
+                                        asp.stateprovincecode,
+                                        asp.latestrecordedpopulation,
+                                        asp._airbyte_ab_id,
+                                        asp._airbyte_stateprovinces_hashid,
+                                        cast(asp._airbyte_emitted_at as date) as _airbyte_emitted_at,
+                                        cast(asp._airbyte_normalized_at as date) as _airbyte_normalized_at
+                                    from application.stateprovinces as asp
                                     
-                                    """) 
-                          )).load()
-
-tmp_citiesframe.show(5, False)
-
-#load states and provinces to dataframe
-tmp_stateframe = ((spark
-                    .read
-                    .format('jdbc')
-                    .option('url', pgconn)
-                    .option('driver', pgdriver)
-                    .option('user', pguser)
-                    .option('password', pgpwd)
-                    .option('query',
-                            """ 
-                                select
-
-                                    asp.countryid,
-                                    asp.stateprovinceid,
-                                    asp.stateprovincename,
-                                    asp.salesterritory,
-                                    asp.stateprovincecode,
-                                    asp.latestrecordedpopulation,
-                                    asp._airbyte_ab_id,
-                                    asp._airbyte_stateprovinces_hashid,
-                                    cast(asp._airbyte_emitted_at as date) as _airbyte_emitted_at,
-                                    cast(asp._airbyte_normalized_at as date) as _airbyte_normalized_at
-                                from application.stateprovinces as asp
+                                    left join
+                                        application.stateprovinces_archive as aspa
+                                    on asp.stateprovinceid = aspa.stateprovinceid
                                 
-                                left join
-                                    application.stateprovinces_archive as aspa
-                                on asp.stateprovinceid = aspa.stateprovinceid
-                            
-                            """) 
-                   )).load()
+                                """) 
+                    )).load()
+    
+    return tmp_stateframe
 
-tmp_stateframe.show()
 
 #joining dataframes based on stateprovinceid column
-state_cities = (( 
-                 tmp_stateframe
-                    .join(tmp_citiesframe,
-                          on= 'stateprovinceid',
-                          how= 'left')
-                    
-                    #select and rename columns
-                    .select(tmp_stateframe.countryid,
-                            tmp_stateframe.stateprovinceid,
-                            tmp_stateframe.stateprovincename,
-                            tmp_stateframe.salesterritory,
-                            tmp_stateframe.stateprovincecode,
-                            tmp_citiesframe.cityid,
-                            tmp_citiesframe.cityname,
-                            tmp_stateframe.latestrecordedpopulation.alias('statepopulation'),
-                            
-                            #removing null values
-                            f.coalesce(tmp_citiesframe.latestrecordedpopulation, f.lit(0)).alias('citypopulation'),
-                            tmp_stateframe._airbyte_ab_id,
-                            
-                            #rename to avoid duplicated results
-                            tmp_citiesframe._airbyte_ab_id.alias('city_elt_hashid'),
-                            tmp_stateframe._airbyte_stateprovinces_hashid,
-                            tmp_citiesframe._airbyte_cities_hashid,
-                            tmp_stateframe._airbyte_emitted_at,
-                            tmp_stateframe._airbyte_normalized_at)
-
-                 ))
-#rename column
-statecities_final = (( 
-                      state_cities
-                        .withColumnRenamed('stateprovinceid', 'stateid')
-                        .withColumnRenamed('stateprovincename', 'statename')
-                        .withColumnRenamed('_airbyte_ab_id', 'state_elt_hashid')
-                        .withColumnRenamed('tmp_citiesframe._airbyte_ab_id', 'city_elt_hashid')
-                        .withColumnRenamed('_airbyte_stateprovinces_hashid', 'stateprovince_hashid')
-                        .withColumnRenamed('_airbyte_cities_hashid', 'cities_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
-                      ))
-
-
-#load transformed data to table
-
-((
-    statecities_final
-        .write
-            .format('jdbc')
-            .option('url', f'{pgconn}')
-            .option('driver', f'{pgdriver}')
-            .option('user', f'{pguser}')
-            .option('password', f'{pgpwd}')
-            .option('dbtable', 'application.testeinsert')
-        .save(mode= 'Overwrite')
+def join_select_countrystate(country = createstate(), state= createcity()):
     
-))
+    state_cities = (( 
+                    country
+                        .join(state,
+                            on= 'stateprovinceid',
+                            how= 'left')
+                        
+                        #select and rename columns
+                        .select(country.countryid,
+                                country.stateprovinceid,
+                                country.stateprovincename,
+                                country.salesterritory,
+                                country.stateprovincecode,
+                                state.cityid,
+                                state.cityname,
+                                country.latestrecordedpopulation.alias('statepopulation'),
+                                
+                                #removing null values
+                                f.coalesce(state.latestrecordedpopulation, f.lit(0)).alias('citypopulation'),
+                                country._airbyte_ab_id,
+                                
+                                #rename to avoid duplicated results
+                                state._airbyte_ab_id.alias('city_elt_hashid'),
+                                country._airbyte_stateprovinces_hashid,
+                                state._airbyte_cities_hashid,
+                                country._airbyte_emitted_at,
+                                country._airbyte_normalized_at)
+
+                    ))
+    #rename column
+    dimregion = (( 
+                    state_cities
+                    .withColumnRenamed('stateprovinceid', 'stateid')
+                    .withColumnRenamed('stateprovincename', 'statename')
+                    .withColumnRenamed('_airbyte_ab_id', 'state_elt_hashid')
+                    .withColumnRenamed('tmp_citiesframe._airbyte_ab_id', 'city_elt_hashid')
+                    .withColumnRenamed('_airbyte_stateprovinces_hashid', 'stateprovince_hashid')
+                    .withColumnRenamed('_airbyte_cities_hashid', 'cities_hashid')
+                    .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
+                    .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+                ))
+
+    return dimregion
+
+#write transformed data to table
+def writedata(data= join_select_countrystate(), pgconn_dw= pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+    ((
+        data
+            .write
+                .format('jdbc')
+                .option('url', f'{pgconn_dw}')
+                .option('driver', f'{pgdriver}')
+                .option('user', f'{pguser}')
+                .option('password', f'{pgpwd}')
+                .option('dbtable', 'dimension.countrystate')
+            .save(mode= 'Overwrite')   
+    ))
+    
+if __name__ == '__main__':
+    createcity()
+    createstate()
+    join_select_countrystate()
+    writedata()
+    spark.stop()

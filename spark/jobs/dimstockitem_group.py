@@ -1,5 +1,6 @@
 #importing packages and env-var
 
+from distutils.command import clean
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
 
@@ -14,6 +15,7 @@ pguser = os.getenv('POSTGRE_USER')
 pgpwd = os.getenv('POSTGRE_PWD')
 pgjar = os.getenv('POSTGRE_JAR')
 pgdriver = os.getenv('PG_DRIVER')
+pgconn_dw = os.getenv('POSTGRE_CONN_DW')
 
 
 #creating spark session
@@ -32,7 +34,8 @@ spark.sparkContext.setLogLevel("WARN")
 #start cleaning data
 
 #first of all, lets create a dataframe from data table
-stockitems_frame = (( spark.read
+def createproduct(spark = spark, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+        stockitems_frame = (( spark.read
                         .format('jdbc')
                         .option('url', pgconn)
                         .option('user', pguser)
@@ -85,6 +88,7 @@ stockitems_frame = (( spark.read
                                 
                                 """      
                         ))).load()
+        return stockitems_frame
 
 #once data is loaded into a dataframe
 #cleaning customfield column wiht reg_exp
@@ -92,64 +96,80 @@ stockitems_frame = (( spark.read
 #renaming resulting columns
 #drop columns that not satisfy our dataset
 
-tempframe = (stockitems_frame
-                        .select('*',\
-                                f.regexp_replace('customfields', "[^0-9a-zA-Z , :]", "")
-                                        .alias('temp_customfield'),
-                                f.regexp_replace('tags', '[^0-9a-zA-Z]', '')
-                                        .alias('tags'))
-                        .withColumnRenamed('Size', 'size')
-                        .drop('customfields')
-                        .drop('tags')
-)
-                
+def cleaningproduct(stockitems_frame = createproduct()):
+        productframe = (stockitems_frame
+                                .select('*',\
+                                        f.regexp_replace('customfields', "[^0-9a-zA-Z , :]", "")
+                                                .alias('temp_customfield'),
+                                        f.regexp_replace('tags', '[^0-9a-zA-Z]', '')
+                                                .alias('tags'))
+                                .withColumnRenamed('Size', 'size')
+                                .drop('customfields')
+                                .drop('tags')
+        )
+        
+        return productframe
+                        
 
 
 #now, select substring from temp_customfield
 #leaving information about country manufacture
 #droping unused columns
-
-(
-    tempframe
-        .select('*',
-                f.substring_index('temp_customfield', ',', 1)
-                    .alias('temp_country'),
-                f.substring_index('temp_country', ':', -1)
-                    .alias('countrymanufacture'))
-        .drop('temp_country')
-)
+def extractname(temp_product = cleaningproduct()):
+        (
+        temp_product
+                .select('*',
+                        f.substring_index('temp_customfield', ',', 1)
+                        .alias('temp_country'),
+                        f.substring_index('temp_country', ':', -1)
+                        .alias('countrymanufacture'))
+                .drop('temp_country')
+        )
+        
+        return temp_product
        
        
 #fill null values
 #renaming airbyte columns
-dimstockitem_frame = (
-    
-            tempframe.fillna({'size': 'unknown',
-                  'colorid': 999,
-                  'brand': 'unknown',
-                  'marketingcomments': 'unknown'
-                  })
-            
-            .withColumnRenamed('_airbyte_ab_id', 'extract_id')
-            .withColumnRenamed('_airbyte_stockitems_hashid', 'stockitems_hashid')
-            .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-            .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
-            .drop('temp_customfield')
-)
+def fillproductnull(dataframe = extractname()):
+        
+        dimproduct = (
+        
+                dataframe.fillna({'size': 'unknown',
+                        'colorid': 999,
+                        'brand': 'unknown',
+                        'marketingcomments': 'unknown'
+                        })
+                
+                .withColumnRenamed('_airbyte_ab_id', 'extract_id')
+                .withColumnRenamed('_airbyte_stockitems_hashid', 'stockitems_hashid')
+                .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
+                .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+                .drop('temp_customfield')
+        )
+        
+        return dimproduct
 
 #load transformed data into database table
 #finishing elt process
 
-(
-    dimstockitem_frame.write
-            .format('jdbc')
-            .option('url', pgconn)
-            .option('user', pguser)
-            .option('password', pgpwd)
-            .option('driver', pgdriver)
-            .option('mode', 'overwrite')
-            .option('dbtable', 'warehouse.testeinsert')
-        .save(mode = 'append')
-)
-
-spark.stop()
+def writeproduct(data = fillproductnull(), pgconn_dw = pgconn_dw, pguser = pguser, pgpwd = pgpwd, pgdriver = pgdriver):
+        (
+        data.write
+                .format('jdbc')
+                .option('url', pgconn_dw)
+                .option('user', pguser)
+                .option('password', pgpwd)
+                .option('driver', pgdriver)
+                .option('mode', 'overwrite')
+                .option('dbtable', 'dimension.product')
+                .save(mode = 'overwrite')
+        )
+        
+if __name__ == '__main__':
+        createproduct()
+        cleaningproduct()
+        extractname()
+        fillproductnull()
+        writeproduct()
+        spark.stop()

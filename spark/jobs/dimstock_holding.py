@@ -13,6 +13,7 @@ pguser = os.getenv('POSTGRE_USER')
 pgpwd = os.getenv('POSTGRE_PWD')
 pgdriver = os.getenv('PG_DRIVER')
 pgconn = os.getenv('POSTGRE_CONN')
+pgconn_dw = os.getenv('POSTGRE_CONN_DW')
 
 #create spark session
 
@@ -27,64 +28,78 @@ spark = ((
 ))
 
 #loading data from table
-tmpstockholding_frame = (( spark
-                                .read
-                                .format('jdbc')
-                                .option('url', pgconn)
-                                .option('driver', pgdriver)
-                                .option('user', pguser)
-                                .option('password', pgpwd)
-                                .option('query',
-                                        
-                                        """ 
-                                            select
-
-                                                stockitemid,
-                                                binlocation,
-                                                reorderlevel,
-                                                lasteditedby,
-                                                lastcostprice,
-                                                quantityonhand,
-                                                laststocktakequantity,
-                                                targetstocklevel,
-                                                _airbyte_ab_id,
-                                                _airbyte_stockitemholdings_hashid,
-                                                _airbyte_emitted_at,
-                                                _airbyte_normalized_at
+def createstockholding(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+    """ creating stock holding dimension """
+    
+    tmpstockholding_frame = (( spark
+                                    .read
+                                    .format('jdbc')
+                                    .option('url', pgconn)
+                                    .option('driver', pgdriver)
+                                    .option('user', pguser)
+                                    .option('password', pgpwd)
+                                    .option('query',
                                             
-                                            from warehouse.stockitemholdings
-                                        
-                                        """
-                                    )                         
-)).load()
+                                            """ 
+                                                select
+
+                                                    stockitemid,
+                                                    binlocation,
+                                                    reorderlevel,
+                                                    lasteditedby,
+                                                    lastcostprice,
+                                                    quantityonhand,
+                                                    laststocktakequantity,
+                                                    targetstocklevel,
+                                                    _airbyte_ab_id,
+                                                    _airbyte_stockitemholdings_hashid,
+                                                    _airbyte_emitted_at,
+                                                    _airbyte_normalized_at
+                                                
+                                                from warehouse.stockitemholdings
+                                            
+                                            """
+                                        )                         
+                            )).load()
+    
+    return tmpstockholding_frame
 
 #rename columns
 #making some adjustments
-
-itemholding  = (( 
-                tmpstockholding_frame
-                    .withColumnRenamed('stockitemid', 'stockholdingid')
-                    .withColumnRenamed('binlocation', 'shelflocation')
-                    .withColumnRenamed('quantityonhand', 'availabeqtd')
-                    .withColumnRenamed('laststocktakequantity', 'laststockqtd')
-                    .withColumnRenamed('_airbyte_ab_id', 'extract_id')
-                    .withColumnRenamed('_airbyte_stockitemsholding_hashid', 'itemholdings_hashid')
-                    .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                    .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
-))
+def renamedimension(data = createstockholding()):
+    
+    itemholding  = (( 
+                    data
+                        .withColumnRenamed('stockitemid', 'stockholdingid')
+                        .withColumnRenamed('binlocation', 'shelflocation')
+                        .withColumnRenamed('quantityonhand', 'availabeqtd')
+                        .withColumnRenamed('laststocktakequantity', 'laststockqtd')
+                        .withColumnRenamed('_airbyte_ab_id', 'extract_id')
+                        .withColumnRenamed('_airbyte_stockitemsholding_hashid', 'itemholdings_hashid')
+                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
+                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+    ))
+    
+    return itemholding
 
 #write data into a new table on datawarehouse
-((
-    itemholding
-        .write
-        .format('jdbc')
-        .option('url', pgconn)
-        .option('driver', pgdriver)
-        .option('user', pguser)
-        .option('password', pgpwd)
-        .option('dbtable', 'warehouse.testeinsert')
-    .save(mode='overwrite')
-))
+def writingdata(df = renamedimension(), pgconn_dw = pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+    ((
+        df
+            .write
+            .format('jdbc')
+            .option('url', pgconn_dw)
+            .option('driver', pgdriver)
+            .option('user', pguser)
+            .option('password', pgpwd)
+            .option('dbtable', 'dimension.stockproduct')
+        .save(mode='overwrite')
+    ))
 
 #closing spark application
-spark.stop()
+if __name__ == '__main__':
+    
+    createstockholding()
+    renamedimension()
+    writingdata()
+    spark.stop()
