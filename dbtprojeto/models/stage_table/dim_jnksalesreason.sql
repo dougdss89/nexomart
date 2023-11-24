@@ -5,8 +5,16 @@
 ) }}
 
 select 
-	coalesce(SalesReasonID, 0) as salesreasonid,
+	coalesce(jsr.SalesReasonID, 0) as salesreasonid,
     [Name] as salesreason,
+    soh.salesorderid,
     ReasonType
 
-from {{ source ('salestables_src_schema', 'salesreason') }}
+from {{ source ('salestables_src_schema', 'salesreason') }} as jsr
+
+    left join
+
+    {{ source ('salestables_src_schema', 'SalesOrderHeaderSalesReason')}} as soh
+
+    on jsr.salesreasonid = soh.salesreasonid
+

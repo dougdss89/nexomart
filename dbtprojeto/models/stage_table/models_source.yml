@@ -71,6 +71,7 @@ sources:
       - name: specialofferproduct
       - name: creditcard
       - name: salespersoncreditcard
+      - name: SalesOrderHeaderSalesReason
 
   - name: production_src_schema
     description: "fonte de tabelas schema production"
