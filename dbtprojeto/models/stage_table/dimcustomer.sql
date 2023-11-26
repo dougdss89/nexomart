@@ -8,6 +8,7 @@
 
 select
 	pp.businessentityid,
+	sc.customerid,
 	pp.firstname,
 	pp.lastname,
 	pp.persontype,
@@ -38,7 +39,10 @@ select
 	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:Occupation)[1]','varchar(50)') AS Occupation,
 	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:HomeOwnerFlag)[1]','varchar(5)') AS HomeOwnerFlag,
 	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:NumberCarsOwned)[1]','smallint') AS NumberCarsOwned
-from {{ source ('person_src_schema', 'person') }} as pp
+from {{ source ('salestables_src_schema', 'customer') }} as sc
+left join 
+	{{ source ('person_src_schema', 'person') }} as pp
+on sc.personid = pp.businessentityid
 left join
 	{{ source ('person_src_schema', 'personphone') }} as pph
 on pp.businessentityid = pph.businessentityid
@@ -64,4 +68,4 @@ left join
 	{{ source ('person_src_schema', 'countryregion') }} as pcr
 on psp.countryregioncode = pcr.countryregioncode
 where pp.businessentityid not in (select businessentityid
-									from {{ source ('humanres_src_schema', 'employee') }});
+									from {{ source ('humanres_src_schema', 'employee') }})

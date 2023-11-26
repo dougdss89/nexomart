@@ -6,7 +6,7 @@ with elt_unitmeasure as (
         cast(unitmeasurecode  as varchar(5)) as unitcode,
         cast(unitmeasurename as varchar(25)) as measurename
 
-    from {{ref ('dim_jnkunitmeasure') }}
+    from {{ref ('dim_DDunitmeasure') }}
 )
 
 select * from elt_unitmeasure;

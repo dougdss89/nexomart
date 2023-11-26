@@ -5,8 +5,7 @@ with store_elt as (
         storekey,
 		storeid,
 		personid as managerid,
-		businessentityid,
-		buyerid,
+		customerid,
 		storename,
 		firstname +' ' + LastName as managername ,
 		salespersonid as salesrepresentant,
@@ -66,8 +65,7 @@ normaliza_store_datatype as (
         cast(storekey as int) as storekey,
         cast(storeid as int) as storeid,
         cast(managerid as int) as managerid,
-        cast(businessentityid as int) as businessid,
-        cast(buyerid as int) as buyerid,
+        cast(customerid as int) as customerid,
         cast(storename as varchar(50)) as storename,
         cast(managername as varchar(50)) as managername,
         cast(salesrepresentant as int) as salesrepresentant,
@@ -87,4 +85,3 @@ normaliza_store_datatype as (
     from store_elt
 )
 select * from normaliza_store_datatype
-where managerid is null and businessid is null

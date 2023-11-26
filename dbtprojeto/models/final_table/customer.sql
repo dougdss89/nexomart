@@ -2,6 +2,7 @@ with pre_customer as (
 	
 select
     businessentityid,
+	customerid,
     firstname,
     lastname,
     persontype,
@@ -45,7 +46,8 @@ elt_clientes as (
 
 select
 		customerkey,
-		businessentityid as customerid,
+		businessentityid as personid,
+		customerid,
 		firstname, 
 		lastname,
 		persontype,
@@ -132,27 +134,27 @@ cross apply (select
 une_col_um as (
 
 select 
-    customerid, 
+    personid, 
     tempaddress as line_um from elt_clientes
 where rn = 1),
 
 une_col_dois as (
 
-select customerid, tempaddress as line_dois
+select personid, tempaddress as line_dois
 from elt_clientes
 where rn = 2),
 
 une_col_tres as (
 
 select 
-    customerid, 
+    personid, 
     tempaddress as line_tres 
 from elt_clientes
 where rn = 3),
 
 une_col_quatro as(
 select 
-    customerid, 
+    personid, 
     tempaddress as line_quatro from elt_clientes
 where rn =  4),
 
@@ -161,25 +163,27 @@ une_endereco as (
 -- aqui acaba a separação, concatenando as colunas desejadas
 -- agora, há uma única coluna com endereço, com os valores no padrão: endereço + numero.
 select 
-	col1.customerid, 
+	col1.personid, 
 	(line_um +' '+ line_dois +' '+ line_tres +' '+ line_quatro) as endr
 from une_col_um as col1
 left join
 	une_col_dois as col2
-on col1.customerid = col2.customerid
+on col1.personid = col2.personid
 left join
 	une_col_tres as col3
-on col1.customerid = col3.customerid
+on col1.personid = col3.personid
 left join
 	une_col_quatro as col4
-on col1.customerid = col4.customerid),
+on col1.personid = col4.personid),
 
 -- finalizando o elt, atribuindo os devidos datatypes
 -- unindo a coluna de endereço e selecionando o resultado final.
+
 finaliza_etl as (
 
 select distinct
 	customerkey,
+	cast(eltc.personid as int) as personid,
 	cast(eltc.customerid as int) as customerid,
 	cast(firstname as varchar(40)) as firstname,
 	cast(lastname as varchar(40)) as lastname,
@@ -217,6 +221,6 @@ select distinct
 from elt_clientes as eltc
 	inner join
 	une_endereco as uned
-on eltc.customerid = uned.customerid)
+on eltc.personid = uned.personid)
 
 select * from finaliza_etl;

@@ -10,8 +10,7 @@ select
 
 	st.businessentityid as storeid,
 	sc.PersonID,
-	pp.businessentityid,
-	sc.CustomerID as buyerid,
+	sc.CustomerID,
 	sc.AccountNumber,
 	st.[Name] as storename,
 	pp.FirstName,
@@ -33,13 +32,14 @@ select
 	sst.CountryRegionCode
 
 from {{ source ('salestables_src_schema', 'store') }} as st
-left join
+inner join
     {{ source ('salestables_src_schema', 'customer') }} as sc
 on st.BusinessEntityID = sc.StoreID
 left join
     {{ source ('person_src_schema', 'person') }} as pp
 on pp.BusinessEntityID = sc.PersonID
-left join
+inner join
     {{ source ('salestables_src_schema', 'salesterritory') }} as sst
 on
-sc.TerritoryID = sst.TerritoryID;
+sc.TerritoryID = sst.TerritoryID
+--where sc.personid is not null

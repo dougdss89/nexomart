@@ -1,6 +1,6 @@
 {{ config (
 
-    post_hook = {"sql": "alter table [db_stage].[dim_jnksalesreason] 
+    post_hook = {"sql": "alter table [db_stage].[dim_ddsalesreason] 
 				         add salesreasonkey int not null identity (1, 1)"}
 ) }}
 

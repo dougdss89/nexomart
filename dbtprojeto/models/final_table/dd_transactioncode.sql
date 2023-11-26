@@ -10,7 +10,7 @@ with elt_transactioncode as (
         cast(coalesce(creditcardapprovalcode, 'Other') as varchar(20)) as creditaprovacode,
         cast(onlineorderflag as char(2)) as isonlineorder
 
-    from {{ref ('dim_jnktransactioncode') }}
+    from {{ref ('dim_DDtransactioncode') }}
 
 )
 
