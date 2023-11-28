@@ -70,12 +70,12 @@ def renamedimension(data = createstockholding()):
     
     itemholding  = (( 
                     data
-                        .withColumnRenamed('stockitemid', 'stockholdingid')
+                        .withColumnRenamed('stockitemid', 'productid')
                         .withColumnRenamed('binlocation', 'shelflocation')
                         .withColumnRenamed('quantityonhand', 'availabeqtd')
                         .withColumnRenamed('laststocktakequantity', 'laststockqtd')
                         .withColumnRenamed('_airbyte_ab_id', 'extract_id')
-                        .withColumnRenamed('_airbyte_stockitemsholding_hashid', 'itemholdings_hashid')
+                        .withColumnRenamed('_airbyte_stockitemsholding_hashid', 'stockedprod_hashid')
                         .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
                         .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
     ))
@@ -92,7 +92,7 @@ def writingdata(df = renamedimension(), pgconn_dw = pgconn_dw, pgdriver = pgdriv
             .option('driver', pgdriver)
             .option('user', pguser)
             .option('password', pgpwd)
-            .option('dbtable', 'dimension.stockproduct')
+            .option('dbtable', 'dimension.stockedproduct')
         .save(mode='overwrite')
     ))
 

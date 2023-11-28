@@ -1,7 +1,6 @@
 #packages and modules
 #load env-var
 
-from distutils.command import build_py
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
 

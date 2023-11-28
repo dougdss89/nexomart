@@ -151,8 +151,12 @@ def cleaning_join(order = orders, orderlines = orderlines):
                         )
                 
                 #cleaning and adjust datatype
+                .withColumnRenamed('orderid', 'salesorderid')
+                .withColumnRenamed('orderlineid', 'salesorderlineid')
+                
+                .withColumnRenamed('stockitemid', 'productid')
                 .withColumn('pickingcompletedwhen', f.expr('cast(pickingcompletedwhen as timestamp)'))
-                                                    .withColumnRenamed('pickingcompletedwhen', 'orderstart')
+                                                    .withColumnRenamed('pickingcompletedwhen', 'receivedorder')
                                                     
                 .withColumn('processedtime', f.expr('cast(processedtime as timestamp)'))
                                             .withColumnRenamed('processedtime', 'orderfinalized')
@@ -162,7 +166,7 @@ def cleaning_join(order = orders, orderlines = orderlines):
                 .withColumn('orderdate', f.expr('cast(orderdate as date)'))
                 
                 .withColumn('expecteddeliverydate', f.expr('cast(expecteddeliverydate as date)'))
-                                            .withColumnRenamed('expecteddeliverydate', 'deliverydate')
+                                            .withColumnRenamed('expecteddeliverydate', 'duedate')
                 
                 .withColumn('backorderorderid', f.expr('coalesce(backorderorderid, 0)'))
                 
@@ -200,7 +204,7 @@ def writesales_order(dw_conn = pg_conn_dw, driver = pgdriver, user= pguser, pwd 
                 .option('driver', driver)
                 .option('user', user)
                 .option('password', pwd)
-                .option('dbtable', 'fact.salesorder')
+                .option('dbtable', 'fact.sales')
             .save(mode= 'overwrite')
     ))
     

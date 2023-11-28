@@ -87,7 +87,7 @@ def createpurchase_order(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pg
                                         contactpersonid,
                                         deliverymethodid,
                                         orderdate,
-                                        expecteddeliverydate,
+                                        expecteddeliverydate as duedate,
                                         supplierreference,
                                         isorderfinalized,
                                         _airbyte_ab_id,

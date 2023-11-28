@@ -1,10 +1,8 @@
 #importing packages and env-var
 
-from distutils.command import clean
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
 
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DataType
 import os
 from dotenv import load_dotenv
 
@@ -46,8 +44,8 @@ def createproduct(spark = spark, pgdriver = pgdriver, pguser = pguser, pgpwd = p
                                 """  
                                 select 
 
-                                        wsi.StockItemID,
-                                        wsi.StockItemName,
+                                        wsi.StockItemID as productid,
+                                        wsi.StockItemName as productname,
                                         wsi.SupplierID,
                                         sisg.stockgroupid,
                                         wsi.ColorID,
@@ -141,8 +139,8 @@ def fillproductnull(dataframe = extractname()):
                         'marketingcomments': 'unknown'
                         })
                 
-                .withColumnRenamed('_airbyte_ab_id', 'extract_id')
-                .withColumnRenamed('_airbyte_stockitems_hashid', 'stockitems_hashid')
+                .withColumnRenamed('_airbyte_ab_id', 'extract_hashid')
+                .withColumnRenamed('_airbyte_stockitems_hashid', 'product_hashid')
                 .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
                 .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
                 .drop('temp_customfield')

@@ -112,8 +112,8 @@ def join_select_countrystate(country = createstate(), state= createcity()):
                             how= 'left')
                         
                         #select and rename columns
-                        .select(country.countryid,
-                                country.stateprovinceid,
+                        .select(country.stateprovinceid,
+                                country.countryid,
                                 country.stateprovincename,
                                 country.salesterritory,
                                 country.stateprovincecode,
@@ -158,7 +158,7 @@ def writedata(data= join_select_countrystate(), pgconn_dw= pgconn_dw, pgdriver =
                 .option('driver', f'{pgdriver}')
                 .option('user', f'{pguser}')
                 .option('password', f'{pgpwd}')
-                .option('dbtable', 'dimension.countrystate')
+                .option('dbtable', 'dimension.state')
             .save(mode= 'Overwrite')   
     ))
     
