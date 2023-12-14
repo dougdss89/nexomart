@@ -125,7 +125,7 @@ def reorganizedropcolumns(data = renameremovenull()):
 #reorganizing columns hierarchy
     stocktransation = ((dropcolumns
                             .select('stocktransactionid',
-                                    'stockitemid',
+                                    'stockitemid as productid',
                                     'transactiontypeid',
                                     'customerid',
                                     'invoiceid',
