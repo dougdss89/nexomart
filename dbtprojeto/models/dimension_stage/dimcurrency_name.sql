@@ -1,7 +1,7 @@
 {{ 
     config(
 
-        post_hook = {"sql": "alter table [db_stage].[dimcurrency_name] 
+        post_hook = {"sql": "alter table [stage_dim].[dimcurrency_name] 
 				  		     add currencyname_key int not null identity (1, 1)"}
     )
 }}

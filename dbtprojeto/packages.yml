@@ -1,8 +1,8 @@
 #adding packages to my dbt project
 #packges like data quality and others
 
-packages:
+# packages:
 
-  - package: calogica/dbt_expectations
-    version: 0.10.1
-    install-prerelease: false
+#   - package: calogica/dbt_expectations
+#     version: 0.10.1
+#     install-prerelease: false

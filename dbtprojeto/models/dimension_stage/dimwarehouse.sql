@@ -1,7 +1,7 @@
 {{ 
     config(
 
-        post_hook = {"sql": "alter table [db_stage].[dimwarehouse] 
+        post_hook = {"sql": "alter table [stage_dim].[dimwarehouse] 
 				  		     add warehousekey int not null identity (1, 1)"}
     )
 }}

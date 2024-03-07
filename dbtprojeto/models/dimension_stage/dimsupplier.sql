@@ -1,7 +1,7 @@
 {{ 
     config(
 
-        post_hook = {"sql": "alter table [db_stage].[dimsupplier] 
+        post_hook = {"sql": "alter table [stage_dim].[dimsupplier] 
 				  		     add supplierkey int not null identity (1, 1)"}
     )
 }}

@@ -36,17 +36,29 @@ models:
   dbt_projeto:
     
     # config se aplica na pasta stage_table
-    stage_table:
-      
+    dimension_stage:
+
+      + enabled: True
       + materialized: table
       + database: dwadvworks_hml
       + incremental_strategy: incremental
       + on_schema_change: "sync_all_columns"
       + tags: stage_data
-      + schema: stage
+      + schema: dim
+      # + post-hook: 
+      #   - "{{ add_identity_columns() }}"
+          
+    fact_stage:
+
+      + enabled: True
+      + materialized: table
+      + database: dwadvworks_hml
+      + incremental_strategy: incremental
+      + on_schema_change: "sync_all_columns"
+      + tags: stage_data
+      + schema: fact
       
     final_table:
-
       + materialized: table
       + database: dwadvworks_prd
       + incremental_strategy: incremental

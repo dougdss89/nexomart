@@ -1,7 +1,7 @@
 {{
 	config (
 
-		post_hook= {"sql": "alter table [db_stage].[dim_ddunitmeasure] 
+		post_hook= {"sql": "alter table [stage_dim].[dim_ddunitmeasure] 
 				  		 add unitmeasurekey int not null identity (1, 1)"}
 	)
 

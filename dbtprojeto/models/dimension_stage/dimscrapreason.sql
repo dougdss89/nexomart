@@ -1,7 +1,7 @@
 {{ 
     config(
 
-        post_hook = {"sql": "alter table [db_stage].[dimscrapreason] 
+        post_hook = {"sql": "alter table [stage_dim].[dimscrapreason] 
 				  		     add scrapeasonkey int not null identity (1, 1)"}
     )
 }}
