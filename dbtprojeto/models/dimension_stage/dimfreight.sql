@@ -1,10 +1,4 @@
-{{ 
-    config(
 
-        post_hook = {"sql": "alter table [stage_dim].[dimfreight] 
-				  		     add freightkey int not null identity (1, 1)"}
-    )
-}}
 
 select 
 

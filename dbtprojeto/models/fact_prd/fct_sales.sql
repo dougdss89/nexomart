@@ -1,8 +1,81 @@
-with fact_elt as (
+with load_fact_sales(
+
+	with fct as (
+
+select 
+	soh.salesorderid,
+	salesorderdetailid,
+	sls.orderdate,
+	datekey,
+	shipdate,
+	duedate,
+	sls.salespersonid,
+	salespersonkey,
+	sls.productid,
+	productkey,
+	sls.customerid,
+	customerkey,
+	sls.ShipMethodID,
+	freightkey,
+	sls.specialofferid,
+	promotionkey,
+	sls.currencyrateid,
+	currencykey,
+	orderqty,
+	unitprice,
+	unitpricediscount,
+	taxamt,
+	freight,
+	linetotal,
+	onlineorderflag
+
+from {{ref ('fact_sales') }} as sls
+
+left join
+	
+	inner join
+	{{ref ( 'dimproduct' )}} as prd
+
+on sls.productid = prd.productid
+
+	inner join
+
+	{{ ref ('dimfreight') }} as dfr
+on sls.shipmethodid = dfr.shipmethodid
+
+	left join
+
+	{{ ref('dimsalesperson') }} as dsps
+on sls.salespersonid = dsps.businessentityid
+
+	inner join
+
+	{{ ref('dimcustomer') }} as dcs
+on sls.customerid = dcs.customerid
+
+	inner join
+
+	{{ ref ('dimpromotion') }} as dpm
+on sls.specialofferid = dpm.specialofferid 
+
+	left join
+
+	{{ ref('dimcurrency') }} as dcr
+on sls.currencyrateid = dcr.currencyrateid
+
+	inner join
+
+	{{ ref('dimdate') }} as ddate
+on sls.orderdate = ddate.orderdate)
+
+
+),
+
+fact_elt as (
 
 select
 
-    fct_saleskey,
+    fact_saleskey,
 	cast(SalesOrderID as int) as salesorderid,
 	cast(SalesOrderDetailID as int) as detailorderid,
 	accountnumber,
@@ -28,7 +101,7 @@ select
 	cast(LineTotal as numeric(12,2)) as linetotal,
 	cast(OnlineOrderFlag as tinyint) as isolineorder
     
-from {{ ref ('fact_sales') }}
+from load_fact_sales
 )
 
 select * from fact_elt;

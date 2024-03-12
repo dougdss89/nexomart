@@ -1,11 +1,6 @@
-{{ 
-    config(
 
-        post_hook = {"sql": "alter table [stage].[fact_purchase] 
-				  		     add fctpurchasekey int not null identity (1000, 1)"}
-    )
-}}
-
+-- a coluna employeeid se liga com a coluna businessentityid da tabela buyer
+-- a coluna vendorid se liga com supplier
 select 
 
 	pod.PurchaseOrderID,
@@ -29,10 +24,11 @@ select
 	poh.subtotal,
 	poh.totaldue
     
-from {{ source ('purchasing_src_schema', 'PurchaseOrderDetail' ) }} as pod
+from {{ source ('purch_src_schema', 'PurchaseOrderDetail' ) }} as pod
 
-left join
+inner join
 
-	{{ source ('purchasing_src_schema', 'PurchaseOrderHeader' ) }} as poh
+	{{ source ('purch_src_schema', 'PurchaseOrderHeader' ) }} as poh
+
 on pod.PurchaseOrderDetailID = poh.PurchaseOrderID;
 

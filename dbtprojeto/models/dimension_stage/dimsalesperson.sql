@@ -1,11 +1,3 @@
-{{ 
-    config(
-
-        post_hook = {"sql": "alter table [stage_dim].[dimsalesperson] 
-				  		     add salespersonkey int not null identity (1, 1)"}
-    )
-}}
-
 
 select
 

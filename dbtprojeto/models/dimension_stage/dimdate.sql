@@ -5,17 +5,54 @@ select
 
 	distinct(cast(orderdate as date)) as orderdate
 
-from {{ source ('salestables_src_schema', 'salesorderheader') }}
+from {{ source ('salestables_src_schema','salesorderheader') }}
 
 ),
 
 cria_dimdate as (
-
+ 
 select
 
 	cast(orderdate as date) as datekey,
 	cast(orderdate as date) as orderdatekey,
 	cast(orderdate as date) as orderdate,
+
+	cast(dateadd(day,
+			datediff(day, '19000101', orderdate) / 7 * 7, '19000101') as date) as weekday_start,
+
+	cast(dateadd(day,
+			datediff(day, '19000101', orderdate) / 7 * 7 + 7, '19000101') as date) as newxtweek_startat,
+	case
+		when datename(weekday, orderdate) = 'monday' then cast(dateadd(day,
+			datediff(day, '19000101', orderdate) / 7 * 7 + 7, '19000101') as date)
+
+		when datename(weekday, orderdate) = 'tuesday' then cast(dateadd(day,
+			datediff(day, '19000101', orderdate) / 7 * 7 + 7, '19000102') as date)
+
+		when datename(weekday, orderdate) = 'wednesday' then cast(dateadd(day,
+			datediff(day, '19000101', orderdate) / 7 * 7 + 7, '19000103') as date)
+
+		when datename(weekday, orderdate) = 'thursday' then cast(dateadd(day,
+			datediff(day, '19000101', orderdate) / 7 * 7 + 7, '19000104') as date)
+
+		when datename(weekday, orderdate) = 'friday' then cast(dateadd(day,
+			datediff(day, '19000101', orderdate) / 7 * 7 + 7, '19000105') as date)
+
+		when datename(weekday, orderdate) = 'saturday' then cast(dateadd(day,
+			datediff(day, '19000101', orderdate) / 7 * 7 + 7, '19000106') as date)
+
+		when datename(weekday, orderdate) = 'sunday' then cast(dateadd(day,
+			datediff(day, '19000101', orderdate) / 7 * 7 + 7, '19000107') as date)
+	end as nextweek_fromdate,
+
+	cast(dateadd(day, datediff(day,'19000101',
+							dateadd(month, datediff(month, '19000101', orderdate), '19000101') - 1)/7 * 7 + 7, '19000101') as date) as firstmondayinmonth,
+
+-- como é a útlima segunda, precisa da última data do ano 
+	cast(dateadd(day, datediff(day, '19000101',
+							dateadd(month, datediff(month, '18991231', orderdate), '18991231')) /7 * 7, '19000101') as date) as lastmondayinmonth,
+
+
 	year(orderdate) as orderyear,
 	'FY' + cast(year(orderdate) as varchar(5)) as fiscalyear,
 	datename(mm,orderdate) as monthname,
@@ -74,9 +111,13 @@ from elt_dimdate),
 normaliza_data as(
 
 	select 
-		datekey,
-		orderdatekey,
+		cast(cast(replace(orderdate,'-','') as varchar(10))as int) as datekey,
 		orderdate,
+		weekday_start,
+		newxtweek_startat,
+		nextweek_fromdate,
+		firstmondayinmonth,
+		lastmondayinmonth,
 		orderyear,
 		monthname,
 		monthabrv,

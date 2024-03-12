@@ -1,10 +1,3 @@
-{{ 
-    config(
-
-        post_hook = {"sql": "alter table [stage_dim].[dimcustomer] 
-				  		     add customerkey int not null identity (1, 1)"}
-    )
-}}
 
 select
 	pp.businessentityid,

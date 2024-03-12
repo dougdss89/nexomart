@@ -1,10 +1,3 @@
-{{ 
-    config(
-
-        post_hook = {"sql": "alter table [stage].[fact_production] 
-				  		     add fctproductionkey int not null identity (1, 1)"}
-    )
-}}
 
 select
 
@@ -26,7 +19,7 @@ select
 	pw.enddate,
 	pw.duedate
 	
-from {{ source ('production_src_schema', 'workorder' ) }} as pw
+from {{ source ('prod_src_schema', 'workorder' ) }} as pw
 left join
-	{{ source ('production_src_schema', 'workorderrouting' ) }} as pwr
+	{{ source ('prod_src_schema', 'workorderrouting' ) }} as pwr
 on pw.workorderid = pwr.workorderid

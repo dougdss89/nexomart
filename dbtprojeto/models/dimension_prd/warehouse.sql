@@ -20,7 +20,7 @@ with elt_warehouse as (
         cast(coalesce(componentid, 999) as int) as componentid,
         cast(bomlevel as smallint) as bomlevel,
         cast(coalesce(perassemblyqty, 999) as int) as perassemblyqty,
-        cast(coalesce(unitmeasurecode, 'Not Av') as char(5)) as unitmeasurecode,
+        cast(coalesce(unitmeasurecode, 'Not Available') as varchar(15)) as unitmeasurecode,
         cast(coalesce(startdate, '9999-12-31') as date) as startdate,
         cast(coalesce(enddate, '9999-12-31') as date) as enddate
 

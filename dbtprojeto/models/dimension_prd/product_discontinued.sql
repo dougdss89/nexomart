@@ -222,7 +222,7 @@ select
 	cast(modelname as nvarchar(50)) as productmodel,
 	cast(productsize as varchar(15)) as productsize,
 	cast(sizeunit as nvarchar(20)) as sizeunit,
-	cast(measurecode as varchar(5)) as measurecode,
+	cast(measurecode as varchar(15)) as measurecode,
 	cast(productweight as numeric(9,2)) as productweight,
 	cast(weightcode as varchar(15)) as weightcode,
 	cast(productcost as numeric(12, 2)) as productcost,

@@ -20,6 +20,7 @@ group by businessentityid),
 join_maxrate as (
 
 	select distinct
+	
 		CAST(buyerkey as int) as buyerkey,
 		cast(mxrate.businessentityid as int) as buyerid,
 		cast(firstname as nvarchar(20)) as firstname,
@@ -41,7 +42,7 @@ join_maxrate as (
 		CAST(mxrate.rate as numeric(12,2)) as rate,
 		CAST(ratechangedate as date) as ratechangedate,
 		cast(mxrate.startdate as date) as startdate,
-		cast(enddate as date) as enddate,
+		cast(coalesce(enddate, '9999-12-31') as date) as enddate,
 		cast(salariedflag as bit) as issalaried,
 		cast(currentflag as bit) as iscurrent
 
