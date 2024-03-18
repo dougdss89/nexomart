@@ -1,0 +1,113 @@
+version: 2 
+
+sources:
+
+  - name: humanres_src_schema
+    description: 'fonte do schema humanresources'
+    database: adventureworks2019
+    schema: humanresources
+    loaded_at_field: dateload
+    config:
+      enabled: True
+
+    tables:
+      - name: employeepayhistory
+      - name: employee
+      - name: employeedepartmenthistory
+      - name: department
+
+  - name: person_src_schema
+    description: 'fonte de tabelas do schema person'
+    database: adventureworks2019
+    schema: person
+    loaded_at_field: dateload
+    config:
+      enabled: True
+
+    tables:
+      - name: businessentity
+      - name: person
+      - name: personphone
+      - name: phonenumbertype
+      - name: businessentityaddress
+      - name: address
+      - name: addresstype
+      - name: emailaddress
+      - name: stateprovince
+      - name: countryregion
+
+  - name: currencyname_src_schemasales
+    description: "fonte de tabelas schema sales - dimensao currency"
+    database: adventureworks2019
+    schema: sales
+    loaded_at_field: dateload
+    config:
+      enabled: True
+
+    tables:
+      - name: currency
+      - name: countryregioncurrency
+      - name: currencyrate
+
+  - name: salestables_src_schema
+    description: "fonte de tabelas schema sales"
+    database: adventureworks2019
+    schema: sales
+    loaded_at_field: dateload
+    config:
+      enabled: True
+
+    tables:
+      - name: salesorderheader
+      - name: salesorderdetail
+      - name: salesperson
+      - name: salesreason
+      - name: specialoffer
+      - name: store
+      - name: salespersonquotahistory
+      - name: customer
+      - name: salestaxrate
+      - name: salesterritory
+      - name: specialofferproduct
+      - name: creditcard
+      - name: salespersoncreditcard
+      - name: SalesOrderHeaderSalesReason
+
+  - name: production_src_schema
+    description: "fonte de tabelas schema production"
+    database: adventureworks2019
+    schema: production
+    loaded_at_field: dateload
+    config:
+      enabled: True
+
+    tables:
+      - name: workorder
+      - name: workorderrouting
+      - name: product
+      - name: productcategory
+      - name: billofmaterials
+      - name: location
+      - name: productmodel
+      - name: productsubcategory
+      - name: scrapreason
+      - name: transactionhistory
+      - name: unitmeasure
+      - name: productinventory
+
+  - name: purchasing_src_schema
+    description: "fonte de tabelas schema purchasing"
+    database: adventureworks2019
+    schema: purchasing
+    loaded_at_field: dateload
+    config:
+      enabled: True
+
+    tables:
+      - name: productvendor
+      - name: PurchaseOrderDetail
+      - name: PurchaseOrderHeader
+      - name: shipmethod
+      - name: Vendor
+      - name: vVendorWithAddresses
+      - name: vVendorWithContacts

@@ -1,4 +1,4 @@
-{% macro add_fctidentity_columns() %}
+{% macro oldadd_fctidentity_columns() %}
 
     {% set identity_commands %}
 

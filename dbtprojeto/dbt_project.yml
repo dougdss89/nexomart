@@ -47,7 +47,7 @@ models:
       + schema: stage
       # + post_hook: 
       #   - "{{ add_identity_columns() }}"
-          
+     
     fact_stage:
 
       + enabled: True
@@ -56,7 +56,7 @@ models:
       + incremental_strategy: incremental
       + on_schema_change: "sync_all_columns"
       + tags: stage_data
-      + schema: fact
+      + schema: fact 
       
     dimension_prd:
       + enabled: True
@@ -66,6 +66,30 @@ models:
       + on_schema_change: "sync_all_columns"
       + tags: transformed_data
       + schema: prd
+
+    views_date:
+
+      + enabled: True
+      + materialized: view
+      + database: dwadvworks_hml
+      + incremental_strategy: incremental
+      + on_schema_change: "sync_all_columns"
+      + tags: stage_data
+      + schema: stage
+      
+
+    views_date_prd:
+
+      + enabled: True
+      + materialized: view
+      + database: dwadvworks_prd
+      + incremental_strategy: incremental
+      + on_schema_change: "sync_all_columns"
+      + tags: stage_data
+      + schema: stage
+
+# on-run-end: "{{ add_identity_columns() }}"   
+# on-run-end: "{{ add_fctidentity_columns() }}"
 
         # fact_sales:
         #    materialized: table

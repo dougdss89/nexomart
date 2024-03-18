@@ -1,0 +1,223 @@
+
+# Name your project! Project names should contain only lowercase characters
+# and underscores. A good package name should reflect your organization's
+# name or the intended use of these models
+name: 'dbt_projeto'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'dbt_hml_projeto'
+
+
+# These configurations specify where dbt should look for different types of files.
+# The `model-paths` config, for example, states that models in this project can be
+# found in the "models/" directory. You probably won't need to change these!
+model-paths: ["models/"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"  # directory which will store compiled SQL files
+clean-targets:         # directories to be removed by `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+
+# Configuring models
+# Full documentation: https://docs.getdbt.com/docs/configuring-models
+
+# In this example config, we tell dbt to build all models in the example/ directory
+# as tables. These settings can be overridden in the individual model files
+# using the `{{ config(...) }}` macro.
+models:
+  dbt_projeto:
+    
+    # config se aplica na pasta stage_table
+    dimension_stage:
+
+      + enabled: True
+      + materialized: table
+      + database: dwadvworks_hml
+      + incremental_strategy: incremental
+      + on_schema_change: "sync_all_columns"
+      + tags: stage_data
+      + schema: stage
+      # + post_hook: 
+      #   - "{{ add_identity_columns() }}"
+          
+    fact_stage:
+
+      + enabled: True
+      + materialized: table
+      + database: dwadvworks_hml
+      + incremental_strategy: incremental
+      + on_schema_change: "sync_all_columns"
+      + tags: stage_data
+      + schema: fact
+      
+    dimension_prd:
+      + enabled: True
+      + materialized: table
+      + database: dwadvworks_prd
+      + incremental_strategy: incremental
+      + on_schema_change: "sync_all_columns"
+      + tags: transformed_data
+      + schema: prd
+
+        # fact_sales:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: fact
+        #    post-hook: [" alter table [stg_fact].[fact_sales]
+        #                   add factkey int not null identity(100001, 1)"]
+        # customer:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgcustomer]
+        #                   add customerkey int not null identity"]
+
+        # store:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: ["alter table [stg_dim].[stgstore]
+        #                 add storekey int not null identity(1,1)"]
+
+        # currency:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgcurrency]
+        #                   add currencykey int not null identity(1,1)"]
+
+        # product:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #   #  post-hook: [" alter table [stg_dim].[stgproduct]
+        #   #                 add productkey int not null identity(1,1)"]
+
+        # promotion:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgpromotion]
+        #                   add promotionkey int not null identity(1,1)"]
+
+        # salesperson:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgsalesperson]
+        #                   add salespersonkey int not null identity(1,1)"]
+
+        # shipmethod:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgfreight]
+        #                   add freightkey int not null identity(1,1)"]
+
+        # store:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgstore]
+        #                   add storekey int not null identity(1,1)"]
+
+        # date:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+
+        # territory:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #   #  post-hook: [" alter table [stg_dim].[stgcountryregion]
+        #   #                 add countryregionkey int not null identity(1,1)"]
+                          
+        # currency_rate:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgcurrency]
+        #                   add conv_currencykey int not null identity(1,1)"]
+
+        # currency_name:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgcurrency_name]
+        #                   add currencykey int not null identity(1,1)"]
+
+        # fact_purchase:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: fact
+        #    post-hook: [" alter table [stg_fact].[fact_purchase]
+        #                   add purchasefactkey int not null identity(10001,1)"]
+
+        # fact_production:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: fact
+        #    post-hook: [" alter table [stg_fact].[fact_production]
+        #                   add productionfactkey int not null identity(10001,1)"]
+
+        # junk_salesreason:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stg_jnksalesreason]
+        #                   add salesreasonkey int not null identity(1,1)"]
+
+        # transactioncode:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stg_jnktransactioncode]
+        #                   add transactionkey int not null identity(1,1)"]
+
+        # unitmeasure:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stg_jnkunitmeasure]
+        #                   add unitmeasurekey int not null identity(1,1)"]
+
+
+        # buyer:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgbuyer]
+        #                   add buyerkey int not null identity(1,1)"]
+
+
+        # scrapreason:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgscrapreason]
+        #                   add scrapreasonkey int not null identity(1,1)"]
+
+
+        # vendor:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgvendor]
+        #                   add vendorkey int not null identity(1,1)"]
+
+        # warehouse:
+        #    materialized: table
+        #    database: dwadvworks_hml
+        #    schema: dim
+        #    post-hook: [" alter table [stg_dim].[stgwarehouse]
+        #                   add warehousekey int not null identity(1,1)"]
+

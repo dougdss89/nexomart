@@ -3,64 +3,104 @@
 
 -- creating a cte to limit the columns to work
 
-with elt_purchase as (
+with load_purchase_key as (
 
-    select
+	select
+		
+		factpurchasekey,
+		PurchaseOrderID,
+		PurchaseOrderDetailID,
+		fcp.orderdate,
+		ssp.shipmentdate,
+		svd.duedate,
+		sdd.datekey,
+		ssp.shipdatekey,
+		svd.duedatekey,
+		sdb.buyerkey,
+		sds.supplierkey,
+		fcp.productid,
+		sdp.productkey,
+		fcp.shipmethodid,
+		sdf.freightkey,
+		receivedqty,
+		rejectedqty,
+		stockedqty,
+		unitprice,
+		freight,
+		taxamt,
+		linetotal,
+		subtotal,
+		totaldue
 
-        fctpurchasekey,
-        purchaseorderid,
-        purchaseorderdetailid,
-        revisionnumber,
-        [status],
-        employeeid,
-        vendorid,
-        shipmethodid,
-        productid,
-        receivedqty,
-        rejectedqty,
-        stockedqty,
-        unitprice,
-        freight,
-        taxamt,
-        linetotal,
-        subtotal,
-        totaldue,
-        orderdate,
-        shipdate,
-        duedate
 
-    from {{ ref('fact_purchase') }}
+	from {{ref ('fact_purchase') }} as fcp
 
-),
+		left join
+
+		{{ ref ('dimbuyer') }} as sdb
+	on fcp.employeeid = sdb.businessentityid
+
+		left join
+
+		{{ ref('supplier') }} as sds
+	on fcp.vendorid = sds.businessentityid
+
+		inner join
+		{{ ref ('dimdate') }} as sdd
+	on fcp.orderdate = sdd.orderdate
+
+		inner join
+
+		{{ ref ('vwshipmentdate') }} as ssp
+	on fcp.shipdate = ssp.orderdate
+		
+		inner join
+
+		{{ ref ('vwduedate') }} as svd
+	on fcp.duedate = svd.duedate
+
+		left join
+
+		{{ ref ('dimproduct') }} as sdp
+	on fcp.productid = sdp.productid
+
+		left join
+
+		{{ ref ('dimfreight') }} as sdf
+	on fcp.shipmethodid = sdf.shipmethodid
+	)
 
 -- normalize and remove nulls from source data
 normalize_purchase as (
 
-    select 
+	select
+		
+		factpurchasekey,
+		PurchaseOrderID as purchaseirderid,
+		PurchaseOrderDetailID as purchasedetailid,
+		fcp.orderdate,
+		ssp.shipmentdate,
+		svd.duedate,
+		sdd.datekey,
+		ssp.shipdatekey,
+		svd.duedatekey,
+		sdb.buyerkey,
+		sds.supplierkey,
+		fcp.productid,
+		sdp.productkey,
+		fcp.shipmethodid,
+		sdf.freightkey,
+		receivedqty,
+		rejectedqty,
+		stockedqty,
+		unitprice,
+		freight,
+		taxamt,
+		linetotal,
+		subtotal,
+		totaldue
 
-        cast(fctpurchasekey as int) as fpurchasekey,
-        cast(purchaseorderid as int) as purchaseorderid,
-        cast(purchaseorderdetailid as int) prcorderdetailid,
-        cast(coalesce(revisionnumber, 999) as smallint) as revisionnumber,
-        cast(coalesce([status], 999) as smallint) as purchasestatus,
-        cast(coalesce(employeeid, 999) as smallint) as employeeid,
-        cast(coalesce(vendorid, 999) as int) as vendorid,
-        cast(coalesce(shipmethodid, 999) as smallint) as shipmethodid,
-        cast(productid as int) as productid,
-        cast(receivedqty as int) as receivedqty,
-        cast(rejectedqty as int) as rejectedqty,
-        cast(stockedqty as int) as stockedqty,
-        cast(unitprice as numeric(12,2)) as unitprice,
-        cast(coalesce(freight, 9999.99) as numeric(12,2)) as freight,
-        cast(coalesce(taxamt, 999.99) as numeric(12,2)) as taxamt,
-        cast(linetotal as numeric(12,2)) as linetotal,
-        cast(coalesce(subtotal, 9999.99) as numeric(12,2)) as subtotal,
-        cast(coalesce(totaldue, 9999.99) as numeric(12,2)) as totaldue,
-        cast(coalesce(orderdate, '9999-12-31') as date) as orderdate,
-        cast(coalesce(shipdate, '9999-12-31') as date) as shipdate,
-        cast(coalesce(duedate, '9999-12-31') as date) as duedate
-
-    from elt_purchase
+    from load_purchase_key
 )
 
 -- final select.

@@ -6,6 +6,14 @@ select
 	accountnumber,
 	pv.name,
 	pvc.contacttype,
+
+	case
+		when contacttype = 'Assistant Sales Agent' then 1
+		when contacttype = 'Sales Agent' then 2
+		when contacttype = 'Sales Associate' then 3
+		when contacttype = 'Sales manager' then 4
+	end as contacttypeid,
+		
 	pvc.firstname,
 	pvc.lastname,
 	pvc.phonenumber,
@@ -25,7 +33,8 @@ select
 	pva.addressline1,
 	pva.addressline2,
 	pva.city,
-	pva.postalcode
+	pva.postalcode,
+	pv.activeflag
 
 from {{ source ('purchasing_src_schema', 'Vendor' ) }} as pv
 	left join
@@ -36,4 +45,5 @@ on pv.businessentityid = ppv.businessentityid
 on pv.businessentityid = pva.businessentityid
 	left join
 	{{ source ('purchasing_src_schema', 'vVendorWithContacts' ) }} as pvc
-on pva.businessentityid = pvc.businessentityid;
+on pva.businessentityid = pvc.businessentityid
+where activeflag = 1 and productid is not null;
