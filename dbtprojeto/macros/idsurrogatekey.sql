@@ -36,7 +36,9 @@
 
         alter table [dw_stage].[dimstore] add storekey int not null identity (1, 1);
         
-        alter table [dw_stage].[dimsupplier] add supplierkey int not null identity (1, 1);
+        alter table [dw_stage].[dimsupplier_company] add supplierkey int not null identity (1, 1);
+
+        alter table [dw_stage].[dimprod_suppliername] add supplierkey int not null identity (1, 1);
 
         alter table [dw_stage].[dimwarehouse] add warehousekey int not null identity (1, 1);
 

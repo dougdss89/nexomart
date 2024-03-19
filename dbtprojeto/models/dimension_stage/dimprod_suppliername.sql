@@ -1,11 +1,13 @@
+-- dimensão product_suplliername
+select 
 
-select
-
-	ppv.productid,
-	pv.businessentityid,
-	accountnumber,
-	pv.name,
-	pvc.contacttype,
+	ppv.ProductID, 
+	pv.AccountNumber,
+	pv.BusinessEntityID as supplierid,
+	pv.[name] as companyname,
+	pvc.firstname,
+	pvc.lastname,
+	contacttype,
 
 	case
 		when contacttype = 'Assistant Sales Agent' then 1
@@ -13,13 +15,7 @@ select
 		when contacttype = 'Sales Associate' then 3
 		when contacttype = 'Sales manager' then 4
 	end as contacttypeid,
-		
-	pvc.firstname,
-	pvc.lastname,
-	pvc.phonenumber,
-	pvc.phonenumbertype,
-	creditrating,
-	preferredvendorstatus,
+
 	averageleadtime,
 	standardprice,
 	lastreceiptcost,
@@ -28,13 +24,19 @@ select
 	maxorderqty,
 	onorderqty,
 	unitmeasurecode,
+	
+	case
+		when activeflag = 1 then 'Yes'
+		else 'No'
+	end as isactive,
+
+	pva.AddressType,
+	pva.CountryRegionName,
 	pva.stateprovincename,
-	pva.countryregionname,
-	pva.addressline1,
-	pva.addressline2,
 	pva.city,
 	pva.postalcode,
-	pv.activeflag
+	pva.addressline1,
+	pva.addressline2
 
 from {{ source ('purchasing_src_schema', 'Vendor' ) }} as pv
 	left join
@@ -45,5 +47,4 @@ on pv.businessentityid = ppv.businessentityid
 on pv.businessentityid = pva.businessentityid
 	left join
 	{{ source ('purchasing_src_schema', 'vVendorWithContacts' ) }} as pvc
-on pva.businessentityid = pvc.businessentityid
-where activeflag = 1 and productid is not null;
+on pva.businessentityid = pvc.businessentityid;

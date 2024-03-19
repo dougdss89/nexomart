@@ -42,7 +42,7 @@ with load_purchase_key as (
 
 		left join
 
-		{{ ref('supplier') }} as sds
+		{{ ref('supplier_company') }} as sds
 	on fcp.vendorid = sds.businessentityid
 
 		inner join

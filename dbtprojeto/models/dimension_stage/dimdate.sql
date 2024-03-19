@@ -121,7 +121,7 @@ normaliza_data as(
 		orderyear,
 		monthname,
 		monthabrv,
-		monthnum
+		monthnum,
 		quartermonth,
 		yearmonth,
 		yearmonthnum,
