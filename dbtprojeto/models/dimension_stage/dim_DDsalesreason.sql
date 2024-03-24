@@ -1,8 +1,34 @@
 
-select 
+with max_reasonid as (
 
-	coalesce(jsr.SalesReasonID, 0) as salesreasonid,
-    [Name] as salesreason,
-    ReasonType
+	select 
 
-from    {{ source ('salestables_src_schema', 'salesreason') }} as jsr
+		salesorderid,
+		max(salesreasonid) as reasonid
+        
+	from {{ source ('salestables_src_schema', 'SalesOrderHeaderSalesReason') }}
+	group by SalesOrderID),
+
+salesreason as (
+
+	select 
+
+		salesreasonid,
+		name,
+		reasontype
+
+	from {{ source ('salestables_src_schema', 'salesreason') }} ),
+
+joinreason as(
+
+	select
+		salesorderid,
+		reasonid,
+		name as reasonname,
+		reasontype
+	from max_reasonid as mrs
+		inner join
+		salesreason as srs
+	on mrs.reasonid = srs.salesreasonid)
+
+select * from joinreason;

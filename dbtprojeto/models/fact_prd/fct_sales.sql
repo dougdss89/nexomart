@@ -1,9 +1,8 @@
-with load_fact_sales(
-
-	with fct as (
+with load_fact_sales as (
 
 select 
-	soh.salesorderid,
+	factsaleskey,
+	sls.salesorderid,
 	salesorderdetailid,
 	sls.orderdate,
 	datekey,
@@ -30,8 +29,6 @@ select
 	onlineorderflag
 
 from {{ref ('fact_sales') }} as sls
-
-left join
 	
 	inner join
 	{{ref ( 'dimproduct' )}} as prd
@@ -66,26 +63,24 @@ on sls.currencyrateid = dcr.currencyrateid
 	inner join
 
 	{{ ref('dimdate') }} as ddate
-on sls.orderdate = ddate.orderdate)
-
-
+on sls.orderdate = ddate.orderdate
 ),
 
 fact_elt as (
 
 select
 
-    fact_saleskey,
+    factsaleskey,
 	cast(SalesOrderID as int) as salesorderid,
 	cast(SalesOrderDetailID as int) as detailorderid,
-	accountnumber,
-	coalesce(carriertrackingnumber, '0') as carriertrackserial,
-	coalesce(purchaseordernumber, '0') as purchaseorderserial,
-	salesordernumber,
+	--accountnumber,
+	--coalesce(carriertrackingnumber, '0') as carriertrackserial,
+	--coalesce(purchaseordernumber, '0') as purchaseorderserial,
+	--salesordernumber,
 	cast(OrderDate as date) as orderdate,
 	cast(ShipDate as date) as shipdate,
 	cast(DueDate as date) as duedate,
-	cast(coalesce(salesreasonid, 0) as smallint) as salesreasonid,
+	--cast(coalesce(salesreasonid, 0) as smallint) as salesreasonid,
 	cast(coalesce(SalesPersonID, 0) as smallint) as salespersonid,
 	cast(ProductID as smallint) as productid,
 	cast(CustomerID as int) as customerid,

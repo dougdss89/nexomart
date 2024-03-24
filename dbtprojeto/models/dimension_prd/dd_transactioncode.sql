@@ -8,8 +8,12 @@ with elt_transactioncode as (
         cast(coalesce(carriertrackingnumber, 'Not available') as varchar(15)) as carriertracknumber,
         cast(accountnumber as varchar(15)) as accountnumber,
         cast(coalesce(creditcardapprovalcode, 'Other') as varchar(20)) as creditaprovacode,
-        cast(onlineorderflag as char(2)) as isonlineorder
 
+        case
+            when onlineorderflag = 1 then 'Yes'
+            else 'No'
+        end as isonlineorder
+        
     from {{ref ('dim_DDtransactioncode') }}
 
 )

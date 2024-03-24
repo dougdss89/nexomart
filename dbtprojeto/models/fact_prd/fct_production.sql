@@ -6,7 +6,7 @@ with elt_workorder as (
 
     select
 
-        cast(fctproductionkey as int) as fctproductionkey,
+        cast(factproductionkey as int) as fctproductionkey,
         cast(workorderid as int) as workorderid,
         cast(productid as int) as productid,
         cast(orderqty as int) as orderqty,

@@ -3,25 +3,28 @@
 
 -- creating a cte to limit the columns to work
 
-with load_purchase_key as (
+with load_purchase_fct as (
 
-	select
+	select 
 		
 		factpurchasekey,
 		PurchaseOrderID,
 		PurchaseOrderDetailID,
-		fcp.orderdate,
-		ssp.shipmentdate,
-		svd.duedate,
-		sdd.datekey,
-		ssp.shipdatekey,
-		svd.duedatekey,
-		sdb.buyerkey,
-		sds.supplierkey,
-		fcp.productid,
-		sdp.productkey,
-		fcp.shipmethodid,
-		sdf.freightkey,
+		ddt.orderdate,
+		fpc.shipdate,
+		vdt.duedate,
+		ddt.datekey,
+		vsp.shipdatekey,
+		vdt.duedatekey,
+		fpc.employeeid,
+		ddb.buyerkey,
+		fpc.vendorid,
+		dsc.supplierkey,
+		fpc.productid,
+		dpp.productkey,
+		dpc.productkey as prod_disc_key,
+		fpc.shipmethodid,
+		dfg.freightkey,
 		receivedqty,
 		rejectedqty,
 		stockedqty,
@@ -32,43 +35,52 @@ with load_purchase_key as (
 		subtotal,
 		totaldue
 
+	from {{ ref ('fact_purchase') }} as fpc
 
-	from {{ref ('fact_purchase') }} as fcp
+        left join
 
-		left join
+        {{ ref ('ddate') }} as ddt
+    on fpc.orderdate = ddt.orderdate
 
-		{{ ref ('dimbuyer') }} as sdb
-	on fcp.employeeid = sdb.businessentityid
+        left join
 
-		left join
+        {{ ref ('vw_duedate') }} as vdt
 
-		{{ ref('supplier_company') }} as sds
-	on fcp.vendorid = sds.businessentityid
+    on fpc.duedate = vdt.duedate
 
-		inner join
-		{{ ref ('dimdate') }} as sdd
-	on fcp.orderdate = sdd.orderdate
+        left join
 
-		inner join
+        {{ ref ('vw_shipmentdate' ) }} as vsp
 
-		{{ ref ('vwshipmentdate') }} as ssp
-	on fcp.shipdate = ssp.orderdate
-		
-		inner join
+    on fpc.shipdate = vsp.shipmentdate
 
-		{{ ref ('vwduedate') }} as svd
-	on fcp.duedate = svd.duedate
+        left join
 
-		left join
+        {{ ref ('buyer' ) }} as ddb
+    
+    on fpc.employeeid = ddb.buyerid
 
-		{{ ref ('dimproduct') }} as sdp
-	on fcp.productid = sdp.productid
+        left join
 
-		left join
+        {{ ref ('supplier_company') }} as dsc
 
-		{{ ref ('dimfreight') }} as sdf
-	on fcp.shipmethodid = sdf.shipmethodid
-	)
+    on fpc.vendorid = dsc.supplierid
+
+        left join
+
+        {{ ref ('product') }} as dpp
+    on fpc.productid = dpp.productid
+
+        left join
+
+        {{ ref ('product_discontinued') }} as dpc
+    on fpc.productid = dpc.productid
+
+        left join
+
+        {{ ref ('freight' )}} as dfg
+    on fpc.shipmethodid = dfg.shipid
+),
 
 -- normalize and remove nulls from source data
 normalize_purchase as (
@@ -76,20 +88,23 @@ normalize_purchase as (
 	select
 		
 		factpurchasekey,
-		PurchaseOrderID as purchaseirderid,
-		PurchaseOrderDetailID as purchasedetailid,
-		fcp.orderdate,
-		ssp.shipmentdate,
-		svd.duedate,
-		sdd.datekey,
-		ssp.shipdatekey,
-		svd.duedatekey,
-		sdb.buyerkey,
-		sds.supplierkey,
-		fcp.productid,
-		sdp.productkey,
-		fcp.shipmethodid,
-		sdf.freightkey,
+		PurchaseOrderID,
+		PurchaseOrderDetailID,
+		orderdate,
+		shipdate,
+		duedate,
+		datekey,
+		shipdatekey,
+		duedatekey,
+		employeeid,
+		buyerkey,
+		vendorid,
+		supplierkey,
+		productid,
+		productkey,
+		prod_disc_key,
+		shipmethodid,
+		freightkey,
 		receivedqty,
 		rejectedqty,
 		stockedqty,
@@ -100,7 +115,7 @@ normalize_purchase as (
 		subtotal,
 		totaldue
 
-    from load_purchase_key
+    from load_purchase_fct
 )
 
 -- final select.

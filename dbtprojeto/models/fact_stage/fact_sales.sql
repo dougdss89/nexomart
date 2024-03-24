@@ -7,7 +7,6 @@ select
 	soh.OrderDate,
 	soh.ShipDate,
 	soh.DueDate,
-	sohs.salesreasonid,
 	SalesPersonID,
 	ProductID,
 	CustomerID,
@@ -29,8 +28,3 @@ left join
 
     {{source ('sales_src_schema', 'salesorderheader')}} as soh
 on sso.SalesOrderID = soh.SalesOrderID
-
-left join
-	{{ source ('sales_src_schema', 'SalesOrderHeaderSalesReason')}} sohs
-
-on soh.salesorderid = sohs.salesorderid
