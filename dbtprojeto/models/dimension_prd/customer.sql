@@ -1,21 +1,18 @@
 with pre_customer as (
 	
 select
-    businessentityid,
 	customerid,
+	personid,
     firstname,
     lastname,
-    persontype,
-    emailpromotion,
-    typephone,
+    customertype,
     postalcode,
-    addresstype,
-    emailaddress,
+    email,
     territoryid,
     countryname,
-    stateprovinceid,
-    countryregioncode,
-    stateprovincecode,
+    stateid,
+    countrycode,
+    statecode,
     statename,
     city,
     addressline1,
@@ -46,11 +43,12 @@ elt_clientes as (
 
 select
 		customerkey,
-		businessentityid as personid,
+		personid,
 		customerid,
 		firstname, 
 		lastname,
-		persontype,
+		customertype,
+		email,
 
 		case
 			when gender = 'F' then 'Female'
@@ -63,6 +61,7 @@ select
 			when maritalstatus = 'S' then 'Single'
 			when maritalstatus IS NULL then 'Not Available'
 		end as maritalstatus,
+
 		coalesce(cast(birthdate as date), '9999-12-31') as birthdate,
 		coalesce(datediff(yy, BirthDate, GETDATE()), 999) as age,
 		coalesce(education, 'Not Available') as education,
@@ -79,29 +78,22 @@ select
 		end as ishomeowner,
 		coalesce(NUMBERCARSOWNED, 0 ) as numberscarsowned,
 
-		case
-			when emailpromotion >= 1 then 'Yes'
-			else 'No'
-		end as emailpromotion,
-		emailaddress,
 
-		case
-			when typephone = 'cell' then 'Mobile'
-			else coalesce(typephone, 'Not Available')
-		end as typephone,
-		coalesce([addresstype], 'Not Available') as typeaddress,
+		-- coalesce([addresstype], 'Not Available') as typeaddress,
+
 		coalesce(postalcode, 'Not Available') as postalcode,
 		coalesce(territoryid, 0) as territoryid,
 		coalesce(countryname, 'Not Available') as countryname,
-		coalesce(stateprovinceid, 0) as stateprovinceid,
-		coalesce(countryregioncode, 'Not Available') as countryregioncode,
-		coalesce(stateprovincecode, 'Not Available') as stateprovincecode,
+		coalesce(stateid, 0) as stateid,
+		coalesce(countrycode, 'Not Available') as countrycode,
+		coalesce(statecode, 'Not Available') as statecode,
 		coalesce(statename, 'Not Available') as statename,
 		coalesce(city, 'Not Available') as city,
 		coalesce(addressline1, 'Not Available') as custaddress,
 		coalesce(addressline2, 'Not Available') as addressline,
-		ROW_NUMBER() over(partition by businessentityid
-					order by businessentityid) as rn,
+
+		ROW_NUMBER() over(partition by personid
+					order by personid) as rn,
 
 	case 
 		when [value] = 'DR.' or [value] = 'Dr' then 'Drive'
@@ -187,6 +179,7 @@ select distinct
 	cast(eltc.customerid as int) as customerid,
 	cast(firstname as varchar(40)) as firstname,
 	cast(lastname as varchar(40)) as lastname,
+	cast(customertype as varchar(15)) as customertype,
 	cast(gender as varchar(10)) as gender,
 	cast(maritalstatus as varchar(10)) as maritalstatus,
 	cast(birthdate as date) as birthdate,
@@ -195,28 +188,30 @@ select distinct
 	cast(occupation as varchar(20)) as occupation,
 	cast(numchildreninhome as tinyint) as numchildreninhome,
 	cast(totalchildren as tinyint) as totalchildren,
+
 	case
 		when maxincome like 'grea%' then '100000'
 	else minincome
 	end as minincome,
+
 	cast(maxincome as varchar(20)) as maxincome,
 	cast(totalpuchased as numeric(12,2)) as totalpurchased,
 	cast(numberscarsowned as tinyint) as numbersofcarsowned,
-	cast(emailaddress as varchar(100)) as emailaddress,
-	cast(typephone as varchar(6)) as typephone,
-	cast(typeaddress as varchar(6)) as typeaddress,
+	cast(email as varchar(100)) as email,
+	--cast(typephone as varchar(6)) as typephone,
+	--cast(typeaddress as varchar(6)) as typeaddress,
 	cast(territoryid as smallint) as countryid,
 	cast(countryname as varchar(15)) as countryname,
-	cast(stateprovinceid as smallint) as stateid,
-	cast(countryregioncode as char(5)) as countrycode,
-	cast(stateprovincecode as char(5)) as statecode,
+	cast(stateid as smallint) as stateid,
+	cast(countrycode as char(5)) as countrycode,
+	cast(statecode as char(5)) as statecode,
 	cast(statename as varchar(25)) as statename,
 	cast(city as varchar(20)) as city,
 	cast(postalcode as nvarchar(10)) as postalcode,
 	coalesce(cast(uned.endr as varchar(80)), 'Not Available') as custaddress,
 	cast(addressline as varchar(15)) as addressline,
-	cast(ishomeowner as char(5)) as ishomeowner,
-	cast(emailpromotion as char(5)) as emailpromotion
+	cast(ishomeowner as char(5)) as ishomeowner
+	--cast(emailpromotion as char(5)) as emailpromotion
 
 from elt_clientes as eltc
 	inner join

@@ -76,7 +76,7 @@ models:
       + incremental_strategy: incremental
       + on_schema_change: "sync_all_columns"
       + tags: transformed_data
-      + schema: prd 
+      + schema: fact 
 
     dimension_prd:
       + enabled: True

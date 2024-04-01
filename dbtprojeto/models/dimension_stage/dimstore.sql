@@ -2,9 +2,9 @@
 
 select
 
-	st.businessentityid as storeid,
-	sc.PersonID,
 	sc.CustomerID,
+	st.businessentityid as storeid,
+	pp.businessentityid clientid,
 	sc.AccountNumber,
 	st.[Name] as storename,
 	pp.FirstName,
@@ -29,7 +29,7 @@ from {{ source ('salestables_src_schema', 'store') }} as st
 inner join
     {{ source ('salestables_src_schema', 'customer') }} as sc
 on st.BusinessEntityID = sc.StoreID
-left join
+inner join
     {{ source ('person_src_schema', 'person') }} as pp
 on pp.BusinessEntityID = sc.PersonID
 inner join

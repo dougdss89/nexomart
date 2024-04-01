@@ -4,7 +4,7 @@ with store_elt as (
 	select
         storekey,
 		storeid,
-		personid as managerid,
+		clientid as managerid,
 		customerid,
 		storename,
 		firstname +' ' + LastName as managername ,
