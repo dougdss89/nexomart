@@ -14,7 +14,7 @@ normalize_table as(
 
     select
 
-        cast(prodcategorykey as smallint) as categorykey,
+        cast(coalesce(prodcategorykey, 0) as smallint) as categorykey,
         cast(productcategoryid as smallint) as categoryid,
         cast(categoryname as varchar(15)) as categoryname
 

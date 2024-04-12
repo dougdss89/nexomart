@@ -2,7 +2,7 @@ with elt_scrap as (
 
     select
 
-        cast([scrapeasonkey] as int) as scrapkey,
+        cast(coalesce([scrapeasonkey], 0) as int) as scrapkey,
         cast(scrapreasonid as smallint) as scrapid,
         cast(scrapname as varchar(40)) as scrapname
 

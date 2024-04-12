@@ -211,7 +211,7 @@ converte_dim_produto as (
 
 select 
 
-	cast(productkey as int) as productkey,
+	cast(coalesce(productkey, 0) as int) as productkey,
 	cast(productid as smallint) as productid,
 	cast(productname as nvarchar(50)) as productname,
 	cast(productserial as nvarchar(20)) as productserial,

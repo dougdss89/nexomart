@@ -174,7 +174,7 @@ on col1.personid = col4.personid),
 finaliza_etl as (
 
 select distinct
-	customerkey,
+	coalesce(customerkey, 0) as customerkey,
 	cast(eltc.personid as int) as personid,
 	cast(eltc.customerid as int) as customerid,
 	cast(firstname as varchar(40)) as firstname,

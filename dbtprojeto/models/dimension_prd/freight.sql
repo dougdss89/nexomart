@@ -22,7 +22,7 @@ from {{ ref('dimfreight') }}
 normaliza_datatype as (
 
     select 
-        cast(freightkey as int) as freightkey,
+        cast(coalesce(freightkey, 0) as int) as freightkey,
         cast(shipid as int) as shipid,
         cast(freightname as varchar(20)) as freightname,
         cast(shipbase as numeric(12, 2)) as shipbase,

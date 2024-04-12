@@ -37,7 +37,7 @@ normaliza_datatype as (
 
     select
 
-        cast(supplierkey as int) as supplierkey,
+        cast(coalesce(supplierkey, 0) as int) as supplierkey,
         cast(businessentityid as int) as supplierid,
         cast(accountnumber as varchar(15)) as supplieraccount,
         cast(supplliername as varchar(40)) as supplliername,

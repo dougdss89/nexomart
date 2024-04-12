@@ -62,7 +62,7 @@ normaliza_store_datatype as (
 
     select
 
-        cast(storekey as int) as storekey,
+        cast(coalesce(storekey, 0) as int) as storekey,
         cast(storeid as int) as storeid,
         cast(managerid as int) as managerid,
         cast(customerid as int) as customerid,

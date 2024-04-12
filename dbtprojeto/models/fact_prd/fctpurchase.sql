@@ -52,7 +52,7 @@ with load_purchase_fct as (
 
         {{ ref ('vw_shipmentdate' ) }} as vsp
 
-    on fpc.shipdate = vsp.shipmentdate
+    on fpc.shipdate = vsp.shipdate
 
         left join
 
@@ -87,34 +87,34 @@ normalize_purchase as (
 
 	select
 		
-		factpurchasekey,
-		PurchaseOrderID,
-		PurchaseOrderDetailID,
-		orderdate,
-		shipdate,
-		duedate,
-		datekey,
-		shipdatekey,
-		duedatekey,
-		employeeid,
-		buyerkey,
-		vendorid,
-		supplierkey,
-		productid,
-		productkey,
-		prod_disc_key,
-		shipmethodid,
-		freightkey,
-		receivedqty,
-		rejectedqty,
-		stockedqty,
-		unitprice,
-		freight,
-		taxamt,
-		linetotal,
-		subtotal,
-		totaldue
-
+		coalesce(factpurchasekey, 0) as factpurchasekey,  
+		coalesce(PurchaseOrderID, 0) as PurchaseOrderID, 
+		coalesce(PurchaseOrderDetailID, 0) as PurchaseOrderDetailID, 
+		coalesce(orderdate, '9999-12-31') as orderdate, 					
+		coalesce(shipdate, '9999-12-31') as shipdate,	
+		coalesce(duedate, '9999-12-31') as duedate,	
+		coalesce(datekey, 0) as datekey,
+		coalesce(shipdatekey, 0) as shipdatekey,
+		coalesce(duedatekey, 0) as duedatekey,
+		coalesce(employeeid, 0) as employeeid,
+		coalesce(buyerkey, 0) as buyerkey,
+		coalesce(vendorid, 0) as vendorid,
+		coalesce(supplierkey, 0) as supplierkey,
+		coalesce(productid, 0) as productid,
+		coalesce(productkey, 0) as productkey,
+		coalesce(prod_disc_key, 0) as product_disc_key,	
+		coalesce(shipmethodid,0) as shhipmethodid,
+		coalesce(freightkey, 0) as freightkey,
+		coalesce(receivedqty, 0) as receivedqty,
+		coalesce(rejectedqty, 0) as rejectedqty,
+		coalesce(stockedqty, 0) as stockedqty,
+		coalesce(unitprice, 0.00) as unitprice,
+		coalesce(freight, 0.00) as freight,
+		coalesce(taxamt, 0.00) as taxamt,
+		coalesce(linetotal, 0.00) as linetotal,
+		coalesce(subtotal, 0.00) as subtotal,
+		coalesce(totaldue, 0.00) as totaldue
+	
     from load_purchase_fct
 )
 

@@ -1,6 +1,6 @@
 select 
 
-    currencyname_key,
+    coalesce(currencyname_key, 0) as currencyname_key,
     currencycode,
     currencyname,
     countryregioncode as countrycode,

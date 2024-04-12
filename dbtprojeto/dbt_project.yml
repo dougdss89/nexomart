@@ -87,6 +87,15 @@ models:
       + tags: transformed_data
       + schema: prd
 
+    wwa_dimension_prd:
+      + enabled: True
+      + materialized: table
+      + database: dw_wideworld
+      + incremental_strategy: incremental
+      + on_schema_change: "sync_all_columns"
+      + tags: transformed_data
+      + schema: dimension
+
       
     views_date_prd:
 

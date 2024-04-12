@@ -10,7 +10,7 @@ join_maxrate as (
 
 	select distinct
 	
-		CAST(buyerkey as int) as buyerkey,
+		CAST(coalesce(buyerkey, 0) as int) as buyerkey,
 		cast(businessentityid as int) as buyerid,
 		cast(firstname as nvarchar(20)) as firstname,
 		cast(lastname as nvarchar(20)) as lastname,

@@ -41,7 +41,7 @@ define_datatypes as (
 
     select
 
-        cast(promotionkey as int) as promotionkey,
+        cast(coalesce(promotionkey, 0) as int) as promotionkey,
         cast(promotionid as int) as promotionid,
         cast(promotiondescription as varchar(40)) as promotiondescription,
         cast(discountpercent as numeric(12,2)) as discountpercent,

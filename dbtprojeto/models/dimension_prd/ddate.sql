@@ -1,6 +1,6 @@
 	select 
 	
-		cast(cast(replace(orderdate,'-','') as varchar(10))as int) as datekey,
+		cast(coalesce(cast(replace(orderdate,'-','') as varchar(10)), 0)as int) as datekey,
 		orderdate,
 		weekday_start,
 		newxtweek_startat,

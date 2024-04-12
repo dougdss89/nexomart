@@ -2,7 +2,7 @@ with elt_transactioncode as (
 
     select
 
-        cast(transactioncodekey as int) as transactioncodekey,
+        cast(coalesce(transactioncodekey, 0) as int) as transactioncodekey,
         cast(salesorderid as int) as salesorderid,
         cast(coalesce(purchaseordernumber, 'Not Available') as varchar(20)) as purchaseordernumber,
         cast(coalesce(carriertrackingnumber, 'Not available') as varchar(15)) as carriertracknumber,

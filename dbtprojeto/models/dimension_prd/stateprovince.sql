@@ -15,7 +15,7 @@ with elt_dimstate as (
 normalize_table as( 
     select
 
-        cast(stateprovincekey as int) as statekey,
+        cast(coalesce(stateprovincekey, 0) as int) as statekey,
         cast(territoryid as smallint ) as countryid,
         cast(countryregioncode as varchar(5)) as countrycode,
         cast(stateprovinceid as int) as stateid,

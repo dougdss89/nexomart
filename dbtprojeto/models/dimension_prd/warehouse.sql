@@ -2,7 +2,7 @@ with elt_warehouse as (
 
     select
 
-        cast(warehousekey as int) as warehousekey,
+        cast(coalesce(warehousekey, 0) as int) as warehousekey,
         cast(locationid as int) as locationid,
 
         case 
@@ -18,7 +18,7 @@ with elt_warehouse as (
         cast([name] as nvarchar(30)) as shelfname,
         cast(coalesce(billofmaterialsid, 999) as int) as billofmaterialsid,
         cast(coalesce(componentid, 999) as int) as componentid,
-        cast(bomlevel as smallint) as bomlevel,
+        cast(coalesce(bomlevel, 0) as smallint) as bomlevel,
         cast(coalesce(perassemblyqty, 999) as int) as perassemblyqty,
         cast(coalesce(unitmeasurecode, 'Not Available') as varchar(15)) as unitmeasurecode,
         cast(coalesce(startdate, '9999-12-31') as date) as startdate,

@@ -2,7 +2,7 @@ with elt_suppliername as (
 	
 select 
 	
-	cast(supplierkey 	as int) as supplierproduct_key,
+	cast(coalesce(supplierkey, 0) 	as int) as supplierproduct_key,
 	cast(ProductID	 	as int) as productid,
 	cast(AccountNumber 	as varchar(15)) as supplieraccount,
 	cast(supplierid 	as int) as supplierproduct_id,

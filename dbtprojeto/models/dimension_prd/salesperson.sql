@@ -115,7 +115,7 @@ salesperson_bonus as (
 salesperson_final as (
 
 select
-		cast(salespersonkey as int) as  salespersonkey,
+		cast(coalesce(salespersonkey, 0) as int) as  salespersonkey,
 		cast(salespersonid as smallint) as salespersonid,
 		cast(loginid as nvarchar(40)) as loginid,
 		cast(firstname as varchar(20)) as firstname,

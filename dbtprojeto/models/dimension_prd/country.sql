@@ -35,7 +35,7 @@ normalize_table as (
 
     select
 
-        cast(countryregionkey as int) as countrykey,
+        cast(coalesce(countryregionkey, 0) as int) as countrykey,
         cast(territoryid as smallint) as countryid,
         cast([group] as varchar(15)) as continentname,
         cast(regioncode as char(3)) as regioncode,

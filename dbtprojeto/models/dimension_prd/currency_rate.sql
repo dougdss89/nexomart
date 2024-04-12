@@ -1,6 +1,6 @@
 select
 
-    currencykey,
+    coalesce(currencykey, 0) as currencykey,
     currencyrateid,
     fromcurrencycode,
     tocurrencycode,
