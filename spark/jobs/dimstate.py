@@ -1,44 +1,47 @@
-#this dimension belongs to application schema
-#creating statecities dimension
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
-import os as os
 
+import os
 from dotenv import load_dotenv
 
-#loading environments variable
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
-
-pgjar = os.getenv('POSTGRE_JAR')    
-pgconn = os.getenv('POSTGRE_CONN')
-pgdriver = os.getenv('PG_DRIVER')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 #session 
-spark = (( SparkSession
+def sparksession():
+    
+    spark = (( SparkSession
             .builder
-            .appName('statecities')
-            .config('spark.jars', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
-            .config('spark.executor.extraClassPath', f'{pgjar}')
+                .appName('statecities')
+                .config('spark.jars', f'{sqlserverjar}')
+                .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+                .config('spark.executor.extraClassPath', f'{sqlserverjar}')
             .getOrCreate()
         ))
+    
+    return spark
+
+spark = sparksession()
 
 #loading cities data to dataframe
-def createcity(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createcity(spark = sparksession(), conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ creating city and state dimension """
     tmp_citiesframe =  ((spark
                             .read
                             .format('jdbc')
-                            .option('url', pgconn)
-                            .option('driver', pgdriver)
-                            .option('user', pguser)
-                            .option('password', pgpwd)
+                            .option('url', conn)
+                            .option('driver', driver)
+                            .option('user', user)
+                            .option('password', pwd)
                             .option('query', 
                                     """ 
                                         select 
@@ -46,11 +49,7 @@ def createcity(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pgu
                                             apc.cityid,
                                             apc.cityname,
                                             apc.stateprovinceid,
-                                            apc.latestrecordedpopulation,
-                                            apc._airbyte_ab_id,
-                                            apc._airbyte_cities_hashid,
-                                            cast(apc._airbyte_emitted_at as date) as _airbyte_emitted_at,
-                                            cast(apc._airbyte_normalized_at as date) as _airbyte_normalized_at
+                                            apc.latestrecordedpopulation
 
                                         from application.cities as apc
 
@@ -66,16 +65,16 @@ def createcity(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pgu
 
 
 #loading states and provinces to dataframe
-def createstate(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createstate(spark = sparksession(), conn = mssqlsource, driver = mssqldriver , user = mssqluser, pwd = mssqlpwd):
     """ create country dimension to join with state """
     
     tmp_stateframe = ((spark
                         .read
                         .format('jdbc')
-                        .option('url', pgconn)
-                        .option('driver', pgdriver)
-                        .option('user', pguser)
-                        .option('password', pgpwd)
+                        .option('url', conn)
+                        .option('driver', driver)
+                        .option('user', user)
+                        .option('password', pwd)
                         .option('query',
                                 """ 
                                     select
@@ -85,14 +84,11 @@ def createstate(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pg
                                         asp.stateprovincename,
                                         asp.salesterritory,
                                         asp.stateprovincecode,
-                                        asp.latestrecordedpopulation,
-                                        asp._airbyte_ab_id,
-                                        asp._airbyte_stateprovinces_hashid,
-                                        cast(asp._airbyte_emitted_at as date) as _airbyte_emitted_at,
-                                        cast(asp._airbyte_normalized_at as date) as _airbyte_normalized_at
+                                        asp.latestrecordedpopulation
                                     from application.stateprovinces as asp
                                     
                                     left join
+                                    
                                         application.stateprovinces_archive as aspa
                                     on asp.stateprovinceid = aspa.stateprovinceid
                                 
@@ -122,15 +118,7 @@ def join_select_countrystate(country = createstate(), state= createcity()):
                                 country.latestrecordedpopulation.alias('statepopulation'),
                                 
                                 #removing null values
-                                f.coalesce(state.latestrecordedpopulation, f.lit(0)).alias('citypopulation'),
-                                country._airbyte_ab_id,
-                                
-                                #rename to avoid duplicated results
-                                state._airbyte_ab_id.alias('city_elt_hashid'),
-                                country._airbyte_stateprovinces_hashid,
-                                state._airbyte_cities_hashid,
-                                country._airbyte_emitted_at,
-                                country._airbyte_normalized_at)
+                                f.coalesce(state.latestrecordedpopulation, f.lit(0)).alias('citypopulation'))
 
                     ))
     #rename column
@@ -138,33 +126,37 @@ def join_select_countrystate(country = createstate(), state= createcity()):
                     state_cities
                     .withColumnRenamed('stateprovinceid', 'stateid')
                     .withColumnRenamed('stateprovincename', 'statename')
-                    .withColumnRenamed('_airbyte_ab_id', 'state_elt_hashid')
-                    .withColumnRenamed('tmp_citiesframe._airbyte_ab_id', 'city_elt_hashid')
-                    .withColumnRenamed('_airbyte_stateprovinces_hashid', 'stateprovince_hashid')
-                    .withColumnRenamed('_airbyte_cities_hashid', 'cities_hashid')
-                    .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                    .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+
                 ))
 
     return dimregion
 
 #write transformed data to table
-def writedata(data= join_select_countrystate(), pgconn_dw= pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def writedata(data= join_select_countrystate(), conn_dw= mssql_dwdest, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     ((
         data
             .write
                 .format('jdbc')
-                .option('url', f'{pgconn_dw}')
-                .option('driver', f'{pgdriver}')
-                .option('user', f'{pguser}')
-                .option('password', f'{pgpwd}')
+                .option('url', f'{conn_dw}')
+                .option('driver', f'{driver}')
+                .option('user', f'{user}')
+                .option('password', f'{pwd}')
                 .option('dbtable', 'dimension.state')
             .save(mode= 'Overwrite')   
     ))
     
 if __name__ == '__main__':
     createcity()
+    print('City created')
+    
     createstate()
+    print('State created')
+    
     join_select_countrystate()
+    print('Join process completed successfully')
+    
     writedata()
+    print('Data was saved successfully')
+    
+    print('Finishing SparkSession')
     spark.stop()

@@ -1,36 +1,34 @@
-#importing packages and env-vars
+#importing packages and env-var
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
 
-#load env-var
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 
-env = load_dotenv("/mnt/d/linux/project/vars/.env")
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-pgjar = os.getenv('POSTGRE_JAR')
-pgdriver = os.getenv('PG_DRIVER')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pghost = os.getenv('POSTGRE_HOST')
-pgconn = os.getenv('POSTGRE_CONN')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
-
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 #creating sparksession 
 
 spark = ((
         SparkSession
             .builder
             .appName('dimpackage')
-            .config('spark.jars', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
-            .config('spark.executor.extraClassPath', f'{pgjar}')
+            .config('spark.jars', f'{sqlserverjar}')
+            .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+            .config('spark.executor.extraClassPath', f'{sqlserverjar}')
         .getOrCreate()
 ))
 
 #loading data from table into a dataframe
-def createpackage(spark = spark, pgconn = pgconn, pguser = pguser, pgpwd = pgpwd, pgdriver = pgdriver):
+def createpackage(spark = spark, pgconn = mssqlsource, pguser = mssqluser, pgpwd = mssqlpwd, pgdriver = mssqldriver):
     
     """loading and create packagetype dimension """
     dimpackage_frame = ((spark
@@ -45,12 +43,8 @@ def createpackage(spark = spark, pgconn = pgconn, pguser = pguser, pgpwd = pgpwd
                                     select
 
                                         packagetypeid,
-                                        packagetypename,
-                                        _airbyte_ab_id,
-                                        _airbyte_packagetypes_hashid,
-                                        _airbyte_emitted_at,
-                                        _airbyte_normalized_at
-                                    
+                                        packagetypename
+                                        
                                     from warehouse.packagetypes
                                 
                                 """)
@@ -67,10 +61,7 @@ def renamepackage(data = packagetype):
                     data
                         .withColumnRenamed('packagetypeid', 'packageid')
                         .withColumnRenamed('packagetypename', 'packagetype')
-                        .withColumnRenamed('_airbyte_ab_id', 'extract_id')
-                        .withColumnRenamed('_airbyte_packagetypes_hashid', 'package_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+
 
     ))
     
@@ -78,7 +69,7 @@ def renamepackage(data = packagetype):
 
 #load transformed data into a database table
 
-def writepackage(data = renamepackage(), pgconn_dw = pgconn_dw, pguser = pguser, pgpwd = pgpwd, pgdriver = pgdriver):
+def writepackage(data = renamepackage(), pgconn_dw = mssql_dwdest, pguser = mssqluser, pgpwd = mssqlpwd, pgdriver = mssqldriver):
     ((
         data
             .write

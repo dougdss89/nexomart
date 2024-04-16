@@ -1,40 +1,45 @@
-#import packages, modules and functions
+#importing packages 
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
+
 import os
 from dotenv import load_dotenv
 
-#load vars
-#load vars
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
-
-pgconn = os.getenv('POSTGRE_CONN')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgjar = os.getenv('POSTGRE_JAR')
-pgdriver = os.getenv('PG_DRIVER')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 print('Environments variable loaded')
 
 #create sparksession
-spark = (( 
-          SparkSession
-            .builder
-            .appName('stock_transaction')
-            .config('spark.jars', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
-            .config('spark.executor.extraClassPath', f'{pgjar}')
-        .getOrCreate()
-        ))
+def sparksession():
+    
+    spark = (( 
+            SparkSession
+                .builder
+                .appName('stock_transaction')
+                .config('spark.jars', f'{sqlserverjar}')
+                .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+                .config('spark.executor.extraClassPath', f'{sqlserverjar}')
+            .getOrCreate()
+            ))
+    
+    return spark
+
+spark = sparksession()
 
 print('Session created')
 
 #load data from table
 #creating temporary dataframe
-def createtransaction(spark=spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createtransaction(spark=spark, conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ creating stocktransaction fact for data analysis"""
     
@@ -42,10 +47,10 @@ def createtransaction(spark=spark, pgconn = pgconn, pgdriver = pgdriver, pguser 
                             spark
                                 .read
                                 .format('jdbc')
-                                .option('driver', pgdriver)
-                                .option('url', pgconn)
-                                .option('user', pguser)
-                                .option('password', pgpwd)
+                                .option('driver', driver)
+                                .option('url', conn)
+                                .option('user', user)
+                                .option('password', pwd)
                                 .option('query', 
                                         
                                         """ 
@@ -59,11 +64,7 @@ def createtransaction(spark=spark, pgconn = pgconn, pgdriver = pgdriver, pguser 
                                                 invoiceid,
                                                 customerid,
                                                 (quantity * -1) as qtdprocessed,
-                                                lasteditedby,
-                                                _airbyte_ab_id,
-                                                _airbyte_stockitemtransactions_hashid,
-                                                _airbyte_emitted_at,
-                                                _airbyte_normalized_at
+                                                lasteditedby
                                                 
                                             from warehouse.stockitemtransactions
             
@@ -80,10 +81,8 @@ def renameremovenull(dataframe = createtransaction()):
     
     renamed_frame = ((dataframe
                         .withColumnRenamed('stockitemtransactionid', 'stocktransactionid')
-                        .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
-                        .withColumnRenamed('_airbyte_stockitemtransactions_hashid', 'stocktransaction_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+
+
     ))
 
 #remove nulls
@@ -132,29 +131,25 @@ def reorganizedropcolumns(data = renameremovenull()):
                                     'supplierid',
                                     'purchaseorderid',
                                     'qtdprocessed',
-                                    'lasteditedby',
-                                    'elt_hashid',
-                                    'stocktransaction_hashid',
-                                    'elt_start',
-                                    'elt_end')
+                                    'lasteditedby')
     ))
 
     return stocktransation
 
 #load data to table
-def writetransaction(sourcedata = reorganizedropcolumns(), pgconn_dw = pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def writetransaction(sourcedata = reorganizedropcolumns(), conn_dw = mssql_dwdest, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ writing data on fact table """
     ((
     sourcedata
         .write
-        .format('jdbc')
-        .option('url', pgconn_dw)
-        .option('driver', pgdriver)
-        .option('user', pguser)
-        .option('password', pgpwd)
-        .option('dbtable', 'fact.stocktransaction')
-        .option('mode', 'overwrite')
+            .format('jdbc')
+            .option('url', conn_dw)
+            .option('driver', driver)
+            .option('user', user)
+            .option('password', pwd)
+            .option('dbtable', 'fact.stocktransaction')
+            .option('mode', 'overwrite')
     .save(mode= 'overwrite')
     ))
 

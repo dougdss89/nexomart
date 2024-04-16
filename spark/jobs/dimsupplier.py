@@ -1,4 +1,3 @@
-#packages
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
@@ -6,26 +5,39 @@ import pyspark.sql.functions as f
 import os
 from dotenv import load_dotenv
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-pgconn = os.getenv('POSTGRE_CONN')
-pgdriver = os.getenv('PG_DRIVER')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgjar = os.getenv('POSTGRE_JAR')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
-spark = (( SparkSession
-            .builder
-            .appName('supplier')
-            .config('spark.jar', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
-            .config('spark.executor.extraClassPath', f'{pgjar}')
-            .getOrCreate()
-        ))
+
+def sparksession():
+    
+    spark = (( SparkSession
+                .builder
+                .appName('supplier')
+                .config('spark.jar', f'{sqlserverjar}')
+                .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+                .config('spark.executor.extraClassPath', f'{sqlserverjar}')
+                .getOrCreate()
+            ))
+    
+    spark.sparkContext.setLogLevel("WARN")
+    
+    return spark
+
+
+spark = sparksession()
+
+
 
 #loding data from source table
-def createsupplier(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createsupplier(spark = spark, conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """
         create supplier dimension table
@@ -33,10 +45,10 @@ def createsupplier(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser =
     tmp_supplier = (( spark
                         .read
                         .format('jdbc')
-                        .option('url', pgconn)
-                        .option('driver', pgdriver)
-                        .option('user', pguser)
-                        .option('password', pgpwd)
+                        .option('url', conn)
+                        .option('driver', driver)
+                        .option('user', user)
+                        .option('password', pwd)
                         .option('query', 
                                 """ 
                                     select
@@ -56,11 +68,7 @@ def createsupplier(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser =
                                         postalcityid,
                                         deliverypostalcode,
                                         deliveryaddressline1,
-                                        deliveryaddressline2,
-                                        _airbyte_ab_id as supplier_elt_hashid,
-                                        _airbyte_suppliers_hashid,
-                                        _airbyte_emitted_at,
-                                        _airbyte_normalized_at
+                                        deliveryaddressline2
                                         
                                     from purchasing.suppliers
                                 
@@ -70,25 +78,23 @@ def createsupplier(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser =
     return tmp_supplier
 
 #loading supplier category data from source table to join with supplier
-def createsupplier_category(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createsupplier_category(spark = spark, conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ create supplier category dimension  to join with supplier """
     tmp_categorysupplier = (( spark
                                 .read
                                 .format('jdbc')
-                                .option('url', pgconn)
-                                .option('driver', pgdriver)
-                                .option('user', pguser)
-                                .option('password', pgpwd)
+                                .option('url', conn)
+                                .option('driver', driver)
+                                .option('user', user)
+                                .option('password', pwd)
                                 .option('query', 
                                         
                                         """ 
                                             select 
                                             
                                                 suppliercategoryid,
-                                                suppliercategoryname,
-                                                _airbyte_ab_id as supcategory_elt_hashid,
-                                                _airbyte_suppliercategories_hashid
+                                                suppliercategoryname
                                             
                                             from purchasing.suppliercategories
                                         
@@ -148,10 +154,6 @@ def fillrenameframe(dataframe = joinsupplier()):
                         .withColumnRenamed('deliverymethodid_n', 'deliverymethodid')
                         .withColumnRenamed('deliveryaddress_n', 'deliveryaddress')
                         .withColumnRenamed('suppliername_n', 'suppliername')
-                        .withColumnRenamed('_airbyte_suppliers_hashid', 'suppliers_hashid')
-                        .withColumnRenamed('_airbyte_suppliercategories_hashid', 'suppliercategory_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
                         .withColumnRenamed('supplierreference', 'suppliercode')
                         .withColumnRenamed('primarycontactpersonid', 'contact_id')
                         .withColumnRenamed('alternatecontactpersonid', 'submanager_contactid')
@@ -187,32 +189,28 @@ def organizecolumn(sourcedata = fillrenameframe()):
                                 'city_id',
                                 'postalcode',
                                 'deliveryaddress',
-                                'optional_address',
-                                'supplier_elt_hashid',
-                                'supcategory_elt_hashid',
-                                'suppliers_hashid',
-                                'suppliercategory_hashid',
-                                'elt_start',
-                                'elt_end'
+                                'optional_address'
                                 )
                         ))
     
     return insert_supplier
 
 #write to table
-def writesupplierdimension(supplier_dimension= organizecolumn(), pgconn_dw = pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def writesupplierdimension(supplier_dimension= organizecolumn(), conn_dw = mssql_dwdest, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
+    
     (( supplier_dimension
         .write
             .format('jdbc')
-            .option('url', pgconn_dw)
-            .option('driver', pgdriver)
-            .option('user', pguser)
-            .option('password', pgpwd)
+            .option('url', conn_dw)
+            .option('driver', driver)
+            .option('user', user)
+            .option('password', pwd)
             .option('dbtable', 'dimension.supplier')
         .save(mode= 'overwrite')
     ))
     
 if __name__ == '__main__':
+    
     createsupplier()
     createsupplier_category()
     fillrenameframe()

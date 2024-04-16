@@ -6,27 +6,29 @@ import pyspark.sql.functions as f
 import os
 from dotenv import load_dotenv
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
+#load environment variables
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-pgjar = os.getenv('POSTGRE_JAR')
-pgconn = os.getenv('POSTGRE_CONN')
-pgdriver = os.getenv('PG_DRIVER')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 #create session 
 spark = ((SparkSession
             .builder
-                .appName('dimcountry')
-                .config('spark.jar', f'{pgjar}')
-                .config('spark.driver.extraClassPath', f'{pgjar}')
-                .config('spark.executor.extraClassPath', f'{pgjar}')
+            .appName('dimcountry')
+            .config('spark.jar', f'{sqlserverjar}')
+            .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+            .config('spark.executor.extraClassPath', f'{sqlserverjar}')
             .getOrCreate()
             
-))
+        ))
 
-def loadcountry(spark = spark, connection = pgconn, dbuser = pguser, dbpwd = pgpwd, driver = pgdriver):
+def loadcountry(spark = spark):
     
     """ 
     
@@ -35,37 +37,33 @@ def loadcountry(spark = spark, connection = pgconn, dbuser = pguser, dbpwd = pgp
     
     """
     tmp_countryframe = (( spark
-                            .read
-                            .format('jdbc')
-                            .option('url', f'{connection}')
-                            .option('driver', f'{driver}')
-                            .option('user', f'{dbuser}')
-                            .option('password', f'{dbpwd}')
-                            .option('query', 
-                                    
-                                    """ 
-                                    select
+                        .read
+                        .format('jdbc')
+                        .option('url', f'{mssqlsource}')
+                        .option('driver', f'{mssqldriver}')
+                        .option('user', f'{mssqluser}')
+                        .option('password', f'{mssqlpwd}')
+                        .option('query', 
+                                
+                                """ 
+                                select
 
-                                        countryid,
-                                        continent,
-                                        region,
-                                        subregion,
-                                        formalname,
-                                        countryname,
-                                        isonumericcode,
-                                        isoalpha3code,
-                                        latestrecordedpopulation,
-                                        _airbyte_ab_id,
-                                        _airbyte_countries_hashid,
-                                        _airbyte_emitted_at,
-                                        _airbyte_normalized_at
-                                                                    
-                                    from application.countries
-                                    
-                                    """
-                                )
-                        
-                        )).load()
+                                    ac.countryid,
+                                    ac.continent,
+                                    ac.region,
+                                    ac.subregion,
+                                    ac.formalname,
+                                    ac.countryname,
+                                    ac.isonumericcode,
+                                    ac.isoalpha3code,
+                                    ac.latestrecordedpopulation
+                                                                  
+                                from application.countries as ac
+                                
+                                """
+                            )
+                     
+                )).load()
     
     return tmp_countryframe
     
@@ -80,10 +78,7 @@ def renamecolumns(countrydataframe = countrydata):
         
     """
     countryframe = (( countrydataframe
-                        .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
-                        .withColumnRenamed('_airbyte_countries_hashid', 'country_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+
                         .withColumnRenamed('isonumericcode', 'isostandardid')
                         .withColumnRenamed('isoalpha3code', 'countrycode')
                         .withColumnRenamed('region', 'countryregion')
@@ -93,17 +88,17 @@ def renamecolumns(countrydataframe = countrydata):
 
 dimcountry = renamecolumns()
 
-def insertcountrydata(spark = spark, dwconnection = pgconn_dw, dbuser = pguser, dbpwd = pgpwd, driver = pgdriver, country = dimcountry):
+def insertcountrydata(spark = spark, dwconnection = mssql_dwdest, dbuser = mssqluser, dbpwd = mssqlpwd, driver = mssqldriver, country = dimcountry):
 #insert normalized data
     (( 
-    country
+    dimcountry
         .write
-            .format('jdbc')
-            .option('url', f'{dwconnection}')
-            .option('driver', f'{driver}')
-            .option('user', f'{dbuser}')
-            .option('password', f'{dbpwd}')
-            .option('dbtable', 'dimension.country')
+        .format('jdbc')
+        .option('url', f'{mssql_dwdest}')
+        .option('driver', f'{mssqldriver}')
+        .option('user', f'{mssqluser}')
+        .option('password', f'{mssqlpwd}')
+        .option('dbtable', 'dimension.country')
         .save(mode= 'overwrite')
     ))
     

@@ -1,22 +1,21 @@
-#packages and modules
-#load env-var
+#importing packages and vars
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
 
 import os
-
 from dotenv import load_dotenv
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
+#load environment variables
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-#environment variables
-pgconn = os.getenv('POSTGRE_CONN')
-pgdriver = os.getenv('PG_DRIVER')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgjar = os.getenv('POSTGRE_JAR')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 #creating spark session
 def createsession():
@@ -26,15 +25,15 @@ def createsession():
         
     Returns:
         _type_: sparksession
-    """
-    
-    spark = (( SparkSession
+        """
+    spark = ((SparkSession
                 .builder
-                    .appName('customers')
-                    .config('spark.jar', f'{pgjar}')
-                    .config('spark.driver.extraClassPath', f'{pgjar}')
-                    .config('spark.executor.extraClassPath', f'{pgjar}')
+                .appName('dimcountry')
+                .config('spark.jar', f'{sqlserverjar}')
+                .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+                .config('spark.executor.extraClassPath', f'{sqlserverjar}')
                 .getOrCreate()
+                
             ))
     
     return spark
@@ -42,7 +41,7 @@ def createsession():
 spark = createsession()
 
 #loading customer data from source table
-def loadcustomer(spark = spark, connection = pgconn, user = pguser, pwd = pgpwd, driver = pgdriver):
+def loadcustomer(spark = spark, connection = mssqlsource, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
     
     """ this function loads data from customer table on postgre database
         and split some columns to ease data process
@@ -84,23 +83,19 @@ def loadcustomer(spark = spark, connection = pgconn, user = pguser, pwd = pgpwd,
                                             postaladdressline1,
                                             postaladdressline2,
                                             isstatementsent,
-                                            isoncredithold,
-                                            _airbyte_ab_id,
-                                            _airbyte_customers_hashid,
-                                            _airbyte_emitted_at,
-                                            _airbyte_normalized_at
+                                            isoncredithold
                                             
                                         from sales.customers
                                     
                                     """)
                             
                             #this column has been renamed to avoid conflict ambiguity
-                        )).load().withColumnRenamed('_airbyte_ab_id', 'customer_elt_hashid')
+                        )).load()
     
     return tmp_customer
 
 #loading customercategory data from source table
-def load_customercategory(connection = pgconn, user = pguser, pwd = pgpwd, driver = pgdriver):
+def load_customercategory(connection = mssqlsource, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
 
     """ 
         In this function, we'll load customer category data 
@@ -108,56 +103,55 @@ def load_customercategory(connection = pgconn, user = pguser, pwd = pgpwd, drive
     
         This also creates store category for store dimension.
     """
+#load customercategory data from source table
     tmp_custmercategory = (( spark
-                                .read
-                                .format('jdbc')
-                                .option('url', connection)
-                                .option('driver', driver)
-                                .option('user', user)
-                                .option('password', pwd)
-                                .option('query', 
-                                        
-                                        """ 
-                                            select
+                            .read
+                            .format('jdbc')
+                            .option('url', mssqlsource)
+                            .option('driver', mssqldriver)
+                            .option('user', mssqluser)
+                            .option('password', mssqlpwd)
+                            .option('query', 
+                                    
+                                    """ 
+                                        select
 
-                                                customercategoryid,
-                                                customercategoryname,
-                                                _airbyte_ab_id,
-                                                _airbyte_customercategories_hashid
-                                            
-                                            from sales.customercategories
-                                            
-                                        """)
-                            )).load().withColumnRenamed('_airbyte_ab_id', 'custcategory_elt_hashid')
+                                            customercategoryid,
+                                            customercategoryname
+                                        
+                                        from sales.customercategories
+                                        
+                                    """)
+                        )).load()
+    
     return tmp_custmercategory
 
 #loading buying groups from table
-def load_buyinggroups(connection = pgconn, user = pguser, pwd = pgpwd, driver = pgdriver):
+def load_buyinggroups(connection = mssqlsource, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
 
     """ 
         extract buying groups data from buying groups table on postgre database           
     """
+#load customercategory data from source table
     tmp_buyinggroups = (( spark
-                            .read
-                            .format('jdbc')
-                            .option('url', connection)
-                            .option('driver', driver)
-                            .option('user', user)
-                            .option('password', pwd)
-                            .option('query', 
+                        .read
+                        .format('jdbc')
+                        .option('url', mssqluser)
+                        .option('driver', mssqldriver)
+                        .option('user', mssqluser)
+                        .option('password', mssqlpwd)
+                        .option('query', 
+                                
+                                """
+                                    select
                                     
-                                    """
-                                        select
+                                        buyinggroupid,
+                                        buyinggroupname
                                         
-                                            buyinggroupid,
-                                            buyinggroupname,
-                                            _airbyte_ab_id,
-                                            _airbyte_buyinggroups_hashid
-                                            
-                                        from sales.buyinggroups
-                                            
-                                    """)
-                            )).load().withColumnRenamed('_airbyte_ab_id', 'custgroup_elt_hashid')
+                                    from sales.buyinggroups
+                                        
+                                """)
+                        )).load()
     return tmp_buyinggroups
 
 customer = loadcustomer()
@@ -177,7 +171,7 @@ def joining_frames(customer = customer, custcategory = customercategory, buygrou
     """
     joined_frames = (( customer
                         .join(custcategory, 'customercategoryid', 'left')
-                        .join(buyinggroups, 'buyinggroupid', 'left')
+                        .join(buygroups, 'buyinggroupid', 'left')
                     ))
     
     return joined_frames
@@ -225,14 +219,7 @@ def droprename_dataframe(dataframe = data):
                         .withColumnRenamed('firstname_n', 'firstname')
                         .withColumnRenamed('postaladdressline1', 'postaladdress')
                         .withColumnRenamed('postaladdressline2', 'alternatepostaladdress')
-                        .withColumnRenamed('_airbyte_customers_hashid', 'customers_hashid')
-                        .withColumnRenamed('customer_elt_hashid', 'elt_customer_hashid')
-                        .withColumnRenamed('_airbyte_customercategories_hashid', 'customercategory_hashid')
-                        .withColumnRenamed('custcategory_elt_hashid', 'elt_custcategory_hashid')
-                        .withColumnRenamed('_airbyte_buyinggroups_hashid', 'elt_buyergroup_hashid')
-                        .withColumnRenamed('custgroup_elt_hashid', 'buyergroup_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_finalized')
+
     ))
     
     return renamed_df
@@ -293,13 +280,7 @@ def createcustomer(dataframe = customer_store):
                             'alternatepostaladdress',
                             'place',
                             'isoncredithold',
-                            'isstatementsent',
-                            'elt_customer_hashid',
-                            'customers_hashid',
-                            'elt_custcategory_hashid',
-                            'customercategory_hashid',
-                            'elt_buyergroup_hashid',
-                            'buyergroup_hashid'
+                            'isstatementsent'
                             )
                         .where('firstname not like "Tailspin%" and firstname not like "Wingtip%" ')
                                                 
@@ -314,8 +295,6 @@ def createcustomer(dataframe = customer_store):
                     .withColumn('place', f.expr('coalesce(place, "Not Available")'))
                     .withColumn('creditlimit', f.expr('cast(creditlimit as numeric(12, 2)) as creditlimit'))
                     .withColumn('discountpercentage', f.expr('cast(discountpercentage as numeric(12, 2)) as discountpercentage'))
-                    .withColumn('elt_buyergroup_hashid', f.expr('coalesce(elt_buyergroup_hashid, "Not Available")'))
-                    .withColumn('buyergroup_hashid', f.expr('coalesce(buyergroup_hashid, "Not Available")'))
                     .withColumnRenamed('firstname', 'customername')
                     .drop('lastname')
                 ))
@@ -358,13 +337,7 @@ def createstore(dataframe = customer_store):
                             'alternatepostaladdress',
                             'place',
                             'isoncredithold',
-                            'isstatementsent',
-                            'elt_customer_hashid',
-                            'customers_hashid',
-                            'elt_custcategory_hashid',
-                            'customercategory_hashid',
-                            'elt_buyergroup_hashid',
-                            'buyergroup_hashid')
+                            'isstatementsent')
                         .where('firstname like "Tailspin%" or firstname like "Wingtip%"')
                     .withColumnRenamed('lastname', 'businessunity')
                 ))
@@ -375,13 +348,13 @@ customer = createcustomer()
 store = createstore()
 
 #writing data to customer dimension
-def writecustomer(data = customer, conn = pgconn, user = pguser, pwd = pgpwd, driver = pgdriver):
+def writecustomer(data = customer, conn = mssql_dwdest, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
 
     ((
         data
             .write
             .format('jdbc')
-                .option('url', pgconn_dw)
+                .option('url', conn)
                 .option('driver', driver)
                 .option('user', user)
                 .option('password', pwd)
@@ -390,13 +363,13 @@ def writecustomer(data = customer, conn = pgconn, user = pguser, pwd = pgpwd, dr
     ))
 
 #writing customer_category to dimension table
-def writecustomercategory(data =customercategory,  conn = pgconn, user = pguser, pwd = pgpwd, driver = pgdriver):
+def writecustomercategory(data =customercategory, conn = mssql_dwdest, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
 
     ((
-        customercategory
+        data
             .write
             .format('jdbc')
-                .option('url', pgconn_dw)
+                .option('url', conn)
                 .option('driver', driver)
                 .option('user', user)
                 .option('password', pwd)
@@ -404,13 +377,13 @@ def writecustomercategory(data =customercategory,  conn = pgconn, user = pguser,
             .save(mode= 'overwrite')
     ))
 #writing to storedimension
-def writestore(data = store, conn = pgconn, user = pguser, pwd = pgpwd, driver = pgdriver):
+def writestore(data = store, conn = mssql_dwdest, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
 
     ((
-        store
+        data
             .write
             .format('jdbc')
-                .option('url', pgconn_dw)
+                .option('url', conn)
                 .option('driver', driver)
                 .option('user', user)
                 .option('password', pwd)

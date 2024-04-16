@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
+from pyspark.sql.types import StructField, StructType, FloatType, IntegerType, StringType, DataType
 
-from pyspark.sql.types import StructField, StructType, IntegerType, StringType, FloatType, DataType
 import os
 from dotenv import load_dotenv
 
@@ -9,26 +9,25 @@ from dotenv import load_dotenv
 env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
 #env vars for postgresql connection
-pgconn = os.getenv('POSTGRE_CONN')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-driver = os.getenv('PG_DRIVER')
-pgjar = os.getenv('POSTGRE_JAR')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
-
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 #create spark session 
-spark = (SparkSession.\
+#creating sparksession
+spark = SparkSession.\
             builder.\
-            appName('dim_colors').\
-            config('spark.jars', f'{pgjar}').\
-            config('spark. driver.extraClassPath', f'{pgjar}').\
-            config('spark.executor.extraClassPath', f'{pgjar}').\
+            appName('teste_dimcolors').\
+            config('spark.jars', f'{sqlserverjar}').\
+            config('spark.driver.extraClassPath', f'{sqlserverjar}').\
+            config('spark.executor.extraClassPath', f'{sqlserverjar}').\
         getOrCreate()
-    )
 
 
-def selectcolors(spark = spark, connurl = pgconn, dbuser = pguser, dbpwd = pgpwd, dbdriver = driver):
+def selectcolors(spark = spark, connurl = mssqlsource , dbuser = mssqluser, dbpwd = mssqlpwd, dbdriver = mssqldriver):
     
     """ 
     
@@ -37,54 +36,51 @@ def selectcolors(spark = spark, connurl = pgconn, dbuser = pguser, dbpwd = pgpwd
     
     """
        
-    dimension_colors = spark.\
-                            read.\
-                            format('jdbc').\
-                            option('url', connurl).\
-                            option('user', dbuser).\
-                            option('password', dbpwd).\
-                            option('driver', dbdriver).\
-                            option('query',
-                                   
-                            """
-                                select 
-
-                                    wrh_c.colorid,
-                                    wrh_c.colorname,
-                                    wrh_c._airbyte_ab_id as elt_hashid,
-                                    wrh_c._airbyte_ab_id as color_hashid,
-                                    wrh_c._airbyte_emitted_at as elt_start,
-                                    wrh_c._airbyte_normalized_at as elt_end
+            
+    dimension_colors = ((spark.\
+                    read.\
+                    format('jdbc').\
+                    option('url', mssqlsource).\
+                    option('user', mssqluser).\
+                    option('password', mssqlpwd).\
+                    option('driver', mssqldriver).\
+                    option('query',
                         
-                                from warehouse.colors as wrh_c
-                                    left join
-                                    warehouse.colors_archive as wrh_ac
-                                on wrh_c.colorid = wrh_ac.colorid
-                                   
-                            """).\
-                        load()
+                        """ 
+                            select 
+
+                                wrh_c.colorid,
+                                wrh_c.colorname
                             
+                            from warehouse.colors as wrh_c
+                                left join
+                                warehouse.colors_archive as wrh_ac
+                            on wrh_c.colorid = wrh_ac.colorid
+
+                        """))).load()
+    
     return dimension_colors
 
 data = selectcolors()
 
-def insertcolor(spark = spark, connurl = pgconn, dbuser = pguser, dbpwd = pgpwd, dbdriver = driver, data = data):
-    
-    """ This function inserts data into color dimension table """
+
+
+data = selectcolors()
+
+def insertcolor(spark = spark, connurl = mssql_dwdest , dbuser = mssqluser, dbpwd = mssqlpwd, dbdriver = mssqldriver, data = data):
     
     data.\
         write.\
         format('jdbc').\
-        option('url', pgconn_dw).\
+        option('url', connurl).\
         option('user', dbuser).\
-        option('dbtable', 'dimension.color').\
+        option('dbtable', 'dimension.colors').\
         option('mode', 'overwrite').\
         option('password', dbpwd).\
         option('driver', dbdriver).\
     save(mode='overwrite')
     
 insertcolor()
-
 
 if __name__ == '__main__':
     

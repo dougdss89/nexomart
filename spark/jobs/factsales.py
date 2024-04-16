@@ -1,32 +1,41 @@
 #importing packages 
+
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
 
-from os import getenv
+import os
 from dotenv import load_dotenv
 
-env= load_dotenv('/mnt/d/linux/project/vars/.env')
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-#env variables
-pgconn = getenv('POSTGRE_CONN')
-pgdriver = getenv('PG_DRIVER')
-pgjar = getenv('POSTGRE_JAR')
-pguser = getenv('POSTGRE_USER')
-pgpwd = getenv('POSTGRE_PWD')
-pg_conn_dw = getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
+
 
 #create session
-spark = (( SparkSession
-            .builder
-            .appName('orders')
-            .config('spark.jars', pgjar)
-            .config('spark.driver.extraClassPath', pgjar)
-            .config('spark.executor.extraClassPath', pgjar)
-            .getOrCreate()
-        ))
+
+def sparksession():
+    
+    spark = (( SparkSession
+                .builder
+                .appName('orders')
+                .config('spark.jars', sqlserverjar)
+                .config('spark.driver.extraClassPath', sqlserverjar)
+                .config('spark.executor.extraClassPath', sqlserverjar)
+                .getOrCreate()
+            ))
+    
+    return spark
+
+spark = sparksession()
 
 #importing order table from source
-def createorders(spark = spark, conn = pgconn, driver = pgdriver, user = pguser, pwd = pgpwd):
+def createorders(spark = sparksession(), conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ Load orders from orders table 
         to join with orderline
@@ -51,22 +60,18 @@ def createorders(spark = spark, conn = pgconn, driver = pgdriver, user = pguser,
                                     contactpersonid,
                                     orderdate,
                                     expecteddeliverydate,
-                                    pickingcompletedwhen as processedtime,
-                                    _airbyte_ab_id,
-                                    _airbyte_orders_hashid,
-                                    _airbyte_emitted_at,
-                                    _airbyte_normalized_at
+                                    pickingcompletedwhen as processedtime
                                     
                                 from sales.orders
                                 
                             """)
-                )).load().withColumnRenamed('_airbyte_ab_id', 'elt_orders_hashid')
+                )).load()
     
     return tmp_orders
 
 
 #importing orderline from table
-def createorder_line(spark = spark, conn = pgconn, driver = pgdriver, user = pguser, pwd = pgpwd):
+def createorder_line(spark = spark, conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ import orderline data from orderline table
         to join with orders.
@@ -77,7 +82,7 @@ def createorder_line(spark = spark, conn = pgconn, driver = pgdriver, user = pgu
                         .option('url', conn)
                         .option('driver', driver)
                         .option('user', user)
-                        .option('password', pgpwd)
+                        .option('password', pwd)
                         .option('query', 
                                 
                                 """
@@ -91,22 +96,18 @@ def createorder_line(spark = spark, conn = pgconn, driver = pgdriver, user = pgu
                                         pickedquantity,
                                         unitprice,
                                         taxrate,
-                                        pickingcompletedwhen,
-                                        _airbyte_ab_id,
-                                        _airbyte_orderlines_hashid
+                                        pickingcompletedwhen
                                         
                                     from sales.orderlines
                                 
                                 """)
-                    )).load().withColumnRenamed('_airbyte_ab_id', 'elt_orderline_hashid')
+                    )).load()
     
     return tmp_orderline
 
 #joining tables 
-orders = createorders()
-orderlines = createorder_line()
 
-def cleaning_join(order = orders, orderlines = orderlines):
+def cleaning_join(order = createorders(), orderlines = createorder_line()):
     
     """
     joining and cleaning orders table 
@@ -141,13 +142,7 @@ def cleaning_join(order = orders, orderlines = orderlines):
                         'quantity',
                         'pickedquantity',
                         'unitprice',
-                        'taxrate',
-                        'elt_orderline_hashid',
-                        'elt_orders_hashid',
-                        '_airbyte_orders_hashid',
-                        '_airbyte_orderlines_hashid',
-                        '_airbyte_emitted_at',
-                        '_airbyte_normalized_at'
+                        'taxrate'
                         )
                 
                 #cleaning and adjust datatype
@@ -174,16 +169,6 @@ def cleaning_join(order = orders, orderlines = orderlines):
                 
                 .withColumn('taxrate', f.expr('cast(taxrate as decimal(5, 2))'))
                 
-                .withColumn('_airbyte_emitted_at', f.expr('cast(_airbyte_emitted_at as date)'))
-                                                    .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                
-                .withColumn('_airbyte_normalized_at', f.expr('cast(_airbyte_normalized_at as date)'))
-                                                    .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
-                
-                #renaming columns..                                  
-                .withColumnRenamed('_airbyte_orders_hashid', 'orders_hashid')
-                
-                .withColumnRenamed('_airbyte_orderlines_hashid', 'orderlines_hashid')
                 .withColumnRenamed('customerpurchaseordernumber', 'customerpurchaseorder')
 
             ))
@@ -193,11 +178,11 @@ def cleaning_join(order = orders, orderlines = orderlines):
 salesorders = cleaning_join()
 
 #write data to table
-def writesales_order(dw_conn = pg_conn_dw, driver = pgdriver, user= pguser, pwd = pgpwd):
+def writesales_order(data = cleaning_join(), dw_conn = mssql_dwdest, driver = mssqldriver, user= mssqluser, pwd = mssqlpwd):
     
     """ writing data on salesorder dimension"""
     ((
-        salesorders
+        data
             .write
             .format('jdbc')
                 .option('url', dw_conn)
@@ -211,6 +196,7 @@ def writesales_order(dw_conn = pg_conn_dw, driver = pgdriver, user= pguser, pwd 
     return "Data was loaded successfully"
 
 if __name__=='__main__':
+    
     createorders()
     createorder_line()
     cleaning_join()

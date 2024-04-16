@@ -2,18 +2,19 @@
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
-from dotenv import load_dotenv
 
 import os
+from dotenv import load_dotenv
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-pgjar = os.getenv('POSTGRE_JAR')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgdriver = os.getenv('PG_DRIVER')
-pgconn = os.getenv('POSTGRE_CONN')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 #create spark session
 
@@ -21,23 +22,23 @@ spark = ((
         SparkSession
             .builder
             .appName('stock_holding')
-            .config('spark.jars', f'{pgjar}')
-            .config('spark.executor.extraClassPath', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
+            .config('spark.jars', f'{sqlserverjar}')
+            .config('spark.executor.extraClassPath', f'{sqlserverjar}')
+            .config('spark.driver.extraClassPath', f'{sqlserverjar}')
         .getOrCreate()
 ))
 
 #loading data from table
-def createstockholding(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createstockholding(spark = spark, conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     """ creating stock holding dimension """
     
     tmpstockholding_frame = (( spark
                                     .read
                                     .format('jdbc')
-                                    .option('url', pgconn)
-                                    .option('driver', pgdriver)
-                                    .option('user', pguser)
-                                    .option('password', pgpwd)
+                                    .option('url', conn)
+                                    .option('driver', driver)
+                                    .option('user', user)
+                                    .option('password', pwd)
                                     .option('query',
                                             
                                             """ 
@@ -50,11 +51,7 @@ def createstockholding(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pgus
                                                     lastcostprice,
                                                     quantityonhand,
                                                     laststocktakequantity,
-                                                    targetstocklevel,
-                                                    _airbyte_ab_id,
-                                                    _airbyte_stockitemholdings_hashid,
-                                                    _airbyte_emitted_at,
-                                                    _airbyte_normalized_at
+                                                    targetstocklevel
                                                 
                                                 from warehouse.stockitemholdings
                                             
@@ -74,24 +71,20 @@ def renamedimension(data = createstockholding()):
                         .withColumnRenamed('binlocation', 'shelflocation')
                         .withColumnRenamed('quantityonhand', 'availabeqtd')
                         .withColumnRenamed('laststocktakequantity', 'laststockqtd')
-                        .withColumnRenamed('_airbyte_ab_id', 'extract_id')
-                        .withColumnRenamed('_airbyte_stockitemsholding_hashid', 'stockedprod_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
     ))
     
     return itemholding
 
 #write data into a new table on datawarehouse
-def writingdata(df = renamedimension(), pgconn_dw = pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def writingdata(df = renamedimension(), conn_dw = mssql_dwdest, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     ((
         df
             .write
             .format('jdbc')
-            .option('url', pgconn_dw)
-            .option('driver', pgdriver)
-            .option('user', pguser)
-            .option('password', pgpwd)
+            .option('url', conn_dw)
+            .option('driver', driver)
+            .option('user', user)
+            .option('password', pwd)
             .option('dbtable', 'dimension.stockedproduct')
         .save(mode='overwrite')
     ))

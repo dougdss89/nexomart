@@ -1,19 +1,20 @@
 
-import pyspark.sql.functions as f
 from pyspark.sql.session import SparkSession
+import pyspark.sql.functions as f
 
 import os
 from dotenv import load_dotenv
 
-#load env-var
-env= load_dotenv('/mnt/d/linux/project/vars/.env')
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-pgconn = os.getenv('POSTGRE_CONN')
-pgdriver = os.getenv('PG_DRIVER')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
-pgjar = os.getenv('POSTGRE_JAR')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
+
 
 #create session
 
@@ -21,15 +22,15 @@ def create_session():
     spark = (( SparkSession
                     .builder
                     .appName('factinvoice')
-                    .config('spark.jars', f'{pgjar}')    
-                    .config('spark.driver.extraClassPath', f'{pgjar}')
-                    .config('spark.executor.extraClassPath', f'{pgjar}')
+                    .config('spark.jars', f'{sqlserverjar}')    
+                    .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+                    .config('spark.executor.extraClassPath', f'{sqlserverjar}')
                     .getOrCreate()
                 ))
     
     return spark
 
-def create_invoiceorder(spark = create_session(), pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def create_invoiceorder(spark = create_session(), conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """
     create invoice order to join with invoiceoderline
@@ -38,10 +39,10 @@ def create_invoiceorder(spark = create_session(), pgconn = pgconn, pgdriver = pg
     temp_invoice = (( spark
                         .read
                         .format('jdbc')
-                        .option('url', f'{pgconn}')
-                        .option('driver', f'{pgdriver}')
-                        .option('user', f'{pguser}')
-                        .option('password', f'{pgpwd}')
+                        .option('url', f'{conn}')
+                        .option('driver', f'{driver}')
+                        .option('user', f'{user}')
+                        .option('password', f'{pwd}')
                         .option('query', 
                                 
                                 """ 
@@ -68,17 +69,13 @@ def create_invoiceorder(spark = create_session(), pgconn = pgconn, pgdriver = pg
                                         sil.taxrate,
                                         sil.taxamount,
                                         sil.extendedprice,
-                                        sil.lineprofit,
-                                        si._airbyte_ab_id as invoice_elt_hashid,
-                                        sil._airbyte_ab_id as invoiceline_elt_hashid,
-                                        si._airbyte_invoices_hashid,
-                                        sil._airbyte_invoicelines_hashid,
-                                        si._airbyte_normalized_at,
-                                        si._airbyte_emitted_at
+                                        sil.lineprofit
                                         
                                     from sales.invoicelines as sil
+                                    
                                     left join
                                         sales.invoices as si
+                                        
                                     on sil.invoiceid = si.invoiceid
                                 
                                 """
@@ -87,16 +84,16 @@ def create_invoiceorder(spark = create_session(), pgconn = pgconn, pgdriver = pg
     
     return temp_invoice
 
-def write_invoice(invoiceframe = create_invoiceorder(), pgconn_dw = pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def write_invoice(invoiceframe = create_invoiceorder(), conn_dw = mssql_dwdest, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     (( 
         invoiceframe
             .write
             .format('jdbc')
-            .option('url', pgconn_dw)
-            .option('driver', pgdriver)
-            .option('user', pguser)
-            .option('password', pgpwd)
+            .option('url', conn_dw)
+            .option('driver', driver)
+            .option('user', user)
+            .option('password', pwd)
             .option('dbtable', 'fact.invoice')
             .mode('overwrite')
         .save(mode= 'overwrite')

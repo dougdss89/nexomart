@@ -1,42 +1,43 @@
-#import packages
+#importing packages 
+
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
-import os
 
+import os
 from dotenv import load_dotenv
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-#importing variables
-pgjar = os.getenv('POSTGRE_JAR')
-pgconn = os.getenv('POSTGRE_CONN')
-pgdriver = os.getenv('PG_DRIVER')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 #create session
 spark = ((SparkSession
             .builder
             .appName('suppliertransaction')
-            .config('spark.jars', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
-            .config('spark.executor.extraClassPath', f'{pgjar}')
+            .config('spark.jars', f'{sqlserverjar}')
+            .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+            .config('spark.executor.extraClassPath', f'{sqlserverjar}')
             .getOrCreate()
         ))
 
 #loding data from source table 
-def createsupplier_transaction(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createsupplier_transaction(spark = spark, conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ creatign supplier transaction fact table """
     
     tmp_suppliertransaction = (( spark
                                     .read
                                     .format('jdbc')
-                                    .option('url', pgconn)
-                                    .option('driver', pgdriver)
-                                    .option('user', pguser)
-                                    .option('password', pgpwd)
+                                    .option('url', conn)
+                                    .option('driver', driver)
+                                    .option('user', user)
+                                    .option('password', pwd)
                                     .option('query', 
                                             """ 
                                                 select
@@ -52,11 +53,7 @@ def createsupplier_transaction(spark = spark, pgconn = pgconn, pgdriver = pgdriv
                                                     amountexcludingtax,
                                                     outstandingbalance,
                                                     transactiondate,
-                                                    isfinalized,
-                                                    _airbyte_ab_id,
-                                                    _airbyte_suppliertransactions_hashid,
-                                                    _airbyte_emitted_at,
-                                                    _airbyte_normalized_at
+                                                    isfinalized
                                                     
                                                 from purchasing.suppliertransactions
                                             """)
@@ -103,10 +100,6 @@ def dropcolumns(sourcedata = renametransaction()):
                                 .withColumnRenamed('transactionamount', 'total')
                                 .withColumnRenamed('purchaseorderid_n', 'purchaseorderid')
                                 .withColumnRenamed('isfinalized_n', 'isfinalized')
-                                .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
-                                .withColumnRenamed('_airbyte_suppliertransactions_hashid', 'suppliertransactions_hashid')
-                                .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                                .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
                                 .withColumnRenamed('outstandingbalance', 'balance')
                         ))
     return dropcol_transaction
@@ -129,38 +122,35 @@ def organizedataframe(dataframe = dropcolumns()):
                                             'total',
                                             'balance',
                                             'transactiondate',
-                                            'isfinalized',
-                                            'elt_hashid',
-                                            'suppliertransactions_hashid',
-                                            'elt_start',
-                                            'elt_end')
+                                            'isfinalized')
                                 ))
     return suppliertransaction_frame
 
 #write to datawarehouse
-def writetransactionfact(transactionframe = organizedataframe(), pgconn_dw = pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def writetransactionfact(transactionframe = organizedataframe(), conn_dw = mssql_dwdest, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     """write transaction dataframe on fact table
 
     Args:
         transactionframe (_type_, dataframe): _description_. Defaults to organizedataframe().
-        pgconn_dw (_type_, str): _description_. Defaults to pgconn_dw.
-        pgdriver (_type_, str): _description_. Defaults to pgdriver.
-        pguser (_type_, str): _description_. Defaults to pguser.
-        pgpwd (_type_, str): _description_. Defaults to pgpwd.
+        conn_dw (_type_, str): _description_. Defaults to conn_dw.
+        driver (_type_, str): _description_. Defaults to driver.
+        user (_type_, str): _description_. Defaults to user.
+        pwd (_type_, str): _description_. Defaults to pwd.
     """
     (( 
     transactionframe
         .write
             .format('jdbc')
-            .option('url', pgconn_dw)
-            .option('driver', pgdriver)
-            .option('user', pguser)
-            .option('password', pgpwd)
+            .option('url', conn_dw)
+            .option('driver', driver)
+            .option('user', user)
+            .option('password', pwd)
             .option('dbtable', 'fact.suppliertransaction')
         .save(mode= 'overwrite')
     ))
     
 if __name__=='__main__':
+    
     createsupplier_transaction()
     renametransaction()
     dropcolumns()

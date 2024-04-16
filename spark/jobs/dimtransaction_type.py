@@ -1,4 +1,3 @@
-#import packages and vars
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
@@ -6,52 +5,54 @@ import pyspark.sql.functions as f
 import os
 from dotenv import load_dotenv
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-#creating env-vars
-pgconn = os.getenv('POSTGRE_CONN')
-pgdriver = os.getenv('PG_DRIVER')
-pgjar = os.getenv('POSTGRE_JAR')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 #creating session
+def sparksession():
+    
+    spark = (( SparkSession 
+                .builder
+                .appName('dim_transaction')
+                .config('spark.jars', f'{sqlserverjar}')
+                .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+                .config('spark.executor.extraClassPath', f'{sqlserverjar}')
+                .getOrCreate()
+                
+            ))
 
-spark = (( SparkSession 
-            .builder
-            .appName('dim_transaction')
-            .config('spark.jars', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
-            .config('spark.executor.extraClassPath', f'{pgjar}')
-            .getOrCreate()
-            
-        ))
+    return spark
+
+spark = sparksession()
 
 #load data from table
-def createtransaction(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createtransaction(spark = sparksession(), conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ creating transaction type dimension """
     tmp_transactionframe = (( spark
                                 .read
                                     .format('jdbc')
-                                    .option('url', pgconn)
-                                    .option('driver', pgdriver)
-                                    .option('user', pguser)
-                                    .option('password', pgpwd)
+                                    .option('url', conn)
+                                    .option('driver', driver)
+                                    .option('user', user)
+                                    .option('password', pwd)
                                     .option('query', 
                                         
                                             """ 
                                             select
                                             
                                                 transactiontypeid,
-                                                transactiontypename,
-                                                _airbyte_ab_id,
-                                                _airbyte_transactiontypes_hashid,
-                                                _airbyte_emitted_at,
-                                                _airbyte_normalized_at
+                                                transactiontypename
                                                 
                                             from application.transactiontypes
+                                            
                                             """)
                             )).load()
     return tmp_transactionframe
@@ -61,16 +62,13 @@ def renametransactioncolumns(dataframe = createtransaction()):
     
     transactionframe = (( dataframe
                             .withColumnRenamed('transactiontypename', 'transaction_name')
-                            .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
-                            .withColumnRenamed('_airbyte_transactiontypes_hashid', 'transactiontype_hashid')
-                            .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                            .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+
                         ))
     
     return transactionframe
 
 #load data to a table
-def writetransactiontype(datasource = renametransactioncolumns(), pgconn_dw = pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def writetransactiontype(datasource = renametransactioncolumns(), conn_dw = mssql_dwdest, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """writing transaction type dimension on data warehouse
     
@@ -78,10 +76,10 @@ def writetransactiontype(datasource = renametransactioncolumns(), pgconn_dw = pg
     (( datasource
         .write
             .format('jdbc')
-            .option('url', pgconn_dw)
-            .option('driver', pgdriver)
-            .option('user', pguser)
-            .option('password', pgpwd)
+            .option('url', conn_dw)
+            .option('driver', driver)
+            .option('user', user)
+            .option('password', pwd)
             .option('dbtable', 'dimension.transactiontype')
         .save(mode= 'overwrite')
     ))

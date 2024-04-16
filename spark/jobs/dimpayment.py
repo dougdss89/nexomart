@@ -1,4 +1,4 @@
-#import packages and env-vars
+#importing packages and env-var
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
@@ -6,29 +6,29 @@ import pyspark.sql.functions as f
 import os
 from dotenv import load_dotenv
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-#load variables
-pgjar = os.getenv('POSTGRE_JAR')
-pgconn = os.getenv('POSTGRE_CONN')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgdriver = os.getenv('PG_DRIVER')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 #create session
 spark = (( SparkSession
             .builder
             .appName('payments')
-            .config('spark.jars', f'{pgjar}' )
-            .config('spark.executor.extraClassPath', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
+            .config('spark.jars', f'{sqlserverjar}' )
+            .config('spark.executor.extraClassPath', f'{sqlserverjar}')
+            .config('spark.driver.extraClassPath', f'{sqlserverjar}')
             .getOrCreate()
         ))
 
 #loading data
 
-def createpayment(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createpayment(spark = spark, conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ 
         loading paymentmethod table to payment dimension
@@ -37,10 +37,10 @@ def createpayment(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = 
     tmp_paymentframe = (( spark
                             .read
                             .format('jdbc')
-                            .option('url', pgconn)
-                            .option('driver', pgdriver)
-                            .option('user', pguser)
-                            .option('password', pgpwd)
+                            .option('url', conn)
+                            .option('driver', driver)
+                            .option('user', user)
+                            .option('password', pwd)
                             .option('query', 
                                     
                                     """ 
@@ -48,11 +48,7 @@ def createpayment(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = 
                                         select
                                         
                                             paymentmethodid,
-                                            paymentmethodname,
-                                            _airbyte_ab_id,
-                                            _airbyte_paymentmethods_hashid,
-                                            _airbyte_emitted_at,
-                                            _airbyte_normalized_at
+                                            paymentmethodname
                                             
                                         from application.paymentmethods
                                     
@@ -70,10 +66,7 @@ def renamepayment(data = createpayment()):
     paymentframe = (( data
                         .withColumnRenamed('paymentmethodid', 'paymentid')
                         .withColumnRenamed('paymentmethodname', 'methodname')
-                        .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
-                        .withColumnRenamed('_airbyte_paymentmethods_hashid', 'paymentmethod_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+
                     ))
     
     return paymentframe
@@ -81,16 +74,16 @@ def renamepayment(data = createpayment()):
 
 #writing on datawarehouse
 
-def writepayment(data = renamepayment(), pgconn_dw = pgconn_dw, pguser = pguser, pgpwd = pgpwd, pgdriver = pgdriver):
+def writepayment(data = renamepayment(), conn_dw = mssql_dwdest, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
     (( 
     data
         .write
         .format('jdbc')
-        .option('url', pgconn)
-        .option('driver', pgdriver)
-        .option('user', pguser)
-        .option('password', pgpwd)
-        .option('dbtable', 'application.testeinsert')
+        .option('url', conn_dw)
+        .option('driver', driver)
+        .option('user', user)
+        .option('password', pwd)
+        .option('dbtable', 'dimension.paymentmethod')
         .save(mode='overwrite')
     ))
     

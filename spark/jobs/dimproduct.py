@@ -1,4 +1,3 @@
-#importing packages and env-var
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
@@ -6,39 +5,44 @@ import pyspark.sql.functions as f
 import os
 from dotenv import load_dotenv
 
-load_dotenv('/mnt/d/linux/project/vars/.env')
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-pgconn = os.getenv('POSTGRE_CONN')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgjar = os.getenv('POSTGRE_JAR')
-pgdriver = os.getenv('PG_DRIVER')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 
 #creating spark session
 
-spark = (SparkSession
+#CREATE SESSION
+spark = ((
+        SparkSession
             .builder
             .appName('dim_stock')
-            .config('spark.jars', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
-            .config('spark.executor.extraClassPath', f'{pgjar}')
+            .config('spark.jars', f'{sqlserverjar}')
+            .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+            .config('spark.executor.extraClassPath', f'{sqlserverjar}')
         .getOrCreate()
-)
+))
+
 spark.sparkContext.setLogLevel("WARN")
 
 #load data from postgre database table
 #start cleaning data
 
 #first of all, lets create a dataframe from data table
-def createproduct(spark = spark, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createproduct(spark = spark, conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
+        
         stockitems_frame = (( spark.read
                         .format('jdbc')
-                        .option('url', pgconn)
-                        .option('user', pguser)
-                        .option('password', pgpwd)
-                        .option('driver', pgdriver)
+                        .option('url', conn)
+                        .option('user', user)
+                        .option('password', pwd)
+                        .option('driver', driver)
                         .option('query', 
                                 
                                 """  
@@ -64,11 +68,7 @@ def createproduct(spark = spark, pgdriver = pgdriver, pguser = pguser, pgpwd = p
                                         wsi.CustomFields,
                                         wsi.tags,
                                         wsi.ValidFrom,
-                                        wsi.ValidTo,
-                                        wsi._airbyte_ab_id,
-                                        wsi._airbyte_stockitems_hashid,
-                                        wsi._airbyte_emitted_at,
-                                        wsi._airbyte_normalized_at
+                                        wsi.ValidTo
 
                                 from Warehouse.StockItems as wsi
 
@@ -95,6 +95,7 @@ def createproduct(spark = spark, pgdriver = pgdriver, pguser = pguser, pgpwd = p
 #drop columns that not satisfy our dataset
 
 def cleaningproduct(stockitems_frame = createproduct()):
+        
         productframe = (stockitems_frame
                                 .select('*',\
                                         f.regexp_replace('customfields', "[^0-9a-zA-Z , :]", "")
@@ -114,6 +115,7 @@ def cleaningproduct(stockitems_frame = createproduct()):
 #leaving information about country manufacture
 #droping unused columns
 def extractname(temp_product = cleaningproduct()):
+        
         (
         temp_product
                 .select('*',
@@ -139,10 +141,6 @@ def fillproductnull(dataframe = extractname()):
                         'marketingcomments': 'unknown'
                         })
                 
-                .withColumnRenamed('_airbyte_ab_id', 'extract_hashid')
-                .withColumnRenamed('_airbyte_stockitems_hashid', 'product_hashid')
-                .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
                 .drop('temp_customfield')
         )
         
@@ -151,14 +149,14 @@ def fillproductnull(dataframe = extractname()):
 #load transformed data into database table
 #finishing elt process
 
-def writeproduct(data = fillproductnull(), pgconn_dw = pgconn_dw, pguser = pguser, pgpwd = pgpwd, pgdriver = pgdriver):
+def writeproduct(data = fillproductnull(), conn_dw = mssql_dwdest, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
         (
         data.write
                 .format('jdbc')
-                .option('url', pgconn_dw)
-                .option('user', pguser)
-                .option('password', pgpwd)
-                .option('driver', pgdriver)
+                .option('url', conn_dw)
+                .option('user', user)
+                .option('password', pwd)
+                .option('driver', driver)
                 .option('mode', 'overwrite')
                 .option('dbtable', 'dimension.product')
                 .save(mode = 'overwrite')
@@ -166,6 +164,7 @@ def writeproduct(data = fillproductnull(), pgconn_dw = pgconn_dw, pguser = pguse
         
 if __name__ == '__main__':
         createproduct()
+        print('Product created')
         cleaningproduct()
         extractname()
         fillproductnull()

@@ -1,4 +1,3 @@
-#importing packages
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
@@ -6,39 +5,44 @@ import pyspark.sql.functions as f
 import os
 from dotenv import load_dotenv
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-#importing vars
-
-pgconn = os.getenv('POSTGRE_CONN')
-pgdriver = os.getenv('PG_DRIVER')
-pgjar = os.getenv('POSTGRE_JAR')
-pguser = os.getenv('POSTGRE_USER')
-pgpwd = os.getenv('POSTGRE_PWD')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 #create session
 
-spark = (( SparkSession
-            .builder
-                .appName('purchase_orderline')
-                .config('spark.jars', f'{pgjar}')
-                .config('spark.driver.extraClassPath', f'{pgjar}')
-                .config('spark.executor.extraClassPath', f'{pgjar}')
-            .getOrCreate()
-        ))
+def sparksession():
+    
+    spark = (( SparkSession
+                .builder
+                    .appName('purchase_orderline')
+                    .config('spark.jars', f'{sqlserverjar}')
+                    .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+                    .config('spark.executor.extraClassPath', f'{sqlserverjar}')
+                .getOrCreate()
+            ))
+    
+    return spark
+
+spark = sparksession()
 
 #getting purchaseorderline
-def createpurchaseline (spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createpurchaseline (spark = sparksession(), conn = mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ create purchase orderline to join with order """
     tmp_purchaseorderline = (( spark
                                 .read
                                 .format('jdbc')
-                                .option('url', pgconn)
-                                .option('driver', pgdriver)
-                                .option('user', pguser)
-                                .option('password', pgpwd)
+                                .option('url', conn)
+                                .option('driver', driver)
+                                .option('user', user)
+                                .option('password', pwd)
                                 .option('query', 
                                         
                                         """ 
@@ -52,9 +56,7 @@ def createpurchaseline (spark = spark, pgconn = pgconn, pgdriver = pgdriver, pgu
                                                 description,
                                                 expectedunitpriceperouter,
                                                 cast(isorderlinefinalized as varchar(10)) as isorderlinefinalized,
-                                                lastreceiptdate,
-                                                _airbyte_ab_id as elt_orderline_hashid,
-                                                _airbyte_purchaseorderlines_hashid as orderline_hashid
+                                                lastreceiptdate
                                             
                                             from purchasing.purchaseorderlines
                                         
@@ -65,17 +67,17 @@ def createpurchaseline (spark = spark, pgconn = pgconn, pgdriver = pgdriver, pgu
     return tmp_purchaseorderline
 
 #getting purchasorder
-def createpurchase_order(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def createpurchase_order(spark = sparksession(), conn = mssqlsource , driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ loading purchaseorder data to dataframe """
     tmp_purchaseframe = (( 
                         spark
                             .read
                             .format('jdbc')
-                            .option('url', pgconn)
-                            .option('driver', pgdriver)
-                            .option('user', pguser)
-                            .option('password', pgpwd)
+                            .option('url', conn)
+                            .option('driver', driver)
+                            .option('user', user)
+                            .option('password', pwd)
                             .option('query', 
                                     
                                     """ 
@@ -89,11 +91,7 @@ def createpurchase_order(spark = spark, pgconn = pgconn, pgdriver = pgdriver, pg
                                         orderdate,
                                         expecteddeliverydate as duedate,
                                         supplierreference,
-                                        isorderfinalized,
-                                        _airbyte_ab_id,
-                                        _airbyte_purchaseorders_hashid,
-                                        _airbyte_emitted_at,
-                                        _airbyte_normalized_at
+                                        isorderfinalized
 
                                         from purchasing.purchaseorders
                                     
@@ -118,10 +116,7 @@ def join_order(orders = createpurchase_order(), orderline = createpurchaseline()
                         .withColumnRenamed('expectedunitpriceperouter', 'expectedunit')
                         .withColumnRenamed('receivedouters', 'qtdreceived')
                         .withColumnRenamed('orderedouters', 'qtdordered')
-                        .withColumnRenamed('_airbyte_ab_id', 'elt_order_hashid')
-                        .withColumnRenamed('_airbyte_purchaseorders_hashid', 'purchaseorder_hashid')
-                        .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                        .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+
                         
                         .withColumn('isorderfinalized', f.when(join_purchase.isorderlinefinalized == 'true', 1)
                                                             .otherwise('0'))                                                         
@@ -144,37 +139,32 @@ def reordercolumn(orderframe = join_order()):
                                 'supplierreference',
                                 'contactpersonid',
                                 'orderdate',
-                                'expecteddeliverydate',
+                                'duedate',
                                 'lastreceiptdate',
-                                'isorderfinalized',
-                                'elt_order_hashid',
-                                'elt_orderline_hashid',
-                                'purchaseorder_hashid',
-                                'orderline_hashid',
-                                'elt_start',
-                                'elt_end'
+                                'isorderfinalized'
                             )
                 ))
     
     return factpurchase
 
 #write to table
-def writeorders(data = reordercolumn(), pgconn_dw = pgconn_dw, pgdriver = pgdriver, pguser = pguser, pgpwd = pgpwd):
+def writeorders(data = reordercolumn(), conn_dw = mssql_dwdest, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ write to fact table on data warehouse"""
     (( 
         data
             .write
             .format('jdbc')
-            .option('url', pgconn_dw)
-            .option('user', pguser)
-            .option('password', pgpwd)
-            .option('driver', pgdriver)
+            .option('url', conn_dw)
+            .option('user', user)
+            .option('password', pwd)
+            .option('driver', driver)
             .option('dbtable', 'fact.purchase')
             .save(mode= 'overwrite')
         ))
     
 if __name__== '__main__':
+    
     createpurchase_order()
     createpurchaseline()
     join_order()

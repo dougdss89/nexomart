@@ -1,4 +1,4 @@
-#load env-vars and sparksession
+#importing packages and vars
 
 from pyspark.sql.session import SparkSession
 import pyspark.sql.functions as f
@@ -6,14 +6,16 @@ import pyspark.sql.functions as f
 import os
 from dotenv import load_dotenv
 
-env = load_dotenv('/mnt/d/linux/project/vars/.env')
+#load environment variables
+env = load_dotenv(dotenv_path='/mnt/d/linux/project/vars/.env')
 
-pgconn = os.getenv('POSTGRE_CONN')
-pgdriver = os.getenv('PG_DRIVER')
-pgjar = os.getenv('POSTGRE_JAR')
-pgpwd = os.getenv('POSTGRE_PWD')
-pguser = os.getenv('POSTGRE_USER')
-pgconn_dw = os.getenv('POSTGRE_CONN_DW')
+#env vars for postgresql connection
+mssqlsource = os.getenv('MSSQLSOURCE')
+mssqluser = os.getenv('MSSQL_SPARK_USER')
+mssqlpwd = os.getenv('MSSQL_SPARK_PWD')
+mssqldriver = os.getenv('MSSQL_DRIVER')
+sqlserverjar = os.getenv('SQLSERVER_JAR')
+mssql_dwdest = os.getenv('MSSQL_CONN')
 
 
 #creating session
@@ -22,35 +24,31 @@ spark = ((
         SparkSession
             .builder
             .appName('dim_delivery')
-            .config('spark.jars', f'{pgjar}')
-            .config('spark.driver.extraClassPath', f'{pgjar}')
-            .config('spark.executor.extraClassPath', f'{pgjar}')
+            .config('spark.jars', f'{sqlserverjar}')
+            .config('spark.driver.extraClassPath', f'{sqlserverjar}')
+            .config('spark.executor.extraClassPath', f'{sqlserverjar}')
             .getOrCreate()
         ))
 
 print('Session created')
 
-def createdelivery(spark = spark, conn= pgconn, driver = pgdriver, user = pguser, pwd = pgpwd):
+def createdelivery(spark = spark, conn= mssqlsource, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """ creating delivery dataframe from deliverymethods table """
     tmp_deliveryframe = (( spark
                             .read
                             .format('jdbc')
-                            .option('url', f'{pgconn}')
-                            .option('driver', f'{pgdriver}')
-                            .option('user', f'{pguser}')
-                            .option('password', f'{pgpwd}')
+                            .option('url', f'{conn}')
+                            .option('driver', f'{driver}')
+                            .option('user', f'{user}')
+                            .option('password', f'{pwd}')
                             .option('query', 
                                     
                                     """ 
                                         select
                                         
                                             deliverymethodid,
-                                            deliverymethodname,
-                                            _airbyte_ab_id,
-                                            _airbyte_deliverymethods_hashid,
-                                            _airbyte_emitted_at,
-                                            _airbyte_normalized_at
+                                            deliverymethodname
                                             
                                         from application.deliverymethods
                                     
@@ -76,10 +74,7 @@ def renamecolumns(deliverydt = delivery):
                         deliverydt
                             .withColumnRenamed('deliverymethodid', 'deliveryid')
                             .withColumnRenamed('deliverymethodname', 'deliverytype')
-                            .withColumnRenamed('_airbyte_ab_id', 'elt_hashid')
-                            .withColumnRenamed('_airbyte_deliverymethods_hashid', 'deliverymethods_hashid')
-                            .withColumnRenamed('_airbyte_emitted_at', 'elt_start')
-                            .withColumnRenamed('_airbyte_normalized_at', 'elt_end')
+
                     ))
     
     return deliveryframe
@@ -87,7 +82,7 @@ def renamecolumns(deliverydt = delivery):
 delivery = renamecolumns()
 
 #writing data on dimension table
-def writedataframe(data = delivery, conn = pgconn_dw, driver = pgdriver, user = pguser, pwd = pgpwd):
+def writedataframe(data = delivery, conn = mssql_dwdest, driver = mssqldriver, user = mssqluser, pwd = mssqlpwd):
     
     """writing data on data warehouse
         table: dimension.deliverymethod
