@@ -1,3 +1,7 @@
+
+#loading customer data from source table
+#importing packages and vars
+
 #importing packages and vars
 
 from pyspark.sql.session import SparkSession
@@ -49,7 +53,7 @@ def loadcustomer(spark = spark, connection = mssqlsource, user = mssqluser, pwd 
         Returns:
         A temporary dataframe with data in brute state
     """    
-    tmp_customer = (( spark
+    tmp_store = (( spark
                             .read
                             .format('jdbc')
                             .option('url', connection)
@@ -58,41 +62,41 @@ def loadcustomer(spark = spark, connection = mssqlsource, user = mssqluser, pwd 
                             .option('password', pwd)
                             .option('query', 
                                     """ 
-                                    
-                                        select
 
-                                            customerid,
-                                            customercategoryid,
-                                            buyinggroupid,
-                                            billtocustomerid,
-                                            split_part(customername, '(', 1)as firstname,
-                                            replace(split_part(customername, '(', 2), ')', '') as lastnameOrBranch,
-                                            replace(split_part(customername, ',', 2),')', '') as place,
-                                            accountopeneddate,
-                                            creditlimit,
-                                            standarddiscountpercentage,
-                                            paymentdays,
-                                            primarycontactpersonid,
-                                            alternatecontactpersonid,
-                                            deliverymethodid,
-                                            deliverycityid,
-                                            postalcityid,
-                                            deliverypostalcode,
-                                            deliveryaddressline1,
-                                            deliveryaddressline2,
-                                            postaladdressline1,
-                                            postaladdressline2,
-                                            isstatementsent,
-                                            isoncredithold
-                                            
-                                        from sales.customers
-                                    
+                                        SELECT
+                                            ss.customerid					,
+                                            ss.firstname					,
+                                            ss.lastnameOrBranch				,
+                                            ss.place						,
+                                            ss.customercategoryid			,
+                                            ss.buyinggroupid				,
+                                            ss.billtocustomerid				,
+                                            ss.accountopeneddate			,
+                                            ss.creditlimit					,
+                                            ss.standarddiscountpercentage	,
+                                            ss.paymentdays					,
+                                            ss.primarycontactpersonid		,
+                                            ss.alternatecontactpersonid		,
+                                            ss.deliverymethodid				,
+                                            ss.deliverycityid				,
+                                            ss.postalcityid					,
+                                            ss.deliverypostalcode			,
+                                            ss.deliveryaddressline1			,
+                                            ss.deliveryaddressline2			,
+                                            ss.postaladdressline1			,
+                                            ss.postaladdressline2			,
+                                            ss.isstatementsent				,
+                                            ss.isoncredithold					
+                                        FROM Sales.sparkstore as ss
+
+                                            left join
+                                                sales.sparkcustomer as sc
+                                        on ss.buyinggroupid = sc.buyinggroupid
                                     """)
                             
-                            #this column has been renamed to avoid conflict ambiguity
                         )).load()
     
-    return tmp_customer
+    return tmp_store
 
 #loading customercategory data from source table
 def load_customercategory(connection = mssqlsource, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
@@ -107,10 +111,10 @@ def load_customercategory(connection = mssqlsource, user = mssqluser, pwd = mssq
     tmp_custmercategory = (( spark
                             .read
                             .format('jdbc')
-                            .option('url', mssqlsource)
-                            .option('driver', mssqldriver)
-                            .option('user', mssqluser)
-                            .option('password', mssqlpwd)
+                            .option('url', connection)
+                            .option('driver', driver)
+                            .option('user', user)
+                            .option('password', pwd)
                             .option('query', 
                                     
                                     """ 
@@ -136,10 +140,10 @@ def load_buyinggroups(connection = mssqlsource, user = mssqluser, pwd = mssqlpwd
     tmp_buyinggroups = (( spark
                         .read
                         .format('jdbc')
-                        .option('url', mssqluser)
-                        .option('driver', mssqldriver)
-                        .option('user', mssqluser)
-                        .option('password', mssqlpwd)
+                        .option('url', connection)
+                        .option('driver', driver)
+                        .option('user', user)
+                        .option('password', pwd)
                         .option('query', 
                                 
                                 """
@@ -158,7 +162,6 @@ customer = loadcustomer()
 customercategory = load_customercategory()
 buyinggroups = load_buyinggroups()
 
-
 #joining previous dataframes
 def joining_frames(customer = customer, custcategory = customercategory, buygroups = buyinggroups):
 
@@ -176,21 +179,14 @@ def joining_frames(customer = customer, custcategory = customercategory, buygrou
     
     return joined_frames
 
-data = joining_frames()
+
 
 #renaming and trimming some string columns
 #remove nulls 
-def droprename_dataframe(dataframe = data):
-    
-    """
-    performing cleaning and conformizing customer data
+def renameadjust_column(data = joining_frames()):
 
-    Returns:
-        _type_: _description_
-    """
-
-    renamed_df = ((
-                    dataframe
+    rename_df = ((
+                    data
                         .select('*', 
                                 f.trim('firstname').alias('firstname_n'),
                                 f.trim('lastnameOrbranch').alias('lastname'),
@@ -198,64 +194,39 @@ def droprename_dataframe(dataframe = data):
                                 f.coalesce('buyinggroupid', f.lit(0)).alias('buyergroup_id'),
                                 f.coalesce('alternatecontactpersonid', f.lit(0)).alias('alternatecontact_id')
                             )
-                        
-                    #drop columns that has been renamed
-                    #renaming columns to data warehouse standard
-                        .drop('creditlimit')
-                        .drop('buyinggroupid')
-                        .drop('alternatecontactpersonid')
-                        .drop('firstname')
-                        .drop('lastnameOrBranch')
+    ))
+
+    tmp_customerframe = ((rename_df
+                     .drop('creditlimit')
+                     .drop('buyinggroupid')
+                     .drop('alternatecontactpersonid')
+                     .drop('firstname')
+                     .drop('lastnameOrBranch')
                      
                      #rename columns
-                        .withColumnRenamed('creditlimit_n', 'creditlimit')
-                        .withColumnRenamed('buyergroup_id', 'buyergroupid')
-                        .withColumnRenamed('alternatecontact_id', 'alternatecontactid')
-                        .withColumnRenamed('standarddiscountpercentage', 'discountpercentage')
-                        .withColumnRenamed('primarycontactpersonid', 'primarycontactid')
-                        .withColumnRenamed('deliverypostalcode', 'postalcode')
-                        .withColumnRenamed('deliveryaddressline1', 'primaryaddress')
-                        .withColumnRenamed('deliveryaddressline2', 'alternateaddress')
-                        .withColumnRenamed('firstname_n', 'firstname')
-                        .withColumnRenamed('postaladdressline1', 'postaladdress')
-                        .withColumnRenamed('postaladdressline2', 'alternatepostaladdress')
-
+                     .withColumnRenamed('creditlimit_n', 'creditlimit')
+                     .withColumnRenamed('buyergroup_id', 'buyergroupid')
+                     .withColumnRenamed('alternatecontact_id', 'alternatecontactid')
+                     .withColumnRenamed('standarddiscountpercentage', 'discountpercentage')
+                     .withColumnRenamed('primarycontactpersonid', 'primarycontactid')
+                     .withColumnRenamed('deliverypostalcode', 'postalcode')
+                     .withColumnRenamed('deliveryaddressline1', 'primaryaddress')
+                     .withColumnRenamed('deliveryaddressline2', 'alternateaddress')
+                     .withColumnRenamed('firstname_n', 'firstname')
+                     .withColumnRenamed('postaladdressline1', 'postaladdress')
+                     .withColumnRenamed('postaladdressline2', 'alternatepostaladdress')                   
     ))
     
-    return renamed_df
+    return tmp_customerframe
 
-customerdataframe = droprename_dataframe()
-
-#get location for store customers
-#this step we split lastname columns to get store location
-def get_storelocation(dataframe = customerdataframe):
+def store_splitname(data = renameadjust_column()):
     
-    """ 
-    this function creates location column to store dataframe
+    df = data.withColumn('lastname', f.split('lastname', '[^A-Za-z0-9 '']'))
 
-    Returns:
-        _type_: dataframe
-    """
-
-    df = dataframe.withColumn('lastname', f.split('lastname', '[^A-Za-z0-9 '']'))
-
-    storelocation = df.withColumn('lastname', df['lastname'].getItem(0))
+    tmpstore = df.withColumn('lastname', df['lastname'].getItem(0))
     
-    return storelocation
-
-customer_store = get_storelocation()
-
-#organizing hierarchy columns
-#separate store from customers
-def createcustomer(dataframe = customer_store):
-
-    """separate customer from store and create customer dataframe
-
-    Returns:
-        _type_: dataframe
-    """
-    customer= ((
-                dataframe
+    storeframe= ((
+                tmpstore
                     .select('customerid',
                             'customercategoryid',
                             'billtocustomerid',
@@ -281,39 +252,73 @@ def createcustomer(dataframe = customer_store):
                             'place',
                             'isoncredithold',
                             'isstatementsent'
-                            )
-                        .where('firstname not like "Tailspin%" and firstname not like "Wingtip%" ')
-                                                
-                    #change boolean for 'binary' and empty for nulls
-                    #adjuste customer columns and remove nulls
-                    .withColumn('isoncredithold', f.when(dataframe['isoncredithold'] == 'true', 1).otherwise(0))
-                    .withColumn('isstatementsent', f.when(dataframe['isstatementsent'] == 'true', 1).otherwise(0))
-                    .withColumn('buyinggroupname', f.expr('coalesce(buyinggroupname, "Personal Customer")'))
-                    .withColumn('place', f.when(dataframe['place'] == "", None).otherwise(dataframe['place']))
-                    
-                    #normalize null values without rename column
-                    .withColumn('place', f.expr('coalesce(place, "Not Available")'))
-                    .withColumn('creditlimit', f.expr('cast(creditlimit as numeric(12, 2)) as creditlimit'))
-                    .withColumn('discountpercentage', f.expr('cast(discountpercentage as numeric(12, 2)) as discountpercentage'))
-                    .withColumnRenamed('firstname', 'customername')
-                    .drop('lastname')
+                            ).where('firstname like "Tailspin%" or firstname like "Wingtip%" ')
+                    .withColumn('creditlimit', f.expr('cast(creditlimit as decimal(12,2))'))
                 ))
+    return storeframe
+
+def cleanfirstlastname_customer(data = renameadjust_column()):
     
+    data = (( 
+            data
+                .select('customerid',
+                        'customercategoryid',
+                        'billtocustomerid',
+                        'buyergroupid',
+                        'firstname',
+                        'lastname',
+                        'customercategoryname',
+                        'buyinggroupname',
+                        'accountopeneddate',
+                        'paymentdays',
+                        'creditlimit',
+                        'discountpercentage',
+                        'primarycontactid',
+                        'alternatecontactid',
+                        'deliverymethodid',
+                        'deliverycityid',
+                        'postalcityid',
+                        'postalcode',
+                        'primaryaddress',
+                        'alternateaddress',
+                        'postaladdress',
+                        'alternatepostaladdress',
+                        'place',
+                        'isoncredithold',
+                        'isstatementsent'
+                    ).where('firstname not like "Tailspin%" and firstname not like "Wingtip%" ')
+    ))
+    
+    df_customer = data.withColumn('firstname', f.split('firstname', '[^A-Za-z0-9]', -1))
+
+
+    tmp_customerframe = (( df_customer
+                        .withColumn('lastname', df_customer['firstname'].getItem(1))
+    ))
+    
+    #change boolean for 'binary' and empty for nulls
+    customer = ((
+        tmp_customerframe
+            .withColumn('isoncredithold', f.when(tmp_customerframe['isoncredithold'] == 'true', 1).otherwise(0))
+            .withColumn('isstatementsent', f.when(tmp_customerframe['isstatementsent'] == 'true', 1).otherwise(0))
+            .withColumn('buyinggroupname', f.expr('coalesce(buyinggroupname, "Personal Customer")'))
+            .withColumn('place', f.when(tmp_customerframe['place'] == "", None).otherwise(tmp_customerframe['place']))
+            .withColumn('firstname', tmp_customerframe['firstname'].getItem(0)).alias('temp_name')
+            
+            #normalize null values without rename column
+            .withColumn('place', f.expr('coalesce(place, "Not Available")'))
+            .withColumn('creditlimit', f.expr('cast(creditlimit as decimal(12,2))'))
+
+            # .withColumnRenamed('firstname', 'customername')
+))
     return customer
 
-#creating store table
-def createstore(dataframe = customer_store):
+def create_storetable(data = store_splitname()):
     
-    """ 
-    creating store table from source dataframe
-    this dataframe is apart from customer and generates store dimension
-
-    Returns:
-        _type_: dataframe
-    """
-    store = (( 
-                dataframe
-                    .select('customerid',
+    #create store table
+    storeframe = (( 
+               data
+                .select(    'customerid',
                             'customercategoryid',
                             'billtocustomerid',
                             'buyergroupid',
@@ -338,59 +343,84 @@ def createstore(dataframe = customer_store):
                             'place',
                             'isoncredithold',
                             'isstatementsent')
-                        .where('firstname like "Tailspin%" or firstname like "Wingtip%"')
-                    .withColumnRenamed('lastname', 'businessunity')
-                ))
+                .withColumnRenamed('lastname', 'businessunity')
+               ))
+    return storeframe
+
+#organizing columns
+
+def create_customertable(data = cleanfirstlastname_customer()):
     
-    return store
+    customerframe= ((
+                    data
+                        .select('customerid',
+                                'customercategoryid',
+                                'billtocustomerid',
+                                'buyergroupid',
+                                'firstname',
+                                'lastname',
+                                'customercategoryname',
+                                'buyinggroupname',
+                                'accountopeneddate',
+                                'paymentdays',
+                                'creditlimit',
+                                'discountpercentage',
+                                'primarycontactid',
+                                'alternatecontactid',
+                                'deliverymethodid',
+                                'deliverycityid',
+                                'postalcityid',
+                                'postalcode',
+                                'primaryaddress',
+                                'alternateaddress',
+                                'postaladdress',
+                                'alternatepostaladdress',
+                                'place',
+                                'isoncredithold',
+                                'isstatementsent'
+                                )))
+    return customerframe
 
-customer = createcustomer()
-store = createstore()
-
-#writing data to customer dimension
-def writecustomer(data = customer, conn = mssql_dwdest, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
-
+#write to table
+def writetodimension(store = create_storetable(), customer = create_customertable(), customercategory = customercategory):
+    
     ((
-        data
+        customer
             .write
             .format('jdbc')
-                .option('url', conn)
-                .option('driver', driver)
-                .option('user', user)
-                .option('password', pwd)
+                .option('url', mssql_dwdest)
+                .option('driver', mssqldriver)
+                .option('user', mssqluser)
+                .option('password', mssqlpwd)
                 .option('dbtable', 'dimension.customer')
             .save(mode= 'overwrite')
     ))
-
-#writing customer_category to dimension table
-def writecustomercategory(data =customercategory, conn = mssql_dwdest, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
-
+    
     ((
-        data
+        store
             .write
             .format('jdbc')
-                .option('url', conn)
-                .option('driver', driver)
-                .option('user', user)
-                .option('password', pwd)
-                .option('dbtable', 'dimension.customercategory')
-            .save(mode= 'overwrite')
-    ))
-#writing to storedimension
-def writestore(data = store, conn = mssql_dwdest, user = mssqluser, pwd = mssqlpwd, driver = mssqldriver):
-
-    ((
-        data
-            .write
-            .format('jdbc')
-                .option('url', conn)
-                .option('driver', driver)
-                .option('user', user)
-                .option('password', pwd)
+                .option('url', mssql_dwdest)
+                .option('driver', mssqldriver)
+                .option('user', mssqluser)
+                .option('password', mssqlpwd)
                 .option('dbtable', 'dimension.store')
             .save(mode= 'overwrite')
     ))
     
+    ((
+    customercategory
+        .write
+        .format('jdbc')
+            .option('url', mssql_dwdest)
+            .option('driver', mssqldriver)
+            .option('user', mssqluser)
+            .option('password', mssqlpwd)
+            .option('dbtable', 'dimension.customercategory')
+        .save(mode= 'overwrite')
+    ))
+    
+
 if __name__ == '__main__':
     
     createsession()
@@ -398,11 +428,10 @@ if __name__ == '__main__':
     load_customercategory()
     load_buyinggroups()
     joining_frames()
-    droprename_dataframe()
-    get_storelocation()
-    createcustomer()
-    createstore()
-    writecustomer()
-    writecustomercategory()
-    writestore()
+    renameadjust_column()
+    store_splitname()
+    cleanfirstlastname_customer()
+    create_storetable()
+    create_customertable()
+    writetodimension()
     spark.stop()

@@ -57,7 +57,7 @@ def createtransaction(spark=spark, conn = mssqlsource, driver = mssqldriver, use
                                             select
                                             
                                                 stockitemtransactionid,
-                                                stockitemid,
+                                                stockitemid as productid,
                                                 supplierid,
                                                 purchaseorderid,
                                                 transactiontypeid,
@@ -124,7 +124,7 @@ def reorganizedropcolumns(data = renameremovenull()):
 #reorganizing columns hierarchy
     stocktransation = ((dropcolumns
                             .select('stocktransactionid',
-                                    'stockitemid as productid',
+                                    'productid',
                                     'transactiontypeid',
                                     'customerid',
                                     'invoiceid',

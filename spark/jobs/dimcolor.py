@@ -35,8 +35,7 @@ def selectcolors(spark = spark, connurl = mssqlsource , dbuser = mssqluser, dbpw
     All parameters are set by default variables that we create at the beginning.
     
     """
-       
-            
+             
     dimension_colors = ((spark.\
                     read.\
                     format('jdbc').\

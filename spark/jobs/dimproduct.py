@@ -46,43 +46,7 @@ def createproduct(spark = spark, conn = mssqlsource, driver = mssqldriver, user 
                         .option('query', 
                                 
                                 """  
-                                select 
-
-                                        wsi.StockItemID as productid,
-                                        wsi.StockItemName as productname,
-                                        wsi.SupplierID,
-                                        sisg.stockgroupid,
-                                        wsi.ColorID,
-                                        wsi.UnitPackageID,
-                                        wsi.OuterPackageID,
-                                        wsi.QuantityPerOuter,
-                                        wsi.Brand,
-                                        wsi."Size",
-                                        wsi.LeadTimeDays,
-                                        wsi.IsChillerStock,
-                                        wsi.TaxRate,
-                                        wsi.UnitPrice,
-                                        wsi.RecommendedRetailPrice,
-                                        wsi.TypicalWeightPerUnit,
-                                        wsi.MarketingComments,
-                                        wsi.CustomFields,
-                                        wsi.tags,
-                                        wsi.ValidFrom,
-                                        wsi.ValidTo
-
-                                from Warehouse.StockItems as wsi
-
-                                left join
-
-                                        Warehouse.StockItems_Archive as wsia
-
-                                on wsi.StockItemID = wsia.StockItemID
-
-                                left join
-
-                                        warehouse.stockitemstockgroups sisg
-
-                                on wsi.stockitemid = sisg.stockitemid
+                                select * from warehouse.sparkproduct
                                 
                                 """      
                         ))).load()
@@ -135,10 +99,10 @@ def fillproductnull(dataframe = extractname()):
         
         dimproduct = (
         
-                dataframe.fillna({'size': 'unknown',
-                        'colorid': 999,
-                        'brand': 'unknown',
-                        'marketingcomments': 'unknown'
+                dataframe.fillna({'size': 'Not Available',
+                        'colorid': 0,
+                        'brand': 'Not Available',
+                        'marketingcomments': 'Not Available'
                         })
                 
                 .drop('temp_customfield')
