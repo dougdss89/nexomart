@@ -1,0 +1,210 @@
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+
+    networks:
+      - etl_network
+
+    volumes:
+      - spark_airflow_volume:/spark_airflow
+
+  # redis:
+  #   image: redis:latest
+  #   container_name: redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - spark_airflow_volume:/spark_airflow
+  #     - /spark_airflow/dags
+  #     - /spark_airflow/logs
+  #     - /spark_airflow/plugins
+  #     - /spark_airflow/logs
+  #     - /spark_airflow/sparkdados
+  #     - /spark_airflow/jobs
+  #     - spark_airflow_volume:/spark_airflow
+
+  webserver:
+    build: ./airflow
+    command: webserver
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      # - redis
+
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__TEST_CONNECTION=Enabled
+      - hide_sensitive_variable_fields=False
+
+    volumes:
+      - /mnt/d/linux/project/projetoelt/airflow/dags:/usr/local/airflow/dags
+      - /mnt/d/linux/project/projetoelt/airflow/logs:/usr/local/airflow/logs
+      - /mnt/d/linux/project/projetoelt/airflow/plugins:/usr/local/airflow/plugins
+      - /spark_airflow/logs
+      - /spark_airflow/sparkdados
+      - /spark_airflow/jobs
+      - spark_airflow_volume:/spark_airflow
+      - /usr/local/airflow/dags:/spark_airflow/dags
+      - /usr/local/airflow/logs:/spark_airflow/logs
+      - /usr/local/airflow/plugins:/spark_airflow/plugins
+
+    networks:
+      - etl_network
+
+  scheduler:
+    build: ./airflow
+    depends_on:
+      - webserver
+      - postgres
+
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__TEST_CONNECTION=Enabled
+      - hide_sensitive_variable_fields=False
+
+    volumes:
+      - /mnt/d/linux/project/projetoelt/airflow/dags:/usr/local/airflow/dags:/spark_airflow/dags
+      - /mnt/d/linux/project/projetoelt/airflow/logs:/usr/local/airflow/logs:/spark_airflow/logs
+      - /mnt/d/linux/project/projetoelt/airflow/plugins:/usr/local/airflow/plugins:/spark_airflow/plugins
+      - /spark_airflow/logs
+      - /spark_airflow/sparkdados
+      - /spark_airflow/jobs
+      - spark_airflow_volume:/spark_airflow
+      - /usr/local/airflow/dags:/spark_airflow/dags
+      - /usr/local/airflow/logs:/spark_airflow/logs
+      - /usr/local/airflow/plugins:/spark_airflow/plugins
+
+    command: ["airflow", "scheduler"]
+
+    networks:
+      - etl_network
+
+  worker:
+    build: ./airflow
+    command: worker
+    depends_on:
+      - webserver
+      - scheduler
+      - postgres
+
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__TEST_CONNECTION=Enabled
+      - hide_sensitive_variable_fields=False
+
+    volumes:
+      - /mnt/d/linux/project/projetoelt/airflow/dags:/usr/local/airflow/dags:/spark_airflow/dags
+      - /mnt/d/linux/project/projetoelt/airflow/logs:/usr/local/airflow/logs:/spark_airflow/logs
+      - /mnt/d/linux/project/projetoelt/airflow/plugins:/usr/local/airflow/plugins:/spark_airflow/plugins
+      - /spark_airflow/logs
+      - /spark_airflow/sparkdados
+      - /spark_airflow/jobs
+      - spark_airflow_volume:/spark_airflow
+      - /usr/local/airflow/dags:/spark_airflow/dags
+      - /usr/local/airflow/logs:/spark_airflow/logs
+      - /usr/local/airflow/plugins:/spark_airflow/plugins
+
+    networks:
+      - etl_network
+
+  spark-master:
+    container_name: sparkmaster
+    build: ./spark
+    image: sparkimage
+    entrypoint: ['./entrypoint.sh', 'master']
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+    volumes:
+      - /mnt/d/linux/project/projetoelt/spark/dados:/spark_airflow/sparkdados
+      - /mnt/d/linux/project/projetoelt/spark/jobs:/spark_airflow/jobs
+      - /mnt/d/linux/project/projetoelt/spark/logs:/spark_airflow/logs
+      - /spark_airflow/dags
+      - /spark_airflow/logs
+      - /spark_airflow/plugins
+      - spark_airflow_volume:/spark_airflow
+
+    env_file:
+      - /mnt/d/linux/project/projetoelt/spark/.env.spark
+
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+
+    ports:
+      - '8080:8080'
+      - '7077:7077'
+
+    networks:
+      - etl_network
+
+  spark-history-server:
+    container_name: sparkhistory
+    image: sparkimage
+    entrypoint: ['./entrypoint.sh', 'history']
+    depends_on:
+      - spark-master
+    env_file:
+      - /mnt/d/linux/project/projetoelt/spark/.env.spark
+
+    volumes:
+      - /mnt/d/linux/project/projetoelt/spark/logs:/opt/spark/spark-events:/spark_airflow/logs
+      - spark_airflow_volume:/spark_airflow
+
+    ports:
+      - '18080:18080'
+
+    networks:
+      - etl_network
+
+  spark-worker:
+    image: sparkimage
+    entrypoint: ['./entrypoint.sh', 'worker']
+    depends_on:
+      - spark-master
+    env_file:
+      - /mnt/d/linux/project/projetoelt/spark/.env.spark
+
+    volumes:
+      - /mnt/d/linux/project/projetoelt/spark/dados:/spark_airflow/sparkdados
+      - /mnt/d/linux/project/projetoelt/spark/jobs:/spark_airflow/jobs
+      - /mnt/d/linux/project/projetoelt/spark/logs:/spark_airflow/logs
+      - /spark_airflow/dags
+      - /spark_airflow/logs
+      - /spark_airflow/plugins
+      - spark_airflow_volume:/spark_airflow
+
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=8G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+
+    networks:
+      - etl_network
+
+networks:
+  etl_network:
+    driver: bridge
+
+volumes:
+  spark_airflow:
+

@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    networks:
+      - etl_network
+    volumes:
+      - shared_volume:/shared
+
+  webserver:
+    build: ./airflow
+    command: webserver
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+    volumes:
+      - shared_volume:/shared
+      - /shared/airflow/dags:/usr/local/airflow/dags
+      - /shared/airflow/logs:/usr/local/airflow/logs
+      - /shared/airflow/plugins:/usr/local/airflow/plugins
+
+    networks:
+      - etl_network
+
+  scheduler:
+    build: ./airflow
+    depends_on:
+      - webserver
+      - postgres
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+    command: ["airflow", "scheduler"]
+    volumes:
+      - shared_volume:/shared
+      - /shared/airflow/dags:/usr/local/airflow/dags
+      - /shared/airflow/logs:/usr/local/airflow/logs
+      - /shared/airflow/plugins:/usr/local/airflow/plugins
+    networks:
+      - etl_network
+
+  worker:
+    build: ./airflow
+    command: worker
+    depends_on:
+      - webserver
+      - scheduler
+      - postgres
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+    volumes:
+      - shared_volume:/shared
+      - /shared/airflow/dags:/usr/local/airflow/dags
+      - /shared/airflow/logs:/usr/local/airflow/logs
+      - /shared/airflow/plugins:/usr/local/airflow/plugins
+    networks:
+      - etl_network
+
+  spark-master:
+    container_name: sparkmaster
+    build: ./spark
+    image: sparkimage
+    entrypoint: ['./entrypoint.sh', 'master']
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - shared_volume:/shared
+      - /shared/spark/sparkdados:/spark_airflow/sparkdados
+      - /shared/spark/jobs:/spark_airflow/jobs
+      - /shared/spark/logs:/spark_airflow/logs
+    env_file:
+      - /mnt/d/linux/project/projetoelt/spark/.env.spark
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - '8080:8080'
+      - '7077:7077'
+    networks:
+      - etl_network
+
+  spark-history-server:
+    container_name: sparkhistory
+    image: sparkimage
+    entrypoint: ['./entrypoint.sh', 'history']
+    depends_on:
+      - spark-master
+    env_file:
+      - /mnt/d/linux/project/projetoelt/spark/.env.spark
+    volumes:
+      - shared_volume:/shared
+      - /shared/spark/logs:/opt/spark/spark-events
+    ports:
+      - '18080:18080'
+    networks:
+      - etl_network
+
+  spark-worker:
+    image: sparkimage
+    entrypoint: ['./entrypoint.sh', 'worker']
+    depends_on:
+      - spark-master
+    env_file:
+      - /mnt/d/linux/project/projetoelt/spark/.env.spark
+    volumes:
+      - shared_volume:/shared
+      - /shared/spark/sparkdados:/spark_airflow/sparkdados
+      - /shared/spark/jobs:/spark_airflow/jobs
+      - /shared/spark/logs:/spark_airflow/logs
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    networks:
+      - etl_network
+
+networks:
+  etl_network:
+    driver: bridge
+
+volumes:
+  shared_volume:
+

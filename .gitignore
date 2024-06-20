@@ -1,6 +1,9 @@
+astrodev
+/analyticsgym
 vars
-/spark-warehouse
-astro
-dbtprojeto/packages.yml
-wgarepo
-logs
+project/spark
+wgarepo/logs
+elt_project
+projetoelt/spark/dados/*
+projetoelt/airflow/dags/__pycache__
+projetoelt/airflow/requirements

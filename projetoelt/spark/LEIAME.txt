@@ -1,0 +1,27 @@
+# Projeto 4 - Configurando Um Cluster Spark Local Para Executar Pipelines de Machine Learning em Python
+
+# Inicializar o cluster
+docker-compose up -d --scale spark-worker=3
+
+# Visualizar os logs
+docker-compose logs
+
+# Executar os pipelines:
+
+docker exec dsa-spark-master spark-submit --master spark://spark-master:7077 ./apps/pipeline1.py
+
+docker exec dsa-spark-master spark-submit --master spark://spark-master:7077 ./apps/pipeline2.py
+
+docker exec dsa-spark-master spark-submit --master spark://spark-master:7077 ./apps/pipeline3.py
+
+# Derrubar o cluster
+docker-compose down --volumes --remove-orphans
+
+
+# Spark Master
+http://localhost:9090
+
+# History Server
+http://localhost:18080
+
+docker exec sparkmaster spark-submit --master spark://spark-master:7077 ./apps/pipeline1.py
