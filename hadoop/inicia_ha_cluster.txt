@@ -1,0 +1,39 @@
+
+# Inicialização do Cluster HA
+hdfs namenode -initializeSharedEdits -force -nonInteractive
+
+
+# 1- Inicialização do Journal Node nas 3 máquinas do cluster
+hdfs --daemon start journalnode
+
+# 2- Format do Namenode 1 (somente na primeira inicialização do cluster)
+hdfs namenode -format
+
+# 3- Verifica se o firewall está ativo
+sudo firewall-cmd --state
+
+# 4- Inicialização do NameNode no NameNode Ativo
+hdfs --daemon start namenode
+
+# 5- Copiar os metadados do NomeNode Ativo para o StandBy (apenas na primeira inicialização, executar no NameNode Standby)
+hdfs namenode -bootstrapStandby
+
+# 6- Inicialização do NameNode no NameNode Standby
+hdfs --daemon start namenode
+
+# 7- Inicialização do Zookeeper em todas as máquinas do cluster
+zkServer.sh start
+
+# 8- Inicialização do DataNode 
+hdfs --daemon start datanode
+
+# 9- Formatar o HA State (apenas na primeira inicialização)
+hdfs zkfc -formatZK
+
+# 10- Inicializa o Zookeeper HA Failover Controller (nos dois NameNodes)
+hdfs --daemon start zkfc
+
+# 11 - Checar se os NameNodes estão configurados em HA
+hdfs haadmin -getServiceState nn1
+
+

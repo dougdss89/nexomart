@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - hadoopcluster
+    
+  airflow:
+    build: .
+    container_name: airflow
+    image: airflow:airflow
+    environment:
+      - HADOOP_CONF_DIR=/opt/spark/volconf/hadoop
+      - HADOOP_HOME=/opt/spark/volconf/hadoop
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://user:password@postgres/dbname
+      - AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX=True
+      - AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8181
+
+    volumes:
+      - sparkflow_vol:/opt/airflow/dags
+      - /home/doug/projetos/project/dsaspark/spark/jobs:/opt/airflow/sparkapp:rw
+      - dockervol:/opt/hadoop:rw,subPath=hadoop
+      - dockervol:/opt/spark/conf:rw,subPath=sparkconf
+
+    ports:
+      - 8181:8181
+    networks:
+      - hadoopcluster
+
+volumes:
+  dockervol:
+    external: true
+
+  sparkflow_vol:
+    external: true
+
+  postgres_data:
+
+networks:
+  hadoopcluster:
+    external: true

@@ -1,0 +1,40 @@
+<configuration>
+  <!-- Configurações existentes -->
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://ha-cluster</value>
+  </property>
+
+  <property>
+    <name>dfs.journalnode.edits.dir</name>
+    <value>/home/hadoop/ha/data/jn</value>
+  </property>
+
+  <property>
+    <name>ha.zookeeper.quorum</name>
+    <value>nodemaster.hdp.com:2181,secondnode.hdp.com:2181,datanode1.hdp.com:2181</value>
+  </property>
+  
+  <!-- Adicione estas configurações -->
+  <property>
+    <name>dfs.client.failover.proxy.provider.ha-cluster</name>
+    <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+  </property>
+
+  <property>
+    <name>dfs.ha.fencing.methods</name>
+    <value>sshfence</value>
+  </property>
+
+  <property>
+    <name>dfs.ha.fencing.ssh.private-key-files</name>
+    <value>/home/hadoop/.ssh/id_rsa</value>
+  </property>
+
+  <property>
+    <name>dfs.ha.fencing.ssh.connect-timeout</name>
+    <value>30000</value>
+  </property>
+
+</configuration>
+

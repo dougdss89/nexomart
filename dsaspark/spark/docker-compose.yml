@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  spark-master:
+    container_name: sparkmaster
+    build: .
+    image: sparkimage:spark
+    entrypoint: ['./entrypoint.sh', 'master']
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9090" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - ./jobs:/opt/spark/apps/sparkjobs
+      - dockervol:/opt/spark/volconf
+      - sparkflow_vol:/opt/spark/apps/
+      - spark-logs:/opt/spark/spark-events
+    env_file:
+      - .env.spark
+
+    environment:
+      - HADOOP_CONF_DIR=/opt/spark/volconf/hadoop
+      - HADOOP_HOME=/opt/spark/volconf/hadoop
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - '9090:8080'
+      - '7077:7077'
+    networks:
+      - hadoopcluster
+
+
+  spark-history-server:
+    container_name: sparkhistory
+    image: sparkimage:spark
+    entrypoint: ['./entrypoint.sh', 'history']
+    depends_on:
+      - spark-master
+    env_file:
+      - .env.spark
+    environment:
+      - HADOOP_CONF_DIR=/opt/spark/volconf/hadoop
+      - HADOOP_HOME=/opt/spark/volconf/hadoop
+    volumes:
+      - ./jobs:/opt/spark/apps
+      - dockervol:/opt/spark/volconf
+      - sparkflow_vol:/opt/spark/apps
+      - spark-logs:/opt/spark/spark-events
+    ports:
+      - '18080:18080'
+    networks:
+      - hadoopcluster
+
+  spark-worker:
+    image: sparkimage:spark
+    entrypoint: ['./entrypoint.sh', 'worker']
+    depends_on:
+      - spark-master
+    env_file:
+      - .env.spark
+    environment:
+      - HADOOP_CONF_DIR=/opt/spark/volconf/hadoop
+      - HADOOP_HOME=/opt/spark/volconf/hadoop
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=6g
+      - SPARK_WORKER_CORES=1
+    volumes:
+      - ./jobs:/opt/spark/apps
+      - dockervol:/opt/spark/volconf
+      - sparkflow_vol:/opt/spark/apps
+      - spark-logs:/opt/spark/spark-events
+
+    networks:
+      - hadoopcluster
+
+networks:
+  hadoopcluster:
+    external: true
+
+volumes:
+  dockervol:
+    external: true
+
+  sparkflow_vol:
+    external: true
+
+  spark-logs:
