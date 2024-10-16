@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   spark-master:
     container_name: sparkmaster
     build: .
-    image: sparkimage:spark
+    image: spark:spark
     entrypoint: ['./entrypoint.sh', 'master']
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9090" ]
@@ -36,7 +34,7 @@ services:
 
   spark-history-server:
     container_name: sparkhistory
-    image: sparkimage:spark
+    image: spark:spark
     entrypoint: ['./entrypoint.sh', 'history']
     depends_on:
       - spark-master
@@ -56,7 +54,7 @@ services:
       - hadoopcluster
 
   spark-worker:
-    image: sparkimage:spark
+    image: spark:spark
     entrypoint: ['./entrypoint.sh', 'worker']
     depends_on:
       - spark-master
@@ -67,8 +65,8 @@ services:
       - HADOOP_HOME=/opt/spark/volconf/hadoop
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=6g
-      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=12g
+      - SPARK_WORKER_CORES=4
     volumes:
       - ./jobs:/opt/spark/apps
       - dockervol:/opt/spark/volconf
@@ -90,3 +88,4 @@ volumes:
     external: true
 
   spark-logs:
+    external: true

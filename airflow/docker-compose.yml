@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:13
@@ -28,10 +26,11 @@ services:
       - AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8181
 
     volumes:
-      - sparkflow_vol:/opt/airflow/dags
-      - /home/doug/projetos/project/dsaspark/spark/jobs:/opt/airflow/sparkapp:rw
+      - /home/doug/project/airflow/dags:/opt/airflow/dags:rw
+      - /home/doug/project/spark/jobs:/opt/airflow/sparkapps:rw
       - dockervol:/opt/hadoop:rw,subPath=hadoop
       - dockervol:/opt/spark/conf:rw,subPath=sparkconf
+      - spark-logs:/opt/spark/spark-events:rw  # Montando o volume de logs do Spark
 
     ports:
       - 8181:8181
@@ -42,10 +41,10 @@ volumes:
   dockervol:
     external: true
 
-  sparkflow_vol:
-    external: true
-
   postgres_data:
+
+  spark-logs:  # Volume para armazenar os logs do Spark
+    external: true
 
 networks:
   hadoopcluster:

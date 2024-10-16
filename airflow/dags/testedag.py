@@ -13,6 +13,7 @@ dag = DAG(
     default_args=default_args,
     description='Um exemplo de DAG para rodar jobs Spark',
     schedule_interval='@daily',
+    catchup = False
 )
 
 spark_submit_task = SparkSubmitOperator(

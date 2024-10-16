@@ -7,3 +7,12 @@ elt_project
 projetoelt/spark/dados/*
 projetoelt/airflow/dags/__pycache__
 projetoelt/airflow/requirements
+/dsaspark
+airflow/dags/__pycache__
+/spark/conf/
+/spark/.env.spark
+/home/doug/project/spark/.env.spark
+/spark/requirements/
+airflow/hadoop
+airflow/spark
+airflow/sparkapps
