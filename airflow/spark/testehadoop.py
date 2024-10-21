@@ -1,23 +1,26 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import monotonically_increasing_id
 
-# Inicia uma SparkSession
-spark = SparkSession.builder.appName("SimpleDataFrame").getOrCreate()
+# Inicia uma SparkSession com mais memória e configuração de paralelismo
+spark = (SparkSession.builder
+         .appName("SimpleDataFrame")
+         .config("spark.driver.memory", "8g")  # Aumenta a memória do driver
+         .config("spark.executor.memory", "8g")  # Aumenta a memória dos executores
+         .config("spark.sql.shuffle.partitions", "200")  # Ajusta o número de partições
+         .getOrCreate())
 
-# Cria um DataFrame com 4 colunas e 1000 linhas
-data = [(i, f"col2_{i}", f"col3_{i}", f"col4_{i}") for i in range(1000)]
+# Cria um DataFrame com 4 colunas e 5 milhões de linhas
+data = [(i, f"col2_{i}", f"col3_{i}", f"col4_{i}") for i in range(100000)]
 df = spark.createDataFrame(data, ["col1", "col2", "col3", "col4"])
 
-# Escreve o DataFrame em formato Parquet com o nome "teste_hadoop"
-
+# Escreve o DataFrame em formato Parquet no HDFS
+df.write.mode("append").parquet("hdfs://nodemaster.hdp.com:9000/novacarga/onemilionrows")
 
 # Verifica se o arquivo foi escrito corretamente
 print("DataFrame escrito em formato Parquet com sucesso!")
 
-df.write.parquet("hdfs://nodemaster.hdp.com:9000/spark/teste_hadoop")
-
-
 # Mostra as primeiras 5 linhas
 df.show(5)
 
-
+# Encerra a sessão Spark após a execução
+spark.stop()

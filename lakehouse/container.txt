@@ -1,0 +1,10 @@
+docker run \
+    --network hadoopcluster \
+    --hostname deltamaster.hdp.com \
+    -p 50074:50070 -p 8004:8000 -p 8024:8020 \
+    -p 9004:9000 -p 8084:8088 -p 8488:8485 \
+    -v dockervol:/dockervol \
+    --privileged \
+    --cap-add=NET_ADMIN --cap-add=NET_RAW \
+    --name deltamasternode \
+    deltalake:hadoop
