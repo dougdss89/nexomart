@@ -61,13 +61,13 @@
 
   <!-- Timeout de sessões e estabilidade no failover -->
   <property>
-    <name>dfs.namenode.rpc-address.delta-cluster.nn1</name>
-    <value>nodemaster.hdp.com:8020</value>
+    <name>dfs.namenode.rpc-address.delta-cluster.dlt1</name>
+    <value>deltacluster.hdp.com:8020</value>
   </property>
 
   <property>
-    <name>dfs.namenode.rpc-address.delta-cluster.nn2</name>
-    <value>secondnode.hdp.com:8020</value>
+    <name>dfs.namenode.rpc-address.delta-cluster.dlt2</name>
+    <value>deltasecondnode.hdp.com:8020</value>
   </property>
 
   <!-- Configuração de failover automático -->
@@ -83,3 +83,4 @@
   </property>
 
 </configuration>
+

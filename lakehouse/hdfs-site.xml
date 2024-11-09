@@ -50,21 +50,21 @@
 
   <!-- Endereços RPC dos NameNodes -->
   <property>
-    <name>dfs.namenode.rpc-address.delta-cluster.nn1</name>
+    <name>dfs.namenode.rpc-address.delta-cluster.dlt1</name>
     <value>deltamasternode.hdp.com:9000</value>
   </property>
   <property>
-    <name>dfs.namenode.rpc-address.delta-cluster.nn2</name>
+    <name>dfs.namenode.rpc-address.delta-cluster.dlt2</name>
     <value>deltasecondnode.hdp.com:9000</value>
   </property>
 
   <!-- Endereços HTTP dos NameNodes -->
   <property>
-    <name>dfs.namenode.http-address.delta-cluster.nn1</name>
+    <name>dfs.namenode.http-address.delta-cluster.dlt1</name>
     <value>deltamasternode.hdp.com:50070</value>
   </property>
   <property>
-    <name>dfs.namenode.http-address.delta-cluster.nn2</name>
+    <name>dfs.namenode.http-address.delta-cluster.dlt2</name>
     <value>deltasecondnode.hdp.com:50070</value>
   </property>
 
@@ -117,7 +117,7 @@
   <!-- Tamanho do buffer de gravação para otimizar operações de escrita -->
   <property>
     <name>dfs.client-write-packet-size</name>
-    <value>128k</value> <!-- Ajuste para melhor eficiência na escrita de dados -->
+    <value>128</value> <!-- Ajuste para melhor eficiência na escrita de dados -->
   </property>
 
   <!-- Tempo limite de heartbeat dos DataNodes -->
@@ -131,3 +131,4 @@
   </property>
 
 </configuration>
+
