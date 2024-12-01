@@ -18,7 +18,7 @@ dag = DAG(
 
 spark_submit_task = SparkSubmitOperator(
     task_id='spark_submit_task',
-    application='/opt/airflow/sparkapp/testehadoop.py',
+    application='/opt/airflow/apps/shared/testehadoop.py',
     conn_id='sparkconn',
     dag=dag,
 )

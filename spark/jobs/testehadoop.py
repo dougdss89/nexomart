@@ -10,11 +10,11 @@ spark = (SparkSession.builder
          .getOrCreate())
 
 # Cria um DataFrame com 4 colunas e 5 milhões de linhas
-data = [(i, f"col2_{i}", f"col3_{i}", f"col4_{i}") for i in range(7000000)]
+data = [(i, f"col2_{i}", f"col3_{i}", f"col4_{i}") for i in range(100000)]
 df = spark.createDataFrame(data, ["col1", "col2", "col3", "col4"])
 
 # Escreve o DataFrame em formato Parquet no HDFS
-df.write.mode("overwrite").parquet("hdfs://secondnode.hdp.com:9000/testecargasete/sevenmilionrows")
+df.write.mode("overwrite").parquet("hdfs://nodemaster.hdp.com:9000/testecargasete/sevenmilionrows")
 
 # Verifica se o arquivo foi escrito corretamente
 print("DataFrame escrito em formato Parquet com sucesso!")

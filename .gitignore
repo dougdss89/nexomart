@@ -16,3 +16,6 @@ airflow/dags/__pycache__
 airflow/hadoop
 airflow/spark
 airflow/sparkapps
+spark/jobs/estudos
+spark/jobs/jobs_teste
+/airflow/dags_teste/

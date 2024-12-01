@@ -24,15 +24,15 @@ start_load = EmptyOperator(
 
 spark_submit_task = SparkSubmitOperator(
     task_id='submit_iceberg_dag',
-    application='/opt/airflow/sparkapps/iceberg.py',
+    application='/opt/airflow/apps/shared/iceberg.py',
     conn_id='sparkconn',
-    packages='org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.3.0',  # Changed hyphen to colon before version
-    # conf={
-    #     'spark.sql.extensions': 'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions',
-    #     # You might also want to add these configurations for Iceberg
-    #     'spark.sql.catalog.spark_catalog': 'org.apache.iceberg.spark.SparkSessionCatalog',
-    #     'spark.sql.catalog.spark_catalog.type': 'hive'
-    # },
+    packages='org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2',  # Changed hyphen to colon before version
+    conf={
+        'spark.sql.extensions': 'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions',
+        # You might also want to add these configurations for Iceberg
+        'spark.sql.catalog.spark_catalog': 'org.apache.iceberg.spark.SparkSessionCatalog',
+        'spark.sql.catalog.spark_catalog.type': 'hive'
+    },
     verbose=True,
     dag=dag
 )

@@ -25,13 +25,13 @@ with DAG(
     # Execução do job Spark
     spark_hadoop_load = SparkSubmitOperator(
         task_id='spark_dataframe_hadoop',
-        application='/opt/airflow/sparkapps/testehadoop.py',
-        conn_id='sparkconn',
-        conf={
-            'spark.eventLog.enabled': 'true',
-            'spark.eventLog.dir': '/opt/spark/spark-events',  # Diretório de eventos
-            'spark.history.fs.logDirectory': '/opt/spark/spark-events'  # Certifique-se que o History Server usa o mesmo diretório
-        }
+        application='/opt/airflow/apps/shared/testehadoop.py',
+        conn_id='sparkconn'
+        # conf={
+        #     'spark.eventLog.enabled': 'true',
+        #     'spark.eventLog.dir': '/opt/spark/spark-events',  # Diretório de eventos
+        #     'spark.history.fs.logDirectory': '/opt/spark/spark-events'  # Certifique-se que o History Server usa o mesmo diretório
+        # }
     )
 
     # Fim do pipeline

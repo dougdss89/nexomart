@@ -10,14 +10,16 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - hadoopcluster
-    
+
   airflow:
     build: .
     container_name: airflow
     image: airflow:airflow
     environment:
-      - HADOOP_CONF_DIR=/opt/spark/volconf/hadoop
-      - HADOOP_HOME=/opt/spark/volconf/hadoop
+      - HADOOP_CONF_DIR=/dockervol/hadoop/etc/hadoop/
+      - HADOOP_HOME=/dockervol/hadoop/
+      - SPARK_HOME=/dockervol/spark/
+      - SPARK_CONF_DIR=/dockervol/spark/conf/
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
@@ -26,24 +28,27 @@ services:
       - AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8181
 
     volumes:
-      - /home/doug/project/airflow/dags:/opt/airflow/dags:rw
-      - /home/doug/project/spark/jobs:/opt/airflow/sparkapps:rw
-      - dockervol:/opt/hadoop:rw,subPath=hadoop
-      - dockervol:/opt/spark/conf:rw,subPath=sparkconf
-      - spark-logs:/opt/spark/spark-events:rw  # Montando o volume de logs do Spark
-
+      - ./dags:/opt/airflow/dags:rw
+      - sparkapps:/opt/airflow/apps/shared:rwx
+      - dockervol:/dockervol:rwx
+      # - dockervol:/opt/hadoop:rw,subPath=hadoop
+      # - dockervol:/opt/spark:rw,subPath=spark
+      - spark-logs:/opt/spark/spark-events:rwx # Logs do Spark
     ports:
       - 8181:8181
     networks:
       - hadoopcluster
 
 volumes:
+  sparkapps:
+    external: true
+
   dockervol:
     external: true
 
   postgres_data:
 
-  spark-logs:  # Volume para armazenar os logs do Spark
+  spark-logs:
     external: true
 
 networks:

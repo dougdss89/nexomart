@@ -1,6 +1,0 @@
-spark.hadoop.fs.defaultFS=hdfsha-cluster
-spark.hadoop.dfs.nameservices=ha-cluster
-spark.hadoop.dfs.ha.namenodes.ha-cluster=nn1,nn2
-spark.hadoop.dfs.namenode.rpc-address.ha-cluster.nn1=nodemaster.hdp.com9000
-spark.hadoop.dfs.namenode.rpc-address.ha-cluster.nn2=secondnode.hdp.com9000
-spark.hadoop.dfs.client.failover.proxy.provider.ha-cluster=org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider

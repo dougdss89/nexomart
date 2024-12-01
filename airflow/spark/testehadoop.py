@@ -14,7 +14,7 @@ data = [(i, f"col2_{i}", f"col3_{i}", f"col4_{i}") for i in range(100000)]
 df = spark.createDataFrame(data, ["col1", "col2", "col3", "col4"])
 
 # Escreve o DataFrame em formato Parquet no HDFS
-df.write.mode("append").parquet("hdfs://nodemaster.hdp.com:9000/novacarga/onemilionrows")
+df.write.mode("overwrite").parquet("hdfs://nodemaster.hdp.com:9000/novacarga/onemilionrows")
 
 # Verifica se o arquivo foi escrito corretamente
 print("DataFrame escrito em formato Parquet com sucesso!")

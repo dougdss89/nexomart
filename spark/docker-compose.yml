@@ -10,16 +10,16 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - ./jobs:/opt/spark/apps/sparkjobs
-      - dockervol:/opt/spark/volconf
-      - sparkflow_vol:/opt/spark/apps/
+      - ./jobs:/opt/spark/apps/jobs
+      - sparkapps:/opt/spark/apps/shared
       - spark-logs:/opt/spark/spark-events
+      - dockervol:/dockervol:rw
     env_file:
       - .env.spark
 
     environment:
-      - HADOOP_CONF_DIR=/opt/spark/volconf/hadoop
-      - HADOOP_HOME=/opt/spark/volconf/hadoop
+      - HADOOP_CONF_DIR=/dockervol/hadoop/etc/hadoop/
+      - HADOOP_HOME=/dockervol/hadoop
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
@@ -41,13 +41,15 @@ services:
     env_file:
       - .env.spark
     environment:
-      - HADOOP_CONF_DIR=/opt/spark/volconf/hadoop
-      - HADOOP_HOME=/opt/spark/volconf/hadoop
+      - HADOOP_CONF_DIR=/dockervol/hadoop/etc/hadoop/
+      - HADOOP_HOME=/dockervol/hadoop
     volumes:
-      - ./jobs:/opt/spark/apps
-      - dockervol:/opt/spark/volconf
-      - sparkflow_vol:/opt/spark/apps
+      - ./jobs:/opt/spark/apps/jobs
+      - sparkapps:/opt/spark/apps/shared
       - spark-logs:/opt/spark/spark-events
+      - dockervol:/opt/spark/conf
+      - dockervol:/dockervol:rw
+
     ports:
       - '18080:18080'
     networks:
@@ -61,18 +63,19 @@ services:
     env_file:
       - .env.spark
     environment:
-      - HADOOP_CONF_DIR=/opt/spark/volconf/hadoop
-      - HADOOP_HOME=/opt/spark/volconf/hadoop
+      - HADOOP_CONF_DIR=/dockervol/hadoop/etc/hadoop/
+      - HADOOP_HOME=/dockervol/hadoop
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=12g
       - SPARK_WORKER_CORES=4
     volumes:
-      - ./jobs:/opt/spark/apps
-      - dockervol:/opt/spark/volconf
-      - sparkflow_vol:/opt/spark/apps
+      - ./jobs:/opt/spark/apps/jobs
+      - sparkapps:/opt/spark/apps/shared
       - spark-logs:/opt/spark/spark-events
-
+      - dockervol:/opt/spark/conf
+      - dockervol:/dockervol:rw
+      
     networks:
       - hadoopcluster
 
@@ -81,6 +84,9 @@ networks:
     external: true
 
 volumes:
+  sparkapps:
+    external: true
+
   dockervol:
     external: true
 
