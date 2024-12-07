@@ -19,3 +19,6 @@ airflow/sparkapps
 spark/jobs/estudos
 spark/jobs/jobs_teste
 /airflow/dags_teste/
+/spark/jobs/archive
+/spark/jobs/developer
+

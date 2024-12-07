@@ -25,7 +25,7 @@ with DAG(
     # Execução do job Spark
     spark_hadoop_load = SparkSubmitOperator(
         task_id='spark_dataframe_hadoop',
-        application='/opt/airflow/apps/shared/testehadoop.py',
+        application='/opt/airflow/apps/shared/novacarga.py',
         conn_id='sparkconn'
         # conf={
         #     'spark.eventLog.enabled': 'true',
