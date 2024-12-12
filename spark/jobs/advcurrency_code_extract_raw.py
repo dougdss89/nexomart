@@ -8,60 +8,56 @@ def load_source_connections():
     """ load .env file"""
     
     try:
-        print("trying to load configurations")
+        print("trying load configurations")
         config = load_config()
         
-        print("Configuration loaded")
+        print(f"Configuration loaded")
         
     except FileNotFoundError as e:
-        print("File .env was not founded on path")
+        print(f"File .env not founded: {e}. Error to load configuration variable")
         traceback.print_exc()
-        
         return None
     
     except KeyError as e:
-        print("Missing some keys-value pairs: {e}")
+        print(f"Missing some key-value pair: {e}")
         traceback.print_exc()
-        
         return None
     
+        #load properties, configurations and jars file
     try:
-        spark_jars = config['spark_jars']
-        mssql_adventureworks = config['mssql_sources']['adventureworks']
-        mssql_properties = mssql_adventureworks['properties']
-        
-        #check if variables was loaded
-        
-        if not spark_jars or 'mssql_spark_jars' not in spark_jars or 'postgresql_jar' in spark_jars:
-            print(f"Missing jar file: {spark_jars}")
-            
-            return None
+        spark_jars = config["spark_jars"]
+        mssql_adventureworks = config["mssql_sources"]["adventureworks"]
+        mssql_properties = mssql_adventureworks["properties"]
+    
+        #check if variable was loaded
+        if not spark_jars or 'mssql_spark_jars' not in spark_jars or 'postgresql_jar' not in spark_jars:
+            print("Missing spark jars configuration file and path")
+            return None, None, None
         
         if not mssql_adventureworks:
-            print("Missing Adventure Works sources and properties")
-            return None
+            print(f"Adventureworks sources and properties wasn't loaded. Missing properties {mssql_adventureworks}")
+            return None, None, None
         
         if not mssql_properties:
             print(f"We detected certain dependencies on {mssql_properties} that was not loaded. Reload {mssql_adventureworks} and retry it")
-            return None
+            return None, None, None
         
-        #creating spark_session
+    #load properties, spark configuration and session
+    
         spark = (SparkSession
                     .builder
-                    .appName('currency_code_extract_raw')
-                        .config('spark.jars', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postregsql_jar')}")
-                        .config('spark.driver.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postregsql_jar')}")
-                        .config('spark.executor.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postregsql_jar')}")
+                    .appName('currency_rate_extract_raw')
+                    .config('spark.jars', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postgresql_jar', '')}")
+                    .config('spark.driver.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postgresql_jar', '')}")
+                    .config('spark.executor.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postgresql_jar', '')}")
                     .enableHiveSupport()
                     .getOrCreate()
-                    )
-        
+                )
         return spark, mssql_properties, mssql_adventureworks
     
     except Exception as e:
-        print("Fail to create SparkSession")
+        print(f'Fail to create SparkSession: {e}')
         traceback.print_exc()
-        
         return None
     
 def extract_currencycode_raw(spark, mssql_properties, mssql_adventureworks):
@@ -74,7 +70,7 @@ def extract_currencycode_raw(spark, mssql_properties, mssql_adventureworks):
     try:
         df_currency_code_raw = (spark
                                     .read
-                                    .fomat('jdbc')
+                                    .format('jdbc')
                                     .option('url', mssql_adventureworks['url'])
                                     .option('driver', mssql_properties['driver'])
                                     .option('user', mssql_properties['user'])
@@ -119,14 +115,14 @@ def main():
     #verifying spark
         if not spark:
             print("Fail to stablishes Spark Session")
-            sys.exit()
+            sys.exit(1)
             
     #extract and check if datasources was loaded to dataframe
     
-        write_currency_rate = extract_currencycode_raw(spark, mssql_properties, mssql_adventureworks)
+        write_currencycode_rate = extract_currencycode_raw(spark, mssql_properties, mssql_adventureworks)
         
-        if write_currency_rate:
-            write_currency_rate.repartition(3).write.mode('overwrite').parquet('hdfs://ha-cluster/raw/currencycode')
+        if write_currencycode_rate:
+            write_currencycode_rate.repartition(3).write.mode('overwrite').parquet('hdfs://ha-cluster/raw/currencycode')
             
             print("Dataframe loaded successfully")
             

@@ -94,13 +94,31 @@ def print_pretty_config(config: Dict[str, Any]) -> None:
     """
     import json
     print(json.dumps(config, indent=2))
+       
+    
+def validate_required_keys(config, required_keys: list, config_name: str):
+    """
+    Valida se as chaves obrigatórias estão presentes no dicionário de configuração.
+
+    :param config: Dicionário de configuração
+    :param required_keys: Lista de chaves obrigatórias
+    :param config_name: Nome do componente que está sendo validado
+    :raises RuntimeError: Se alguma chave estiver ausente
+    """
+    if not config or not all(key in config for key in required_keys):
+        raise RuntimeError(f"Missing required configuration in {config_name}: {', '.join(required_keys)}")
 
 if __name__ == "__main__":
     try:
         config = load_config()
         print("Configurações carregadas com sucesso:")
         print_pretty_config(config)
+        
     except Exception as e:
         print(f"Erro ao carregar configurações: {e}")
         import traceback
         traceback.print_exc()
+
+
+# Uso
+#  validate_required_keys(spark_jars, ['mssql_spark_jars', 'postgresql_jar'], 'spark_jars')
