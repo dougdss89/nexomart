@@ -9,6 +9,7 @@ def load_source_connections():
         print("Loading .env file...")
         config = load_config()
         print("Configuration loaded.")
+        
     except FileNotFoundError as e:
         print(f"File .env was not found: {e}")
         return None, None, None
@@ -44,13 +45,16 @@ def load_source_connections():
                  .enableHiveSupport()
                  .getOrCreate()
                  )
+        
         return spark, mssql_properties, mssql_adventureworks
     
     except RuntimeError as e:
         print(f"Configuration validation failed: {e}")
         return None, None, None
+    
     except Exception as e:
         print(f"Unexpected error occurred: {e}")
+        print_exc()
         return None, None, None
 
 def extract_freight_raw(spark, mssql_properties, mssql_adventureworks):
@@ -78,8 +82,10 @@ def extract_freight_raw(spark, mssql_properties, mssql_adventureworks):
                                   """)
                           .load())
         return df_freight_raw
+    
     except Exception as e:
         print(f"Error extracting freight data: {e}")
+        print_exc()
         return None
 
 def stop_spark(spark):
@@ -106,6 +112,7 @@ def main():
     except Exception as e:
         print("Main script encountered an error.")
         print_exc()
+        
     finally:
         stop_spark(spark)
         print("Spark Session successfully closed.")
