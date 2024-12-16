@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as f
-from configconnections_loader import load_config
+from spark.jobs.configconnections_loader import load_config
 from sys import exit
 from traceback import print_exc
 

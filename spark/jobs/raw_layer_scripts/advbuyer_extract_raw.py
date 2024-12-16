@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from configconnections_loader import load_config
+from spark.jobs.configconnections_loader import load_config
 import sys
 import traceback
 

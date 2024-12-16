@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 import pyspark.sql.functions as f
 from sys import exit
 from traceback import print_exc
-from configconnections_loader import load_config, validate_required_keys
+from spark.jobs.configconnections_loader import load_config, validate_required_keys
 
 
 def load_source_connections():

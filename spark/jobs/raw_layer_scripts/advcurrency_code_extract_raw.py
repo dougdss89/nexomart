@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from configconnections_loader import load_config
+from spark.jobs.configconnections_loader import load_config
 import sys
 import traceback
 
@@ -60,42 +60,46 @@ def load_source_connections():
         traceback.print_exc()
         return None
     
-def extract_currencyrate_raw(spark, mssql_properties, mssql_adventureworks):
+def extract_currencycode_raw(spark, mssql_properties, mssql_adventureworks):
     
     if not all ([spark, mssql_properties, mssql_adventureworks]):
-        print("Invalid Parameters")
+        print("Missing some connection and session variables. Invalid Parameters")
         
         return None
     
     try:
-        df_currencyrate_raw = (spark
-                                .read
-                                .format('jdbc')
-                                    .option('url', mssql_adventureworks['url'])   
-                                    .option('driver', mssql_properties['driver'])   
-                                    .option('user', mssql_properties['user'])  
-                                    .option('password', mssql_properties['password'])   
+        df_currency_code_raw = (spark
+                                    .read
+                                    .format('jdbc')
+                                    .option('url', mssql_adventureworks['url'])
+                                    .option('driver', mssql_properties['driver'])
+                                    .option('user', mssql_properties['user'])
+                                    .option('password', mssql_properties['password'])
                                     .option('query', 
-                                        
+                                            
                                             """ 
                                                 select 
-
-                                                    coalesce(currencyrateid,0) as currencyrateid,
-                                                    fromcurrencycode,
-                                                    tocurrencycode,
-                                                    cast(averagerate as money) as averagerate,
-                                                    cast(endofdayrate as money) as endofdayrate,
-                                                    cast(currencyratedate as date) as currencyratedate
-                                                    
-                                                from sales.currencyrate 
-                                            """    
+                                                    scr.currencycode,
+                                                    scr.[name] as currencyname,
+                                                    crc.CountryRegionCode,
+                                                    pcr.[name] as countryname
+                                                from sales.currency as scr
+                                                    inner join
+                                                    sales.countryregioncurrency as crc
+                                                on scr.CurrencyCode = crc.CurrencyCode
+                                                    inner join
+                                                person.countryregion as pcr
+                                                on crc.CountryRegionCode = pcr.CountryRegionCode
                                             
-                                        )).load()
-        return df_currencyrate_raw
+                                            """
+                                )).load()
+        
+        return df_currency_code_raw
     
     except Exception as e:
         print("Failed to load datasource to dataframe")
         traceback.print_exc()
+        
         return None
     
 def stop_spark(spark):
@@ -104,29 +108,30 @@ def stop_spark(spark):
         
 def main():
     
-    #load source connections
+    #load source connections to main
     try:
         spark, mssql_properties, mssql_adventureworks = load_source_connections()
         
     #verifying spark
         if not spark:
-            print("Fail to stablishes spark connection")
+            print("Fail to stablishes Spark Session")
             sys.exit(1)
             
     #extract and check if datasources was loaded to dataframe
     
-        write_currency_rate = extract_currencyrate_raw(spark, mssql_properties, mssql_adventureworks)
+        write_currencycode_rate = extract_currencycode_raw(spark, mssql_properties, mssql_adventureworks)
         
-        if write_currency_rate:
-            write_currency_rate.repartition(3).write.mode('overwrite').parquet('hdfs://ha-cluster/raw/currency_rate')
+        if write_currencycode_rate:
+            write_currencycode_rate.repartition(3).write.mode('overwrite').parquet('hdfs://ha-cluster/raw/currencycode')
             
-            print("Dataframe loaded sucessfully ")
+            print("Dataframe loaded successfully")
             
-        print("Error to load dataframe on Data Lake. Fail to extract data")
+        print("Error to load Dataframe on Data lake. Fail to extract data")
         
     except Exception as e:
         print("Main script was not properly configurated. Verify")
         traceback.print_exc()
+        
         return None
     
     finally:
@@ -135,4 +140,4 @@ def main():
         print("Spark Session closed")
         
 if __name__ == '__main__':
-    main()
+    main() #executing script 
