@@ -9,17 +9,12 @@ def load_config(env_path: str = '/opt/spark/apps/shared/.env') -> Dict[str, Any]
     :param env_path: Caminho para o arquivo .env
     :return: Um dicionário contendo as configurações processadas
     :raises FileNotFoundError: Se o arquivo .env não for encontrado ou vazio
-    :raises KeyError: Se variáveis obrigatórias estiverem ausentes
     """
-    
     # Carrega as variáveis do arquivo .env
     config = dotenv_values(env_path)
-
-    # Valida se o arquivo .env foi carregado corretamente
     if not config:
         raise FileNotFoundError(f"Erro ao configurar o arquivo .env em {env_path}. Verifique o caminho e o formato do arquivo.")
 
-    # Função para substituir variáveis de ambiente em strings
     def replace_env_vars(value: str) -> str:
         """
         Substitui variáveis no formato $VAR ou ${VAR} com seus valores correspondentes.
@@ -27,25 +22,21 @@ def load_config(env_path: str = '/opt/spark/apps/shared/.env') -> Dict[str, Any]
         """
         if not isinstance(value, str):
             return value
-        
-        # Primeiro, substitui variáveis no formato ${VAR}
-        for var_name in config.keys():
-            value = value.replace(f"${{{var_name}}}", config.get(var_name, ''))
-        
-        # Depois, substitui variáveis no formato $VAR
-        for var_name in config.keys():
-            value = value.replace(f"${var_name}", config.get(var_name, ''))
-        
+
+        for var_name, var_value in config.items():
+            if var_value:  # Evita substituir com valores nulos
+                value = value.replace(f"${{{var_name}}}", var_value)
+                value = value.replace(f"${var_name}", var_value)
         return value
 
-    # Processa todas as variáveis, substituindo placeholders
+    # Processa todas as variáveis do .env
     processed_config = {
-        key: replace_env_vars(value) 
+        key: replace_env_vars(value)
         for key, value in config.items()
     }
 
-    # Constrói o dicionário de configurações com os valores processados
     configurations = {
+        # Banco de dados MSSQL
         "mssql_sources": {
             "adventureworks": {
                 "url": processed_config.get("MSSQLURLADVENTUREWORKS"),
@@ -66,6 +57,7 @@ def load_config(env_path: str = '/opt/spark/apps/shared/.env') -> Dict[str, Any]
                 },
             },
         },
+        # Banco de dados PostgreSQL
         "postgresql_destination": {
             "default": {
                 "url": processed_config.get("POSTGRECONNURL"),
@@ -77,14 +69,36 @@ def load_config(env_path: str = '/opt/spark/apps/shared/.env') -> Dict[str, Any]
                 },
             }
         },
+        # Caminhos do Hadoop
+        "hadoop_paths": {
+            "raw": processed_config.get("HADOOP_CLUSTER_RAW"),
+            "iceberg": processed_config.get("HADOOP_CLUSTER_ICEBERG"),
+            "gold": processed_config.get("HADOOP_CLUSTER_GOLD"),
+            "warehouse": processed_config.get("HADOOP_WAREHOUSE"),
+        },
+        # JARs Spark
         "spark_jars": {
             "mssql_spark_jars": processed_config.get("MSSQLSPARKJAR"),
             "postgresql_jar": processed_config.get("POSTGREJAR")
         },
-        "raw_config": processed_config  # Adiciona configuração bruta para referência
+        # Configuração bruta
+        "raw_config": processed_config
     }
 
     return configurations
+
+def validate_required_keys(config: Dict[str, str], required_keys: list, config_name: str):
+    """
+    Valida se as chaves obrigatórias estão presentes no dicionário de configuração.
+
+    :param config: Dicionário de configuração
+    :param required_keys: Lista de chaves obrigatórias
+    :param config_name: Nome do componente que está sendo validado
+    :raises RuntimeError: Se alguma chave estiver ausente
+    """
+    if not config or not all(key in config and config[key] for key in required_keys):
+        missing_keys = [key for key in required_keys if not config.get(key)]
+        raise RuntimeError(f"Missing required configuration in {config_name}: {', '.join(missing_keys)}")
 
 def print_pretty_config(config: Dict[str, Any]) -> None:
     """
@@ -94,31 +108,18 @@ def print_pretty_config(config: Dict[str, Any]) -> None:
     """
     import json
     print(json.dumps(config, indent=2))
-       
-    
-def validate_required_keys(config, required_keys: list, config_name: str):
-    """
-    Valida se as chaves obrigatórias estão presentes no dicionário de configuração.
-
-    :param config: Dicionário de configuração
-    :param required_keys: Lista de chaves obrigatórias
-    :param config_name: Nome do componente que está sendo validado
-    :raises RuntimeError: Se alguma chave estiver ausente
-    """
-    if not config or not all(key in config for key in required_keys):
-        raise RuntimeError(f"Missing required configuration in {config_name}: {', '.join(required_keys)}")
 
 if __name__ == "__main__":
     try:
         config = load_config()
         print("Configurações carregadas com sucesso:")
         print_pretty_config(config)
-        
+
+        # Validações das seções
+        validate_required_keys(config["hadoop_paths"], ["raw", "iceberg", "gold", "warehouse"], "Hadoop Paths")
+        validate_required_keys(config["spark_jars"], ["mssql_spark_jars", "postgresql_jar"], "Spark JARs")
+
     except Exception as e:
         print(f"Erro ao carregar configurações: {e}")
         import traceback
         traceback.print_exc()
-
-
-# Uso
-#  validate_required_keys(spark_jars, ['mssql_spark_jars', 'postgresql_jar'], 'spark_jars')

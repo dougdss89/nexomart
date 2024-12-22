@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+  dbt:
+    build: .
+    volumes:
+      - .:/usr/app/dbt
+      - ~/.dbt:/root/.dbt
+      - dockervol:/dockervol:rwx
+      - sparkapps:/sparkapps:rwx
+
+
+    networks:
+      - hadoopcluster    # Substitua pelo nome da sua rede existente
+    container_name: dbt_core
+    tty: true
+    command: tail -f /dev/null  # Mantém o container rodando
+
+networks:
+  hadoopcluster:
+    external: true         # Usa uma rede existente
+    name: hadoopcluster # Substitua pelo nome da sua rede existente
+
+volumes:
+  sparkapps:
+    external: true
+
+  dockervol:
+    external: true
+
+  postgres_data:
+
+  spark-logs:
+    external: true

@@ -119,7 +119,7 @@ def main():
         
         # Verificar se a extração foi bem-sucedida
         if transactioncode_write:
-            transactioncode_write.repartition(5).write.mode('overwrite').parquet("hdfs://ha-cluster/raw/transactioncodecopy/")
+            transactioncode_write.repartition(5).write.mode('overwrite').parquet("hdfs://ha-cluster/spark_warehouse")
         else:
             print("Falha na extração de dados")
         
