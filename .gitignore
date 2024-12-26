@@ -23,4 +23,5 @@ spark/jobs/jobs_teste
 /spark/jobs/developer
 /spark/raw_layer_scripts/__init__.py
 /spark/jobs/__init__.py
-/spark/jobs/__pycache__
+/spark/jobs/__pycache__.py
+/spark/modules/__init__.py
