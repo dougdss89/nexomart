@@ -27,7 +27,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        hadoop_landing = config.get("hadoop_paths", {})
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
         
         #validade imported keys
         validate_required_keys(config=spark_jars,

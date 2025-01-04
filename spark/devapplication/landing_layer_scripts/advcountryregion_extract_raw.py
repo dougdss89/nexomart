@@ -35,7 +35,7 @@ def load_source_connections():
         spark_jars = config["spark_jars"]
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]
         mssql_properties = mssql_adventureworks["properties"]
-        hadoop_landing = config.get("hadoop_paths", {})
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
     
         #check if variable was loaded
         if not spark_jars or 'mssql_spark_jars' not in spark_jars or 'postgresql_jar' not in spark_jars:
@@ -118,4 +118,4 @@ if __name__ == '__main__':
     
     load_source_connections()
     extract_raw_countryregion()
-    spark_stop()
+    spark_stop(spark)

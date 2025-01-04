@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config, validate_required_keys
+from configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -19,7 +19,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        hadoop_landing = config.get("hadoop_paths", {})
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", )
 
 
         validate_required_keys(config=spark_jars, 
@@ -27,22 +27,23 @@ def load_source_connections():
                                config_name="spark_jars")
         
         #validade properties key
-        validate_required_keys(config= mssql_adventureworks,
-                               required_keys=["properties"],
-                               config_name="mssql_adventureworks")
+        # validate_required_keys(config= mssql_adventureworks,
+        #                        required_keys=["properties"],
+        #                        config_name="mssql_adventureworks")
         
-        validate_required_keys(config=hadoop_landing,
-                               required_keys=["landing"],
-                               config_name="hadoop_paths")
+        # validate_required_keys(config=hadoop_landing,
+        #                        required_keys=["landing"],
+        #                        config_name="hadoop_paths")
     
     #creating sparkSession
     
         spark = (SparkSession
                     .builder
                     .appName('buyer_extract_raw')
-                        .config('spark.jars', config['spark_jars']['mssql_spark_jars'] + "," + config['spark_jars']['postgresql_jar'])
-                        .config('spark.driver.extraClassPath', config['spark_jars']['mssql_spark_jars'] + "," + config['spark_jars']['postgresql_jar'])
-                        .config('spark.executor.extraClassPath', config['spark_jars']['mssql_spark_jars'] + "," + config['spark_jars']['postgresql_jar'])
+                        .config('spark.jars', config['spark_jars']['mssql_spark_jars'])
+                        .config('spark.driver.extraClassPath', config['spark_jars']['mssql_spark_jars'])
+                        .config('spark.executor.extraClassPath', config['spark_jars']['mssql_spark_jars'])
+
                     .enableHiveSupport()
                     .getOrCreate()
                 )
@@ -61,7 +62,7 @@ def load_source_connections():
         exit(1)
         return None, None, None
         
-spark, mssql_properties, mssql_adventureworks, hadooop_landing = load_source_connections()
+spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
 
 def extract_raw_buyer():
     
@@ -76,25 +77,25 @@ def extract_raw_buyer():
                                 
                                 """ 
                                 select distinct
-                                    hre.businessentityid,
-                                    pp.firstname,
-                                    pp.lastname,
-                                    hre.loginid,
-                                    hre.birthdate,
-                                    hre.maritalstatus,
-                                    hre.gender,
-                                    hre.hiredate,
-                                    hre.jobtitle,
-                                    hrd.departmentid,
-                                    hrd.[name],
-                                    hrd.groupname,
-                                    hpe.payfrequency,
-                                    hpe.rate,
-                                    hpe.ratechangedate,
-                                    hrdh.startdate,
-                                    hrdh.enddate,
-                                    hre.salariedflag,
-                                    hre.currentflag
+                                    hre.    businessentityid,
+                                    pp.     firstname,
+                                    pp.     lastname,
+                                    hre.    loginid,
+                                    hre.    birthdate,
+                                    hre.    maritalstatus,
+                                    hre.    gender,
+                                    hre.    hiredate,
+                                    hre.    jobtitle,
+                                    hrd.    departmentid,
+                                    hrd.    [name],
+                                    hrd.    groupname,
+                                    hpe.    payfrequency,
+                                    hpe.    rate,
+                                    hpe.    ratechangedate,
+                                    hrdh.   startdate,
+                                    hrdh.   enddate,
+                                    hre.    salariedflag,
+                                    hre.    currentflag
                                         
                                 from  humanresources.employee as hre
                                     left join
@@ -117,7 +118,8 @@ def extract_raw_buyer():
 
 write_buyer_dataframe = extract_raw_buyer()
 
-write_buyer_dataframe.repartition(5).write.mode('overwrite').parquet(f"hdfs://ha-cluster/landing/buyer")
+
+write_buyer_dataframe.repartition(5).write.mode('overwrite').parquet(f"{hadoop_landing}/buyer")
 
 def spark_stop(spark):
     

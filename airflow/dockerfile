@@ -25,10 +25,10 @@ RUN echo 'airflow:airflow' | chpasswd && \
     usermod -aG sudo airflow
 
 # Download e instalação do Apache Spark 3.5.3
-RUN wget https://dlcdn.apache.org/spark/spark-3.5.3/spark-3.5.3-bin-hadoop3.tgz -O /tmp/spark-3.5.3-bin-hadoop3.tgz && \
-    tar -xvzf /tmp/spark-3.5.3-bin-hadoop3.tgz -C /opt/ && \
-    mv /opt/spark-3.5.3-bin-hadoop3 /opt/spark && \
-    rm /tmp/spark-3.5.3-bin-hadoop3.tgz
+# RUN wget https://dlcdn.apache.org/spark/spark-3.5.3/spark-3.5.3-bin-hadoop3.tgz -O /tmp/spark-3.5.3-bin-hadoop3.tgz && \
+#     tar -xvzf /tmp/spark-3.5.3-bin-hadoop3.tgz -C /opt/ && \
+#     mv /opt/spark-3.5.3-bin-hadoop3 /opt/spark && \
+#     rm /tmp/spark-3.5.3-bin-hadoop3.tgz
 
 USER airflow
 
@@ -40,7 +40,6 @@ RUN pip install pyspark hdfs
 
 # Copia do arquivo requirements.txt para o container e instalação dos pacotes do Airflow
 COPY --chown=airflow:airflow ./requirements.txt /requirements.txt
-RUN pip install -r /requirements.txt
 
 # Configuração do Airflow
 ENV AIRFLOW_HOME=/opt/airflow
@@ -52,9 +51,10 @@ COPY airflow.cfg ${AIRFLOW_HOME}/airflow.cfg
 # COPY --chown=airflow:airflow ./spark /opt/spark
 
 # Adicionando variáveis de ambiente do Hadoop e Spark
-ENV HADOOP_HOME=/opt/hadoop
-ENV SPARK_HOME=/opt/spark
-ENV PATH=$HADOOP_HOME/bin:$SPARK_HOME/bin:$PATH
+ENV HADOOP_CONF_DIR=/dockervol/hadoop/etc/hadoop/
+ENV HADOOP_HOME=/dockervol/hadoop/
+ENV SPARK_HOME=/dockervol/spark/
+ENV SPARK_CONF_DIR=/dockervol/spark/conf/
 
 # Inicializando o Airflow
 ENTRYPOINT [ "airflow" ]

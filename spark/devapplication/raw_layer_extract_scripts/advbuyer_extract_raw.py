@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config, validate_required_keys
+from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql.functions import col
 from sys import exit
 from traceback import print_exc
 
@@ -42,11 +43,13 @@ def load_source_connections():
         print(f"Unexpected error occurred. Please verify: {e}")
         print_exc()
         exit(1)
+        
 
 def extract_landing_buyer(spark, hadoop_landing, raw_table_mame):
     """ Extract buyer data from the landing zone. """
     try:
-        df_buyer_raw = spark.read.parquet(f"{hadoop_landing}/{raw_table_mame}")
+        df_buyer_raw = spark.read.parquet(f"{hadoop_landing}{raw_table_mame}")
+        
         return df_buyer_raw
     
     except Exception as e:
@@ -54,13 +57,40 @@ def extract_landing_buyer(spark, hadoop_landing, raw_table_mame):
         print_exc()
         exit(1)
 
+def buyer_replace_schema(dataframe):
+    
+# Aplicar as transformações de tipo nas colunas
+    buyer_dataframe = dataframe.select(
+                            col("businessentityid").cast("int").alias("businessentityid"),
+                            col("firstname").cast("string").alias("firstname"),
+                            col("lastname").cast("string").alias("lastname"),
+                            col("loginid").cast("string").alias("loginid"),
+                            col("birthdate").cast("date").alias("birthdate"),
+                            col("maritalstatus").cast("string").alias("maritalstatus"),
+                            col("gender").cast("string").alias("gender"),
+                            col("hiredate").cast("date").alias("hiredate"),
+                            col("jobtitle").cast("string").alias("jobtitle"),
+                            col("departmentid").cast("int").alias("departmentid"),
+                            col("name").cast("string").alias("name"),
+                            col("groupname").cast("string").alias("groupname"),
+                            col("payfrequency").cast("int").alias("payfrequency"),
+                            col("rate").cast("decimal(10,2)").alias("rate"),
+                            col("ratechangedate").cast("date").alias("salarychange_date"),
+                            col("startdate").cast("date").alias("startdate"),
+                            col("enddate").cast("date").alias("enddate"),
+                            col("salariedflag").cast("int").alias("salariedflag"),
+                            col("currentflag").cast("int").alias("currentflag")
+                        )
+    return buyer_dataframe
+
+    
 def write_to_iceberg(df, iceberg_rawdb, table_name):
     """ Write DataFrame to Iceberg table. """
     try:
         (
             df.repartition(5)
             .write.format("iceberg")
-            .mode("append")  # Use "append" to add data instead
+            .mode("overwrite")  # Use "append" to add data instead
             .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
         )
         print(f"Table {table_name} written successfully to Iceberg.")
@@ -86,9 +116,11 @@ def main():
 
     # Extract data from landing zone
     buyer_df = extract_landing_buyer(spark, hadoop_landing, "buyer")
+    
+    buyer_dataframe = buyer_replace_schema(buyer_df)
 
     # Write data to Iceberg
-    write_to_iceberg(buyer_df, iceberg_rawdb, "raw_dimbuyer")
+    write_to_iceberg(buyer_dataframe, iceberg_rawdb, "raw_dimbuyer")
 
     # Stop SparkSession
     spark_stop(spark)

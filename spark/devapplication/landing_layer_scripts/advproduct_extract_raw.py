@@ -27,7 +27,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        hadoop_landing = config.get("hadoop_paths", {})
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
 
         validate_required_keys(config=spark_jars, 
                                required_keys=["mssql_spark_jars", "postgresql_jar"],
@@ -45,9 +45,9 @@ def load_source_connections():
         spark = (SparkSession
                     .builder
                     .appName("extract_product_raw")
-                        .config("spark.jars", f"{spark_jars.get("mssql_spark_jars", "")}")
-                        .config("spark.executor.extraClassPath", f"{spark_jars.get("mssql_spark_jars", "")}")
-                        .config("spark.driver.extraClassPath", f"{spark_jars.get("mssql_spark_jars", "")}")
+                        .config("spark.jars", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.executor.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.driver.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
                         .enableHiveSupport()
                     .getOrCreate())
         
@@ -68,7 +68,7 @@ def extract_product_raw(spark, mssql_properties, mssql_adventureworks):
     """ extraction product table from source """
     
     if not all([spark, mssql_properties, mssql_adventureworks]):
-        print("Missing connection or session variable. Invalid Parameters")
+        print(f"Error to load variables from environment")
         
         return None
     

@@ -2,7 +2,7 @@ import os
 from typing import Dict, Any
 from dotenv import dotenv_values
 
-def load_config(env_path: str = '/opt/spark/apps/shared/.env') -> Dict[str, Any]:
+def load_config(env_path: str = '/home/doug/project/spark/devapplication/raw_layer_extract_scripts/.env') -> Dict[str, Any]:
     """
     Carrega e prepara as configurações do arquivo .env, substituindo placeholders dinâmicos.
 
@@ -83,6 +83,22 @@ def load_config(env_path: str = '/opt/spark/apps/shared/.env') -> Dict[str, Any]
             "mssql_spark_jars": processed_config.get("MSSQLSPARKJAR"),
             "postgresql_jar": processed_config.get("POSTGREJAR")
         },
+        #folders config
+        "airflow_folder":{
+            "landing_folder":processed_config.get("LANDING_FOLDER"),
+            "raw_layer_folder":processed_config.get("RAW_LAYER_SCRIPT")
+        },
+        
+        #redis configurarions
+        
+        "redis": {
+            "redis_host":processed_config.get("REDIS_HOST"),
+            "redis_port":processed_config.get("REDIS_PORT"),
+            "redis_db":processed_config.get("REDIS_DB"),
+            "redis_pwd":processed_config.get("REDIS_PASSWORD"),
+            "redis_key":processed_config.get("REDIS_KEY")
+        },
+        
         # Configuração bruta
         "raw_config": processed_config
     }

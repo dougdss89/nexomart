@@ -25,7 +25,7 @@ RUN useradd -m -s /bin/bash spark && \
     echo 'spark ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/spark && \
     echo 'airflow ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/airflow
 
-# Variáveis de ambiente
+    # Variáveis de ambiente
 ENV SPARK_HOME=${SPARK_HOME:-"/opt/spark"}
 ENV HADOOP_HOME=${HADOOP_HOME:-"/opt/hadoop"}
 
@@ -34,17 +34,18 @@ RUN mkdir -p ${HADOOP_HOME} && mkdir -p ${SPARK_HOME}
 WORKDIR ${SPARK_HOME}
 
 RUN chown -R spark:spark ${HADOOP_HOME} && chown -R spark:spark ${SPARK_HOME}
-# Download do arquivo de binários do Spark
-RUN curl -fSL https://dlcdn.apache.org/spark/spark-3.5.3/spark-3.5.3-bin-hadoop3.tgz -o spark-3.5.3-bin-hadoop3.tgz \
- && tar -xvzf spark-3.5.3-bin-hadoop3.tgz --directory /opt/spark --strip-components 1 \
- && rm -rf spark-3.5.3-bin-hadoop3.tgz
+# Download do arquivo de binários do Spark 
+RUN curl -fSL https://archive.apache.org/dist/spark/spark-3.4.3/spark-3.4.3-bin-hadoop3-scala2.13.tgz -o spark-3.4.3-bin-hadoop3-scala2.13.tgz \
+ && tar -xvzf spark-3.4.3-bin-hadoop3-scala2.13.tgz --directory /opt/spark --strip-components 1 \
+ && rm -rf spark-3.4.3-bin-hadoop3-scala2.13.tgz
+
 
 # Prepara o ambiente com PySpark
 FROM spark-base as pyspark
 
 # Instala as dependências Python
-COPY requirements/requirements.txt .
-RUN pip3 install -r requirements.txt
+COPY ./requirements.txt .
+RUN pip install -r requirements.txt
 
 # Mais variáveis de ambiente
 ENV PATH="/opt/spark/sbin:/opt/spark/bin:${PATH}"
