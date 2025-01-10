@@ -1,6 +1,6 @@
 import logging
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config, validate_required_keys
+from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 

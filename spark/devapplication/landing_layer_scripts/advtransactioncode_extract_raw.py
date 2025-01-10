@@ -1,6 +1,6 @@
 
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config
+from spark.devapplication.modules.configconnections_loader_old import load_config
 
 
 def load_source_connections():

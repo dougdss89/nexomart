@@ -41,7 +41,7 @@ def load_folders_job():
     schedule="@daily",
     catchup=False,
     start_date=datetime(2024, 12, 26),
-    tags=["spark", "iceberg"]
+    tags=["spark", "dimension"]
 )
 
 def extract_dimbuyer_source():
@@ -57,7 +57,7 @@ def extract_dimbuyer_source():
         verbose=False,
     )
 
-    write_to_iceberg = SparkSubmitOperator(
+    write_to_buyer_iceberg_table = SparkSubmitOperator(
         task_id="write_buyer_iceberg_table",
         application=f"{raw_layer_folder}/advbuyer_extract_raw.py",
         conn_id="sparkconn",
@@ -66,7 +66,7 @@ def extract_dimbuyer_source():
 
     end = EmptyOperator(task_id="end_load", trigger_rule="all_success")
 
-    start >> extract_buyer_data >> write_to_iceberg >> end
+    start >> extract_buyer_data >> write_to_buyer_iceberg_table >> end
 
 
 # Instanciar o DAG

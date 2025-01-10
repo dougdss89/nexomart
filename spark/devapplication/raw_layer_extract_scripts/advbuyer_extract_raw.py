@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from configconnections_loader import load_config, validate_required_keys
+from modules import load_config, validate_required_keys
 from pyspark.sql.functions import col
 from sys import exit
 from traceback import print_exc

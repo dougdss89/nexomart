@@ -1,6 +1,7 @@
 import logging
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config, validate_required_keys
+from modules import load_config, validate_required_keys
+import pyspark.sql.functions as f
 from sys import exit
 from traceback import print_exc
 
@@ -58,6 +59,11 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         logger.error(f"Failed to extract data from {raw_table}: {e}")
         print_exc()
         exit(1)
+        
+def convert_country_schema(dataframe):
+    
+    country_region = dataframe.select()
+    pass
 
 def write_to_iceberg(df, iceberg_rawdb, table_name):
     

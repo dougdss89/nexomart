@@ -1,28 +1,20 @@
-astrodev
-/analyticsgym
-vars
-project/spark
-wgarepo/logs
-elt_project
-projetoelt/spark/dados/*
-projetoelt/airflow/dags/__pycache__
-projetoelt/airflow/requirements
-/dsaspark
-airflow/dags/__pycache__
+# Ignorar arquivos _old.py ou _old
+*_old.py
+*_old
+
+# Ignorar arquivos de cache e __init__ do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar diretórios que possuam old, estudos ou teste
+*old/
+*estudos/
+*teste/
+
+# Direcionamento de arquivos e pastas específicos
 /spark/conf/
 /spark/.env.spark
-/home/doug/project/spark/.env.spark
-/spark/requirements/
-airflow/hadoop
-airflow/spark
-/airflow/dags_teste/
-/spark/jobs/old
-/spark/raw_layer_scripts/__init__.py
-/spark/jobs/__init__.py
-/spark/jobs/__pycache__.py
-/spark/modules/__init__.py
-airflow/__init__.py
-project/__init__.py
+/spark/requirements.txt
 redis
-/home/doug/project/__init__.py
-/home/doug/project/airflow/dags_teste
