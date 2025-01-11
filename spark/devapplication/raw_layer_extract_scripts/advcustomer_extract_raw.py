@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, alias, cast
 from sys import exit
 from traceback import print_exc
 
@@ -68,6 +69,57 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_customer_schema(dataframe):
+    
+    try:
+        dataframe.selectExpr(
+                            "cast(businessentityid as int) as businessentityid",
+                            "cast(customerid as int) as customerid",
+                            "cast(firstname as string) as firstname",
+                            "cast(lastname as string) as lastname",
+                            "cast(persontype as string) as persontype",
+                            "cast(emailpromotion as string) as emailpromotion",
+                            "cast(typephone as string) as typephone",
+                            "cast(phonenumber as string) as phonenumber",
+                            "cast(postalcode as string) as postalcode",
+                            "cast(addresstype string) as addresstype",
+                            "cast(emailaddress as string) as emailaddress",
+                            "cast(territoryid as int) as territoryid",
+                            "cast(countryname as string) as countryname",
+                            "cast(stateprovinceid as int) as stateprovinceid",
+                            "cast(countryregioncode as string) as countryregioncode",
+                            "cast(stateprovincecode as string) as stateprovincecode",
+                            "cast(statename as string) as statename",
+                            "cast(city as string) as statename",
+                            "cast(addressline1 as string) as addressline1",
+                            "cast(addressline2 as string) as addressline2",
+                            "cast(totalpurchaseid as float) as totalpurchaseid",
+                            "cast(datefirstpurchase as date) as datefirstpurchase",
+                            "cast(birthdate as date) as birthdate",
+                            "cast(maritalstatus as date) as maritalstatus",
+                            "cast(yearlyincome as string) as yearlyincome",
+                            "cast(gender as string) as gender",
+                            "cast(totalchildren as int) as totalchildren",
+                            "cast(numberchildrenathome as int) as totalchildren",
+                            "cast(education as string) as education"            ,
+                            "cast(occupation as string) as occupation",
+                            "cast(homeownerflag as string) as homeownerflag",
+                            "cast(numbercarsowned as string) as numbercarsowned"
+        ).select(
+                            col("inserted_date").cast("datetime").alias("inserted_date"),
+                            col("modified_date").cast("datetime").alias("modified_date"),
+                            col("eltversion").cast("int").alias("eltversion")
+        )
+        
+        logger.info(f"Data extracted sucessfully for table: {dataframe}")
+        
+        return dataframe
+    
+    except Exception as e:
+        logger.error(f"Error to convert dataframe schema {dataframe}. Please verify error log: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(customer_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,7 +154,9 @@ def main():
     
     customer_df = extract_landing_data(spark, hadoop_landing, "customer")
     
-    write_to_iceberg(customer_df, f"{iceberg_rawdb}", "raw_dimcustomer")
+    customer  = convert_customer_schema(customer_df)
+    
+    write_to_iceberg(customer, f"{iceberg_rawdb}", "raw_dimcustomer")
     
     spark_stop(spark)
     

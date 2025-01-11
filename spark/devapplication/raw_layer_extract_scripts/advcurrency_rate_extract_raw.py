@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 
@@ -68,6 +69,22 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_currencyrate_schema(dataframe):
+    
+    dataframe.select(
+                    col("currencyrateid").cast("int").alias("currencyrateid"),
+                    col("fromcurrencycode").cast("string").alias("fromcurrencycode"),
+                    col("tocurrencycode").cast("string").alias("tocurrencycode"),
+                    col("averagerate").cast("float").alias("averagerate"),
+                    col("endofdayrate").cast("float").alias("endodayrate"),
+                    col("currencyratedate").cast("date").alias("currencyratedate"),
+                    col("inserted_date").cast("datetime").alias("inserted_date"),
+                    col("modified_date").cast("datetime").alias("modified_date"),
+                    col("eltversion").cast("int").alias("eltversion")
+        
+                    )
+    return dataframe
+
 def write_to_iceberg(currency_rate_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,7 +119,9 @@ def main():
     
     currency_rate_df = extract_landing_data(spark, hadoop_landing, "currency_rate")
     
-    write_to_iceberg(currency_rate_df, f"{iceberg_rawdb}", "raw_dimcurrency_rate")
+    currency_rate = convert_currencyrate_schema(currency_rate_df)
+        
+    write_to_iceberg(currency_rate, f"{iceberg_rawdb}", "raw_dimcurrency_rate")
     
     spark_stop(spark)
     

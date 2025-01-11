@@ -1,6 +1,7 @@
 import logging
 from pyspark.sql import SparkSession
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from pyspark.sql.functions import col, cast, alias
+from modules.configconnections_loader_old import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -63,6 +64,20 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_currencycode_schema(dataframe):
+    
+    dataframe.select(
+                    col("currencycode").cast("string").alias("currencycode"),
+                    col("currencyname").cast("string").alias("currencyname"),
+                    col("countryregioncode").cast("string").alias("countryregioncode"),
+                    col("countryname").cast("string").alias("countryname"),
+                    col("inserted_date").cast("datetime").alias("inserted_date"),
+                    col("modified_date").cast("datetime").alias("modified_date"),
+                    col("eltversion").cast("int").alias("eltversion")
+    )
+    
+    return dataframe
+        
 def write_to_iceberg(currency_code_df, iceberg_rawdb, table_name):
     
     try:
@@ -97,7 +112,9 @@ def main():
     
     currency_code_dataframe = extract_landing_data(spark, hadoop_landing, "currencycode")
     
-    write_to_iceberg(currency_code_dataframe, f"{iceberg_rawdb}", "raw_dimcurrencycode")
+    currency_code = convert_currencycode_schema(currency_code_dataframe)
+    
+    write_to_iceberg(currency_code, f"{iceberg_rawdb}", "raw_dimcurrencycode")
     
     spark_stop(spark)
     

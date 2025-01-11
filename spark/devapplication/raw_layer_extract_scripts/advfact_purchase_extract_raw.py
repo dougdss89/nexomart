@@ -1,5 +1,6 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
+from pyspark.sql.functions import col, cast, alias
 from modules.startSparkSession import SparkSessionManager
 from sys import exit
 from traceback import print_exc
@@ -68,6 +69,43 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_fctpurchase_schema(dataframe):
+    
+    try:
+        dataframe.select(
+                        
+                        col("purchaseorderid").cast("int").alias("purchaseorder_id"),
+                        col("purchaseorderdetailid").cast("int").alias("purchaseorderdetail_id"),
+                        col("revisionnumber").cast("int").alias("revisionnumber"),
+                        col("status").cast("int").alias("status"),
+                        col("employeeid").cast("int").alias("employee_id"),
+                        col("vendorid").cast("int").alias("vendor_id"),
+                        col("orderdate").cast("date").alias("orderdate"),
+                        col("shipdate").cast("date").alias("shipdate"),
+                        col("duedate").cast("date").alias("duedate"),
+                        col("shipmethodid").cast("date").alias("shipmethod_id"),
+                        col("productid").cast("int").alias("producti_id"),
+                        col("receivedqty").cast("int").alias("received_qty"),
+                        col("rejectedqty").cast("int").alias("rejected_qty"),
+                        col("stockedqty").cast("int").alias("stocked_qty"),
+                        col("unitprice").cast("float").alias("unit_price"),
+                        col("freight").cast("float").alias("freight"),
+                        col("taxamt").cast("float").alias("taxamt"),
+                        col("linetotal").cast("float").alias("linetotal"),
+                        col("subtotal").cast("float").alias("subtotal"),
+                        col("totaldue").cast("float").alias("totaldue"),
+                        col("inserted_date").cast("datetime").alias("inserted_date"),
+                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("eltversion").cast("int").alias("eltversion")
+                    )
+                        
+        return dataframe
+        
+    except Exception as e:
+        logger.erorr(f"Error to convert schema from dataframe: {dataframe}. Please verify: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(fact_purchase_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,7 +140,9 @@ def main():
     
     fact_purchase_df = extract_landing_data(spark, hadoop_landing, "fact_purchase")
     
-    write_to_iceberg(fact_purchase_df, f"{iceberg_rawdb}", "raw_fact_purchase")
+    fact_purchase = convert_fctpurchase_schema(fact_purchase_df)
+    
+    write_to_iceberg(fact_purchase, f"{iceberg_rawdb}", "raw_fact_purchase")
     
     spark_stop(spark)
     

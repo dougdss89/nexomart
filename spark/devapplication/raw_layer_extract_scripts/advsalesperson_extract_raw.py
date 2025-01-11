@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 
@@ -68,6 +69,48 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_salesperson_schema(tmp_salesperson):
+    
+    try:
+        tmp_salesperson.select(
+                        col("businessentityid").cast("int").alias("businessentity_id"),
+                        col("loginid").cast("string").alias("logind_id"),
+                        col("firstname").cast("string").alias("firstname"),
+                        col("lastname").cast("string").alias("lastname"),
+                        col("gender").cast("string").alias("gender"),
+                        col("birthdate").cast("string").alias("birthdate"),
+                        col("jobtitle").cast("string").alias("jobtitle"),
+                        col("maritalstatus").cast("string").alias("maritalstatus"),
+                        col("organizationallevel").cast("int").alias("organizationllevel"),
+                        col("departmentid").cast("int").cast("department_id"),
+                        col("startdate").cast("date").alias("start_date"),
+                        col("enddate").cast("date").alias("end_date"),
+                        col("groupname").cast("string").alias("groupname"),
+                        col("departmentname").cast("string").alias("departmentname"),
+                        col("payfrequency").cast("int").alias("payfrequency"),
+                        col("rate").cast("float").alias("salary"),
+                        col("ratechangeddate").cast("float").alias("ratechanged_date"),
+                        col("commissionpct").cast("float").alias("commission_pct"),
+                        col("salesquota").cast("float").alias("salesquota"),
+                        col("bonus").cast("float").alias("bonus"),
+                        col("regionname").cast("string").alias("regioname"),
+                        col("continentname").cast("string").alias("continentname"),
+                        col("countryregioncode").cast("string").alias("countrycode"),
+                        col("territoryid").cast("int").alias("territoryid"),
+                        col("salariedflag").cast("int").alias("salariedflag"),
+                        col("currentflag").cast("int").alias("currentflag"),
+                        col("inserted_date").cast("datetime").alias("extracted_date"),
+                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("eltversion").cast("eltversion").alias("eltversion")
+        )
+        
+        return tmp_salesperson
+    
+    except Exception as e:
+        logger.error(f"Error to convert dataframe {tmp_salesperson} schema. Please verify: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(salesperson_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,7 +145,9 @@ def main():
     
     salesperson_df = extract_landing_data(spark, hadoop_landing, "salesperson")
     
-    write_to_iceberg(salesperson_df, f"{iceberg_rawdb}", "raw_dimsalesperson")
+    salesperson = convert_salesperson_schema(salesperson_df)
+    
+    write_to_iceberg(salesperson, f"{iceberg_rawdb}", "raw_dimsalesperson")
     
     spark_stop(spark)
     

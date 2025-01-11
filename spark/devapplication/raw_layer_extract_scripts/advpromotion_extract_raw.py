@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 
@@ -68,6 +69,24 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_promotion_schema(tmp_promotion):
+    
+    tmp_promotion.select(
+        
+                        col("specialofferid").cast("int").alias("specialoffer_id"),
+                        col("description").cast("string").alias("description"),
+                        col("discountpct").cast("float").alias("discountpct"),
+                        col("type").cast("string").alias("type"),
+                        col("category").cast("string").alias("category"),
+                        col("minqty").cast("int").alias("minqty"),
+                        col("maxqty").cast("int").alias("maxqty"),
+                        col("startdate").cast("datetime").alias("startdate"),
+                        col("enddate").cast("datetime").alias("enddate"),
+                        col("inserted_date").cast("datetime").alias("extracted_date"),
+                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("eltversion").cast("int").alias("eltversion")
+    )
+        
 def write_to_iceberg(promotion_df, iceberg_rawdb, table_name):
     
     try:
@@ -101,6 +120,8 @@ def main():
     spark, hadoop_landing, iceberg_rawdb = load_source_connections()
     
     promotion_df = extract_landing_data(spark, hadoop_landing, "promotion")
+    
+    promotion = convert_promotion_schema(promotion_df)
     
     write_to_iceberg(promotion_df, f"{iceberg_rawdb}", "raw_dimpromotion")
     

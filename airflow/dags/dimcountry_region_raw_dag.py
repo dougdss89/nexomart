@@ -2,7 +2,7 @@ from airflow.decorators import dag, task
 from datetime import datetime, timedelta
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
-from modules import load_configurations, validate_required_keys # type: ignore
+from load_configurations import load_config, validate_required_keys 
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

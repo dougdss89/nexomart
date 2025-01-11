@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 
@@ -68,6 +69,26 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_productcategory_schema(tmp_prodcategory):
+    
+    try:
+        tmp_prodcategory.select(
+            
+                            col("productcategoryid").cast("int").alias("productcategory_id"),
+                            col("categoryname").cast("string").alias("categoryname"),
+                            col("inserted_date").cast("datetime").alias("extracted_date"),
+                            col("modified_date").cast("datetime").alias("modified_date"),
+                            col("eltversion").cast("int").alias("eltversion")
+        )
+        
+        return tmp_prodcategory
+    
+    except Exception as e:
+        logger.error(f"Error to convert dataframe schema {tmp_prodcategory}. Please verify: {e}")
+        print_exc()
+        exit(1)
+    
+        
 def write_to_iceberg(product_category_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,7 +123,9 @@ def main():
     
     product_category_df = extract_landing_data(spark, hadoop_landing, "product_category")
     
-    write_to_iceberg(product_category_df, f"{iceberg_rawdb}", "raw_dimproduct_category")
+    product_category = convert_productcategory_schema(product_category_df)
+    
+    write_to_iceberg(product_category, f"{iceberg_rawdb}", "raw_dimproduct_category")
     
     spark_stop(spark)
     

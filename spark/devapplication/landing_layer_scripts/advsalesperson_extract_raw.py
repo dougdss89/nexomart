@@ -98,7 +98,10 @@ def extract_salesperson_raw(spark, mssql_adventureworks, mssql_properties):
                                                 ssp.bonus,                      sst.[name] as regionname,
                                                 sst.[group] as continentname,   sst.countryregioncode,
                                                 sst.territoryid,                salariedflag,
-                                                currentflag
+                                                currentflag,
+                                                getdate() as inserted_date,
+                                                '9999-31-12 00:00:00.000' as modified_date,
+                                                '1' as eltversion
 
                                             from person.person as pp
                                             left join

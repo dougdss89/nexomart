@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader_old import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 
@@ -67,6 +68,26 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         logger.error(f"Failed to extract data from {raw_table}: {e}")
         print_exc()
         exit(1)
+
+def convert_freight_schema(tmp_freight):
+    
+    try:
+        tmp_freight.select(
+                        col("shipmethodid").cast("int").alias("shipmethod_id"),
+                        col("name").cast("string").alias("name"),
+                        col("shipbase").cast("float").alias("shipbase"),
+                        col("shiprate").cast("float").alias("shiprate"),
+                        col("inserted_date").cast("datetime").alias("inserted_date"),
+                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("eltversion").cast("int").alias("eltversion")
+        )
+        
+        return tmp_freight
+    
+    except Exception as e:
+        logger.error(f"Failed to convert schema from dataframe {tmp_freight}. Please verify: {e}")
+        print_exc()
+        exit(1)
         
 def write_to_iceberg(freigth_df, iceberg_rawdb, table_name):
     
@@ -102,7 +123,9 @@ def main():
     
     freigth_df = extract_landing_data(spark, hadoop_landing, "freigth")
     
-    write_to_iceberg(freigth_df, f"{iceberg_rawdb}", "raw_dimfreigth")
+    freight = convert_freight_schema(freigth_df)
+    
+    write_to_iceberg(freight, f"{iceberg_rawdb}", "raw_dimfreigth")
     
     spark_stop(spark)
     

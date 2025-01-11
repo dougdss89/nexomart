@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 
@@ -56,8 +57,9 @@ def load_source_connections():
 def extract_landing_data(spark, hadoop_landing, raw_table):
     try:
         fact_sales_df = (spark
-                                .read
-                                .parquet(f"{hadoop_landing}/{raw_table}")
+                            .read
+                            .parquet(f"{hadoop_landing}/{raw_table}")
+                                
                             )
         logger.info(f"Data extracted sucessfully for table: {raw_table}")
         
@@ -65,6 +67,46 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
     
     except Exception as e:
         logger.error(f"Failed to extract data from {raw_table}: {e}")
+        print_exc()
+        exit(1)
+        
+def convert_fctsales_schema(tmp_salesdf):
+    try:
+        tmp_salesdf.select(
+
+                            col("salesorderid").cast("int").alias("salesorder_id"),
+                            col("salesorderdetail_id").cast("int").alias("salesorderdetail_id"),
+                            col("accountnumber").cast("string").alias("accountnumber"),
+                            col("carriertrackingnumber").cast("string").alias(),
+                            col("purchaseordernumber").cast("string").alias("purchaseordernumber"),
+                            col("salesordernumber").cast("string").alias("salesordernumber"),
+                            col("orderdate").cast("date").alias("orderdate"),
+                            col("shipdate").cast("date").alias("shipdate"),
+                            col("duedate").cast("date").alias("duedate"),
+                            col("salesreasonid").cast("int").alias("salesreason_id"),
+                            col("salespersonid").cast("int").alias("salesperson_id"),
+                            col("productid").cast("int").alias("product_id"),
+                            col("customerid").cast("int").alias("customer_id"),
+                            col("shipmethodid").cast("int").alias("shipmethod_id"),
+                            col("territory_id").cast("int").alias("territory_id"),
+                            col("specialofferid").cast("int").alias("specialoffer_id"),
+                            col("currencyrateid").cast("int").alias("currencyrate_id"),
+                            col("orderqty").cast("int").alias("orderqty"),
+                            col("unitprice").cast("float").alias("unitprice"),
+                            col("unitpricediscount").cast("float").alias("unitpricediscount"),
+                            col("taxamt").cast("float").alias("taxamt"),
+                            col("freight").cast("float").alias("freight"),
+                            col("onlineorderflag").cast("int").alias("onlineorderflag"),
+                            col("linetotal").cast("float").alias("linetotal"),
+                            col("inserted_date").cast("datetime").alias("inserted_date"),
+                            col("modified_date").cast("datetime").alias("modified_date"),
+                            col("eltversion").cast("int").alias("eltversion")
+            
+        )
+        return tmp_salesdf
+    
+    except Exception as e:
+        logger.error(f"Error to convert dataframe {tmp_salesdf} schema. Please verify: {e}")
         print_exc()
         exit(1)
         
@@ -102,7 +144,9 @@ def main():
     
     fact_sales_df = extract_landing_data(spark, hadoop_landing, "fact_sales")
     
-    write_to_iceberg(fact_sales_df, f"{iceberg_rawdb}", "raw_fact_sales")
+    fact_sales = convert_fctsales_schema(fact_sales_df)
+    
+    write_to_iceberg(fact_sales, f"{iceberg_rawdb}", "raw_fact_sales")
     
     spark_stop(spark)
     

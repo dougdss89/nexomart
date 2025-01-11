@@ -82,7 +82,10 @@ def extract_date_raw(spark, mssql_properties, mssql_adventureworks):
                                 """ 
                                     select
 
-                                        distinct(cast(orderdate as date)) as orderdate
+                                        distinct(cast(orderdate as date)) as orderdate,
+                                        getdate() as inserted_date,
+										9999-31-12 00:00:00.000' as modified_date,
+										1' as eltversion
 
                                     from sales.salesorderheader
                                 """
@@ -160,7 +163,11 @@ def update_dimdate(spark, dataframe):
             CASE	
                 WHEN YEAR(orderdate) % 4 = 0 AND (YEAR(orderdate) % 100 != 0 OR YEAR(orderdate) % 400 = 0) THEN 'Yes'
                 ELSE 'No'
-            END AS leapyear
+            END AS leapyear,
+            inserted_date,
+            modified_date,
+            eltversion
+
         FROM dimdate
     """)
 

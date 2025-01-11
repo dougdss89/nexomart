@@ -1,5 +1,6 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
+from pyspark.sql.functions import col, cast, alias
 from modules.startSparkSession import SparkSessionManager
 from sys import exit
 from traceback import print_exc
@@ -53,6 +54,46 @@ def load_source_connections():
         print_exc()
         exit(1)
         
+def convert_product_schema(tmp_product):
+    
+    try:
+        tmp_product.select(
+            
+                        col("productid").cast("int").alias("product_id"),
+                        col("productname").cast("string").alias("productname"),
+                        col("productnumber").cast("string").alias("productname"),
+                        col("productsubcategoryid").cast("int").alias("productsubcategory_id"),
+                        col("subcategoryname").cast("string").alias("subcategoryname"),
+                        col("procutcategoryid").cast("int").alias("productcategory_id"),
+                        col("categoryname").cast("string").alias("categoryname"),
+                        col("color").cast("string").alias("color"),
+                        col("class").cast("string").alias("class"),
+                        col("size").cast("string").alias("size"),
+                        col("productline").cast("string").alias("procutline"),
+                        col("productmodelid").cast("int").alias("productmodel_id"),
+                        col("modelname").cast("string").alias("modelname"),
+                        col("style").cast("string").alias("style"),
+                        col("listprice").cast("float").alias("listprice"),
+                        col("standardcost").cast("float").alias("standardcost"),
+                        col("sellstartdate").cast("datetime").alias("sellstartdate"),
+                        col("sellenddate").cast("datetime").alias("sellenddate"),
+                        col("safetystocklevel").cast("int").alias("safetystocklevel"),
+                        col("reorderpoint").cast("int").alias("reorderpoint"),
+                        col("sizeunitmeasurecode").cast("string").alias("sizeunitcode"),
+                        col("weightunitmeasurecode").cast("string").alias("weightunitcode"),
+                        col("wheight").cast("float").alias("wheight"),
+                        col("daystomanufacture").cast("int").alias("daystomanufacture"),
+                        col("discontinueddate").cast("datetime").alias("discontinuedadate"),
+                        col("inserted_date").cast("datetime").alias("extracted_date"),
+                        col("eltversion").cast("int").alias("eltversion")
+        )
+        return tmp_product
+    
+    except Exception as e:
+        logger.error(f"Error to convert dataframe schema {tmp_product}. Please verify: {e}")
+        print_exc()
+        exit(1)
+        
 def extract_landing_data(spark, hadoop_landing, raw_table):
     try:
         product_df = (spark
@@ -102,7 +143,9 @@ def main():
     
     product_df = extract_landing_data(spark, hadoop_landing, "product")
     
-    write_to_iceberg(product_df, f"{iceberg_rawdb}", "raw_dimproduct")
+    product = convert_product_schema(product_df)
+    
+    write_to_iceberg(product, f"{iceberg_rawdb}", "raw_dimproduct")
     
     spark_stop(spark)
     

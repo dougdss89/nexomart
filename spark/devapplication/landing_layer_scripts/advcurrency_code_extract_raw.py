@@ -83,7 +83,10 @@ def extract_currencycode_raw(spark, mssql_properties, mssql_adventureworks):
                                                     scr.currencycode,
                                                     scr.[name] as currencyname,
                                                     crc.CountryRegionCode,
-                                                    pcr.[name] as countryname
+                                                    pcr.[name] as countryname,
+                                                    getdate() as inserted_date,
+                                                    '9999-31-12 00:00:00.000' as modified_date,
+                                                    '1' as eltversion
                                                 from sales.currency as scr
                                                     inner join
                                                     sales.countryregioncurrency as crc

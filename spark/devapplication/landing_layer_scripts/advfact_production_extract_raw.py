@@ -94,7 +94,10 @@ def extract_store_raw(spark, mssql_properties, mssql_adventureworks):
                                     pwr.actualenddate,
                                     pw.startdate,
                                     pw.enddate,
-                                    pw.duedate
+                                    pw.duedate,
+                                    getdate() as inserted_date,
+                                    '9999-31-12 00:00:00.000' as modified_date,
+                                    '1' as eltversion
                                     
                                 from production.workorder as pw
                                 left join

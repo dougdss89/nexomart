@@ -81,7 +81,10 @@ def extract_product_category_raw(spark, mssql_properties, mssql_adventureworks):
                                                 select 
 
                                                     coalesce(ProductCategoryID, 0) as productcategoryid,
-                                                    [name] as categoryname
+                                                    [name] as categoryname,
+                                                    getdate() as inserted_date,
+									                '9999-31-12 00:00:00.000' as modified_date,
+									                '1' as eltversion
 
                                                 from production.productcategory
                                             

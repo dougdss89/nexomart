@@ -76,7 +76,10 @@ def extract_freight_raw(spark, mssql_properties, mssql_adventureworks):
                                       COALESCE(shipmethodid, 0) AS shipmethodid,
                                       [Name],
                                       shipbase,
-                                      shiprate
+                                      shiprate,
+                                      getdate() as inserted_date,
+									  '9999-31-12 00:00:00.000' as modified_date,
+									  '1' as eltversion
                                   FROM purchasing.shipmethod
                                   """)
                           .load())

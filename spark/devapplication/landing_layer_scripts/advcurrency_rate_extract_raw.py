@@ -86,7 +86,10 @@ def extract_currencyrate_raw(spark, mssql_properties, mssql_adventureworks):
                                                     tocurrencycode,
                                                     cast(averagerate as money) as averagerate,
                                                     cast(endofdayrate as money) as endofdayrate,
-                                                    cast(currencyratedate as date) as currencyratedate
+                                                    cast(currencyratedate as date) as currencyratedate,
+                                                    getdate() as inserted_date,
+                                                    '9999-31-12 00:00:00.000' as modified_date,
+                                                    '1' as eltversion
                                                     
                                                 from sales.currencyrate 
                                             """    

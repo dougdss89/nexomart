@@ -1,6 +1,7 @@
 import logging
 from pyspark.sql import SparkSession
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from pyspark.sql.functions import col, alias, cast
+from modules.configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -63,6 +64,39 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_factproduction_schema(dataframe):
+    
+    try:
+    
+        dataframe.select(
+                        col("workorderid").cast("int").alias("workorderid"),
+                        col("productid").cast("int").alias("productid"),
+                        col("orderqty").cast("int").alias("orderqty"),
+                        col("stockedqty").cast("int").alias("stockedqty"),
+                        col("scrappedqty").cast("int").alias("scrappedqty"),
+                        col("scrapreasonid").cast("int").alias("scrapreasonid"),
+                        col("locationid").cast("int").alias("locationid"),
+                        col("actualresourcehrs").cast("float").alias("actualresourcehrs"),
+                        col("actualcost").cast("float").alias("actualcost"),
+                        col("scheduledstartdate").cast("date").alias("scheduledstartdate"),
+                        col("scheduledenddate").cast("date").alias("scheduledenddate"),
+                        col("actualstartdate").cast("date").alias("actualstartdate"),
+                        col("actualenddate").cast("date").alias("actualenddate"),
+                        col("startdate").cast("date").alias("startdate"),
+                        col("enddate").cast("date").alias("enddate"),
+                        col("duedate").cast("date").alias("duedate"),
+                        col("inserted_date").cast("datetime").alias("inserted_date"),
+                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("eltversion").cast("int").alias("eltversion")
+            
+        )
+        return dataframe
+    
+    except Exception as e:
+        logger.error(f"Error to convert dataframe schema: {dataframe}. Please verify: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(fact_production_df, iceberg_rawdb, table_name):
     
     try:
@@ -95,9 +129,11 @@ def main():
     
     spark, hadoop_landing, iceberg_rawdb = load_source_connections()
     
-    currency_code_dataframe = extract_landing_data(spark, hadoop_landing, "fact_production")
+    fct_production = extract_landing_data(spark, hadoop_landing, "fact_production")
     
-    write_to_iceberg(currency_code_dataframe, f"{iceberg_rawdb}", "raw_fact_production")
+    fact_production = convert_factproduction_schema(fct_production)
+    
+    write_to_iceberg(fact_production, f"{iceberg_rawdb}", "raw_fact_production")
     
     spark_stop(spark)
     

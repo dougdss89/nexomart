@@ -62,8 +62,19 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         
 def convert_country_schema(dataframe):
     
-    country_region = dataframe.select()
-    pass
+    country_region = dataframe.selectExpr(
+
+                                    "cast(territoryid as int) as territoryid",
+                                    "cast(name as string) as name",
+                                    "cast(group as string) as group",
+                                    "cast(countryregioncode as string) as countryregioncode"
+    ).select(
+                            f.col("inserted_date").f.cast("datetime").f.alias("inserted_date"),
+                            f.col("modified_date").f.cast("datetime").f.alias("modified_date"),
+                            f.col("eltversion").f.cast("int").f.alias("eltversion")
+    )
+    
+    return country_region.f
 
 def write_to_iceberg(df, iceberg_rawdb, table_name):
     
@@ -90,9 +101,11 @@ def spark_stop(spark):
 def main():
     spark, hadoop_landing, hadoop_raw_table = load_source_connections()
     
-    buyer_df = extract_landing_data(spark, hadoop_landing, "countryregion")
+    country_df = extract_landing_data(spark, hadoop_landing, "countryregion")
     
-    write_to_iceberg(buyer_df, f"{hadoop_raw_table}", "raw_dimcountryregion")
+    country_region = convert_country_schema(country_df)
+    
+    write_to_iceberg(country_region, f"{hadoop_raw_table}", "raw_dimcountryregion")
     
     spark_stop(spark)
 
