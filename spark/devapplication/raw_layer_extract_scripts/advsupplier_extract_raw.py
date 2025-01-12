@@ -1,5 +1,6 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
+from pyspark.sql.functions import col, cast, alias
 from modules.startSparkSession import SparkSessionManager
 from sys import exit
 from traceback import print_exc
@@ -68,6 +69,47 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_supplier_schema(tmp_supplier):
+    
+    try:
+        tmp_supplier.select(
+            
+                            col("productid").cast("int").alias("product_id"),
+                            col("businessentityid").cast("int").alias("businessentity_id"),
+                            col("accountnumber").cast("string").alias("accountnumber"),
+                            col("name").cast("string").alias("name"),
+                            col("contacttype").cast("string").alias("contacttype"),
+                            col("firstname").cast("string").alias("firstname"),
+                            col("lastname").cast("string").alias("lastname"),
+                            col("phonenumber").cast("string").alias("phonenumber"),
+                            col("phonenumbertype").cast("string").alias("phonetype"),
+                            col("creditrating").cast("int").alias("creditrating"),
+                            col("preferredvendorstatus").cast("int").alias("principal_vendor"),
+                            col("averagedleadtime").cast("int").alias("averagedleadtime"),
+                            col("standardprice").cast("float").alias("standardprice"),
+                            col("lastreceiptedate").cast("datetime").alias("lastreceiptedate"),
+                            col("minororderqty").cast("int").alias("minororderqty"),
+                            col("maxorderqty").cast("int").alias("maxorderqty"),
+                            col("onorderty").cast("int").alias("onorderty"),
+                            col("unitmeasurecode").cast("string").alias("measurecode"),
+                            col("stateprovince").cast("string").alias("stateprovince"),
+                            col("countryregionname").cast("string").alias("countryregionname"),
+                            col("addressline1").cast("string").alias("addressline1"),
+                            col("addressline2").cast("string").alias("addressline2"),
+                            col("city").cast("string").alias("city"),
+                            col("postalcode").cast("string").alias("postalcode"),
+                            col("inserted_date").cast("datetime").alias("extracted_date"),
+                            col("modified_date").cast("datetime").alias("modified_date"),
+                            col("eltversion").cast("int").alias("eltversion")
+        )
+        
+        return tmp_supplier
+    
+    except Exception as e:
+        logger.error(f"Error to convert dataframe {tmp_supplier} schema. Please verify: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(supplier_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,7 +144,9 @@ def main():
     
     supplier_df = extract_landing_data(spark, hadoop_landing, "supplier")
     
-    write_to_iceberg(supplier_df, f"{iceberg_rawdb}", "raw_dimsupplier")
+    supplier = convert_supplier_schema(supplier_df)
+    
+    write_to_iceberg(supplier, f"{iceberg_rawdb}", "raw_dimsupplier")
     
     spark_stop(spark)
     

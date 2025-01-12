@@ -1,5 +1,5 @@
 from pyspark.sql.session import SparkSession
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader_old import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -27,7 +27,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        hadoop_landing = config.get("hadoop_paths", {})
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
 
         validate_required_keys(config=spark_jars, 
                                required_keys=["mssql_spark_jars", "postgresql_jar"],
@@ -38,9 +38,9 @@ def load_source_connections():
                                required_keys=["properties"],
                                config_name="mssql_adventureworks")
         
-        validate_required_keys(config=hadoop_landing,
-                               required_keys=["landing"],
-                               config_name="hadoop_paths")
+        # validate_required_keys(config=hadoop_landing,
+        #                        required_keys=["landing"],
+        #                        config_name="hadoop_paths")
         
         spark = (SparkSession
                     .builder

@@ -1,5 +1,5 @@
 from pyspark.sql.session import SparkSession
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -76,7 +76,11 @@ def extract_stateprovince_raw(spark, mssql_properties, mssql_adventureworks):
                                                 psp.CountryRegionCode,
                                                 coalesce(psp.StateProvinceID, 0) as stateprovinceid,
                                                 psp.StateProvinceCode,
-                                                psp.name
+                                                psp.name,
+									            getdate() as inserted_date,
+	                                            '9999-31-12 00:00:00.000' as modified_date,
+                                                '1' as eltversion
+                                                
 
                                             from person.stateprovince as psp
                                                                                         

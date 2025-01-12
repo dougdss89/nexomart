@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 
@@ -68,6 +69,37 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_warehouse_schema(tmp_warehouse):
+   
+    try: 
+        tmp_warehouse.select(
+
+                        col("locationid").cast("int").alias("location_id"),
+                        col("shelf").cast("string").alias("shelf"),
+                        col("bin").cast("int").alias("bin"),
+                        col("quantity").cast("int").alias("quantity"),
+                        col("procutid").cast("int").alias("procutid"),
+                        col("availabilty").cast("float").alias("availability"),
+                        col("costrate").cast("float").alias("costrate"),
+                        col("name").cast("string").alias("name"),
+                        col("billsofmaterial").cast("string").alias("billsofmaterial"),
+                        col("componentid").cast("int").alias("component_id"),
+                        col("bomlevel").cast("int").alias("bomlevel"),
+                        col("startdate").cast("date").alias("startdate"),
+                        col("enddate").cast("date").alias("enddate"),
+                        col("perassemblyqtdy").cast("float").alias("perassemblyqty"),
+                        col("unitmeasurecode").cast("string").alias("measurecode"),
+                        col("inserted_date").cast("datetime").alias("extracted_date"),
+                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("eltversion").cast("int").alias("eltversion")                    
+        )
+        return tmp_warehouse
+
+    except Exception as e:
+        logger.error(f"Error to convert dataframe {tmp_warehouse} schema. Please verify: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(warehouse_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,9 +134,12 @@ def main():
     
     warehouse_df = extract_landing_data(spark, hadoop_landing, "warehouse")
     
-    write_to_iceberg(warehouse_df, f"{iceberg_rawdb}", "raw_dimwarehouse")
+    warehouse = convert_warehouse_schema(warehouse_df)
+    
+    write_to_iceberg(warehouse, f"{iceberg_rawdb}", "raw_dimwarehouse")
     
     spark_stop(spark)
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")

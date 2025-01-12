@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from configconnections_loader import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -19,7 +19,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", )
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
 
 
         validate_required_keys(config=spark_jars, 
@@ -27,13 +27,13 @@ def load_source_connections():
                                config_name="spark_jars")
         
         #validade properties key
-        # validate_required_keys(config= mssql_adventureworks,
-        #                        required_keys=["properties"],
-        #                        config_name="mssql_adventureworks")
+        validate_required_keys(config= mssql_adventureworks,
+                               required_keys=["properties"],
+                               config_name="mssql_adventureworks")
         
-        # validate_required_keys(config=hadoop_landing,
-        #                        required_keys=["landing"],
-        #                        config_name="hadoop_paths")
+        validate_required_keys(config=hadoop_landing,
+                               required_keys=["landing"],
+                               config_name="hadoop_landing")
     
     #creating sparkSession
     
@@ -96,9 +96,9 @@ def extract_raw_buyer():
                                     hrdh.   enddate,
                                     hre.    salariedflag,
                                     hre.    currentflag,
-                                            getdate() as inserted_date,
-											'9999-31-12 00:00:00.000' as modified_date,
-											'1' as eltversion
+                                    getdate() as inserted_date,
+									'9999-31-12 00:00:00.000' as modified_date,
+									'1' as eltversion
                                         
                                 from  humanresources.employee as hre
                                     left join

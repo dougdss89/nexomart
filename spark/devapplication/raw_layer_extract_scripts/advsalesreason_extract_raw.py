@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 
@@ -68,6 +69,28 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_salesreason_schema(tmp_salesreason):
+    
+    try:
+        tmp_salesreason.select(
+            
+                        col("salesreasonid").cast("int").alias("salesreason_id"),
+                        col("salesreason").cast("string").alias("salesreason"),
+                        col("salesorderid").cast("int").alias("salesorder_id"),
+                        col("reasontype").cast("string").alias("reasontype"),
+                        col("inserted_date").cast("datetime").alias("extracted_date"),
+                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("eltversion").cast("int").alias("eltversion")
+            
+        )
+        
+        return tmp_salesreason
+    
+    except Exception as e:
+        logger.error(f"Error to convert schema from dataframe {tmp_salesreason}. Please verify: {e}")
+        print_exc()
+        exit(1)
+
 def write_to_iceberg(salesreason_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,7 +125,9 @@ def main():
     
     salesreason_df = extract_landing_data(spark, hadoop_landing, "salesreason")
     
-    write_to_iceberg(salesreason_df, f"{iceberg_rawdb}", "raw_dimsalesreason")
+    salesreason = convert_salesreason_schema(salesreason_df)
+    
+    write_to_iceberg(salesreason, f"{iceberg_rawdb}", "raw_dimsalesreason")
     
     spark_stop(spark)
     

@@ -123,7 +123,7 @@ def main():
     
     promotion = convert_promotion_schema(promotion_df)
     
-    write_to_iceberg(promotion_df, f"{iceberg_rawdb}", "raw_dimpromotion")
+    write_to_iceberg(promotion, f"{iceberg_rawdb}", "raw_dimpromotion")
     
     spark_stop(spark)
     

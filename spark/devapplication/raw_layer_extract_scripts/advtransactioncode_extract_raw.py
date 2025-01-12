@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 
@@ -68,6 +69,30 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_transactioncode_schema(tmp_transactioncode):
+    try:
+        tmp_transactioncode.select(
+            
+                            col("salesorderid").cast("int").alias("salesorder_id"),
+                            col("purchaseordernumber").cast("string").alias("purchase_number"),
+                            col("salesordernumber").cast("string").alias("salesordernumber"),
+                            col("carriertrackingnumber").cast("string").alias("carriertrackingnumber"),
+                            col("accountnumber").cast("string").alias("accountnumber"),
+                            col("creditcardapprovalcode").cast("string").alias("cardapprovalcode"),
+                            col("onlineorderflag").cast("int").alias("isoline"),
+                            col("inserted_date").cast("datetime").alias("extrated_date"),
+                            col("modified_date").cast("datetime").alias("modified_date"),
+                            col("eltversion").cast("int").alias("eltversion")
+                            
+        )
+        
+        tmp_transactioncode
+    
+    except Exception as e:
+        logger.error(f"Error to convert dataframe {tmp_transactioncode} schema. Please verify: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(transactioncode_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,9 +127,12 @@ def main():
     
     transactioncode_df = extract_landing_data(spark, hadoop_landing, "transactioncode")
     
-    write_to_iceberg(transactioncode_df, f"{iceberg_rawdb}", "raw_dimtransactioncode")
+    transaction_code = convert_transactioncode_schema(transactioncode_df)
+    
+    write_to_iceberg(transaction_code, f"{iceberg_rawdb}", "raw_dimtransactioncode")
     
     spark_stop(spark)
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")

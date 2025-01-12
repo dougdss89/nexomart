@@ -1,7 +1,7 @@
 import logging
 from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
-from pyspark.sql.functions import col, alias, cast
+from pyspark.sql.functions import col, cast, alias
 from sys import exit
 from traceback import print_exc
 

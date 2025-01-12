@@ -1,5 +1,5 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
 from sys import exit
 from traceback import print_exc
@@ -68,6 +68,25 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_scrapreason_schema(tmp_scrapreason):
+    
+    try:
+        tmp_scrapreason.select(
+            
+                        col("scrapreasonid").cast("int").alias("scrapreason_id"),
+                        col("scrapname").cast("string").alias("scrapname"),
+                        col("inserted_date").cast("datetime").alias("extracted_date"),
+                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("eltversion").cast("int").alias("eltversion")
+        )
+        
+        return tmp_scrapreason
+    
+    except Exception as e:
+        logger.error(f"Error to convert schema from dataframe {tmp_scrapreason}. Please verify: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(scrapreason_df, iceberg_rawdb, table_name):
     
     try:
@@ -84,6 +103,7 @@ def write_to_iceberg(scrapreason_df, iceberg_rawdb, table_name):
         logger.error(f"Failed to write table {table_name} to Iceberg table: {e}")
         print_exc()
         exit(1)
+
         
 def spark_stop(spark):
     try:
@@ -102,7 +122,9 @@ def main():
     
     scrapreason_df = extract_landing_data(spark, hadoop_landing, "scrapreason")
     
-    write_to_iceberg(scrapreason_df, f"{iceberg_rawdb}", "raw_dimscrapreason")
+    scrapreason = convert_scrapreason_schema(scrapreason_df)
+    
+    write_to_iceberg(scrapreason, f"{iceberg_rawdb}", "raw_dimscrapreason")
     
     spark_stop(spark)
     

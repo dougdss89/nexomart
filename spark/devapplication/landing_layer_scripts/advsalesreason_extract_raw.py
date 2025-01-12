@@ -1,4 +1,4 @@
-from spark.devapplication.modules.configconnections_loader_old import load_config
+from modules.configconnections_loader import load_config, validate_required_keys
 from pyspark.sql  import SparkSession
 
 def load_source_connection():
@@ -55,7 +55,10 @@ def extract_raw_salesreason():
                                     coalesce(jsr.SalesReasonID, 0) as salesreasonid,
                                     [Name] as salesreason,
                                     soh.salesorderid,
-                                    ReasonType
+                                    ReasonType,
+                                    getdate() as inserted_date,
+                                    '9999-31-12 00:00:00.000' as modified_date,
+                                    '1' as eltversion
 
                                 from sales.SalesReason as jsr
 

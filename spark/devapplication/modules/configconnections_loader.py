@@ -2,80 +2,64 @@ import os
 from typing import Dict, Any
 from dotenv import dotenv_values
 
-""" this function imports .env file to load jobs and dags configurations """
 
-def find_env_value(start_path: str = os.getcwd()) -> str:
-    
+def find_env_file(start_path: str = os.getcwd()) -> str:
     """
-        search for .env file in current and system dir
-        
-        :param start_path: initial path for search file .env
-        :return full .env path 
-        :raises filenotfounderror: if .env file not founded
+    Procura pelo arquivo .env no diretório atual ou nos diretórios superiores.
 
+    :param start_path: Caminho inicial para procurar o arquivo .env
+    :return: Caminho completo para o arquivo .env
+    :raises FileNotFoundError: Se o arquivo .env não for encontrado em nenhum diretório
     """
-    
     current_dir = start_path
-    
-    while current_dir != os.path.dirname(current_dir): #while .env file not found
+    while current_dir != os.path.dirname(current_dir):  # Enquanto não chegar na raiz
         potential_path = os.path.join(current_dir, '.env')
-        
-        if os.path.exists(potential_path): #check if .env file exists
+        if os.path.exists(potential_path):  # Verifica se o arquivo existe
             return potential_path
+        current_dir = os.path.dirname(current_dir)  # Vai para o diretório pai
         
-        current_dir = os.path.dirname(current_dir) 
-        
-    raise FileNotFoundError(".env file was not founded in any directory")
-    
-    
+        print(f"Carregando .env de: {potential_path}")
+
+    raise FileNotFoundError(".env não encontrado em nenhum diretório acima.")
+
+
 def load_config(env_path: str = None) -> Dict[str, Any]:
-    
     """
-        load and prepare .env variables, substituting dynamic placeholders for string
-        values
-        
-        :param: env_path: path for .env file
-        :return Dict with environment variables
-        :raises filenotfounderror: if .env file was not founded
-    
+    Carrega e prepara as configurações do arquivo .env, substituindo placeholders dinâmicos.
+
+    :param env_path: Caminho para o arquivo .env. Se None, o arquivo será buscado automaticamente.
+    :return: Um dicionário contendo as configurações processadas
+    :raises FileNotFoundError: Se o arquivo .env não for encontrado ou vazio
     """
-    #if env_path is none, search for .env file
+    # Caso o caminho não seja passado, procura pelo arquivo .env no diretório atual ou superior
     if not env_path:
-        env_path = find_env_value()        
-    
+        env_path = find_env_file()
+
+    # Carrega as variáveis do arquivo .env
     config = dotenv_values(env_path)
-    
     if not config:
-        raise FileNotFoundError(f"Fail to load .env file from {env_path}. Please, verify if file exists.")        
-    
+        raise FileNotFoundError(f"Erro ao carregar o arquivo .env de {env_path}. Verifique o caminho e o formato.")
 
-    def replace_env_vars(value: str)-> str:
-        """_summary_  replace environment variables on $VAR or ${VAR} format, with correct values.
-                    prioritize .env variables than system environment variables  
-
-        Args:
-            value (str): _description_  
-
-        Returns:
-            str: Strings configurations
+    def replace_env_vars(value: str) -> str:
         """
-
+        Substitui variáveis no formato $VAR ou ${VAR} com seus valores correspondentes.
+        Prioriza variáveis carregadas do .env sobre variáveis de ambiente do sistema.
+        """
         if not isinstance(value, str):
             return value
-        
+
         for var_name, var_value in config.items():
-            if var_value:
-                
+            if var_value:  # Evita substituir com valores nulos
                 value = value.replace(f"${{{var_name}}}", var_value)
                 value = value.replace(f"${var_name}", var_value)
-                
         return value
 
+    # Processa todas as variáveis do .env
     processed_config = {
         key: replace_env_vars(value)
         for key, value in config.items()
     }
-    
+
     configurations = {
         "mssql_sources": {
             "adventureworks": {
@@ -138,3 +122,43 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
 
     return configurations
 
+
+def validate_required_keys(config: Dict[str, str], required_keys: list, config_name: str):
+    """
+    Valida se as chaves obrigatórias estão presentes no dicionário de configuração.
+
+    :param config: Dicionário de configuração
+    :param required_keys: Lista de chaves obrigatórias
+    :param config_name: Nome do componente que está sendo validado
+    :raises RuntimeError: Se alguma chave estiver ausente
+    """
+    if not config or not all(key in config and config[key] for key in required_keys):
+        missing_keys = [key for key in required_keys if not config.get(key)]
+        raise RuntimeError(f"Missing required configuration in {config_name}: {', '.join(missing_keys)}")
+
+
+def print_pretty_config(config: Dict[str, Any]) -> None:
+    """
+    Imprime as configurações de forma legível.
+    
+    :param config: Dicionário de configurações retornado por load_config
+    """
+    import json
+    print(json.dumps(config, indent=2))
+
+
+if __name__ == "__main__":
+    try:
+        config = load_config()
+        print("Configurações carregadas com sucesso:")
+        print("Fim da importação")
+        print_pretty_config(config)
+
+        # Validações das seções
+        validate_required_keys(config["hadoop_paths"], ["landing", "raw", "iceberg", "gold", "warehouse"], "Hadoop Paths")
+        validate_required_keys(config["spark_jars"], ["mssql_spark_jars", "postgresql_jar"], "Spark JARs")
+
+    except Exception as e:
+        print(f"Erro ao carregar configurações: {e}")
+        import traceback
+        traceback.print_exc()

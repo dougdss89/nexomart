@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from spark.devapplication.modules.configconnections_loader_old import load_config
+from modules.configconnections_loader import load_config, validate_required_keys
 import sys
 import traceback
 
@@ -87,7 +87,10 @@ def extract_raw_transactioncode(spark, mssql_properties, mssql_adventureworks):
                                                 carriertrackingnumber,
                                                 accountnumber,
                                                 CreditCardApprovalCode,
-                                                soh.OnlineOrderFlag
+                                                soh.OnlineOrderFlag,
+									            getdate() as inserted_date,
+	                                            '9999-31-12 00:00:00.000' as modified_date,
+                                                '1' as eltversion
                                             from sales.salesorderheader as soh
                                                 left join
                                                 sales.salesorderdetail as sod

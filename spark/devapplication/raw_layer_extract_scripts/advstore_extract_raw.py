@@ -1,5 +1,6 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
+from pyspark.sql.functions import col, cast, alias
 from modules.startSparkSession import SparkSessionManager
 from sys import exit
 from traceback import print_exc
@@ -68,6 +69,43 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_store_schema(tmp_store):
+    try:
+        tmp_store.select(
+                        col("storeid").cast("int").alias("store_id"),
+                        col("personid").cast("int").alias("person_id"),
+                        col("customerid").cast("int").alias("customer_id"),
+                        col("accountnumber").cast("string").alias("accountnumber"),
+                        col("storename").cast("string").alias("storename"),
+                        col("firstname").cast("string").alias("firstname"),
+                        col("lastname").cast("string").alias("lastname"),
+                        col("annualsales").cast("float").alias("annualsales"),
+                        col("annualrevenue").cast("float").alias("annualrevenue"),
+                        col("bankname").cast("string").alias("bankname"),   
+                        col("businesstype").cast("string").alias("businesstype"),
+                        col("yearopened").cast("int").alias("yearopened"),
+                        col("speciality").cast("string").alias("speciality"),
+                        col("squarefeet").cast("float").alias("squarefeet"),
+                        col("brands").cast("string").alias("brands"),
+                        col("internet").cast("string").alias("internet"),
+                        col("numberemployees").cast("int").alias("numberemployees"),
+                        col("salespersonid").cast("int").alias("salesperson_id"),
+                        col("territoryid").cast("int").alias("territory_id"),
+                        col("continentname").cast("string").alias("continentname"),
+                        col("regionname").cast("string").alias("region_name"),
+                        col("countryregioncode").cast("string").alias("countryregioncode"),
+                        col("inserted_date").cast("datetime").alias("extracted_date"),
+                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("eltversion").cast("int").alias("eltversion")
+        )
+        
+        return tmp_store
+    
+    except Exception as e:
+        logger.error(f"Error to convert dataframe {tmp_store} schema. Please verify: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(store_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,7 +140,9 @@ def main():
     
     store_df = extract_landing_data(spark, hadoop_landing, "store")
     
-    write_to_iceberg(store_df, f"{iceberg_rawdb}", "raw_dimstore")
+    store = convert_store_schema(store_df)
+    
+    write_to_iceberg(store, f"{iceberg_rawdb}", "raw_dimstore")
     
     spark_stop(spark)
     

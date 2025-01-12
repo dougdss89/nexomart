@@ -1,5 +1,5 @@
 from pyspark.sql.session import SparkSession
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -107,7 +107,9 @@ def extract_scrapreason_raw(spark, mssql_properties, mssql_adventureworks):
                                             pbm.enddate,
                                             pbm.perassemblyqty,
                                             pbm.unitmeasurecode,
-                                            getdate() as inserted_date
+									        getdate() as inserted_date,
+	                                        '9999-31-12 00:00:00.000' as modified_date,
+                                            '1' as eltversion
 
                                         from production.productinventory as ppi
                                             left join

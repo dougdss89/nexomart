@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.exceptions import AirflowFailException
-from load_configurations import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 import logging
 
 # Configuração de logs
@@ -23,6 +23,7 @@ default_args = {
 
 # Carregar as pastas do fluxo de trabalho
 def load_folders_job():
+    
     config = load_config()
     landing_folder = config.get("job_dag_folder", {}).get("airflow_landing_folder", '')
     raw_layer_folder = config.get("job_dag_folder", {}).get("airflow_rawlayer_folder", '')

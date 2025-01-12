@@ -1,6 +1,7 @@
 import logging
-from spark.devapplication.modules.configconnections_loader_old import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import cast, col, alias
 from sys import exit
 from traceback import print_exc
 
@@ -68,6 +69,27 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         print_exc()
         exit(1)
         
+def convert_stateprovince_schema(tmp_stateprovince):
+    
+    try:
+        tmp_stateprovince.select(
+        
+                            col("territoryid").cast("int").alias("territory_id"),
+                            col("countryregioncode").cast("string").alias("countryregioncode"),
+                            col("stateprovinceid").cast("int").alias("stateprovince_id"),
+                            col("stateprovincecode").cast("string").alias("stateprovincecode"),
+                            col("name").cast("string").alias("statename"),
+                            col("inserted_date").cast("datetime").alias("extracted_date"),
+                            col("modified_date").cast("datetime").alias("modified_date"),
+                            col("eltversion").cast("int").alias("eltversion")
+    )
+        return tmp_stateprovince
+    
+    except Exception as e:
+        logger.error(f"Failed to extract data from {tmp_stateprovince}: {e}")
+        print_exc()
+        exit(1)
+    
 def write_to_iceberg(stateprovince_df, iceberg_rawdb, table_name):
     
     try:
@@ -102,7 +124,9 @@ def main():
     
     stateprovince_df = extract_landing_data(spark, hadoop_landing, "stateprovince")
     
-    write_to_iceberg(stateprovince_df, f"{iceberg_rawdb}", "raw_dimstateprovince")
+    stateprovince = convert_stateprovince_schema(stateprovince_df)
+    
+    write_to_iceberg(stateprovince, f"{iceberg_rawdb}", "raw_dimstateprovince")
     
     spark_stop(spark)
     
