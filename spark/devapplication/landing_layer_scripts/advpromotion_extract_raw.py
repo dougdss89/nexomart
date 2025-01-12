@@ -21,6 +21,7 @@ def load_source_connections():
         print_exc()
         return None
     
+    #validating imported keys
     try:
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
@@ -28,7 +29,7 @@ def load_source_connections():
         hadoop_landing = config.get("hadoop_paths", {})
 
         validate_required_keys(config=spark_jars, 
-                               required_keys=["mssql_spark_jars", "postgresql_jar"],
+                               required_keys=["mssql_spark_jars"],
                                config_name="spark_jars")
         
         #validade properties key
@@ -38,18 +39,18 @@ def load_source_connections():
         
         validate_required_keys(config=hadoop_landing,
                                required_keys=["landing"],
-                               config_name="hadoop_paths")
+                               config_name="hadoop_landing")
         
         spark = (SparkSession
                     .builder
                     .appName("extract_promotion_raw")
-                        .config("spark.jars", f"{spark_jars.get("mssql_spark_jars", "")}")
-                        .config("spark.executor.extraClassPath", f"{spark_jars.get("mssql_spark_jars", "")}")
-                        .config("spark.driver.extraClassPath", f"{spark_jars.get("mssql_spark_jars", "")}")
+                        .config("spark.jars", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.executor.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.driver.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
                         .enableHiveSupport()
                     .getOrCreate())
         
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing
+        return spark, mssql_properties, mssql_adventureworks, hadoop_landing.get("landing")
     
     except RuntimeError as e:
         print(f"Fail to validate configurations: {e}")

@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from modules import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 from pyspark.sql.functions import col
 from sys import exit
 from traceback import print_exc
@@ -10,8 +10,8 @@ def load_source_connections():
         config = load_config()
 
         # Validating imported keys
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing")
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb")
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
 
         validate_required_keys(
             config=config.get("hadoop_paths", {}),
@@ -45,10 +45,10 @@ def load_source_connections():
         exit(1)
         
 
-def extract_landing_buyer(spark, hadoop_landing, raw_table_mame):
+def extract_landing_buyer(spark, hadoop_landing, raw_table_mame:str):
     """ Extract buyer data from the landing zone. """
     try:
-        df_buyer_raw = spark.read.parquet(f"{hadoop_landing}{raw_table_mame}")
+        df_buyer_raw = spark.read.parquet(f"{hadoop_landing}/{raw_table_mame}")
         
         return df_buyer_raw
     
@@ -80,8 +80,8 @@ def buyer_replace_schema(dataframe):
                             col("enddate").cast("date").alias("enddate"),
                             col("salariedflag").cast("int").alias("salariedflag"),
                             col("currentflag").cast("int").alias("currentflag"),
-                            col("inserted_date").cast("datetime").alias("inserted_date"),
-                            col("modified_date").cast("datetime").alias("modified_date"),
+                            col("inserted_date").cast("timestamp").alias("extraced_date"),
+                            col("modified_date").cast("timestamp").alias("modified_date"),
                             col("eltversion").cast("int").alias("eltversion")
                         )
     return buyer_dataframe
@@ -130,3 +130,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

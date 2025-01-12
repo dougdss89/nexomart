@@ -1,5 +1,6 @@
 # Ignorar arquivos _old.py ou _old
 *_old.py
+*_cp.py
 *_old
 
 # Ignorar arquivos de cache e __init__ do Python

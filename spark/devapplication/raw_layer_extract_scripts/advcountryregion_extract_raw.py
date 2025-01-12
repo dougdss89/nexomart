@@ -1,6 +1,6 @@
 import logging
 from pyspark.sql import SparkSession
-from modules import load_config, validate_required_keys
+from modules.configconnections_loader import load_config, validate_required_keys
 import pyspark.sql.functions as f
 from sys import exit
 from traceback import print_exc
@@ -15,8 +15,8 @@ def load_source_connections():
         config = load_config()
 
         # Validating imported keys
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing")
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb")
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
 
         validate_required_keys(
             config=config.get("hadoop_paths", {}),
@@ -27,7 +27,7 @@ def load_source_connections():
         # Creating SparkSession
         spark = (
             SparkSession.builder
-            .appName('extract_buyer_landing')
+            .appName('extract_country_region_landing')
             .enableHiveSupport()
             .getOrCreate()
         )
@@ -49,7 +49,7 @@ def load_source_connections():
         print_exc()
         exit(1)
     
-def extract_landing_data(spark, hadoop_landing, raw_table):
+def extract_landing_data(spark, hadoop_landing, raw_table:str):
     try:
         df = spark.read.parquet(f"{hadoop_landing}/{raw_table}")
         logger.info(f"Data extracted successfully for table: {raw_table}")
@@ -67,14 +67,12 @@ def convert_country_schema(dataframe):
                                     "cast(territoryid as int) as territoryid",
                                     "cast(name as string) as name",
                                     "cast(group as string) as group",
-                                    "cast(countryregioncode as string) as countryregioncode"
-    ).select(
-                            f.col("inserted_date").f.cast("datetime").f.alias("inserted_date"),
-                            f.col("modified_date").f.cast("datetime").f.alias("modified_date"),
-                            f.col("eltversion").f.cast("int").f.alias("eltversion")
-    )
+                                    "cast(countryregioncode as string) as countryregioncode",
+                                    "cast(inserted_date as timestamp) as extracted_date",
+                                    "cast(modified_date as timestamp) as modified_date",
+                                    "cast(eltversion as int) as eltversion")
     
-    return country_region.f
+    return country_region
 
 def write_to_iceberg(df, iceberg_rawdb, table_name):
     

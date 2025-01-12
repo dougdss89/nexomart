@@ -17,8 +17,8 @@ def load_source_connections():
     try:
         config = load_config()
         
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb")
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
         
         #validated imported keys
         
@@ -75,8 +75,8 @@ def convert_scrapreason_schema(tmp_scrapreason):
             
                         col("scrapreasonid").cast("int").alias("scrapreason_id"),
                         col("scrapname").cast("string").alias("scrapname"),
-                        col("inserted_date").cast("datetime").alias("extracted_date"),
-                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("inserted_date").cast("timestamp").alias("extracted_date"),
+                        col("modified_date").cast("timestamp").alias("modified_date"),
                         col("eltversion").cast("int").alias("eltversion")
         )
         
@@ -95,7 +95,7 @@ def write_to_iceberg(scrapreason_df, iceberg_rawdb, table_name):
             .write
             .format("Iceberg")
             .mode("overwrite")
-            .saveAstable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+            .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         

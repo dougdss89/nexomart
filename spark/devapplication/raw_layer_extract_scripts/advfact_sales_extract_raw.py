@@ -1,7 +1,7 @@
 import logging
 from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
-from pyspark.sql.functions import col, cast, alias
+from pyspark.sql.functions import col, cast
 from sys import exit
 from traceback import print_exc
 
@@ -18,8 +18,8 @@ def load_source_connections():
     try:
         config = load_config()
         
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb")
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
         
         #validated imported keys
         
@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_fact_sales_landing"
         )
         
         spark = session_manager.create_session()
@@ -98,8 +98,8 @@ def convert_fctsales_schema(tmp_salesdf):
                             col("freight").cast("float").alias("freight"),
                             col("onlineorderflag").cast("int").alias("onlineorderflag"),
                             col("linetotal").cast("float").alias("linetotal"),
-                            col("inserted_date").cast("datetime").alias("inserted_date"),
-                            col("modified_date").cast("datetime").alias("modified_date"),
+                            col("inserted_date").cast("timestamp").alias("extracted_date"),
+                            col("modified_date").cast("timestamp").alias("modified_date"),
                             col("eltversion").cast("int").alias("eltversion")
             
         )
@@ -118,7 +118,7 @@ def write_to_iceberg(fact_sales_df, iceberg_rawdb, table_name):
                 .write
                 .format("Iceberg")
                 .mode("overwrite")
-                .saveAstable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+                .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         

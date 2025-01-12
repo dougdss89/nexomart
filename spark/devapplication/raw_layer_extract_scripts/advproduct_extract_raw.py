@@ -1,6 +1,6 @@
 import logging
 from modules.configconnections_loader import load_config, validate_required_keys
-from pyspark.sql.functions import col, cast, alias
+from pyspark.sql.functions import col, cast
 from modules.startSparkSession import SparkSessionManager
 from sys import exit
 from traceback import print_exc
@@ -18,8 +18,8 @@ def load_source_connections():
     try:
         config = load_config()
         
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb")
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
         
         #validated imported keys
         
@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_product_landing"
         )
         
         spark = session_manager.create_session()
@@ -64,7 +64,7 @@ def convert_product_schema(tmp_product):
                         col("productnumber").cast("string").alias("productname"),
                         col("productsubcategoryid").cast("int").alias("productsubcategory_id"),
                         col("subcategoryname").cast("string").alias("subcategoryname"),
-                        col("procutcategoryid").cast("int").alias("productcategory_id"),
+                        col("productcategoryid").cast("int").alias("productcategory_id"),
                         col("categoryname").cast("string").alias("categoryname"),
                         col("color").cast("string").alias("color"),
                         col("class").cast("string").alias("class"),
@@ -75,16 +75,17 @@ def convert_product_schema(tmp_product):
                         col("style").cast("string").alias("style"),
                         col("listprice").cast("float").alias("listprice"),
                         col("standardcost").cast("float").alias("standardcost"),
-                        col("sellstartdate").cast("datetime").alias("sellstartdate"),
-                        col("sellenddate").cast("datetime").alias("sellenddate"),
+                        col("sellstartdate").cast("timestamp").alias("sellstartdate"),
+                        col("sellenddate").cast("timestamp").alias("sellenddate"),
                         col("safetystocklevel").cast("int").alias("safetystocklevel"),
                         col("reorderpoint").cast("int").alias("reorderpoint"),
                         col("sizeunitmeasurecode").cast("string").alias("sizeunitcode"),
                         col("weightunitmeasurecode").cast("string").alias("weightunitcode"),
-                        col("wheight").cast("float").alias("wheight"),
+                        col("weight").cast("float").alias("weight"),
                         col("daystomanufacture").cast("int").alias("daystomanufacture"),
-                        col("discontinueddate").cast("datetime").alias("discontinuedadate"),
-                        col("inserted_date").cast("datetime").alias("extracted_date"),
+                        col("discontinueddate").cast("timestamp").alias("discontinuedadate"),
+                        col("inserted_date").cast("timestamp").alias("extracted_date"),
+                        col("modified_date").cast("timestamp").alias("modified_date"),
                         col("eltversion").cast("int").alias("eltversion")
         )
         return tmp_product
@@ -117,7 +118,7 @@ def write_to_iceberg(product_df, iceberg_rawdb, table_name):
                 .write
                 .format("Iceberg")
                 .mode("overwrite")
-                .saveAstable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+                .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         

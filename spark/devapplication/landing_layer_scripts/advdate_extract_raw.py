@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as f
-from modules.configconnections_loader import load_config, validate_required_keys
+from modules.configconnections_loader import load_config
 from sys import exit
 from traceback import print_exc
 
@@ -30,7 +30,7 @@ def load_source_connections():
         spark_jars = config["spark_jars"]
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]
         mssql_properties = mssql_adventureworks["properties"]
-        hadoop_landing = config.get("hadoop_paths", {})
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
         
         required_keys = ['mssql_spark_jars', 'postgresql_jar']
        
@@ -84,8 +84,8 @@ def extract_date_raw(spark, mssql_properties, mssql_adventureworks):
 
                                         distinct(cast(orderdate as date)) as orderdate,
                                         getdate() as inserted_date,
-										9999-31-12 00:00:00.000' as modified_date,
-										1' as eltversion
+										'9999-31-12 00:00:00.000' as modified_date,
+										'1' as eltversion
 
                                     from sales.salesorderheader
                                 """

@@ -17,8 +17,8 @@ def load_source_connections():
     try:
         config = load_config()
         
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb")
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
         
         #validated imported keys
         
@@ -31,7 +31,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_date_landing"
         )
         
         spark = session_manager.create_session()
@@ -76,7 +76,7 @@ def write_to_iceberg(dimdate_df, iceberg_rawdb, table_name):
                 .write
                 .format("Iceberg")
                 .mode("overwrite")
-                .saveAstable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+                .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         

@@ -1,6 +1,6 @@
 import logging
 from modules.configconnections_loader import load_config, validate_required_keys
-from pyspark.sql.functions import col, cast, alias
+from pyspark.sql.functions import col, cast
 from modules.startSparkSession import SparkSessionManager
 from sys import exit
 from traceback import print_exc
@@ -18,8 +18,8 @@ def load_source_connections():
     try:
         config = load_config()
         
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb")
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
         
         #validated imported keys
         
@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_fact_purchase_landing"
         )
         
         spark = session_manager.create_session()
@@ -83,7 +83,7 @@ def convert_fctpurchase_schema(dataframe):
                         col("orderdate").cast("date").alias("orderdate"),
                         col("shipdate").cast("date").alias("shipdate"),
                         col("duedate").cast("date").alias("duedate"),
-                        col("shipmethodid").cast("date").alias("shipmethod_id"),
+                        col("shipmethodid").cast("int").alias("shipmethod_id"),
                         col("productid").cast("int").alias("producti_id"),
                         col("receivedqty").cast("int").alias("received_qty"),
                         col("rejectedqty").cast("int").alias("rejected_qty"),
@@ -94,15 +94,15 @@ def convert_fctpurchase_schema(dataframe):
                         col("linetotal").cast("float").alias("linetotal"),
                         col("subtotal").cast("float").alias("subtotal"),
                         col("totaldue").cast("float").alias("totaldue"),
-                        col("inserted_date").cast("datetime").alias("inserted_date"),
-                        col("modified_date").cast("datetime").alias("modified_date"),
+                        col("inserted_date").cast("timestamp").alias("extracted_date"),
+                        col("modified_date").cast("timestamp").alias("modified_date"),
                         col("eltversion").cast("int").alias("eltversion")
                     )
                         
         return dataframe
         
     except Exception as e:
-        logger.erorr(f"Error to convert schema from dataframe: {dataframe}. Please verify: {e}")
+        logger.error(f"Error to convert schema from dataframe: {dataframe}. Please verify: {e}")
         print_exc()
         exit(1)
         
@@ -114,7 +114,7 @@ def write_to_iceberg(fact_purchase_df, iceberg_rawdb, table_name):
                 .write
                 .format("Iceberg")
                 .mode("overwrite")
-                .saveAstable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+                .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         

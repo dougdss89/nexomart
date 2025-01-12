@@ -1,7 +1,7 @@
 import logging
 from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
-from pyspark.sql.functions import cast, col, alias
+from pyspark.sql.functions import cast, col
 from sys import exit
 from traceback import print_exc
 
@@ -18,8 +18,8 @@ def load_source_connections():
     try:
         config = load_config()
         
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb")
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
         
         #validated imported keys
         
@@ -79,8 +79,8 @@ def convert_stateprovince_schema(tmp_stateprovince):
                             col("stateprovinceid").cast("int").alias("stateprovince_id"),
                             col("stateprovincecode").cast("string").alias("stateprovincecode"),
                             col("name").cast("string").alias("statename"),
-                            col("inserted_date").cast("datetime").alias("extracted_date"),
-                            col("modified_date").cast("datetime").alias("modified_date"),
+                            col("inserted_date").cast("timestamp").alias("extracted_date"),
+                            col("modified_date").cast("timestamp").alias("modified_date"),
                             col("eltversion").cast("int").alias("eltversion")
     )
         return tmp_stateprovince
@@ -98,7 +98,7 @@ def write_to_iceberg(stateprovince_df, iceberg_rawdb, table_name):
                 .write
                 .format("Iceberg")
                 .mode("overwrite")
-                .saveAstable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+                .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         

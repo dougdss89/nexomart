@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config, validate_required_keys
+from modules.configconnections_loader import load_config
 import sys
 import traceback
 
@@ -28,7 +28,7 @@ def load_source_connections():
         spark_jars = config["spark_jars"]
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]
         mssql_properties = mssql_adventureworks["properties"]
-        hadoop_landing = config.get("hadoop_paths", {})
+        hadoop_landing = config.get("hadoop_paths", {}).get("landing",'')
     
         #check if variable was loaded
         if not spark_jars or 'mssql_spark_jars' not in spark_jars or 'postgresql_jar' not in spark_jars:
@@ -47,7 +47,7 @@ def load_source_connections():
     
         spark = (SparkSession
                     .builder
-                    .appName('extract_currencycode_raw')
+                    .appName('extract_currency_code_raw')
                     .config('spark.jars', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postgresql_jar', '')}")
                     .config('spark.driver.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postgresql_jar', '')}")
                     .config('spark.executor.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postgresql_jar', '')}")
@@ -130,7 +130,7 @@ def main():
             
             print("Dataframe loaded successfully")
             
-        print("Error to load Dataframe on Data lake. Fail to extract data")
+        print(f"Data frame was loaded successfully on Datalake {hadoop_landing}")
         
     except Exception as e:
         print("Main script was not properly configurated. Verify")

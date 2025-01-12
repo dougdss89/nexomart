@@ -45,7 +45,7 @@ def load_source_connections():
         validate_required_keys(
             config=hadoop_landing,
             required_keys=["landing"],
-            config_name="hadoop_paths"
+            config_name="hadoop_landing"
         )
 
         #creating Spark Session
@@ -53,14 +53,14 @@ def load_source_connections():
         spark = (SparkSession
                     .builder
                         .appName("extract_warehouse_raw")
-                        .config("spark.jars", f"{spark_jars.get("mssql_spark_jars", "")}, {spark_jars.get("postgresql_jar", "")}")
-                        .config("spark.driver.extraClassPath", f"{spark_jars.get("mssql_spark_jars", "")}, {spark_jars.get("postgresql_jar", "")}")
-                        .config("spark.executor.extraClassPath", f"{spark_jars.get("mssql_spark_jars", "")}, {spark_jars.get("postgresql_jar", "")}")
+                        .config("spark.jars", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.driver.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.executor.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
                     .enableHiveSupport()
                     .getOrCreate()
                 )
 
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing
+        return spark, mssql_properties, mssql_adventureworks, hadoop_landing.get("landing", "")
 
     except RuntimeError as e:
         print(f"Fail to create spark session: {e}")

@@ -1,40 +1,55 @@
 from modules.configconnections_loader import load_config, validate_required_keys
 from pyspark.sql  import SparkSession
+from traceback import print_exc
 
 def load_source_connection():
     
     """ load from file .env
     """
+    config = load_config()
     
+    #validating imported keys
     try:
-        config = load_config()
-        
-    except (FileNotFoundError, KeyError) as e:
-        print(f"Could not load source connections from file: {e}")
-        return None, None, None
-    
-    try:
-        spark_jars = config["spark_jars"]
-        mssql_adventureworks = config["mssql_sources"]["adventureworks"]
-        mssql_properties = mssql_adventureworks["properties"]
-        mssql_url = mssql_adventureworks["url"]
+        spark_jars = config.get("spark_jars", {})
+        mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
+        mssql_properties = mssql_adventureworks.get("properties", {})
         hadoop_landing = config.get("hadoop_paths", {})
+
+        validate_required_keys(config=spark_jars, 
+                               required_keys=["mssql_spark_jars"],
+                               config_name="spark_jars")
         
-    except KeyError as e:
-        print(f"Could not find necessary keys in the config: {e}")
+        #validade properties key
+        validate_required_keys(config= mssql_adventureworks,
+                               required_keys=["properties"],
+                               config_name="mssql_adventureworks")
+        
+        validate_required_keys(config=hadoop_landing,
+                               required_keys=["landing"],
+                               config_name="hadoop_landing")
+        
+        spark = (SparkSession
+                    .builder
+                    .appName("extract_sales_reason_raw")
+                        .config("spark.jars", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.executor.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.driver.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .enableHiveSupport()
+                    .getOrCreate())
+        
+        return spark, mssql_properties, mssql_adventureworks, hadoop_landing.get("landing")
+    
+    
+    except RuntimeError as e:
+        print(f"Failed to create configuration: {e}")
+        print_exc()
+        
+        return None
+    
+    except Exception as e:
+        print(f"Unexpected error occur: {e}")
+        print_exc()
         return None, None, None
-    
-    spark = (SparkSession
-                .builder
-                .appName("extract_salesreason_raw")
-                    .config("spark.jars", config["spark_jars"]["mssql_spark_jars"] + "," + config["spark_jars"]["postgresql_jar"])
-                    .config("spark.driver.extraClassPath", config["spark_jars"]["mssql_spark_jars"] + "," + config["spark_jars"]["postgresql_jar"])
-                    .config("spark.executor.extraClassPath", config["spark_jars"]["mssql_spark_jars"] + "," +config["spark_jars"]["postgresql_jar"])
-                .enableHiveSupport()
-                .getOrCreate()
-            )
-    
-    return spark, mssql_properties, mssql_adventureworks, hadoop_landing
 
 spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connection()
 
@@ -83,4 +98,4 @@ if __name__ == "__main__":
     
     load_source_connection()
     extract_raw_salesreason()
-    stop_spark()
+    stop_spark(spark)

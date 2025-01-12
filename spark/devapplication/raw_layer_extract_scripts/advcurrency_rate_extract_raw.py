@@ -1,7 +1,7 @@
 import logging
 from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
-from pyspark.sql.functions import col, cast, alias
+from pyspark.sql.functions import col, cast
 from sys import exit
 from traceback import print_exc
 
@@ -78,8 +78,8 @@ def convert_currencyrate_schema(dataframe):
                     col("averagerate").cast("float").alias("averagerate"),
                     col("endofdayrate").cast("float").alias("endodayrate"),
                     col("currencyratedate").cast("date").alias("currencyratedate"),
-                    col("inserted_date").cast("datetime").alias("inserted_date"),
-                    col("modified_date").cast("datetime").alias("modified_date"),
+                    col("inserted_date").cast("timestamp").alias("extracted_date"),
+                    col("modified_date").cast("timestamp").alias("modified_date"),
                     col("eltversion").cast("int").alias("eltversion")
         
                     )
@@ -93,7 +93,7 @@ def write_to_iceberg(currency_rate_df, iceberg_rawdb, table_name):
                 .write
                 .format("Iceberg")
                 .mode("overwrite")
-                .saveAstable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+                .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         

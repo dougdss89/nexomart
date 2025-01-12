@@ -38,7 +38,7 @@ def load_source_connections():
         hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
     
         #check if variable was loaded
-        if not spark_jars or 'mssql_spark_jars' not in spark_jars or 'postgresql_jar' not in spark_jars:
+        if not spark_jars or 'mssql_spark_jars' not in spark_jars:
             print("Missing spark jars configuration file and path")
             return None, None, None
         
@@ -54,10 +54,10 @@ def load_source_connections():
     #create spark session
         spark = (SparkSession
                     .builder
-                    .appName('countryregion_extract_raw')
-                        .config('spark.jars', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postgresql_jar', '')}")
-                        .config('spark.driver.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postgresql_jar', '')}")
-                        .config('spark.executor.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')},{spark_jars.get('postgresql_jar', '')}")
+                    .appName('extract_country_region_raw')
+                        .config('spark.jars', f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config('spark.driver.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config('spark.executor.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')}")
                     .enableHiveSupport()
                     .getOrCreate()
                 )

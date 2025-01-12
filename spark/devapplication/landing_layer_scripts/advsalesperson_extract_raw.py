@@ -23,6 +23,7 @@ def load_source_connections():
         
     #importing key-values from .env
     #validating data imported
+    #validating imported keys
     try:
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
@@ -30,7 +31,7 @@ def load_source_connections():
         hadoop_landing = config.get("hadoop_paths", {})
 
         validate_required_keys(config=spark_jars, 
-                               required_keys=["mssql_spark_jars", "postgresql_jar"],
+                               required_keys=["mssql_spark_jars"],
                                config_name="spark_jars")
         
         #validade properties key
@@ -40,18 +41,18 @@ def load_source_connections():
         
         validate_required_keys(config=hadoop_landing,
                                required_keys=["landing"],
-                               config_name="hadoop_paths")
+                               config_name="hadoop_landing")
         
         spark = (SparkSession
                     .builder
-                    .appName("extract_salesperson_raw")
-                        .config("spark.jars", f"{spark_jars.get("mssql_spark_jars", "")}")
-                        .config("spark.executor.extraClassPath", f"{spark_jars.get("mssql_spark_jars", "")}")
-                        .config("spark.driver.extraClassPath", f"{spark_jars.get("mssql_spark_jars", "")}")
+                    .appName("extract_sales_person_raw")
+                        .config("spark.jars", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.executor.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
+                        .config("spark.driver.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
                         .enableHiveSupport()
                     .getOrCreate())
         
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing
+        return spark, mssql_properties, mssql_adventureworks, hadoop_landing.get("landing")
     
     except RuntimeError as e:
         print(f"Failed to create configuration: {e}")
@@ -65,9 +66,9 @@ def load_source_connections():
         return None, None, None
     
     
-def extract_salesperson_raw(spark, mssql_adventureworks, mssql_properties):
+def extract_salesperson_raw(spark, mssql_properties, mssql_adventureworks):
     
-    if not all([spark, mssql_adventureworks, mssql_properties]):
+    if not all([spark, mssql_properties, mssql_adventureworks]):
         print("Missing connection configuration or Spark Session")
         exit(1)
         
@@ -130,9 +131,7 @@ def extract_salesperson_raw(spark, mssql_adventureworks, mssql_properties):
         return df_salesperson_raw
 
     except Exception as e:
-        print(f"""Error to extract and create  dataframe: 
-              {df_salesperson_raw}.
-              {e}""")
+        print(f"Error to extract and create  dataframe: {e}")
         print_exc()
         return None, None, None
     

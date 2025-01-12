@@ -3,7 +3,6 @@ from modules.configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
-
 #load connections from env variables
 
 def load_source_connections():
@@ -30,7 +29,7 @@ def load_source_connections():
         hadoop_landing = config.get("hadoop_paths", {})
 
         validate_required_keys(config=spark_jars, 
-                               required_keys=["mssql_spark_jars", "postgresql_jar"],
+                               required_keys=["mssql_spark_jars"],
                                config_name="spark_jars")
         
         #validade properties key
@@ -40,7 +39,7 @@ def load_source_connections():
         
         validate_required_keys(config=hadoop_landing,
                                required_keys=["landing"],
-                               config_name="hadoop_paths")
+                               config_name="hadoop_landing")
         
         spark = (SparkSession
                     .builder
@@ -51,7 +50,7 @@ def load_source_connections():
                         .enableHiveSupport()
                     .getOrCreate())
         
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing
+        return spark, mssql_properties, mssql_adventureworks, hadoop_landing.get("landing")
     
     except RuntimeError as e:
         print(f"Fail to create Spark Session. Run time error: {e}")
@@ -66,11 +65,10 @@ def load_source_connections():
     
 #loading data from sources
 def extract_fact_purchase_raw(spark, mssql_properties, mssql_adventureworks):
-    
+
     if not all([spark, mssql_properties, mssql_adventureworks]):
-        print("Missing key configurations or Spark Session.")
-        exit(1)
-        
+        print(f"Error to load variables from environment")
+            
     try:
         df_fact_purchase_raw = (spark
                                     .read
@@ -86,8 +84,8 @@ def extract_fact_purchase_raw(spark, mssql_properties, mssql_adventureworks):
 
                                             pod.PurchaseOrderID,
                                             pod.PurchaseOrderDetailID,
-                                            poh.revisionnumber,
-                                            poh.[status],
+                                            cast(poh.revisionnumber as int) as revisionnumber,
+                                            cast(poh.[status] as int) as status,
                                             poh.employeeid,
                                             poh.vendorid,
                                             poh.orderdate,
@@ -95,6 +93,7 @@ def extract_fact_purchase_raw(spark, mssql_properties, mssql_adventureworks):
                                             pod.duedate,
                                             shipmethodid,
                                             pod.productid,
+                                            cast(pod.orderqty as int) as orderqty,
                                             pod.receivedqty,
                                             pod.rejectedqty,
                                             pod.stockedqty,
@@ -127,6 +126,7 @@ def extract_fact_purchase_raw(spark, mssql_properties, mssql_adventureworks):
         print(f"Timeout error to connect on database: {e}")
         print_exc()
         return None
+    
     except Exception as e:
         print(f"Unexpected error ocurred: {e}")
         print_exc()
@@ -159,7 +159,7 @@ def main():
         spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
         
         if not spark:
-            print("Spark Session not founded.")
+            print(f"Fail to create Spark Session: {spark}")
             print_exc()
             exit(1)
             
@@ -188,3 +188,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print(f"Script successfully executed")

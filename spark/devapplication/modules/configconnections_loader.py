@@ -2,26 +2,55 @@ import os
 from typing import Dict, Any
 from dotenv import dotenv_values
 
-
-def find_env_file(start_path: str = os.getcwd()) -> str:
+def find_env_file(start_path: str = None) -> str:
     """
-    Procura pelo arquivo .env no diretório atual ou nos diretórios superiores.
+    Procura pelo arquivo .env considerando variáveis de ambiente e volumes Docker.
 
-    :param start_path: Caminho inicial para procurar o arquivo .env
+    :param start_path: Caminho inicial opcional para procurar o arquivo .env
     :return: Caminho completo para o arquivo .env
-    :raises FileNotFoundError: Se o arquivo .env não for encontrado em nenhum diretório
+    :raises FileNotFoundError: Se o arquivo .env não for encontrado
     """
-    current_dir = start_path
-    while current_dir != os.path.dirname(current_dir):  # Enquanto não chegar na raiz
-        potential_path = os.path.join(current_dir, '.env')
-        if os.path.exists(potential_path):  # Verifica se o arquivo existe
-            return potential_path
-        current_dir = os.path.dirname(current_dir)  # Vai para o diretório pai
-        
-        print(f"Carregando .env de: {potential_path}")
+    # Primeiro, verifica se existe uma variável de ambiente apontando para o diretório base
+    base_dir = os.getenv('PROJECT_BASE_DIR')
+    module_dir = os.getenv('MODULE_DIR')
+    
+    search_paths = []
+    
+    # Adiciona caminhos de busca em ordem de prioridade
+    if start_path:
+        search_paths.append(start_path)
+    if module_dir:
+        search_paths.append(module_dir)
+    if base_dir:
+        search_paths.append(base_dir)
+    
+    # Adiciona o diretório do módulo atual
+    current_module_dir = os.path.dirname(os.path.abspath(__file__))
+    search_paths.append(current_module_dir)
+    
+    # Adiciona o diretório atual de trabalho
+    search_paths.append(os.getcwd())
+    
+    print(f"Diretório atual: {os.getcwd()}")
+    print(f"Diretório do módulo: {current_module_dir}")
+    print("Caminhos de busca configurados:")
+    for path in search_paths:
+        print(f"- {path}")
 
-    raise FileNotFoundError(".env não encontrado em nenhum diretório acima.")
+    # Procura o .env em cada caminho e seus diretórios superiores
+    for base_path in search_paths:
+        current_dir = base_path
+        while current_dir != os.path.dirname(current_dir):  # Enquanto não chegar na raiz
+            potential_path = os.path.join(current_dir, '.env')
+            print(f"Verificando: {potential_path}")
+            
+            if os.path.exists(potential_path):
+                print(f"Arquivo .env encontrado em: {potential_path}")
+                return potential_path
+                
+            current_dir = os.path.dirname(current_dir)
 
+    raise FileNotFoundError("Arquivo .env não encontrado em nenhum dos caminhos de busca.")
 
 def load_config(env_path: str = None) -> Dict[str, Any]:
     """
