@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_stateprovince_landing"
         )
         
         spark = session_manager.create_session()
@@ -132,3 +132,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")

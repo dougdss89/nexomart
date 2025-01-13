@@ -3,6 +3,10 @@ from modules.configconnections_loader import load_config, validate_required_keys
 from pyspark.sql.functions import col
 from sys import exit
 from traceback import print_exc
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def load_source_connections():
     """ Load source connections from .env file and create a SparkSession. """
@@ -130,4 +134,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+    logger.info("Sparkjob completed successfully")

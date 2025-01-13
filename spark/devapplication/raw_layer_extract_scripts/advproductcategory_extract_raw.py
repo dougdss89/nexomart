@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_product_category_landing"
         )
         
         spark = session_manager.create_session()
@@ -121,7 +121,7 @@ def main():
     
     spark, hadoop_landing, iceberg_rawdb = load_source_connections()
     
-    product_category_df = extract_landing_data(spark, hadoop_landing, "product_category")
+    product_category_df = extract_landing_data(spark, hadoop_landing, "productcategory")
     
     product_category = convert_productcategory_schema(product_category_df)
     
@@ -131,3 +131,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")

@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_warehouse_landing"
         )
         
         spark = session_manager.create_session()
@@ -78,16 +78,16 @@ def convert_warehouse_schema(tmp_warehouse):
                         col("shelf").cast("string").alias("shelf"),
                         col("bin").cast("int").alias("bin"),
                         col("quantity").cast("int").alias("quantity"),
-                        col("procutid").cast("int").alias("procutid"),
-                        col("availabilty").cast("float").alias("availability"),
+                        col("productid").cast("int").alias("product_id"),
+                        col("availability").cast("float").alias("availability"),
                         col("costrate").cast("float").alias("costrate"),
                         col("name").cast("string").alias("name"),
-                        col("billsofmaterial").cast("string").alias("billsofmaterial"),
+                        col("billofmaterialsid").cast("string").alias("billofmaterials_id"),
                         col("componentid").cast("int").alias("component_id"),
                         col("bomlevel").cast("int").alias("bomlevel"),
                         col("startdate").cast("date").alias("startdate"),
-                        col("enddate").cast("date").alias("enddate"),
-                        col("perassemblyqtdy").cast("float").alias("perassemblyqty"),
+                        col("enddate").cast("date").alias("end_date"),
+                        col("perassemblyqty").cast("float").alias("perassemblyqty"),
                         col("unitmeasurecode").cast("string").alias("measurecode"),
                         col("inserted_date").cast("timestamp").alias("extracted_date"),
                         col("modified_date").cast("timestamp").alias("modified_date"),

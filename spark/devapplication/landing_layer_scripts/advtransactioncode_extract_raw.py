@@ -86,7 +86,10 @@ def extract_raw_transactioncode():
                                             carriertrackingnumber,
                                             accountnumber,
                                             CreditCardApprovalCode,
-                                            soh.OnlineOrderFlag
+                                            soh.OnlineOrderFlag,
+									        getdate() as inserted_date,
+	                                        '9999-31-12 00:00:00.000' as modified_date,
+                                            '1' as eltversion
                                             
                                         from sales.salesorderheader as soh
                                             left join

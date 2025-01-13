@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_transaction_code_landing"
         )
         
         spark = session_manager.create_session()
@@ -80,13 +80,13 @@ def convert_transactioncode_schema(tmp_transactioncode):
                             col("accountnumber").cast("string").alias("accountnumber"),
                             col("creditcardapprovalcode").cast("string").alias("cardapprovalcode"),
                             col("onlineorderflag").cast("int").alias("isoline"),
-                            col("inserted_date").cast("timestamp").alias("extrated_date"),
+                            col("inserted_date").cast("timestamp").alias("extracted_date"),
                             col("modified_date").cast("timestamp").alias("modified_date"),
                             col("eltversion").cast("int").alias("eltversion")
                             
         )
         
-        tmp_transactioncode
+        return tmp_transactioncode
     
     except Exception as e:
         logger.error(f"Error to convert dataframe {tmp_transactioncode} schema. Please verify: {e}")

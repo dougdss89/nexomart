@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_salesperson_landing"
         )
         
         spark = session_manager.create_session()
@@ -81,15 +81,15 @@ def convert_salesperson_schema(tmp_salesperson):
                         col("birthdate").cast("string").alias("birthdate"),
                         col("jobtitle").cast("string").alias("jobtitle"),
                         col("maritalstatus").cast("string").alias("maritalstatus"),
-                        col("organizationallevel").cast("int").alias("organizationllevel"),
-                        col("departmentid").cast("int").cast("department_id"),
+                        col("organizationlevel").cast("int").alias("organizationlevel"),
+                        col("departmentid").cast("int").alias("department_id"),
                         col("startdate").cast("date").alias("start_date"),
                         col("enddate").cast("date").alias("end_date"),
                         col("groupname").cast("string").alias("groupname"),
                         col("departmentname").cast("string").alias("departmentname"),
                         col("payfrequency").cast("int").alias("payfrequency"),
                         col("rate").cast("float").alias("salary"),
-                        col("ratechangeddate").cast("float").alias("ratechanged_date"),
+                        col("ratechangedate").cast("float").alias("ratechangedate"),
                         col("commissionpct").cast("float").alias("commission_pct"),
                         col("salesquota").cast("float").alias("salesquota"),
                         col("bonus").cast("float").alias("bonus"),
@@ -101,7 +101,7 @@ def convert_salesperson_schema(tmp_salesperson):
                         col("currentflag").cast("int").alias("currentflag"),
                         col("inserted_date").cast("timestamp").alias("extracted_date"),
                         col("modified_date").cast("timestamp").alias("modified_date"),
-                        col("eltversion").cast("eltversion").alias("eltversion")
+                        col("eltversion").cast("int").alias("eltversion")
         )
         
         return tmp_salesperson
@@ -153,3 +153,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")

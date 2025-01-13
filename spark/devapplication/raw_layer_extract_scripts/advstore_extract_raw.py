@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_store_landing"
         )
         
         spark = session_manager.create_session()
@@ -84,7 +84,7 @@ def convert_store_schema(tmp_store):
                         col("bankname").cast("string").alias("bankname"),   
                         col("businesstype").cast("string").alias("businesstype"),
                         col("yearopened").cast("int").alias("yearopened"),
-                        col("speciality").cast("string").alias("speciality"),
+                        col("Specialty").cast("string").alias("Specialty"),
                         col("squarefeet").cast("float").alias("squarefeet"),
                         col("brands").cast("string").alias("brands"),
                         col("internet").cast("string").alias("internet"),
@@ -148,3 +148,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")

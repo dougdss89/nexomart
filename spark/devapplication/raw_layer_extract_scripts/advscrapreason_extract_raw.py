@@ -1,6 +1,7 @@
 import logging
 from modules.configconnections_loader import load_config, validate_required_keys
 from modules.startSparkSession import SparkSessionManager
+from pyspark.sql.functions import col
 from sys import exit
 from traceback import print_exc
 
@@ -31,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_scrapreason_landing"
         )
         
         spark = session_manager.create_session()
@@ -130,3 +131,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")

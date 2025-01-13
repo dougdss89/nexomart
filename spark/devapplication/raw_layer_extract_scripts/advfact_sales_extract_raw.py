@@ -75,9 +75,9 @@ def convert_fctsales_schema(tmp_salesdf):
         tmp_salesdf.select(
 
                             col("salesorderid").cast("int").alias("salesorder_id"),
-                            col("salesorderdetail_id").cast("int").alias("salesorderdetail_id"),
+                            col("SalesOrderDetailID").cast("int").alias("salesorderdetail_id"),
                             col("accountnumber").cast("string").alias("accountnumber"),
-                            col("carriertrackingnumber").cast("string").alias(),
+                            col("carriertrackingnumber").cast("string").alias("carriertrackingnumber"),
                             col("purchaseordernumber").cast("string").alias("purchaseordernumber"),
                             col("salesordernumber").cast("string").alias("salesordernumber"),
                             col("orderdate").cast("date").alias("orderdate"),
@@ -88,7 +88,7 @@ def convert_fctsales_schema(tmp_salesdf):
                             col("productid").cast("int").alias("product_id"),
                             col("customerid").cast("int").alias("customer_id"),
                             col("shipmethodid").cast("int").alias("shipmethod_id"),
-                            col("territory_id").cast("int").alias("territory_id"),
+                            col("territoryid").cast("int").alias("territory_id"),
                             col("specialofferid").cast("int").alias("specialoffer_id"),
                             col("currencyrateid").cast("int").alias("currencyrate_id"),
                             col("orderqty").cast("int").alias("orderqty"),
@@ -152,3 +152,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")

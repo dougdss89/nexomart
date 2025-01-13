@@ -92,18 +92,18 @@ def extract_scrapreason_raw(spark, mssql_properties, mssql_adventureworks):
                                         """ 
                                         select
 
-                                            ppi.locationID,
+                                            cast(ppi.locationID as int) as locationid,
                                             ppi.shelf,
-                                            ppi.bin,
-                                            ppi.quantity,
+                                            cast(ppi.bin as int) as bin,
+                                            cast(ppi.quantity as int) as quantity,
                                             ppi.productid,
                                             pl.[availability],
-                                            pl.costrate,
+                                            cast(pl.costrate as decimal(5,2)) as costrate,
                                             pl.[name],
                                             pbm.billofmaterialsid,
                                             pbm.componentid,
                                             pbm.startdate,
-                                            pbm.bomlevel,
+                                            cast(pbm.bomlevel as decimal(5,2)) as bomlevel,
                                             pbm.enddate,
                                             pbm.perassemblyqty,
                                             pbm.unitmeasurecode,

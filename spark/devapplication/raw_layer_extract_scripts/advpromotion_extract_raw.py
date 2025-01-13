@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_promotion_landing"
         )
         
         spark = session_manager.create_session()
@@ -86,6 +86,7 @@ def convert_promotion_schema(tmp_promotion):
                         col("modified_date").cast("timestamp").alias("modified_date"),
                         col("eltversion").cast("int").alias("eltversion")
     )
+    return tmp_promotion
         
 def write_to_iceberg(promotion_df, iceberg_rawdb, table_name):
     
@@ -129,3 +130,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")

@@ -32,7 +32,7 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+                            app_name="extract_supplier_landing"
         )
         
         spark = session_manager.create_session()
@@ -85,10 +85,10 @@ def convert_supplier_schema(tmp_supplier):
                             col("phonenumbertype").cast("string").alias("phonetype"),
                             col("creditrating").cast("int").alias("creditrating"),
                             col("preferredvendorstatus").cast("int").alias("principal_vendor"),
-                            col("averagedleadtime").cast("int").alias("averagedleadtime"),
+                            col("averageleadtime").cast("int").alias("avgleadtime"),
                             col("standardprice").cast("float").alias("standardprice"),
-                            col("lastreceiptedate").cast("timestamp").alias("lastreceiptedate"),
-                            col("minororderqty").cast("int").alias("minororderqty"),
+                            col("lastreceiptdate").cast("timestamp").alias("lastreceipted_date"),
+                            col("minorderqty").cast("int").alias("minororderqty"),
                             col("maxorderqty").cast("int").alias("maxorderqty"),
                             col("onorderty").cast("int").alias("onorderty"),
                             col("unitmeasurecode").cast("string").alias("measurecode"),
@@ -152,3 +152,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+    logger.info("Sparkjob completed successfully")
