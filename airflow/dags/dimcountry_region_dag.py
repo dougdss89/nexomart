@@ -2,7 +2,7 @@ from airflow.decorators import dag, task
 from datetime import datetime, timedelta
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
-from load_configurations import load_config, validate_required_keys 
+from configconnections_loader import load_config, validate_required_keys 
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,6 +28,8 @@ def load_folders_job():
         validate_required_keys(config = config.get("job_dag_folder", {}),
                             required_keys = ["airflow_landing_folder", "airflow_rawlayer_folder"],
                             config_name = "job_dag_folder")
+        
+        logging.info("Variables imported sucessfully")
         
         return landing_folder, raw_layer_folder
     
@@ -57,16 +59,16 @@ def extract_dimcountry_source():
     
     extract_country_data = SparkSubmitOperator(
         task_id = "extract_country_to_parquet",
-        application= f"{landing_folder}/advcountryregion_extract_raw.py",
+        application="/dockervol/sparkjobs/jobs/landing_layer_scripts/advbuyer_extract_raw.py",
         conn_id = "sparkconn",
-        verbose= False
+        verbose= True
     )
     
     write_to_country_iceberg_table = SparkSubmitOperator(
         task_id = "write_country_to_table",
-        application= f"{raw_layer_folder}/advcountryregion_extract_raw.py",
+        application= "/dockervol/sparkjobs/jobs/raw_layer_extract_scripts/advcountryregion_extract_raw.py",
         conn_id = "sparkconn",
-        verbose= False
+        verbose= True
     )
     
     end = EmptyOperator(task_id= "End")
@@ -74,3 +76,4 @@ def extract_dimcountry_source():
     start >> extract_country_data >> write_to_country_iceberg_table >> end
     
 dag = extract_dimcountry_source()
+logging.info("Dag completed sucessfully")

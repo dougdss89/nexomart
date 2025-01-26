@@ -82,5 +82,22 @@
     <value>/home/hadoop/ha/data/nn/checkpoint</value>
   </property>
 
+  <property>
+    <name>fs.s3a.access.key</name>
+    <value>minioadmin</value>
+  </property>
+  <property>
+    <name>fs.s3a.secret.key</name>
+    <value>minioadmin</value>
+  </property>
+  <property>
+    <name>fs.s3a.endpoint</name>
+    <value>http://minio:9000</value> <!-- ou seu endpoint do MinIO -->
+  </property>
+  <property>
+    <name>fs.s3a.path.style.access</name>
+    <value>true</value>
+  </property>
+  
 </configuration>
 

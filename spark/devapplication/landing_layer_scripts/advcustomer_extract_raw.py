@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config
+from configconnections_loader import load_config, validate_required_keys
 
 
 # load .env config
@@ -31,30 +31,17 @@ def load_source_connections():
     spark = (SparkSession
                 .builder
                 .appName("extract_customer_raw")
-                    .config('spark.jars', config["spark_jars"]["mssql_spark_jars"])
-                    .config("spark.driver.extraClassPath", config["spark_jars"]["mssql_spark_jars"])
-                    .config("spark.executor.extraClassPath", config["spark_jars"]["mssql_spark_jars"])
-                    
-                    #parquet configuration
-                    .config("spark.sql.parquet.compression.codec", "snappy")
-                    .config("spark.sql.parquet.write.compression.codec", "snappy")
-                    .config("parquet.block.size", "134217728")  # Tamanho do bloco (128 MB recomendado para HDFS)
-                    .config("parquet.page.size", "1048576")  # Tamanho da página (1 MB recomendado)
-                    .config("spark.sql.files.maxPartitionBytes", "134217728")  # Máximo de bytes por partição
-                    .config("spark.sql.files.openCostInBytes", "4194304")  # Custo estimado de abrir arquivos (4 MB)
-                    .config("spark.sql.sources.partitionOverwriteMode", "dynamic")  # Overwrite apenas em partições específicas
-                    .config("spark.hadoop.dfs.replication", "1")  # Número de réplicas padrão
-                    #write configuration
-                    .config('spark.sql.files.maxRecordsPerFile', '1000000')
-                    .config('spark.sql.shuffle.partitions', '200')
-                    
-                    #minimize overhead reads
-                    .config('spark.sql.hive.metastorePartitionPruning', "true")
-                    .config('spark.sql.parquet.filterPushdown', 'true')
-                    
-                .getOrCreate())
-
-    
+                .config("spark.jars", f"{spark_jars.get('mssql_spark_jars', '')}")
+                .config("spark.driver.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
+                .config("spark.executor.extraClassPath", f"{spark_jars.get('mssql_spark_jars', '')}")
+                .config("spark.driver.memory", "12g") 
+                .config("spark.executor.memory", "12g") 
+                .config("spark.executor.memoryOverhead", "2g")
+                .config("spark.executor.cores", "4")    
+                .config("spark.executor.instances", "4")
+                .enableHiveSupport()
+                .getOrCreate()
+            )
     return spark, mssql_properties, mssql_adventureworks, hadoop_landing
 
 spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()

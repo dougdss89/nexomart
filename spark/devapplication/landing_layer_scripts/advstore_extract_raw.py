@@ -160,7 +160,7 @@ def main():
         df_store = extract_store_raw(spark, mssql_properties, mssql_adventureworks)
         
         if df_store:
-            df_store.write.parquet(f"{hadoop_landing}/store", mode="overwrite")
+            df_store.write.parquet(f"{hadoop_landing}/hadoop_test", mode="overwrite")
             print(f"""Dataframe loaded successfully on destination:    
             {df_store}""")
             

@@ -11,11 +11,12 @@ services:
       retries: 3
 
     volumes:
-      - ./jobs:/opt/spark/jobs:rw
-      - ./devapplication:/opt/spark/development:rw
-      - /dockervol/sparkjobs:/opt/spark/jobs:rw
-      - spark-logs:/opt/spark/spark-events:rw
-      - dockervol:/dockervol:rw
+      - ./jobs:/opt/spark/jobs
+      - ./devapplication:/opt/spark/development
+      - /dockervol/sparkjobs:/opt/spark/jobs
+      - spark-logs:/opt/spark/spark-events
+      - dockervol:/dockervol
+      
     env_file:
       - .env.spark
 
@@ -28,9 +29,11 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
       - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-0.10.9.7-src.zip:/opt/spark/jobs:$PYTHONPATH
+
     ports:
       - '9090:8080'
       - '7077:7077'
+      - '4040:4040'
     networks:
       - hadoopcluster
 
@@ -49,11 +52,11 @@ services:
       - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-0.10.9.7-src.zip:/opt/spark/jobs:$PYTHONPATH
 
     volumes:
-      - ./jobs:/opt/spark/jobs:rw
-      - ./devapplication:/opt/spark/development:rw
-      - /dockervol/sparkjobs:/opt/spark/jobs:rw
-      - spark-logs:/opt/spark/spark-events:rw
-      - dockervol:/dockervol:rw
+      - ./jobs:/opt/spark/jobs
+      - ./devapplication:/opt/spark/development
+      - /dockervol/sparkjobs:/opt/spark/jobs
+      - spark-logs:/opt/spark/spark-events
+      - dockervol:/dockervol
 
     ports:
       - '18080:18080'
@@ -77,11 +80,11 @@ services:
       - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-0.10.9.7-src.zip:/opt/spark/jobs:$PYTHONPATH
 
     volumes:
-      - ./jobs:/opt/spark/jobs:rw
-      - ./devapplication:/opt/spark/development:rw
-      - /dockervol/sparkjobs:/opt/spark/jobs:rw
-      - spark-logs:/opt/spark/spark-events:rw
-      - dockervol:/dockervol:rw
+      - ./jobs:/opt/spark/jobs
+      - ./devapplication:/opt/spark/development
+      - /dockervol/sparkjobs:/opt/spark/jobs
+      - spark-logs:/opt/spark/spark-events
+      - dockervol:/dockervol
       
     networks:
       - hadoopcluster

@@ -1,6 +1,6 @@
 import logging
-from modules.configconnections_loader import load_config, validate_required_keys
-from modules.startSparkSession import SparkSessionManager
+from configconnections_loader import load_config, validate_required_keys
+from startSparkSession import SparkSessionManager
 from pyspark.sql.functions import col, cast
 from sys import exit
 from traceback import print_exc
@@ -20,12 +20,13 @@ def load_source_connections():
         
         hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
         iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
+        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
         
         #validated imported keys
         
         validate_required_keys(
             config = config.get("hadoop_paths", {}),
-            required_keys= ["landing", "raw_icebergdb"],
+            required_keys= ["landing", "raw_icebergdb", "minio_landing"],
             config_name="hadoop_paths"
         )
         
@@ -37,7 +38,7 @@ def load_source_connections():
         
         spark = session_manager.create_session()
         
-        return spark, hadoop_landing, iceberg_rawdb
+        return spark, hadoop_landing, iceberg_rawdb, minio_storage
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -89,6 +90,25 @@ def convert_productcategory_schema(tmp_prodcategory):
         exit(1)
     
         
+def write_product_category_minio_storage(data, minio_storage, table):
+    
+    try:
+        (
+            data
+            .write
+            .mode("append")
+            .parquet(f"{minio_storage}/{table}")
+        )
+        
+
+        return logger.info(f"Data successfully written to: {minio_storage}/{table}")
+
+
+    except Exception as e:
+        logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
+        print_exc()
+        exit(1)
+        
 def write_to_iceberg(product_category_df, iceberg_rawdb, table_name):
     
     try:
@@ -96,8 +116,8 @@ def write_to_iceberg(product_category_df, iceberg_rawdb, table_name):
             product_category_df
                 .write
                 .format("Iceberg")
-                .mode("overwrite")
-                .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+                .mode("append")
+                .saveAsTable(f"{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         
@@ -119,15 +139,19 @@ def spark_stop(spark):
         
 def main():
     
-    spark, hadoop_landing, iceberg_rawdb = load_source_connections()
+    spark, hadoop_landing, iceberg_rawdb, miniopath = load_source_connections()
     
     product_category_df = extract_landing_data(spark, hadoop_landing, "productcategory")
     
     product_category = convert_productcategory_schema(product_category_df)
     
+    write_product_category_minio_storage(product_category, miniopath, "product_category")
+    
     write_to_iceberg(product_category, f"{iceberg_rawdb}", "raw_dimproduct_category")
     
     spark_stop(spark)
+    
+    return logger.info("All functions have been executed successfully ")
     
 if __name__ == "__main__":
     main()

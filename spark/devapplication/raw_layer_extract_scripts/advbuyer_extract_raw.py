@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config, validate_required_keys
+from configconnections_loader import load_config, validate_required_keys
 from pyspark.sql.functions import col
 from sys import exit
 from traceback import print_exc
@@ -16,10 +16,11 @@ def load_source_connections():
         # Validating imported keys
         hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
         iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
+        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
 
         validate_required_keys(
             config=config.get("hadoop_paths", {}),
-            required_keys=["landing", "raw_icebergdb"],
+            required_keys=["landing", "raw_icebergdb", "minio_landing"],
             config_name="hadoop_paths"
         )
 
@@ -31,7 +32,7 @@ def load_source_connections():
             .getOrCreate()
         )
 
-        return spark, hadoop_landing, iceberg_rawdb
+        return spark, hadoop_landing, iceberg_rawdb, minio_storage
 
     except (FileNotFoundError, KeyError) as e:
         print(f"Could not load connections from source: {e}")
@@ -90,15 +91,27 @@ def buyer_replace_schema(dataframe):
                         )
     return buyer_dataframe
 
+def write_minio_buyer_storage(data, minio_storage, table):
+    
+    try:
+        data.write.mode("overwrite").parquet(f"{minio_storage}/{table}")
+        
+        print(f"{table} written successfully on {minio_storage}")
+        
+    except Exception as e:
+        print(f"Fail to create file on {minio_storage}. Verify: {e}")
+        print_exc()
+        exit(1)
+
     
 def write_to_iceberg(df, iceberg_rawdb, table_name):
     """ Write DataFrame to Iceberg table. """
     try:
         (
-            df.repartition(5)
+            df.repartition(1)
             .write.format("iceberg")
-            .mode("overwrite")  # Use "append" to add data instead
-            .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+            .mode("append")  # Use "append" to add data instead
+            .saveAsTable(f"{iceberg_rawdb}.{table_name}")
         )
         print(f"Table {table_name} written successfully to Iceberg.")
         
@@ -119,18 +132,22 @@ def spark_stop(spark):
         print_exc()
 
 def main():
-    spark, hadoop_landing, iceberg_rawdb = load_source_connections()
+    spark, hadoop_landing, iceberg_rawdb, minio_path = load_source_connections()
 
     # Extract data from landing zone
     buyer_df = extract_landing_buyer(spark, hadoop_landing, "buyer")
     
     buyer_dataframe = buyer_replace_schema(buyer_df)
-
+        
+    write_minio_buyer_storage(buyer_dataframe, minio_path, "buyer")
+    
     # Write data to Iceberg
     write_to_iceberg(buyer_dataframe, iceberg_rawdb, "raw_dimbuyer")
 
     # Stop SparkSession
     spark_stop(spark)
+    
+    return logger.info("All functions have been executed successfully ")
 
 if __name__ == "__main__":
     main()

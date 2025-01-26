@@ -6,7 +6,7 @@ spark = (SparkSession.builder
          .getOrCreate())
 
 # Cria um DataFrame com 4 colunas e 7 milhões de linhas
-data = [(i, f"col2_{i}", f"col3_{i}", f"col4_{i}") for i in range(100000)]
+data = [(i, f"col2_{i}", f"col3_{i}", f"col4_{i}") for i in range(1000)]
 df = spark.createDataFrame(data, ["col1", "col2", "col3", "col4"])
 
 # Escreve o DataFrame em um diretório HDFS como parquet (ou outro formato)

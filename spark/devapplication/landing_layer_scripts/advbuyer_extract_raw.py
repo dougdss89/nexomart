@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config, validate_required_keys
+from configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -147,7 +147,7 @@ if __name__ == '__main__':
             raise RuntimeError("Failed to extract buyer data")
             
         # Escrever dados
-        df_buyer.repartition(5).write.mode('overwrite').parquet(f"{hadoop_landing}/buyer")
+        df_buyer.repartition(1).write.mode('overwrite').parquet(f"{hadoop_landing}/buyer")
         
         print("Job completed successfully")
         

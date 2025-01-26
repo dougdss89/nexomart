@@ -4,8 +4,11 @@ from datetime import datetime, timedelta
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.exceptions import AirflowFailException
-from modules.configconnections_loader import load_config, validate_required_keys
 import logging
+
+# Agora podemos importar nosso módulo
+from configconnections_loader import load_config, validate_required_keys
+
 
 # Configuração de logs
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -32,6 +35,8 @@ def load_folders_job():
                            required_keys=["airflow_landing_folder", "airflow_rawlayer_folder"],
                            config_name="job_dag_folder")
 
+    logging.info("Variables imported sucessfully")
+    
     return landing_folder, raw_layer_folder
 
 # DAG principal
@@ -52,12 +57,12 @@ def extract_dimbuyer_source():
     start = EmptyOperator(task_id="start_load")
 
     extract_buyer_data = SparkSubmitOperator(
-        task_id="extract_buyer_to_parquet",
+        task_id='buyer_dimension_orchestrator',
         application=f"{landing_folder}/advbuyer_extract_raw.py",
-        conn_id="sparkconn",
-        verbose=False,
+        conn_id='sparkconn',
+        verbose=True,
     )
-
+        
     write_to_buyer_iceberg_table = SparkSubmitOperator(
         task_id="write_buyer_iceberg_table",
         application=f"{raw_layer_folder}/advbuyer_extract_raw.py",
@@ -72,3 +77,4 @@ def extract_dimbuyer_source():
 
 # Instanciar o DAG
 dag = extract_dimbuyer_source()
+logging.info("Dag completed sucessfully")

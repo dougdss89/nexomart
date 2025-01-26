@@ -1,6 +1,6 @@
 import logging
-from modules.configconnections_loader import load_config, validate_required_keys
-from modules.startSparkSession import SparkSessionManager
+from configconnections_loader import load_config, validate_required_keys
+from startSparkSession import SparkSessionManager
 from pyspark.sql.functions import col, cast
 from sys import exit
 from traceback import print_exc
@@ -17,15 +17,16 @@ def load_source_connections():
     
     try:
         config = load_config()
-        
+
         hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
         iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
+        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
         
         #validated imported keys
         
         validate_required_keys(
             config = config.get("hadoop_paths", {}),
-            required_keys= ["landing", "raw_icebergdb"],
+            required_keys= ["landing", "raw_icebergdb", "minio_landing"],
             config_name="hadoop_paths"
         )
         
@@ -37,7 +38,7 @@ def load_source_connections():
         
         spark = session_manager.create_session()
         
-        return spark, hadoop_landing, iceberg_rawdb
+        return spark, hadoop_landing, iceberg_rawdb, minio_storage
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -71,7 +72,8 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         
 def convert_promotion_schema(tmp_promotion):
     
-    tmp_promotion.select(
+    try:
+        tmp_promotion.select(
         
                         col("specialofferid").cast("int").alias("specialoffer_id"),
                         col("description").cast("string").alias("description"),
@@ -85,8 +87,32 @@ def convert_promotion_schema(tmp_promotion):
                         col("inserted_date").cast("timestamp").alias("extracted_date"),
                         col("modified_date").cast("timestamp").alias("modified_date"),
                         col("eltversion").cast("int").alias("eltversion")
-    )
-    return tmp_promotion
+        )
+        return tmp_promotion
+    except Exception as e:
+        logger.error(f"Error to convert dataframe schema {tmp_promotion}. Please verify error log: {e}")
+        print_exc()
+        exit(1)
+
+
+def write_promotion_minio_storage(data, minio_storage, table):
+    
+    try:
+        (
+            data
+            .write
+            .mode("append")
+            .parquet(f"{minio_storage}/{table}")
+        )
+        
+
+        return logger.info(f"Data successfully written to: {minio_storage}/{table}")
+
+
+    except Exception as e:
+        logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
+        print_exc()
+        exit(1)
         
 def write_to_iceberg(promotion_df, iceberg_rawdb, table_name):
     
@@ -95,8 +121,8 @@ def write_to_iceberg(promotion_df, iceberg_rawdb, table_name):
             promotion_df
                 .write
                 .format("Iceberg")
-                .mode("overwrite")
-                .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+                .mode("append")
+                .saveAsTable(f"{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         
@@ -118,16 +144,20 @@ def spark_stop(spark):
         
 def main():
     
-    spark, hadoop_landing, iceberg_rawdb = load_source_connections()
+    spark, hadoop_landing, iceberg_rawdb, miniopath = load_source_connections()
     
     promotion_df = extract_landing_data(spark, hadoop_landing, "promotion")
     
     promotion = convert_promotion_schema(promotion_df)
     
+    write_promotion_minio_storage(promotion, miniopath, "promotion")
+    
     write_to_iceberg(promotion, f"{iceberg_rawdb}", "raw_dimpromotion")
     
     spark_stop(spark)
     
+    return logger.info("All functions have been executed successfully ")
+
 if __name__ == "__main__":
     main()
     logger.info("Sparkjob completed successfully")

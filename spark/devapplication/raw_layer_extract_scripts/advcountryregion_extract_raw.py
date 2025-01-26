@@ -1,6 +1,6 @@
 import logging
 from pyspark.sql import SparkSession
-from modules.configconnections_loader import load_config, validate_required_keys
+from configconnections_loader import load_config, validate_required_keys
 import pyspark.sql.functions as f
 from sys import exit
 from traceback import print_exc
@@ -17,10 +17,11 @@ def load_source_connections():
         # Validating imported keys
         hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
         iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
+        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
 
         validate_required_keys(
             config=config.get("hadoop_paths", {}),
-            required_keys=["landing", "raw_icebergdb"],
+            required_keys=["landing", "raw_icebergdb", "minio_landing"],
             config_name="hadoop_paths"
         )
 
@@ -32,7 +33,7 @@ def load_source_connections():
             .getOrCreate()
         )
 
-        return spark, hadoop_landing, iceberg_rawdb
+        return spark, hadoop_landing, iceberg_rawdb, minio_storage
 
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -53,6 +54,7 @@ def extract_landing_data(spark, hadoop_landing, raw_table:str):
     try:
         df = spark.read.parquet(f"{hadoop_landing}/{raw_table}")
         logger.info(f"Data extracted successfully for table: {raw_table}")
+        
         return df
     
     except Exception as e:
@@ -74,12 +76,31 @@ def convert_country_schema(dataframe):
     
     return country_region
 
-def write_to_iceberg(df, iceberg_rawdb, table_name):
+def write_minio_country_rg_storage(data, minio_storage, table):
     
     try:
-        df.repartition(5).write.format("iceberg").mode("overwrite").saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+        
+        data.write.mode("overwrite").parquet(f"{minio_storage}/{table}")
+        
+        return logger.info(f"Data successfully written to: {minio_storage}/{table}")
+        
+    except Exception as e:
+        logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
+        print_exc()
+        exit(1)
 
-        logger.info(f"Table {table_name} written successfully to Iceberg.")
+def write_to_iceberg(df, iceberg_rawdb, table_name):
+    
+    try: 
+        ((df.repartition(5)
+            .write
+            .format("iceberg")
+            .mode("append")
+            .saveAsTable(f"{iceberg_rawdb}.{table_name}")
+        ))
+
+
+        return logger.info(f"Table {table_name} written successfully to Iceberg.")
         
     except Exception as e:
         logger.error(f"Failed to write table {table_name} to Iceberg: {e}")
@@ -97,16 +118,20 @@ def spark_stop(spark):
         print_exc()
 
 def main():
-    spark, hadoop_landing, hadoop_raw_table = load_source_connections()
+    spark, hadoop_landing, hadoop_raw_table, minio_path = load_source_connections()
     
     country_df = extract_landing_data(spark, hadoop_landing, "countryregion")
     
     country_region = convert_country_schema(country_df)
     
+    write_minio_country_rg_storage(country_region, minio_path, "country_region")
+    
     write_to_iceberg(country_region, f"{hadoop_raw_table}", "raw_dimcountryregion")
     
     spark_stop(spark)
+    
+    return logger.info("All functions have been executed successfully ")
 
 if __name__ == '__main__':
     main()
-    
+    logger.info("Sparkjob completed successfully")

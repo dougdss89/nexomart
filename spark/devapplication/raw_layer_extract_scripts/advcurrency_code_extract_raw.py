@@ -1,7 +1,7 @@
 import logging
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, cast
-from modules.configconnections_loader import load_config, validate_required_keys
+from configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -17,6 +17,7 @@ def load_source_connections():
         
         hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
         iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
+        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
         
         validate_required_keys(
             config=config.get("hadoop_paths",{}),
@@ -32,7 +33,8 @@ def load_source_connections():
                 .enableHiveSupport()
                 .getOrCreate()
         )
-        return spark, hadoop_landing, iceberg_rawdb
+        logger.info("Spark Session created")
+        return spark, hadoop_landing, iceberg_rawdb, minio_storage
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -66,7 +68,8 @@ def extract_landing_data(spark, hadoop_landing, raw_table):
         
 def convert_currencycode_schema(dataframe):
     
-    dataframe.select(
+    try:
+        dataframe.select(
                     col("currencycode").cast("string").alias("currencycode"),
                     col("currencyname").cast("string").alias("currencyname"),
                     col("countryregioncode").cast("string").alias("countryregioncode"),
@@ -74,9 +77,31 @@ def convert_currencycode_schema(dataframe):
                     col("inserted_date").cast("timestamp").alias("extracted_data"),
                     col("modified_date").cast("timestamp").alias("modified_date"),
                     col("eltversion").cast("int").alias("eltversion")
-    )
+        )
     
-    return dataframe
+        return dataframe
+    
+    except Exception as e:
+        logger.info(f"Fail to convert schema. Verify: {e}")
+        print_exc()
+        exit(1)
+        
+def write_currency_code_minio_storage(data, minio_storage, table):
+    
+    try:
+        ((
+            data
+                .write
+                .mode("Append")
+                .parquet(f"{minio_storage}/{table}")
+        ))
+        
+        return logger.info(f"Data successfully written to: {minio_storage}/{table}")
+
+    except Exception as e:
+        logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
+        print_exc()
+        exit(1)
         
 def write_to_iceberg(currency_code_df, iceberg_rawdb, table_name):
     
@@ -85,8 +110,8 @@ def write_to_iceberg(currency_code_df, iceberg_rawdb, table_name):
             currency_code_df
                 .write
                 .format("iceberg")
-                .mode("overwrite")
-                .saveAsTable(f"iceberg_table.{iceberg_rawdb}.{table_name}")
+                .mode("append")
+                .saveAsTable(f"{iceberg_rawdb}.{table_name}")
         )
         logger.info(f"Table {table_name} written successfully to Iceberg")
         
@@ -108,16 +133,20 @@ def spark_stop(spark):
         
 def main():
     
-    spark, hadoop_landing, iceberg_rawdb = load_source_connections()
+    spark, hadoop_landing, iceberg_rawdb, miniopath = load_source_connections()
     
     currency_code_dataframe = extract_landing_data(spark, hadoop_landing, "currencycode")
     
     currency_code = convert_currencycode_schema(currency_code_dataframe)
     
+    write_currency_code_minio_storage(currency_code_dataframe, miniopath, "currency_code")
+    
     write_to_iceberg(currency_code, f"{iceberg_rawdb}", "raw_dimcurrencycode")
     
     spark_stop(spark)
     
+    return logger.info("All functions have been executed successfully ")
+
 if __name__ == "__main__":
     main()
     logger.info("Sparkjob completed successfully")
