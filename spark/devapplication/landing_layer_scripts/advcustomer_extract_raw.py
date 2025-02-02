@@ -61,72 +61,68 @@ def extract_raw_customer(**kwargs):
                             """
 
                                 select
-                                	pp.businessentityid,
-                                	sc.customerid,
-                                	pp.firstname,
-                                	pp.lastname,
-                                	pp.persontype,
-                                	pp.emailpromotion,
-                                	ppt.[name] as typephone,
-                                	pph.phonenumber,
-                                	pad.postalcode,
-                                	pat.name as addresstype,
-                                	emailaddress,
-                                	psp.territoryid,
-                                	pcr.[name] as countryname,
-                                	pad.stateprovinceid,
-                                	psp.countryregioncode,
-                                	psp.stateprovincecode,
-                                	psp.[name] as statename,
-                                	pad.city,
-                                	pad.addressline1,
-                                	pad.addressline2,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:TotalPurchaseYTD)[1]','numeric(12,2)') AS TotalPurchaseYTD,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:DateFirstPurchase)[1]','date') AS DateFirstPurchase,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:BirthDate)[1]','date') AS BirthDate,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:MaritalStatus)[1]','varchar(10)') AS MaritalStatus,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:YearlyIncome)[1]','varchar(50)') AS YearlyIncome,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:Gender)[1]','varchar(10)') AS Gender,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:TotalChildren)[1]','int') AS TotalChildren,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:NumberChildrenAtHome)[1]','int') AS NumberChildrenAtHome,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:Education)[1]','varchar(50)') AS Education,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:Occupation)[1]','varchar(50)') AS Occupation,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:HomeOwnerFlag)[1]','varchar(5)') AS HomeOwnerFlag,
-                                	pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:NumberCarsOwned)[1]','int') AS NumberCarsOwned,
+                                    
+                                    pp.businessentityid,
+                                    sc.customerid,
+                                    pp.firstname,
+                                    pp.lastname,
+                                    pp.persontype,
+                                    pp.emailpromotion,
+                                    ppt.[name] as typephone,
+                                    pph.phonenumber,
+                                    pad.postalcode,
+                                    pat.name as addresstype,
+                                    emailaddress,
+                                    spcr.territoryid,
+                                    spcr.CountryRegionName,
+                                    pad.stateprovinceid,
+                                    spcr.countryregioncode,
+                                    spcr.stateprovincecode,
+                                    spcr.stateprovincename as statename,
+                                    pad.city,
+                                    pad.addressline1,
+                                    pad.addressline2,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:TotalPurchaseYTD)[1]','numeric(12,2)') AS TotalPurchaseYTD,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:DateFirstPurchase)[1]','date') AS DateFirstPurchase,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:BirthDate)[1]','date') AS BirthDate,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:MaritalStatus)[1]','varchar(10)') AS MaritalStatus,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:YearlyIncome)[1]','varchar(50)') AS YearlyIncome,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:Gender)[1]','varchar(10)') AS Gender,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:TotalChildren)[1]','int') AS TotalChildren,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:NumberChildrenAtHome)[1]','int') AS NumberChildrenAtHome,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:Education)[1]','varchar(50)') AS Education,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:Occupation)[1]','varchar(50)') AS Occupation,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:HomeOwnerFlag)[1]','varchar(5)') AS HomeOwnerFlag,
+                                    pp.demographics.value('declare namespace ns="http://schemas.microsoft.com/sqlserver/2004/07/adventure-works/IndividualSurvey"; (/ns:IndividualSurvey/ns:NumberCarsOwned)[1]','int') AS NumberCarsOwned,
                                     getdate() as inserted_date,
                                     '9999-31-12 00:00:00.000' as modified_date,
                                     '1' as eltversion
 
-                                from  sales.customer as sc
-                                left join 
-                                	person.person as pp
-                                on sc.personid = pp.businessentityid
-                                left join
-                                	person.personphone as pph
-                                on pp.businessentityid = pph.businessentityid
-                                left join
-                                	person.phonenumbertype as ppt
-                                on pph.phonenumbertypeid = ppT.phonenumbertypeid
-                                left join
-                                	person.businessentityaddress as pba
-                                on pp.businessentityid = pba.businessentityid
-                                left join
-                                	person.[address] as pad
-                                on pba.addressid = pad.addressid
-                                left join
-                                	person.addresstype as pat
-                                on pba.addresstypeid = pat.addresstypeid
-                                left join
-                                	person.emailaddress as pea
-                                on pp.businessentityid = pea.businessentityid
-                                left join
-                                	person.stateprovince as psp
-                                on pad.stateprovinceid = psp.stateprovinceid
-                                left join
-                                	person.countryregion as pcr
-                                on psp.countryregioncode = pcr.countryregioncode
-                                where pp.businessentityid not in (select businessentityid
-                                									from [HumanResources].[Employee])
+                                from sales.customer as sc
+                                    inner join
+                                    person.Person as pp
+                                on sc.personid = pp.BusinessEntityID
+                                    inner join
+                                    person.BusinessEntityAddress as pbea
+                                on pp.businessentityid = pbea.businessentityid
+                                    inner join
+                                    person.[Address] as pad
+                                on pbea.AddressID = pad.AddressID
+                                    left join
+                                    person.personphone as pph
+                                on pp.BusinessEntityID = pph.BusinessEntityID
+                                    inner join
+                                    person.PhoneNumberType as ppt
+                                on pph.PhoneNumberTypeID = ppt.PhoneNumberTypeID
+                                    inner join
+                                    person.AddressType as pat
+                                on pbea.AddressTypeID = pat.AddressTypeID
+                                    inner join
+                                    person.EmailAddress as pea
+                                on pp.BusinessEntityID = pea.BusinessEntityID
+                                    inner join
+                                    person.vStateProvinceCountryRegion as spcr
+                                on pad.StateProvinceID = spcr.StateProvinceID
                              
                             """
                        )).load()
@@ -134,7 +130,7 @@ def extract_raw_customer(**kwargs):
 
 write_customer = extract_raw_customer()
 
-write_customer.repartition(2).write.mode("overwrite").parquet(f"{hadoop_landing}/customer")
+write_customer.write.mode("overwrite").parquet(f"{hadoop_landing}/customer")
 
 def stop_spark(spark):
     spark.stop()

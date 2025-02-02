@@ -1,15 +1,15 @@
 from sched import scheduler
+from airflow.exceptions import AirflowException, AirflowFailException, AirflowNotFoundException
 from airflow.decorators import dag
 from datetime import datetime, timedelta
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
 import logging
-from configconnections_loader import load_config, validate_required_keys
+from raw_dimension_dag.configconnections_loader import load_config, validate_required_keys
 from traceback import print_exc
 
 logging.basicConfig(level = logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
 
 default_args = {
     "owner": "spark",
@@ -48,49 +48,61 @@ def load_folder_jobs():
     except Exception as e:
         logging.error(f"Unexpected error. Please, verify: {e}")
         print_exc()
-
+        
 @dag(
     
-    dag_id = "currency_rate_orchestrator",
+    dag_id = "salesperson_data_orchestrator",
     default_args= default_args,
-    description= "Orchestrating Currency Rate Dimension",
+    description= "Orchestratin salesperson dimension",
     schedule= "@daily",
     catchup=False,
     start_date= datetime(2025, 1, 1),
-    tags=["spark", "dimension"]
+    tags = ["spark", "dimension"]
 )
 
-def extract_currency_rate():
+def extract_salesperson_data():
     
-    landing_folder, raw_layer_folder = load_folder_jobs()
+    try:
     
-    """
-    Dag to extract currency rate dimension
-    
-    """
-    
-    start = EmptyOperator(task_id = "start_load")
-    
-    extract_currency_rate_data = SparkSubmitOperator(
+        landing_folder, raw_layer_folder = load_folder_jobs()
         
-        task_id = "extract_currency_rate_data",
-        application= f"{landing_folder}/advcurrency_rate_extract_raw.py",
-        conn_id = "sparkconn",
-        verbose = True
-    )
-    
-    write_to_currency_rate_iceberg_table = SparkSubmitOperator(
+        """ 
+            Orchestrating salesperson pipeline
+        """
         
-        task_id = "write_to_currency_rate_table",
-        application=f"{raw_layer_folder}/advcurrency_rate_extract_raw.py",
-        conn_id= "sparkconn",
-        verbose = True
-    )
+        start = EmptyOperator(task_id = "start_load")
+        
+        extract_salesperson_data = SparkSubmitOperator(
+            
+            task_id = "extract_salesperson_data",
+            application = f"{landing_folder}/advsalesperson_extract_raw.py",
+            conn_id= "sparkconn",
+            verbose= True
+        )
+        
+        write_to_salesperson_iceberg_table = SparkSubmitOperator(
+            
+            task_id = "write_to_salesperson_table",
+            application = f"{raw_layer_folder}/advsalesperson_extract_raw.py",
+            conn_id = "sparkconn",
+            verbose= True
+        )
+        
+        end = EmptyOperator(task_id= "end", trigger_rule="all_success")
+        
+    except AirflowNotFoundException as e:
+        logging.error(f"Airflow found Exception error: {e}")
+        
+    except AirflowException as e:
+        logging.error(f"Airflow found an error exception while dag run: {e}")
+        
+    except AirflowNotFoundException as e:
+        logging.error(f"File or configurations not found. Verify: {e}")
+        
+    except Exception as e:
+        logging.error(f"Unnexpected error occurred. Verify: {e}")
     
-    end = EmptyOperator(task_id = "end", trigger_rule="all_success")
+    start >> extract_salesperson_data >> write_to_salesperson_iceberg_table >> end
     
-    start >> extract_currency_rate_data >> write_to_currency_rate_iceberg_table >> end
-    
-dag = extract_currency_rate()
-
+dag = extract_salesperson_data()
 logging.info("Dag completed sucessfully")

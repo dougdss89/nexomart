@@ -85,7 +85,7 @@ def convert_customer_schema(dataframe):
                             "cast(addresstype as string) as addresstype",
                             "cast(emailaddress as string) as emailaddress",
                             "cast(territoryid as int) as territory_id",
-                            "cast(countryname as string) as countryname",
+                            "cast(CountryRegionName as string) as countryname",
                             "cast(stateprovinceid as int) as stateprovince_id",
                             "cast(countryregioncode as string) as countryregioncode",
                             "cast(stateprovincecode as string) as stateprovincecode",

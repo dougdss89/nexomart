@@ -7,7 +7,7 @@ from airflow.exceptions import AirflowFailException
 import logging
 
 # Agora podemos importar nosso módulo
-from configconnections_loader import load_config, validate_required_keys
+from raw_dimension_dag.configconnections_loader import load_config, validate_required_keys
 
 
 # Configuração de logs

@@ -26,7 +26,7 @@ def load_source_connections():
         
         validate_required_keys(
             config = config.get("hadoop_paths", {}),
-            required_keys= ["landing", "raw_icebergdb", "minio_landinge"],
+            required_keys= ["landing", "raw_icebergdb", "minio_landing"],
             config_name="hadoop_paths"
         )
         
@@ -38,7 +38,7 @@ def load_source_connections():
         
         spark = session_manager.create_session()
         
-        return spark, hadoop_landing, iceberg_rawdb
+        return spark, hadoop_landing, iceberg_rawdb, minio_storage
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")

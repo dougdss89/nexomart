@@ -109,7 +109,7 @@ def extract_raw_countryregion():
 
 write_country_region = extract_raw_countryregion()
 
-write_country_region.repartition(1).write.mode('overwrite').parquet(f"{hadoop_landing}/countryregion")
+write_country_region.write.mode('overwrite').parquet(f"{hadoop_landing}/countryregion")
 
 def spark_stop(spark):
     

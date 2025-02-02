@@ -1,5 +1,5 @@
 from pyspark.sql.session import SparkSession
-from modules.configconnections_loader import load_config, validate_required_keys
+from configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
@@ -160,7 +160,7 @@ def main():
         df_store = extract_store_raw(spark, mssql_properties, mssql_adventureworks)
         
         if df_store:
-            df_store.write.parquet(f"{hadoop_landing}/hadoop_test", mode="overwrite")
+            df_store.write.parquet(f"{hadoop_landing}/store", mode="overwrite")
             print(f"""Dataframe loaded successfully on destination:    
             {df_store}""")
             

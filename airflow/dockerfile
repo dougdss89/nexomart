@@ -51,10 +51,10 @@ COPY airflow.cfg ${AIRFLOW_HOME}/airflow.cfg
 # COPY --chown=airflow:airflow ./spark /opt/spark
 
 # Add Hadoop and Spark environment variables
-ENV HADOOP_CONF_DIR=/dockervol/hadoop/etc/hadoop/
-ENV HADOOP_HOME=/dockervol/hadoop/
-ENV SPARK_HOME=/dockervol/spark/
-ENV SPARK_CONF_DIR=/dockervol/spark/conf/
+ENV HADOOP_CONF_DIR=/dockervol/hadoop/etc/hadoop
+ENV HADOOP_HOME=/dockervol/hadoop
+ENV SPARK_HOME=/dockervol/spark
+ENV SPARK_CONF_DIR=/dockervol/spark/conf
 
 # Initialize Airflow
 ENTRYPOINT [ "airflow" ]

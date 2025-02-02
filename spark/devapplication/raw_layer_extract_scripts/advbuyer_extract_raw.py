@@ -141,8 +141,10 @@ def main():
         
     write_minio_buyer_storage(buyer_dataframe, minio_path, "buyer")
     
+        
     # Write data to Iceberg
     write_to_iceberg(buyer_dataframe, iceberg_rawdb, "raw_dimbuyer")
+    
 
     # Stop SparkSession
     spark_stop(spark)

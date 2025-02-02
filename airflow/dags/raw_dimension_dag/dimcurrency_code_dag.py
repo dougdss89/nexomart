@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
 import logging
-from configconnections_loader import load_config, validate_required_keys
+from raw_dimension_dag.configconnections_loader import load_config, validate_required_keys
 from traceback import print_exc
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

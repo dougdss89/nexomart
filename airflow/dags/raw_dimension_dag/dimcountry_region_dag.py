@@ -2,7 +2,7 @@ from airflow.decorators import dag, task
 from datetime import datetime, timedelta
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
-from configconnections_loader import load_config, validate_required_keys 
+from raw_dimension_dag.configconnections_loader import load_config, validate_required_keys
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -59,14 +59,14 @@ def extract_dimcountry_source():
     
     extract_country_data = SparkSubmitOperator(
         task_id = "extract_country_to_parquet",
-        application="/dockervol/sparkjobs/jobs/landing_layer_scripts/advbuyer_extract_raw.py",
+        application=f"{landing_folder}/advcountryregion_extract_raw.py",
         conn_id = "sparkconn",
         verbose= True
     )
     
     write_to_country_iceberg_table = SparkSubmitOperator(
         task_id = "write_country_to_table",
-        application= "/dockervol/sparkjobs/jobs/raw_layer_extract_scripts/advcountryregion_extract_raw.py",
+        application= f"{raw_layer_folder}/advcountryregion_extract_raw.py",
         conn_id = "sparkconn",
         verbose= True
     )
