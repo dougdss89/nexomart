@@ -27,7 +27,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        hadoop_landing = config.get("hadoop_paths", {})
+        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
 
         validate_required_keys(config=spark_jars, 
                                required_keys=["mssql_spark_jars"],
@@ -38,9 +38,9 @@ def load_source_connections():
                                required_keys=["properties"],
                                config_name="mssql_adventureworks")
         
-        validate_required_keys(config=hadoop_landing,
+        validate_required_keys(config=minio_landing,
                                required_keys=["landing"],
-                               config_name="hadoop_landing")
+                               config_name="minio_landing")
         
         spark = (SparkSession
                     .builder
@@ -51,7 +51,7 @@ def load_source_connections():
                         .enableHiveSupport()
                     .getOrCreate())
         
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing.get("landing")
+        return spark, mssql_properties, mssql_adventureworks, minio_landing
     
     except RuntimeError as e:
         print(f"Failed to create configuration: {e}")
@@ -64,7 +64,7 @@ def load_source_connections():
         print_exc()
         return None, None, None
         
-spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
+spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
 
 def extract_raw_transactioncode():
     
@@ -101,7 +101,7 @@ def extract_raw_transactioncode():
 
 transactioncode_write = extract_raw_transactioncode()
 
-transactioncode_write.repartition(3).write.mode('overwrite').parquet(f"{hadoop_landing}/transactioncode")
+transactioncode_write.repartition(3).write.mode('overwrite').parquet(f"{minio_landing}/transactioncode")
 
 def stop_spark(spark):
     spark.stop()

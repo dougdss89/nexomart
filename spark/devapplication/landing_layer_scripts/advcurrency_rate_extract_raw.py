@@ -28,7 +28,7 @@ def load_source_connections():
         spark_jars = config["spark_jars"]
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]
         mssql_properties = mssql_adventureworks["properties"]
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
     
         #check if variable was loaded
         if not spark_jars or "mssql_spark_jars" not in spark_jars:
@@ -54,7 +54,7 @@ def load_source_connections():
                     .enableHiveSupport()
                     .getOrCreate()
                 )
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing
+        return spark, mssql_properties, mssql_adventureworks, minio_storage
     
     except Exception as e:
         print(f"Fail to create SparkSession: {e}")
@@ -110,7 +110,7 @@ def main():
     
     #load source connections
     try:
-        spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
+        spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
         
     #verifying spark
         if not spark:
@@ -122,11 +122,11 @@ def main():
         write_currency_rate = extract_currencyrate_raw(spark, mssql_properties, mssql_adventureworks)
         
         if write_currency_rate:
-            write_currency_rate.repartition(3).write.mode("overwrite").parquet(f"{hadoop_landing}/currency_rate")
+            write_currency_rate.repartition(3).write.mode("overwrite").parquet(f"{minio_landing}/currency_rate")
             
             print("Dataframe loaded sucessfully ")
             
-        print(f"Data frame was loaded successfully on Datalake path: {hadoop_landing}")
+        print(f"Data frame was loaded successfully on Datalake path: {minio_landing}")
         
     except Exception as e:
         print("Main script was not properly configurated. Verify")

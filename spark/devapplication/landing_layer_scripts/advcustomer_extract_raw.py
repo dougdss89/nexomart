@@ -21,7 +21,7 @@ def load_source_connections():
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]
         mssql_properties = mssql_adventureworks["properties"]
         mssql_url = mssql_adventureworks["url"]
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
         
     except KeyError as e:
         print(f"Missing required configuration key: {e}")
@@ -42,9 +42,9 @@ def load_source_connections():
                 .enableHiveSupport()
                 .getOrCreate()
             )
-    return spark, mssql_properties, mssql_adventureworks, hadoop_landing
+    return spark, mssql_properties, mssql_adventureworks, minio_landing
 
-spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
+spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
 
 #select data from table customer
 def extract_raw_customer(**kwargs):
@@ -130,7 +130,7 @@ def extract_raw_customer(**kwargs):
 
 write_customer = extract_raw_customer()
 
-write_customer.write.mode("overwrite").parquet(f"{hadoop_landing}/customer")
+write_customer.write.mode("overwrite").parquet(f"{minio_landing}/customer")
 
 def stop_spark(spark):
     spark.stop()

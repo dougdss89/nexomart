@@ -17,7 +17,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_sources = config.get("mssql_sources", {})
         mssql_adventureworks = mssql_sources.get("adventureworks", {})
-        hadoop_paths = config.get("hadoop_paths", {})
+        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
         
         # Validar spark_jars
         validate_required_keys(
@@ -40,11 +40,11 @@ def load_source_connections():
             config_name="mssql_properties"
         )
         
-        # Validar hadoop_paths
+        # Validar minio_storage
         validate_required_keys(
-            config=hadoop_paths,
+            config=minio_storage,
             required_keys=["landing"],
-            config_name="hadoop_paths"
+            config_name="minio_storage"
         )
         
         # Criar SparkSession
@@ -56,12 +56,7 @@ def load_source_connections():
                 .enableHiveSupport()
                 .getOrCreate())
         
-        return (
-            spark,
-            mssql_adventureworks["properties"],
-            mssql_adventureworks,
-            hadoop_paths["landing"]
-        )
+        return spark, mssql_properties, mssql_adventureworks, minio_landing 
     
     except RuntimeError as e:
         print(f"Failed to create Spark Session. Runtime error: {e}")
@@ -135,9 +130,9 @@ def spark_stop(spark):
 if __name__ == '__main__':
     try:
         # Carregar conexões
-        spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
+        spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
         
-        if not all([spark, mssql_properties, mssql_adventureworks, hadoop_landing]):
+        if not all([spark, mssql_properties, mssql_adventureworks, minio_landing]):
             raise RuntimeError("Failed to load required connections")
             
         # Extrair dados
@@ -147,7 +142,7 @@ if __name__ == '__main__':
             raise RuntimeError("Failed to extract buyer data")
             
         # Escrever dados
-        df_buyer.repartition(1).write.mode('overwrite').parquet(f"{hadoop_landing}/buyer")
+        df_buyer.repartition(1).write.mode('overwrite').parquet(f"{minio_landing}/buyer")
         
         print("Job completed successfully")
         

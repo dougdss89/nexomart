@@ -1,5 +1,5 @@
 apache-airflow-providers-amazon 
-pip install apache-airflow-providers-apache-spark[cncf,common.compat]==4.9.0
+apache-airflow-providers-apache-spark[cncf,common.compat]==4.9.0
 apache-airflow-providers-celery 
 apache-airflow-providers-databricks 
 apache-airflow-providers-microsoft-mssql 
@@ -11,8 +11,8 @@ apache-airflow-providers-postgres
 apache-airflow-providers-apache-kafka 
 apache-airflow-providers-apache-iceberg 
 apache-airflow-providers-pgvector 
-pip install python-dotenv
-pip install statsd
-pip install flask-session==0.5.0
-pip install apache-airflow-providers-openlineage==1.9.1
-pip install apache-airflow-providers-apache-spark[cncf,common.compat]==4.9.0
+python-dotenv
+statsd
+flask-session==0.5.0
+apache-airflow-providers-openlineage==1.9.1
+

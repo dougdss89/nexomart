@@ -85,7 +85,7 @@ def buyer_replace_schema(dataframe):
                             col("enddate").cast("date").alias("enddate"),
                             col("salariedflag").cast("int").alias("salariedflag"),
                             col("currentflag").cast("int").alias("currentflag"),
-                            col("inserted_date").cast("timestamp").alias("extraced_date"),
+                            col("inserted_date").cast("timestamp").alias("extracted_date"),
                             col("modified_date").cast("timestamp").alias("modified_date"),
                             col("eltversion").cast("int").alias("eltversion")
                         )

@@ -26,7 +26,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        hadoop_landing = config.get("hadoop_paths", {})
+        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
 
         validate_required_keys(config=spark_jars, 
                                required_keys=["mssql_spark_jars"],
@@ -37,9 +37,9 @@ def load_source_connections():
                                required_keys=["properties"],
                                config_name="mssql_adventureworks")
         
-        validate_required_keys(config=hadoop_landing,
+        validate_required_keys(config=minio_landing,
                                required_keys=["landing"],
-                               config_name="hadoop_landing")
+                               config_name="minio_landing")
         
         spark = (SparkSession
                     .builder
@@ -50,7 +50,7 @@ def load_source_connections():
                         .enableHiveSupport()
                     .getOrCreate())
         
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing.get("landing")
+        return spark, mssql_properties, mssql_adventureworks, minio_landing
     
     except RuntimeError as e:
         print(f"Fail to validate configurations: {e}")
@@ -117,7 +117,7 @@ def main():
     spark = None
     
     try:
-        spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
+        spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
         
         if not spark:
             print("Missing Spark Session")
@@ -127,7 +127,7 @@ def main():
         promotion_df = extract_promotion_raw(spark, mssql_properties, mssql_adventureworks)
             
         if promotion_df:
-            promotion_df.write.parquet(f"{hadoop_landing}/promotion", mode="overwrite")
+            promotion_df.write.parquet(f"{minio_landing}/promotion", mode="overwrite")
                         
             print(f"""Dataframe loaded successfully on destination:
                   

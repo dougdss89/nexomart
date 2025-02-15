@@ -30,7 +30,7 @@ def load_source_connections():
         spark_jars = config["spark_jars"]
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]
         mssql_properties = mssql_adventureworks["properties"]
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
         
         required_keys = ['mssql_spark_jars', 'postgresql_jar']
        
@@ -54,7 +54,7 @@ def load_source_connections():
                     .enableHiveSupport()
                     .getOrCreate()
                 )
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing
+        return spark, mssql_properties, mssql_adventureworks, minio_landing
     
     except Exception as e:
         print(f'Fail to create SparkSession: {e}')
@@ -187,7 +187,7 @@ def main():
     
         #load source connections to main
     try:
-        spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
+        spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
         
     #verifying spark
         if not spark:
@@ -200,7 +200,7 @@ def main():
         df_date_raw = update_dimdate(spark, dataframe_date)
     
         if df_date_raw:
-            df_date_raw.repartition(2).write.mode('overwrite').parquet(f"{hadoop_landing}/date")
+            df_date_raw.repartition(2).write.mode('overwrite').parquet(f"{minio_landing}/date")
         
             print('Dataframe was loaded sucessfully')
            

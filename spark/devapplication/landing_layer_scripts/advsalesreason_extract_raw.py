@@ -13,7 +13,7 @@ def load_source_connection():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        hadoop_landing = config.get("hadoop_paths", {})
+        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
 
         validate_required_keys(config=spark_jars, 
                                required_keys=["mssql_spark_jars"],
@@ -24,9 +24,9 @@ def load_source_connection():
                                required_keys=["properties"],
                                config_name="mssql_adventureworks")
         
-        validate_required_keys(config=hadoop_landing,
+        validate_required_keys(config=minio_landing,
                                required_keys=["landing"],
-                               config_name="hadoop_landing")
+                               config_name="minio_landing")
         
         spark = (SparkSession
                     .builder
@@ -37,7 +37,7 @@ def load_source_connection():
                         .enableHiveSupport()
                     .getOrCreate())
         
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing.get("landing")
+        return spark, mssql_properties, mssql_adventureworks, minio_landing
     
     
     except RuntimeError as e:
@@ -51,7 +51,7 @@ def load_source_connection():
         print_exc()
         return None, None, None
 
-spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connection()
+spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connection()
 
 def extract_raw_salesreason():
     
@@ -89,7 +89,7 @@ def extract_raw_salesreason():
 
 salesreason_df_write = extract_raw_salesreason()
 
-salesreason_df_write.repartition(5).write.mode("overwrite").parquet(f"{hadoop_landing}/salesreason")
+salesreason_df_write.repartition(5).write.mode("overwrite").parquet(f"{minio_landing}/salesreason")
 
 def stop_spark(spark):
     spark.stop()

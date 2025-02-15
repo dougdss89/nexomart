@@ -127,6 +127,7 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
             "silver_icebergdb": processed_config.get("ICEBERG_SILVER_DB"),
             "goldtable": processed_config.get("HADOOP_CLUSTER_GOLD"),
             "spark_warehouse": processed_config.get("HADOOP_WAREHOUSE"),
+            "minio_landing":processed_config.get("MINIO_LANDING"),
         },
         "spark_jars": {
             "mssql_spark_jars": processed_config.get("MSSQLSPARKJAR"),

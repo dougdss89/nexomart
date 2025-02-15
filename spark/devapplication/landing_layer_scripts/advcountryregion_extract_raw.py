@@ -35,7 +35,7 @@ def load_source_connections():
         spark_jars = config["spark_jars"]
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]
         mssql_properties = mssql_adventureworks["properties"]
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", '')
+        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
     
         #check if variable was loaded
         if not spark_jars or 'mssql_spark_jars' not in spark_jars:
@@ -61,14 +61,14 @@ def load_source_connections():
                     .enableHiveSupport()
                     .getOrCreate()
                 )
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing
+        return spark, mssql_properties, mssql_adventureworks, minio_landing
 
     except Exception as e:
         print(f"Fail to create SparkSession {spark}")
         traceback.print_exc()
         return None, None, None
     
-spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
+spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
 
 def extract_raw_countryregion():
     
@@ -109,7 +109,7 @@ def extract_raw_countryregion():
 
 write_country_region = extract_raw_countryregion()
 
-write_country_region.write.mode('overwrite').parquet(f"{hadoop_landing}/countryregion")
+write_country_region.write.mode('overwrite').parquet(f"{minio_landing}/countryregion")
 
 def spark_stop(spark):
     

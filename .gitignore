@@ -4,6 +4,7 @@
 *_old
 *_teste.py
 
+
 # Ignorar arquivos de cache e __init__ do Python
 __pycache__/
 *.pyc
@@ -19,9 +20,10 @@ __pycache__/
 /spark/requirements.txt
 redis
 /airflow/dags/configconnections_loader.py
-*.env
+# *.env
 /airflow/dags/iceberg*.py
 /airflow/config
 /spark/devapplication/raw_layer_extract_scripts/configconnections_loader.py
 /spark/devapplication/sharedmodules/
 /minio/data*
+/spark/jobs/notebooks

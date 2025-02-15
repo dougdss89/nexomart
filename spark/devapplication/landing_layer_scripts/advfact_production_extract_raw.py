@@ -27,7 +27,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
         
         #validade imported keys
         validate_required_keys(config=spark_jars,
@@ -49,7 +49,7 @@ def load_source_connections():
                     .getOrCreate()
                 )
         
-        return spark, mssql_properties, mssql_adventureworks, hadoop_landing
+        return spark, mssql_properties, mssql_adventureworks, minio_landing
     
     except RuntimeError as e:
         print(f"Runtime error to validade keys or create Spark Session: {e}")
@@ -133,7 +133,7 @@ def main():
     spark = None
     
     try:
-        spark, mssql_properties, mssql_adventureworks, hadoop_landing = load_source_connections()
+        spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
         
         if not spark:
             print(f"Fail to create Spark Session: {spark}")
@@ -144,7 +144,7 @@ def main():
         df_fact_production = extract_store_raw(spark, mssql_properties, mssql_adventureworks)
         
         if df_fact_production:
-            df_fact_production.write.parquet(f"{hadoop_landing}/fact_production", mode="overwrite")
+            df_fact_production.write.parquet(f"{minio_landing}/fact_production", mode="overwrite")
             
             print(f"""Dataframe loaded successfully on destination:    
             {df_fact_production}""")

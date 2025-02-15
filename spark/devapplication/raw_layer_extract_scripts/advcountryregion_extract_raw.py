@@ -118,7 +118,7 @@ def spark_stop(spark):
         print_exc()
 
 def main():
-    spark, hadoop_landing, hadoop_raw_table, minio_path = load_source_connections()
+    spark, hadoop_landing, iceberg_raw_table, minio_path = load_source_connections()
     
     country_df = extract_landing_data(spark, hadoop_landing, "countryregion")
     
@@ -126,7 +126,7 @@ def main():
     
     write_minio_country_rg_storage(country_region, minio_path, "country_region")
     
-    write_to_iceberg(country_region, f"{hadoop_raw_table}", "raw_dimcountryregion")
+    write_to_iceberg(country_region, f"{iceberg_raw_table}", "raw_dimcountryregion")
     
     spark_stop(spark)
     
