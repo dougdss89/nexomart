@@ -20,6 +20,7 @@ __pycache__/
 /spark/requirements.txt
 redis
 /airflow/dags/configconnections_loader.py
+
 # *.env
 /airflow/dags/iceberg*.py
 /airflow/config
