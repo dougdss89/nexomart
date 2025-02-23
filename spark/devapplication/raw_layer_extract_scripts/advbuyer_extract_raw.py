@@ -14,13 +14,13 @@ def load_source_connections():
         config = load_config()
 
         # Validating imported keys
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
         iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
-        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
+        # minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
 
         validate_required_keys(
             config=config.get("hadoop_paths", {}),
-            required_keys=["landing", "raw_icebergdb", "minio_landing"],
+            required_keys=["minio_landing", "raw_icebergdb", "minio_landing"],
             config_name="hadoop_paths"
         )
 
@@ -32,7 +32,7 @@ def load_source_connections():
             .getOrCreate()
         )
 
-        return spark, hadoop_landing, iceberg_rawdb, minio_storage
+        return spark, minio_landing, iceberg_rawdb #, minio_storage
 
     except (FileNotFoundError, KeyError) as e:
         print(f"Could not load connections from source: {e}")
@@ -50,10 +50,10 @@ def load_source_connections():
         exit(1)
         
 
-def extract_landing_buyer(spark, hadoop_landing, raw_table_mame:str):
+def extract_landing_buyer(spark, minio_landing, raw_table_mame:str):
     """ Extract buyer data from the landing zone. """
     try:
-        df_buyer_raw = spark.read.parquet(f"{hadoop_landing}/{raw_table_mame}")
+        df_buyer_raw = spark.read.parquet(f"{minio_landing}/{raw_table_mame}")
         
         return df_buyer_raw
     
@@ -91,17 +91,17 @@ def buyer_replace_schema(dataframe):
                         )
     return buyer_dataframe
 
-def write_minio_buyer_storage(data, minio_storage, table):
+# def write_minio_buyer_storage(data, minio_storage, table):
     
-    try:
-        data.write.mode("overwrite").parquet(f"{minio_storage}/{table}")
+#     try:
+#         data.write.mode("overwrite").parquet(f"{minio_storage}/{table}")
         
-        print(f"{table} written successfully on {minio_storage}")
+#         print(f"{table} written successfully on {minio_storage}")
         
-    except Exception as e:
-        print(f"Fail to create file on {minio_storage}. Verify: {e}")
-        print_exc()
-        exit(1)
+#     except Exception as e:
+#         print(f"Fail to create file on {minio_storage}. Verify: {e}")
+#         print_exc()
+#         exit(1)
 
     
 def write_to_iceberg(df, iceberg_rawdb, table_name):
@@ -132,14 +132,14 @@ def spark_stop(spark):
         print_exc()
 
 def main():
-    spark, hadoop_landing, iceberg_rawdb, minio_path = load_source_connections()
+    spark, minio_landing, iceberg_rawdb = load_source_connections()
 
     # Extract data from landing zone
-    buyer_df = extract_landing_buyer(spark, hadoop_landing, "buyer")
+    buyer_df = extract_landing_buyer(spark, minio_landing, "buyer")
     
     buyer_dataframe = buyer_replace_schema(buyer_df)
         
-    write_minio_buyer_storage(buyer_dataframe, minio_path, "buyer")
+    # write_minio_buyer_storage(buyer_dataframe, minio_path, "buyer")
     
         
     # Write data to Iceberg

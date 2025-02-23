@@ -61,7 +61,7 @@ def load_source_connections():
                     .enableHiveSupport()
                     .getOrCreate()
                 )
-        return spark, mssql_properties, mssql_adventureworks, minio_landing
+        return spark, mssql_properties, mssql_adventureworks, minio_storage
 
     except Exception as e:
         print(f"Fail to create SparkSession {spark}")

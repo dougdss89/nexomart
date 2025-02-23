@@ -18,9 +18,9 @@ def load_source_connections():
     try:
         config = load_config()
         
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
         iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
-        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
+        # minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
         
         #validated imported keys
         
@@ -38,7 +38,7 @@ def load_source_connections():
         
         spark = session_manager.create_session()
         
-        return spark, hadoop_landing, iceberg_rawdb, minio_storage
+        return spark, minio_landing, iceberg_rawdb #, minio_storage
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -55,11 +55,11 @@ def load_source_connections():
         print_exc()
         exit(1)
         
-def extract_landing_data(spark, hadoop_landing, raw_table):
+def extract_landing_data(spark, minio_landing, raw_table):
     try:
         stateprovince_df = (spark
                         .read
-                        .parquet(f"{hadoop_landing}/{raw_table}")
+                        .parquet(f"{minio_landing}/{raw_table}")
                     )
         logger.info(f"Data extracted sucessfully for table: {raw_table}")
         
@@ -91,24 +91,24 @@ def convert_stateprovince_schema(tmp_stateprovince):
         print_exc()
         exit(1)
         
-def write_stateprovince_minio_storage(data, minio_storage, table):
+# def write_stateprovince_minio_storage(data, minio_storage, table):
     
-    try:
-        (
-            data
-            .write
-            .mode("append")
-            .parquet(f"{minio_storage}/{table}")
-        )
+#     try:
+#         (
+#             data
+#             .write
+#             .mode("append")
+#             .parquet(f"{minio_storage}/{table}")
+#         )
         
 
-        return logger.info(f"Data successfully written to: {minio_storage}/{table}")
+#         return logger.info(f"Data successfully written to: {minio_storage}/{table}")
 
 
-    except Exception as e:
-        logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
-        print_exc()
-        exit(1)
+#     except Exception as e:
+#         logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
+#         print_exc()
+#         exit(1)
     
 def write_to_iceberg(stateprovince_df, iceberg_rawdb, table_name):
     
@@ -140,13 +140,13 @@ def spark_stop(spark):
         
 def main():
     
-    spark, hadoop_landing, iceberg_rawdb, miniopath = load_source_connections()
+    spark, minio_landing, iceberg_rawdb, miniopath = load_source_connections()
     
-    stateprovince_df = extract_landing_data(spark, hadoop_landing, "stateprovince")
+    stateprovince_df = extract_landing_data(spark, minio_landing, "stateprovince")
     
     stateprovince = convert_stateprovince_schema(stateprovince_df)
     
-    write_stateprovince_minio_storage(stateprovince, miniopath, "stateprovince")
+    # write_stateprovince_minio_storage(stateprovince, miniopath, "stateprovince")
     
     write_to_iceberg(stateprovince, f"{iceberg_rawdb}", "raw_dimstateprovince")
     

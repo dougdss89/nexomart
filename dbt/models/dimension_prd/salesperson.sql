@@ -64,15 +64,7 @@ select
 
 	bonus,
 
-	case
-		when SalariedFlag = 1 then 'Yes'
-		else 'No'
-	end as issalaried,
-
-	case 
-		when CurrentFlag = 1 then 'Yes'
-		else 'No'
-	end as isactive
+z
 from {{ ref('dimsalesperson') }}
 ),
 

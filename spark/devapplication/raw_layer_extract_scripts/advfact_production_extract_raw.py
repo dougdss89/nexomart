@@ -15,7 +15,7 @@ def load_source_connections():
     try:
         config = load_config()
         
-        hadoop_landing = config.get("hadoop_paths", {}).get("landing", "")
+        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
         iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
         minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
         
@@ -33,7 +33,7 @@ def load_source_connections():
                 .enableHiveSupport()
                 .getOrCreate()
         )
-        return spark, hadoop_landing, iceberg_rawdb, minio_storage
+        return spark, minio_landing, iceberg_rawdb #, minio_storage
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -50,11 +50,11 @@ def load_source_connections():
         print_exc()
         exit(1)
     
-def extract_landing_data(spark, hadoop_landing, raw_table):
+def extract_landing_data(spark, minio_landing, raw_table):
     try:
         fact_production_df = (spark
                                 .read
-                                .parquet(f"{hadoop_landing}/{raw_table}")
+                                .parquet(f"{minio_landing}/{raw_table}")
                             )
         logger.info(f"Data extracted sucessfully for table: {raw_table}")
         
@@ -98,21 +98,21 @@ def convert_factproduction_schema(dataframe):
         print_exc()
         exit(1)
         
-def write_fact_production_minio_storage(data, minio_storage, table):
+# def write_fact_production_minio_storage(data, minio_storage, table):
     
-    try:
-        ((
-            data
-                .write
-                .mode("append")
-                .parquet(f"{minio_storage}/{table}")
-        ))
-        return logger.info(f"Data successfully written to: {minio_storage}/{table}")
+#     try:
+#         ((
+#             data
+#                 .write
+#                 .mode("append")
+#                 .parquet(f"{minio_storage}/{table}")
+#         ))
+#         return logger.info(f"Data successfully written to: {minio_storage}/{table}")
     
-    except Exception as e:
-        logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
-        print_exc()
-        exit(1)       
+#     except Exception as e:
+#         logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
+#         print_exc()
+#         exit(1)       
         
         
 def write_to_iceberg(fact_production_df, iceberg_rawdb, table_name):
@@ -145,13 +145,13 @@ def spark_stop(spark):
         
 def main():
     
-    spark, hadoop_landing, iceberg_rawdb, miniopath = load_source_connections()
+    spark, minio_landing, iceberg_rawdb = load_source_connections()
     
-    fct_production = extract_landing_data(spark, hadoop_landing, "fact_production")
+    fct_production = extract_landing_data(spark, minio_landing, "fact_production")
     
     fact_production = convert_factproduction_schema(fct_production)
     
-    write_fact_production_minio_storage(fact_production, miniopath, "fact_production")
+    # write_fact_production_minio_storage(fact_production, miniopath, "fact_production")
     
     write_to_iceberg(fact_production, f"{iceberg_rawdb}", "raw_fact_production")
     
