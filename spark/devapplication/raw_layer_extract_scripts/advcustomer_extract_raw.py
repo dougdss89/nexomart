@@ -1,5 +1,6 @@
 import logging
 from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql import functions as F
 from startSparkSession import SparkSessionManager
 from sys import exit
 from traceback import print_exc
@@ -72,46 +73,56 @@ def extract_landing_data(spark, minio_landing, raw_table):
 def convert_customer_schema(dataframe):
     
     try:
-        dataframe.selectExpr(
-                            "cast(businessentityid as int) as businessentity_id",
-                            "cast(customerid as int) as customer_id",
-                            "cast(firstname as string) as firstname",
-                            "cast(lastname as string) as lastname",
-                            "cast(persontype as string) as persontype",
-                            "cast(emailpromotion as string) as emailpromotion",
-                            "cast(typephone as string) as typephone",
-                            "cast(phonenumber as string) as phonenumber",
-                            "cast(postalcode as string) as postalcode",
-                            "cast(addresstype as string) as addresstype",
-                            "cast(emailaddress as string) as emailaddress",
-                            "cast(territoryid as int) as territory_id",
-                            "cast(CountryRegionName as string) as countryname",
-                            "cast(stateprovinceid as int) as stateprovince_id",
-                            "cast(countryregioncode as string) as countryregioncode",
-                            "cast(stateprovincecode as string) as stateprovincecode",
-                            "cast(statename as string) as statename",
-                            "cast(city as string) as statename",
-                            "cast(addressline1 as string) as addressline1",
-                            "cast(addressline2 as string) as addressline2",
-                            "cast(totalpurchaseytd as float) as totalpurchase_ytd",
-                            "cast(datefirstpurchase as date) as datefirstpurchase",
-                            "cast(birthdate as date) as birthdate",
-                            "cast(maritalstatus as date) as maritalstatus",
-                            "cast(coalesce(trim(substring(yearlyincome, 0, CHARINDEX('-', yearlyincome))), '0') as float) minincome",
-                            "cast(coalesce(trim(substring(yearlyincome, CHARINDEX('-', yearlyincome)+1, 20)), '0') as float) maxincome",
-                            "cast(gender as string) as gender",
-                            "cast(totalchildren as int) as totalchildren",
-                            "cast(numberchildrenathome as int) as totalchildren",
-                            "cast(education as string) as education"            ,
-                            "cast(occupation as string) as occupation",
-                            "cast(homeownerflag as string) as homeownerflag",
-                            "cast(numbercarsowned as string) as numbercarsowned",
-                            "cast(inserted_date as timestamp) as extracted_date",
-                            "cast(modified_date as timestamp) as modified_date",
-                            "cast(eltversion as int) as eltversion"
-                            
-        )
-        
+        # Aplica as transformações utilizando select
+        dataframe = dataframe.select(
+            F.col("businessentityid").cast("int").alias("business_id"),
+            F.col("customerid").cast("int").alias("customer_id"),
+            F.col("firstname").cast("string").alias("firstname"),
+            F.col("lastname").cast("string").alias("lastname"),
+            F.col("persontype").cast("string").alias("persontype"),
+            F.col("emailpromotion").cast("int").alias("emailpromotion"),
+            F.col("typephone").cast("string").alias("typephone"),
+            F.col("phonenumber").cast("string").alias("phonenumber"),
+            F.col("postalcode").cast("string").alias("postalcode"),
+            F.col("addresstype").cast("string").alias("addresstype"),
+            F.col("emailaddress").cast("string").alias("emailaddress"),
+            F.col("territoryid").cast("int").alias("territory_id"),
+            F.col("CountryRegionName").cast("string").alias("countryname"),
+            F.col("stateprovinceid").cast("int").alias("stateprovince_id"),
+            F.col("countryregioncode").cast("string").alias("countryregioncode"),
+            F.col("stateprovincecode").cast("string").alias("stateprovincecode"),
+            F.col("statename").cast("string").alias("statename"),
+            F.col("YearlyIncome").cast("string").alias("YearlyIncome"),
+            F.col("city").cast("string").alias("city"),  # Corrigido o alias
+            F.col("addressline1").cast("string").alias("addressline1"),
+            F.col("addressline2").cast("string").alias("addressline2"),
+            F.col("TotalPurchaseYTD").cast("float").alias("totalpurchase_ytd"),
+            F.col("DateFirstPurchase").cast("date").alias("datefirstpurchase"),
+            F.col("BirthDate").cast("date").alias("birthdate"),
+            F.col("MaritalStatus").cast("string").alias("maritalstatus"),  # Corrigido para string
+            F.col("Gender").cast("string").alias("gender"),
+            F.col("TotalChildren").cast("int").alias("totalchildren"),
+            F.col("NumberChildrenAtHome").cast("int").alias("numberchildrenathome"),  # Corrigido o alias
+            F.col("Education").cast("string").alias("education"),
+            F.col("Occupation").cast("string").alias("occupation"),
+            F.col("HomeOwnerFlag").cast("string").alias("homeownerflag"),
+            F.col("NumberCarsOwned").cast("int").alias("numbercarsowned"),
+            F.col("inserted_date").cast("timestamp").alias("extracted_date"),
+            F.col("modified_date").cast("timestamp").alias("modified_date"),
+            F.col("eltversion").cast("int").alias("eltversion")
+        ).withColumn(
+                "minincome",
+                F.coalesce(
+                    F.trim(F.expr("substring(YearlyIncome, 1, instr(YearlyIncome, '-') - 1)")),
+                    F.lit("0")
+                ).cast("float")
+            ).withColumn(
+                "maxincome",
+                F.coalesce(
+                    F.trim(F.expr("substring(YearlyIncome, instr(YearlyIncome, '-') + 1, 20)")),
+                    F.lit("0")
+                ).cast("float")
+            )
         logger.info(f"Data extracted sucessfully for table: {dataframe}")
         
         return dataframe

@@ -7,7 +7,7 @@ from traceback import print_exc
 #load connections from env variables
 
 def load_source_connections():
-    
+        
     try:
         config = load_config()
         print("Configurations loaded successfully")
@@ -27,7 +27,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
+        minio_landing = config.get("hadoop_paths", {})
 
         validate_required_keys(config=spark_jars, 
                                required_keys=["mssql_spark_jars"],
@@ -38,9 +38,11 @@ def load_source_connections():
                                required_keys=["properties"],
                                config_name="mssql_adventureworks")
         
-        validate_required_keys(config=minio_landing,
-                               required_keys=["landing"],
-                               config_name="minio_landing")
+        validate_required_keys(
+            config=minio_landing,  # validating hadoop_path key
+            required_keys=["minio_landing"],  # check if key exists
+            config_name="hadoop_paths"
+        )
         
         spark = (SparkSession
                     .builder
@@ -51,7 +53,7 @@ def load_source_connections():
                         .enableHiveSupport()
                     .getOrCreate())
         
-        return spark, mssql_properties, mssql_adventureworks, minio_landing
+        return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except RuntimeError as e:
         print(f"Fail to create Spark Session. Run time error: {e}")

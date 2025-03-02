@@ -15,9 +15,9 @@ def load_source_connections():
     try:
         # Obter as configurações necessárias
         spark_jars = config.get("spark_jars", {})
-        mssql_sources = config.get("mssql_sources", {})
-        mssql_adventureworks = mssql_sources.get("adventureworks", {})
-        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
+        mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
+        mssql_properties = mssql_adventureworks.get("properties", {})
+        minio_landing = config.get("hadoop_paths", {})  # Alterado para pegar o dicionário completo
         
         # Validar spark_jars
         validate_required_keys(
@@ -35,16 +35,16 @@ def load_source_connections():
         
         # Validar properties dentro de mssql_adventureworks
         validate_required_keys(
-            config=mssql_adventureworks["properties"],
+            config=mssql_adventureworks.get("properties", {}),
             required_keys=["user", "password", "driver"],
             config_name="mssql_properties"
         )
         
-        # Validar minio_storage
+        # check if minio_landing key exists in hadoop_path
         validate_required_keys(
-            config=minio_storage,
-            required_keys=["landing"],
-            config_name="minio_storage"
+            config=minio_landing,  # validating hadoop_path key
+            required_keys=["minio_landing"],  # check if key exists
+            config_name="hadoop_paths"
         )
         
         # Criar SparkSession
@@ -56,7 +56,7 @@ def load_source_connections():
                 .enableHiveSupport()
                 .getOrCreate())
         
-        return spark, mssql_properties, mssql_adventureworks, minio_landing 
+        return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing") 
     
     except RuntimeError as e:
         print(f"Failed to create Spark Session. Runtime error: {e}")

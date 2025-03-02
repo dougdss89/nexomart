@@ -28,7 +28,7 @@ def load_source_connections():
         spark_jars = config["spark_jars"]
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]
         mssql_properties = mssql_adventureworks["properties"]
-        minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
+        minio_landing = config.get("hadoop_paths", {})
     
         #check if variable was loaded
         if not spark_jars or "mssql_spark_jars" not in spark_jars:
@@ -54,7 +54,7 @@ def load_source_connections():
                     .enableHiveSupport()
                     .getOrCreate()
                 )
-        return spark, mssql_properties, mssql_adventureworks, minio_storage
+        return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except Exception as e:
         print(f"Fail to create SparkSession: {e}")

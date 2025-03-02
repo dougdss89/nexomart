@@ -27,7 +27,7 @@ def load_source_connections():
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
-        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
+        minio_landing = config.get("hadoop_paths", {})
         
         #validade imported keys
         validate_required_keys(config=spark_jars,
@@ -39,6 +39,12 @@ def load_source_connections():
                                required_keys=["properties"], #check if properties was imported 
                                config_name="mssql_adventureworks") #configuration source from properties
         
+        validate_required_keys(
+            config=minio_landing,  # validating hadoop_path key
+            required_keys=["minio_landing"],  # check if key exists
+            config_name="hadoop_paths"
+        )
+        
         spark = (SparkSession
                     .builder
                         .appName("extract_fact_production_raw")
@@ -49,7 +55,7 @@ def load_source_connections():
                     .getOrCreate()
                 )
         
-        return spark, mssql_properties, mssql_adventureworks, minio_landing
+        return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except RuntimeError as e:
         print(f"Runtime error to validade keys or create Spark Session: {e}")
