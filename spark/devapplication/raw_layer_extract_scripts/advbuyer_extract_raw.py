@@ -8,6 +8,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+#teste de sincronização
 def load_source_connections():
     """ Load source connections from .env file and create a SparkSession. """
     try:
@@ -23,11 +24,11 @@ def load_source_connections():
             config_name="hadoop_paths"
         )
         
-        # validate_required_keys(
-        #     config=bronze_delta,
-        #     required_keys=["bronze_layer"],
-        #     config_name="delta_path"
-        # )
+        validate_required_keys(
+            config=bronze_delta,
+            required_keys=["bronze_layer"],
+            config_name="delta_path"
+        )
 
         # Creating SparkSession
         spark = (
@@ -148,11 +149,9 @@ def main():
         
     # write_minio_buyer_storage(buyer_dataframe, minio_path, "buyer")
     
-        
     # Write data to Iceberg
     write_to_delta(buyer_dataframe, bronze_delta, filepath, "raw_dimbuyer")
     
-
     # Stop SparkSession
     spark_stop(spark)
     

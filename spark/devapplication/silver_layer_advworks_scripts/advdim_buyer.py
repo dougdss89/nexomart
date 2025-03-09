@@ -11,37 +11,30 @@ from py4j.protocol import Py4JJavaError #java exception error
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
 #create logging configurations
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-def load_source_configurations():
-    
-    """ load key-values from .env file """
+#import .env file
+def load_source_configurations(spark_application: str):
     
     try:
         config = load_config()
         
-        iceberg_rawdb = config.get("hadoop_paths", {})
-        iceberg_db = config.get("hadoop_paths", {})
+        bronze_delta = config.get("delta_path", {})
+        silver_delta = config.get("delta_path", {})
         
-        #validating keys
-        
-        validate_required_keys (
-            config = config.get("hadoop_paths"),
-            required_keys=["raw_icebergdb", "silver_icebergdb"],
-            config_name="hadoop_paths"
+        validate_required_keys(
+            config = bronze_delta,
+            required_keys= ["bronze_layer", "silver_layer"],
+            config_name = "delta_path"
         )
         
-        #spark session
-        session_manager = SparkSessionManager("dimension_buyer_table")
+        spark_manager = SparkSessionManager(spark_application)
         
-        spark = session_manager.create_session()
+        spark = spark_manager.create_session()
         
-        logger.info(f"All key values settings have been imported.")
-        
-        return spark, iceberg_rawdb.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
-    
+        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
+
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
         print_exc()
@@ -58,7 +51,7 @@ def load_source_configurations():
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. {e}")
+        logger.error(f"Unexpected error occurred. {e}")
         print_exc()
         exit(1)
         
@@ -66,25 +59,33 @@ def load_source_configurations():
         
 # starting dimension transformation
 
-def getCreateSurrogateKey(spark, iceberg_rawdb: str, raw_table: str) -> DataFrame:
+def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> str:
     
     try:
-        dataframe = spark.sql(f""" 
-                              select 
-                              
-                              row_number() over (order by businessentityid) as buyer_key, 
-                              * 
-                              FROM icebergtb.{iceberg_rawdb}.{raw_table}
-                              
-                            """ )
         
-        logger.info(f"The data source were successfully extracted: {dataframe}")
+        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+        
+        dataframe = spark.sql(f""" 
+                            select 
+                              
+                                row_number() over (order by businessentityid) as buyer_key, 
+                                * 
+                            from {minio_bronze_path}""")
         
         return dataframe
-
     
     except TimeoutError as e:
         logger.error(f"Connection timeout. Please reconnect: {e}")
+        print_exc(e)
+        exit(1)
+        
+    except RuntimeError as e:
+        logger.error(f"Invalid runtime error: {e}")
+        print_exc(e)
+        exit(1)   
+        
+    except Exception as e:
+        logger.error(f"Unexpected error occur. Verify: {e}")
         print_exc(e)
         exit(1)
         
@@ -99,10 +100,10 @@ def getCreateSurrogateKey(spark, iceberg_rawdb: str, raw_table: str) -> DataFram
         print_exc(e)
         exit(1)
         
-def transformBuyerDimension(spark, iceberg_rawdb: str, raw_table: str) -> DataFrame:
+def transformBuyerDimension(spark, bronze_delta:str, file_path:str, table_name:str) -> DataFrame:
     
     try:
-        
+        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
         dataframe = spark.sql(f""" 
                         SELECT
                             row_number() over (order by businessentityid) as buyer_key,
@@ -145,7 +146,7 @@ def transformBuyerDimension(spark, iceberg_rawdb: str, raw_table: str) -> DataFr
                             
                             eltversion
                             
-                        FROM icebergtb.{iceberg_rawdb}.{raw_table}
+                        from {minio_bronze_path}
                         
                         GROUP BY
                             businessentityid, firstname,            lastname,
@@ -182,28 +183,27 @@ def transformBuyerDimension(spark, iceberg_rawdb: str, raw_table: str) -> DataFr
         exit(1)
         
         
-def writeBuyerDimension(dataframe: DataFrame, iceberg_db, dimension_name) -> str:
+def writeBuyerDimension(dataframe:DataFrame, silver_layer:str, file_path:str, table_name:str) -> str:
     
     try:
-        
+        minio_path = f"{silver_layer}/{file_path}/{table_name}"
+
         (
             dataframe
                 .write
                 .mode("append")
-                .format("iceberg")
-                .saveAsTable(f"{iceberg_db}.{dimension_name}")
-            
+                .format("delta")
+                .save(f"{minio_path}")
         )
-        logger.info(f"Dimension {dimension_name} was written successfully to Iceberg {iceberg_db}")
         
-        return f"Dimension writing successfully completed to Iceberg: {dimension_name}"
-        
+        return f"Table writing successfully completed to delta: {table_name}"
+    
     except AnalysisException as e:
-        logger.error(f"Analysis error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Analysis error while writing table {table_name} to delta: {e}")
         return "AnalysisException"
     
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Java/Scala error while writing table {table_name} to delta: {e}")
         return "Py4JJavaError"
     
     except NoCredentialsError as e:
@@ -215,7 +215,7 @@ def writeBuyerDimension(dataframe: DataFrame, iceberg_db, dimension_name) -> str
         return "PartialCredentialsError"
     
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Unexpected error while writing table {table_name} to delta: {e}")
         return "UnexpectedError"
     
 def sparkStop(spark) -> str:
@@ -233,18 +233,22 @@ def sparkStop(spark) -> str:
         
 def main():
     
+    application_name = "dimension_Warehouse_table"
     table_name = "raw_dimbuyer"
     dimension_table = "dim_buyer"
+    folder_path = "advworks"
     
     try:
         
-        spark, iceberg_rawdb, iceberg_db = load_source_configurations()
+        spark, bronze_delta, silver_delta = load_source_configurations(application_name)
         
-        getCreateSurrogateKey(spark, iceberg_rawdb, table_name)
+        getCreateSurrogateKey(spark, bronze_delta, folder_path, table_name)
         
-        buyer_dimension = transformBuyerDimension(spark, iceberg_rawdb, table_name)
+        dataframe = transformBuyerDimension(spark, bronze_delta, table_name)
         
-        writeBuyerDimension(buyer_dimension, iceberg_db, dimension_table)
+        writeBuyerDimension(dataframe, silver_layer= silver_delta, file_path= folder_path, table_name= dimension_table)
+        logger.info(f"""dataframe has been writted successfully: {dataframe.printSchema()} 
+                        on path: {silver_delta}/{folder_path}/{dimension_table}""")
         
         logger.info("All functions have been executed successfully ")
         

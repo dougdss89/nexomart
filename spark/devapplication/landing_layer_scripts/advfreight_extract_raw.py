@@ -112,7 +112,7 @@ def main():
         freight_df = extract_freight_raw(spark, mssql_properties, mssql_adventureworks)
 
         if freight_df:
-            freight_df.write.parquet(f"{minio_landing}/freigth", mode="overwrite")
+            freight_df.write.parquet(f"{minio_landing}/freight", mode="overwrite")
             print("Dataframe loaded successfully to HDFS.")
 
     except Exception as e:

@@ -58,7 +58,7 @@ def load_source_configurations(spark_application: str):
     logger.info(f"Spark Session created: {spark}")
 
 #create surrogate key
-def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> str:
+def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> DataFrame:
     
     try:
         
@@ -68,7 +68,9 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
                            select 
                                 row_number() over(order by productid) as warehousekey,
                                 * 
-                            from {minio_bronze_path}"""))
+                            from {minio_bronze_path}
+                        """
+                    ))
         
         return dataframe
     

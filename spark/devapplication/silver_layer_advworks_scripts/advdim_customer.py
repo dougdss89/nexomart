@@ -13,30 +13,26 @@ from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 logging.basicConfig(level=logging.INFO, format = "%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-def load_source_configurations():
-    
-    config  = load_config()
+def load_source_configurations(spark_application: str):
     
     try:
+        config = load_config()
         
-        iceberg_rawdb = config.get("hadoop_paths", {})
-        iceberg_db = config.get("hadoop_paths", {})
+        bronze_delta = config.get("delta_path", {})
+        silver_delta = config.get("delta_path", {})
         
         validate_required_keys(
-            
-            config = iceberg_db,
-            required_keys= ["raw_icebergdb", "silver_icebergdb"],
-            config_name= "hadoop_paths"
+            config = bronze_delta,
+            required_keys= ["bronze_delta", "silver_delta"],
+            config_name = "delta_path"
         )
-
-        spark_manager = SparkSessionManager("dimension_customer_table")
+        
+        spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        logging.info(f"All key values configurations has been imported successfully")
-        
-        return spark, iceberg_rawdb.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
-    
+        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
+
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
         print_exc()
@@ -53,30 +49,30 @@ def load_source_configurations():
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. {e}")
+        logger.error(f"Unexpected error occurred. {e}")
         print_exc()
         exit(1)
         
     logger.info(f"Spark Session created: {spark}")
     
 #create surrogate key column
-def getCreateSurrogateKey(spark, iceberg_rawdb, table_name) -> DataFrame:
+def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> DataFrame:
     
     try:
         
+        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
         dataframe = spark.sql(f"""
                                 select 
                                 
                                     row_number() over(order by business_id) as customer_key,
                                     * 
                                 
-                                from icebergtb.{iceberg_rawdb}.{table_name}
+                                from {minio_bronze_path}
                             """)
         
         logger.info(f"The data source were successfully extracted: {dataframe}")
         
         return dataframe
-
     
     except TimeoutError as e:
         logger.error(f"Connection timeout. Please reconnect: {e}")
@@ -100,23 +96,23 @@ def transformAddressCustomer(dataframe: DataFrame) -> DataFrame:
     try:
         
         dataframe = (dataframe
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bln\b","Lane"))
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\brd\b","Road"))
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bDr\b","Drive"))
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bCt\b","Center"))
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bst\b","Street"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bln\b",   "Lane"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\brd\b",   "Road"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bDr\b",   "Drive"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bCt\b",   "Center"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bst\b",   "Street"))
                         .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bblvd\b", "Boulevard"))
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bave\b","Avenue"))
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bpk\b","Parkway"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bave\b",  "Avenue"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bpk\b",   "Parkway"))
                         .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bterr\b", "Terrace"))
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bpl\b","Plaza"))
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bmt\b","Mountain"))
-                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bn.\b","North"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bpl\b",   "Plaza"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bmt\b",   "Mountain"))
+                        .withColumn("addressline1", regexp_replace("addressline1", r"(?i)\bn.\b",   "North"))
                 )
 
         dataframe= (dataframe
                         .withColumn("addressnumber", regexp_extract("addressline1", r"(\d+)", 1))
-                        .withColumn("custaddress",   regexp_replace("addressline1", r"\d+", ""))
+                        .withColumn("custaddress",   regexp_replace("addressline1", r"\d+",   ""))
                     )
 
 
@@ -314,28 +310,27 @@ def cleanCustomerDataframe(dataframe: DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writeCustomerDimension(dataframe:DataFrame, iceberg_db: str, dimension_name:str) -> str:
+def writeCustomerDimension(dataframe:DataFrame, silver_layer:str, file_path:str, table_name:str) -> str:
     
     try:
-        
+        minio_path = f"{silver_layer}/{file_path}/{table_name}"
+
         (
             dataframe
                 .write
                 .mode("append")
-                .format("iceberg")
-                .saveAsTable(f"{iceberg_db}.{dimension_name}")
-            
+                .format("delta")
+                .save(f"{minio_path}")
         )
-        logger.info(f"Dimension {dimension_name} was written successfully to Iceberg {iceberg_db}")
         
-        return f"Dimension writing successfully completed to Iceberg: {dimension_name}"
-        
+        return f"Table writing successfully completed to delta: {table_name}"
+    
     except AnalysisException as e:
-        logger.error(f"Analysis error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Analysis error while writing table {table_name} to delta: {e}")
         return "AnalysisException"
     
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Java/Scala error while writing table {table_name} to delta: {e}")
         return "Py4JJavaError"
     
     except NoCredentialsError as e:
@@ -347,7 +342,7 @@ def writeCustomerDimension(dataframe:DataFrame, iceberg_db: str, dimension_name:
         return "PartialCredentialsError"
     
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Unexpected error while writing table {table_name} to delta: {e}")
         return "UnexpectedError"
     
 def sparkStop(spark) -> str:
@@ -363,13 +358,16 @@ def sparkStop(spark) -> str:
         print_exc(e)
         
 def main():
-    table_name = "raw_dimcustomer"
-    dimension_table = "dim_customer"
-    
     try:
-        spark, iceberg_rawdb, iceberg_db = load_source_configurations()
+        application_name = "dimension_customer_table"
+        table_name = "raw_dimcustomer"
+        dimension_table = "dim_customer"
+        folder_path = "advworks"
         
-        dataframe = getCreateSurrogateKey(spark, iceberg_rawdb, table_name)
+        spark, bronze_delta, silver_delta = load_source_configurations(application_name)
+        
+        dataframe = getCreateSurrogateKey(spark, bronze_delta= bronze_delta, file_path=folder_path, table_mane= table_name)
+        logger.info(f"Dimension surrogate key created: {dataframe.schema}")
     
         dataframe = transformAddressCustomer(dataframe)
         logger.info(f"AddressCustomer schema: {dataframe.schema}")
@@ -386,7 +384,9 @@ def main():
         dataframe = cleanCustomerDataframe(dataframe)
         logger.info(f"CleanCustomerDataframe schema: {dataframe.schema}")
         
-        writeCustomerDimension(dataframe, iceberg_db, dimension_table)
+        writeCustomerDimension(dataframe, silver_layer= silver_delta, file_path= folder_path, table_name= dimension_table)
+        logger.info(f"dataframe has been writted successfully: {dataframe.printSchema()} 
+                        on path: {silver_delta}/{folder_path}/{dimension_table}")
         
         sparkStop(spark)
         
@@ -415,6 +415,5 @@ def main():
             sparkStop(spark)
             
 if __name__ == "__main__":
-    
     main()
     logger.info("Sparkjob completed successfully") 

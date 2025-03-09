@@ -154,7 +154,7 @@ def main():
         product_df = extract_product_raw(spark, mssql_properties, mssql_adventureworks)
         
         if product_df:
-            product_df.repartition(2).write.parquet(f"{minio_landing}/product", mode="overwrite")
+            product_df.write.parquet(f"{minio_landing}/product", mode="overwrite")
             print("Dataframe loaded successfully to HDFS")
             
     except Exception as e:

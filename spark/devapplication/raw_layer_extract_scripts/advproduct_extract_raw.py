@@ -38,7 +38,7 @@ def load_source_connections():
         
         spark = session_manager.create_session()
         
-        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "") #, minio_storage
+        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "")
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -111,24 +111,9 @@ def extract_landing_data(spark, minio_landing, raw_table):
         print_exc()
         exit(1)
         
-# def write_product_minio_storage(data, minio_storage, table):
+def writeiceberg(dataframe):
     
-#     try:
-#         (
-#             data
-#             .write
-#             .mode("append")
-#             .parquet(f"{minio_storage}/{table}")
-#         )
-        
-
-#         return logger.info(f"Data successfully written to: {minio_storage}/{table}")
-
-
-#     except Exception as e:
-#         logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
-#         print_exc()
-#         exit(1)
+    dataframe.write.format("iceberg").mode("append").saveAsTable("icebergtb.advworks_rawdb.raw_dimproduct")
         
 def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
     """ Write DataFrame to delta table. """
@@ -173,8 +158,8 @@ def main():
     product_df = extract_landing_data(spark, minio_landing, "product")
     
     dataframe = convert_product_schema(product_df)
-    
-    # write_product_minio_storage(product, miniopath, "product")
+        
+    writeiceberg(dataframe)
     
     write_to_delta(dataframe, bronze_delta, filepath, raw_table)
     

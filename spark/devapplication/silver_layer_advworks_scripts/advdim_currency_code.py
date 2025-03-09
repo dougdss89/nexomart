@@ -17,32 +17,27 @@ logger = logging.getLogger(__name__)
 
 #import .env config
 
-def load_source_configurations():
+#import .env file
+def load_source_configurations(spark_application: str):
     
     try:
-        
         config = load_config()
         
-        iceberg_rawdb = config.get("hadoop_paths", {})
-        iceberg_db = config.get("hadoop_paths", {})
-        
-        #validating key-values pair
+        bronze_delta = config.get("delta_path", {})
+        silver_delta = config.get("delta_path", {})
         
         validate_required_keys(
-            
-            config = iceberg_rawdb,
-            required_keys= ["raw_icebergdb", "silver_icebergdb"],
-            config_name= "hadoop_paths"
+            config = bronze_delta,
+            required_keys= ["bronze_delta", "silver_delta"],
+            config_name = "delta_path"
         )
         
-        spark_manager = SparkSessionManager(app_name= "dimension_currency_code_table")
+        spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        logger.info(f"All keys values settings have been imported")
-        
-        return spark, iceberg_rawdb.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
-    
+        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
+
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
         print_exc()
@@ -59,7 +54,7 @@ def load_source_configurations():
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. {e}")
+        logger.error(f"Unexpected error occurred. {e}")
         print_exc()
         exit(1)
         
@@ -67,10 +62,11 @@ def load_source_configurations():
     
 # starting dimension transformation
 
-def getCreateSurrogateKey(spark, iceberg_rawdb, table_name) -> DataFrame:
+def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> DataFrame:
     
     try:
-        
+        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+
         dataframe = spark.sql(f""" 
                               select 
                                 currencycode,
@@ -80,7 +76,7 @@ def getCreateSurrogateKey(spark, iceberg_rawdb, table_name) -> DataFrame:
                                 inserted_date,
                                 modified_date,
                                 eltversion
-                            from icebergtb.{iceberg_rawdb}.{table_name}
+                            from {minio_bronze_path}
                         """)
         
         logger.info(f"The data source were successfully extracted: {dataframe}")
@@ -103,28 +99,28 @@ def getCreateSurrogateKey(spark, iceberg_rawdb, table_name) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writeCurrencyCodeDimension(dataframe: DataFrame, iceberg_db, dimension_name) -> str:
+        
+def writeCurrencyCodeDimension(dataframe:DataFrame, silver_layer:str, file_path:str, table_name:str) -> str:
     
     try:
-        
+        minio_path = f"{silver_layer}/{file_path}/{table_name}"
+
         (
             dataframe
                 .write
-                .format("iceberg")
                 .mode("append")
-                .saveAsTable(f"{iceberg_db}.{dimension_name}")
+                .format("delta")
+                .save(f"{minio_path}")
         )
-
-        logger.info(f"Dimension {dimension_name} was written successfully to Iceberg {iceberg_db}")
         
-        return f"Dimension writing successfully completed to Iceberg: {dimension_name}"
+        return f"Table writing successfully completed to delta: {table_name}"
     
     except AnalysisException as e:
-        logger.error(f"Analysis error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Analysis error while writing table {table_name} to delta: {e}")
         return "AnalysisException"
     
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Java/Scala error while writing table {table_name} to delta: {e}")
         return "Py4JJavaError"
     
     except NoCredentialsError as e:
@@ -136,7 +132,7 @@ def writeCurrencyCodeDimension(dataframe: DataFrame, iceberg_db, dimension_name)
         return "PartialCredentialsError"
     
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Unexpected error while writing table {table_name} to delta: {e}")
         return "UnexpectedError"
     
 def sparkStop(spark) -> str:
@@ -154,16 +150,17 @@ def sparkStop(spark) -> str:
         
 def main() -> str:
     
-    table_name = "raw_dimcurrencycode"
-    dimension_name = "dim_currencycode"
-    
     try:
+        application_name = "dimension_CurrencyCode_table"
+        table_name = "raw_dimcurrencycode"
+        dimension_table = "dim_currencycode"
+        folder_path = "advworks"
         
-        spark, iceberg_rawdb, iceberg_db = load_source_configurations()
+        spark, bronze_delta, silver_delta = load_source_configurations(application_name)
         
-        dim_currencycode = getCreateSurrogateKey(spark, iceberg_rawdb, table_name)
+        dataframe = getCreateSurrogateKey(spark, bronze_delta, folder_path, table_name)
         
-        writeCurrencyCodeDimension(dim_currencycode, iceberg_db, dimension_name)
+        writeCurrencyCodeDimension(dataframe, silver_delta, folder_path, dimension_table)
         
         logger.info("All functions have been executed sucessfuly")
         
