@@ -15,14 +15,19 @@ def load_source_connections():
         config = load_config()
 
         # Validating imported keys
-        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
-        # minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
+        minio_landing = config.get("hadoop_paths", {})
+        bronze_delta = config.get("delta_path", {})
 
         validate_required_keys(
-            config=config.get("hadoop_paths", {}),
-            required_keys=["landing", "raw_icebergdb", "minio_landing"],
+            config=minio_landing,
+            required_keys=["minio_landing"],
             config_name="hadoop_paths"
+        )
+        
+        validate_required_keys(
+            config=bronze_delta,
+            required_keys=["bronze_layer"],
+            config_name="delta_path"
         )
 
         # Creating SparkSession
@@ -33,7 +38,7 @@ def load_source_connections():
             .getOrCreate()
         )
 
-        return spark, minio_landing, iceberg_rawdb #, minio_storage
+        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "") #, minio_storage
 
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -89,21 +94,22 @@ def convert_country_schema(dataframe):
 #         print_exc()
 #         exit(1)
 
-def write_to_iceberg(df, iceberg_rawdb, table_name):
-    
-    try: 
-        ((df.repartition(5)
-            .write
-            .format("iceberg")
-            .mode("append")
-            .saveAsTable(f"{iceberg_rawdb}.{table_name}")
-        ))
+ 
+def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
+    """ Write DataFrame to delta table. """
+    try:
+        minio_path = f"{bronze_layer}/{file_path}/{table_name}"
 
-
-        return logger.info(f"Table {table_name} written successfully to Iceberg.")
+        (
+            df
+            .write.format("delta")
+            .mode("append")  # Use "append" to add data instead
+            .save(f"{minio_path}")
+        )
+        print(f"Table {table_name} written successfully to Delta.")
         
     except Exception as e:
-        logger.error(f"Failed to write table {table_name} to Iceberg: {e}")
+        print(f"Failed to write table {table_name} to Delta: {e}")
         print_exc()
         exit(1)
 
@@ -118,15 +124,17 @@ def spark_stop(spark):
         print_exc()
 
 def main():
-    spark, minio_landing, iceberg_raw_table = load_source_connections()
+    spark, minio_landing, bronze_delta = load_source_connections()
+    filepath = "advworks"
+    raw_table = "raw_dimcountryregion"
     
     country_df = extract_landing_data(spark, minio_landing, "countryregion")
     
-    country_region = convert_country_schema(country_df)
+    dataframe = convert_country_schema(country_df)
     
     # write_minio_country_rg_storage(country_region, minio_path, "country_region")
     
-    write_to_iceberg(country_region, f"{iceberg_raw_table}", "raw_dimcountryregion")
+    write_to_delta(dataframe, bronze_delta, filepath,  raw_table)
     
     spark_stop(spark)
     

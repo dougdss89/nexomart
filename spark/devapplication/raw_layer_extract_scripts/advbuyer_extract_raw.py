@@ -14,15 +14,20 @@ def load_source_connections():
         config = load_config()
 
         # Validating imported keys
-        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
-        # minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
+        minio_landing = config.get("hadoop_paths", {})
+        bronze_delta = config.get("delta_path", {})
 
         validate_required_keys(
-            config=config.get("hadoop_paths", {}),
-            required_keys=["minio_landing", "raw_icebergdb", "minio_landing"],
+            config=minio_landing,
+            required_keys=["minio_landing"],
             config_name="hadoop_paths"
         )
+        
+        # validate_required_keys(
+        #     config=bronze_delta,
+        #     required_keys=["bronze_layer"],
+        #     config_name="delta_path"
+        # )
 
         # Creating SparkSession
         spark = (
@@ -32,7 +37,7 @@ def load_source_connections():
             .getOrCreate()
         )
 
-        return spark, minio_landing, iceberg_rawdb #, minio_storage
+        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "") #, minio_storage
 
     except (FileNotFoundError, KeyError) as e:
         print(f"Could not load connections from source: {e}")
@@ -102,21 +107,22 @@ def buyer_replace_schema(dataframe):
 #         print(f"Fail to create file on {minio_storage}. Verify: {e}")
 #         print_exc()
 #         exit(1)
-
-    
-def write_to_iceberg(df, iceberg_rawdb, table_name):
-    """ Write DataFrame to Iceberg table. """
+ 
+def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
+    """ Write DataFrame to delta table. """
     try:
+        minio_path = f"{bronze_layer}/{file_path}/{table_name}"
+
         (
-            df.repartition(1)
-            .write.format("iceberg")
+            df
+            .write.format("delta")
             .mode("append")  # Use "append" to add data instead
-            .saveAsTable(f"{iceberg_rawdb}.{table_name}")
+            .save(f"{minio_path}")
         )
-        print(f"Table {table_name} written successfully to Iceberg.")
+        print(f"Table {table_name} written successfully to Delta.")
         
     except Exception as e:
-        print(f"Failed to write table {table_name} to Iceberg: {e}")
+        print(f"Failed to write table {table_name} to Delta: {e}")
         print_exc()
         exit(1)
 
@@ -132,7 +138,8 @@ def spark_stop(spark):
         print_exc()
 
 def main():
-    spark, minio_landing, iceberg_rawdb = load_source_connections()
+    spark, minio_landing, bronze_delta = load_source_connections()
+    filepath = "advworks"
 
     # Extract data from landing zone
     buyer_df = extract_landing_buyer(spark, minio_landing, "buyer")
@@ -143,7 +150,7 @@ def main():
     
         
     # Write data to Iceberg
-    write_to_iceberg(buyer_dataframe, iceberg_rawdb, "raw_dimbuyer")
+    write_to_delta(buyer_dataframe, bronze_delta, filepath, "raw_dimbuyer")
     
 
     # Stop SparkSession

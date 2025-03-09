@@ -15,6 +15,7 @@ __pycache__/
 *old/
 *estudos/
 *teste/
+*_dev/
 
 # Direcionamento de arquivos e pastas específicos
 /spark/requirements.txt
@@ -28,3 +29,4 @@ redis
 /spark/devapplication/sharedmodules/
 /minio/data*
 /spark/jobs/notebooks
+

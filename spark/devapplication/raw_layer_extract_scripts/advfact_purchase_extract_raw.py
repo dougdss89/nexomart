@@ -10,24 +10,24 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 def load_source_connections():
-    
-    """ 
-        Load key-values from .env file to create Spark Session
-    """
-    
+    """ Load source connections from .env file and create a SparkSession. """
     try:
         config = load_config()
-        
-        minio_landing = config.get("hadoop_paths", {}).get("minio_landing", "")
-        iceberg_rawdb = config.get("hadoop_paths", {}).get("raw_icebergdb", "")
-        # minio_storage = config.get("hadoop_paths", {}).get("minio_landing", "")
-        
-        #validated imported keys
+
+        # Validating imported keys
+        minio_landing = config.get("hadoop_paths", {})
+        bronze_delta = config.get("delta_path", {})
+
+        validate_required_keys(
+            config=minio_landing,
+            required_keys=["minio_landing"],
+            config_name="hadoop_paths"
+        )
         
         validate_required_keys(
-            config = config.get("hadoop_paths", {}),
-            required_keys= ["landing", "raw_icebergdb", "minio_landing"],
-            config_name="hadoop_paths"
+            config=bronze_delta,
+            required_keys=["bronze_layer"],
+            config_name="delta_path"
         )
         
         #create spark session
@@ -38,7 +38,7 @@ def load_source_connections():
         
         spark = session_manager.create_session()
         
-        return spark, minio_landing, iceberg_rawdb #, minio_storage
+        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "") #, minio_storage
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -125,17 +125,23 @@ def convert_fctpurchase_schema(dataframe):
 #         print_exc()
 #         exit(1)
         
-def write_to_iceberg(fact_purchase_df, iceberg_rawdb, table_name):
-    
+def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
+    """ Write DataFrame to delta table. """
     try:
+        minio_path = f"{bronze_layer}/{file_path}/{table_name}"
+
         (
-            fact_purchase_df
-                .write
-                .format("Iceberg")
-                .mode("append")
-                .saveAsTable(f"{iceberg_rawdb}.{table_name}")
+            df
+            .write.format("delta")
+            .mode("append")  # Use "append" to add data instead
+            .save(f"{minio_path}")
         )
-        logger.info(f"Table {table_name} written successfully to Iceberg")
+        return(f"Table {table_name} written successfully to Delta.")
+        
+    except Exception as e:
+        print(f"Failed to write table {table_name} to Delta: {e}")
+        print_exc()
+        exit(1)
         
     except Exception as e:
         logger.error(f"Failed to write table {table_name} to Iceberg table: {e}")
@@ -155,15 +161,17 @@ def spark_stop(spark):
         
 def main():
     
-    spark, minio_landing, iceberg_rawdb  = load_source_connections()
+    spark, minio_landing, bronze_delta = load_source_connections()
+    filepath = "advworks"
+    raw_table = "raw_fact_purchase"
     
     fact_purchase_df = extract_landing_data(spark, minio_landing, "fact_purchase")
     
-    fact_purchase = convert_fctpurchase_schema(fact_purchase_df)
+    dataframe = convert_fctpurchase_schema(fact_purchase_df)
     
     # write_fct_purchase_minio_storage(fact_purchase, miniopath, "fact_purchase")
     
-    write_to_iceberg(fact_purchase, f"{iceberg_rawdb}", "raw_fact_purchase")
+    write_to_delta(dataframe, bronze_delta, filepath,  raw_table)
     
     spark_stop(spark)
     
