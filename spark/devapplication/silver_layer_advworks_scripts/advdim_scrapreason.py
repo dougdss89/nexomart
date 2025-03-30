@@ -1,5 +1,3 @@
-from email.mime import application
-from wsgiref.util import application_uri
 from startSparkSession import SparkSessionManager
 from pyspark.sql.functions import *
 from pyspark.sql.dataframe import DataFrame

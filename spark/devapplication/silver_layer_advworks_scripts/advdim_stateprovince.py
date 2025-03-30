@@ -65,13 +65,17 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
     try:
         
         minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+        
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_stateprovince")
 
         dataframe = (spark.sql(f""" 
                             select 
                                 row_number() over (order by stateprovinceid) as stateprovince_key,
                                 *
-                            from {minio_bronze_path}
-                    """))
+                            from temp_stateprovince
+                        """))
         return dataframe
     
     except TimeoutError as e:

@@ -89,7 +89,7 @@ def convert_salesperson_schema(tmp_salesperson):
                     col("enddate").cast("date").alias("enddate"),
                     col("groupname").cast("string").alias("groupname"),
                     col("departmentname").cast("string").alias("departmentname"),
-                    col("payfrequency").cast(int).alias("payfrequency"),
+                    col("payfrequency").cast("int").alias("payfrequency"),
                     col("rate").cast("decimal").alias("rate"),
                     col("ratechangedate").cast("date").alias("ratechangedate"),
                     col("commissionpct").cast("decimal").alias("commissionpct"),

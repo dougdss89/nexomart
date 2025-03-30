@@ -6,7 +6,6 @@ from sys import exit
 from traceback import print_exc
 import logging
 
-from pyspark.sql.utils import AnalysisException
 from py4j.protocol import Py4JJavaError #java exception error
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
@@ -65,13 +64,8 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
         
         minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
         
-        dataframe = spark.sql(f""" 
-                            select 
-                              
-                                row_number() over (order by businessentityid) as buyer_key, 
-                                * 
-                            from {minio_bronze_path}""")
-        
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+                
         return dataframe
     
     except TimeoutError as e:
@@ -89,21 +83,17 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
         print_exc(e)
         exit(1)
         
-    except RuntimeError as e:
-        logger.error(f"Invalid runtime error: {e}")
-        print_exc(e)
-        exit(1)
-        
-        
     except Exception as e:
         logger.error(f"Unexpected error occur. Verify: {e}")
         print_exc(e)
         exit(1)
         
-def transformBuyerDimension(spark, bronze_delta:str, file_path:str, table_name:str) -> DataFrame:
+def transformBuyerDimension(dataframe: DataFrame, spark) -> DataFrame:
     
     try:
-        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+        
+        dataframe.createOrReplaceTempView("buyer_view")
+        
         dataframe = spark.sql(f""" 
                         SELECT
                             row_number() over (order by businessentityid) as buyer_key,
@@ -146,7 +136,7 @@ def transformBuyerDimension(spark, bronze_delta:str, file_path:str, table_name:s
                             
                             eltversion
                             
-                        from {minio_bronze_path}
+                        from buyer_view
                         
                         GROUP BY
                             businessentityid, firstname,            lastname,
@@ -197,11 +187,7 @@ def writeBuyerDimension(dataframe:DataFrame, silver_layer:str, file_path:str, ta
         )
         
         return f"Table writing successfully completed to delta: {table_name}"
-    
-    except AnalysisException as e:
-        logger.error(f"Analysis error while writing table {table_name} to delta: {e}")
-        return "AnalysisException"
-    
+
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error while writing table {table_name} to delta: {e}")
         return "Py4JJavaError"
@@ -233,7 +219,7 @@ def sparkStop(spark) -> str:
         
 def main():
     
-    application_name = "dimension_Warehouse_table"
+    application_name = "dimension_buyer_table"
     table_name = "raw_dimbuyer"
     dimension_table = "dim_buyer"
     folder_path = "advworks"
@@ -242,11 +228,12 @@ def main():
         
         spark, bronze_delta, silver_delta = load_source_configurations(application_name)
         
-        getCreateSurrogateKey(spark, bronze_delta, folder_path, table_name)
+        dataframe = getCreateSurrogateKey(spark, bronze_delta, folder_path, table_name)
         
-        dataframe = transformBuyerDimension(spark, bronze_delta, table_name)
+        dataframe = transformBuyerDimension(dataframe, spark, bronze_delta, folder_path, table_name)
         
         writeBuyerDimension(dataframe, silver_layer= silver_delta, file_path= folder_path, table_name= dimension_table)
+        
         logger.info(f"""dataframe has been writted successfully: {dataframe.printSchema()} 
                         on path: {silver_delta}/{folder_path}/{dimension_table}""")
         
@@ -257,10 +244,6 @@ def main():
     except FileNotFoundError as e:
         logger.error(f"Configuration file or resource not found: {e}")
         return "FileNotFoundError"
-    
-    except AnalysisException as e:
-        logger.error(f"Data analysis error: {e}")
-        return "AnalysisException"
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error during Spark operation: {e}")

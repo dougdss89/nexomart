@@ -17,29 +17,27 @@ logger=logging.getLogger("__name__")
 
 #load .env file configurations
 
-def load_source_configurations():
-    
-    """ load key-values pair """
+def load_source_configurations(spark_application: str):
     
     try:
         config = load_config()
         
-        iceberg_rawdb = config.get("hadoop_paths", {})
-        iceberg_db = config.get("hadoop_paths", {})
+        bronze_delta = config.get("delta_path", {})
+        silver_delta = config.get("delta_path", {})
         
         validate_required_keys(
-            config = iceberg_rawdb,
-            required_keys= ["raw_icebergdb", "silver_icebergdb"],
-            config_name = "hadoop_paths"
+            config = bronze_delta,
+            required_keys= ["bronze_layer", "silver_layer"],
+            config_name = "delta_path"
         )
         
-        session_manager = SparkSessionManager("dimension_country_region_table")
+        session_manager = SparkSessionManager(spark_application)
         
         spark = session_manager.create_session()
         
         logger.info("All key values settings have been imported")
         
-        return spark, iceberg_rawdb.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
+        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
     
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -65,9 +63,16 @@ def load_source_configurations():
     
 # start dimension transformation
 
-def getCreateSurrgateKey(spark, iceberg_rawdb, raw_table) -> DataFrame:
+def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> str:
     
     try:
+        
+        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+        
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_countryregion")
+        
         dataframe = spark.sql(f""" 
                         select 
                             row_number() over(order by territoryid) as countrykey,
@@ -88,10 +93,8 @@ def getCreateSurrgateKey(spark, iceberg_rawdb, raw_table) -> DataFrame:
                             extracted_date,
                             coalesce(modified_date, '2999-12-31') as modified_date,
                             eltversion
-            
-            
-            
-                        from icebergtb.{iceberg_rawdb}.{raw_table}
+                            
+                        from temp_countryregion
                     """)
         
         logger.info(f"The data source were successfully extracted: {dataframe}")
@@ -114,28 +117,27 @@ def getCreateSurrgateKey(spark, iceberg_rawdb, raw_table) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writeCountryRegionDimension(dataframe: DataFrame, iceberg_db, dimension_name) -> str:
+def writeCountryRegionDimension(dataframe:DataFrame, silver_layer:str, file_path:str, table_name:str) -> str:
     
     try:
+        minio_path = f"{silver_layer}/{file_path}/{table_name}"
         
         (
             dataframe
                 .write
                 .mode("append")
-                .format("iceberg")
-                .saveAsTable(f"{iceberg_db}.{dimension_name}")
+                .format("delta")
+                .save(f"{minio_path}")
         )
-
-        logger.info(f"Dimension {dimension_name} was written sucessfully to Iceberg {iceberg_db}")
         
-        return f"Dimension writting sucessfully completed to Iceberg: {dimension_name}"
+        return f"Table writing successfully completed to delta: {table_name}"
     
     except AnalysisException as e:
-        logger.error(f"Analysis error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Analysis error while writing table {table_name} to Iceberg: {e}")
         return "AnalysisException"
     
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Java/Scala error while writing table {table_name} to Iceberg: {e}")
         return "Py4JJavaError"
     
     except NoCredentialsError as e:
@@ -147,7 +149,7 @@ def writeCountryRegionDimension(dataframe: DataFrame, iceberg_db, dimension_name
         return "PartialCredentialsError"
     
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {dimension_name} to Iceberg: {e}")
+        logger.error(f"Unexpected error while writing table {table_name} to Iceberg: {e}")
         return "UnexpectedError"
     
 def sparkStop(spark) -> str:
@@ -167,14 +169,16 @@ def main():
     
     table_name = "raw_dimcountryregion"
     dimension_table = "dim_countryregion"
+    application_name = "dimension_countryregion_table"
+    folder_path = "advworks" 
     
     try:
         
-        spark, iceberg_rawdb, iceberg_db = load_source_configurations()
+        spark, bronze_delta, silver_delta = load_source_configurations(application_name)
         
-        dim_countryregion = getCreateSurrgateKey(spark, iceberg_rawdb, table_name)
+        dim_countryregion = getCreateSurrogateKey(spark, bronze_delta, folder_path, table_name)
         
-        writeCountryRegionDimension(dim_countryregion, iceberg_db, dimension_table)
+        writeCountryRegionDimension(dim_countryregion, silver_delta, folder_path, dimension_table)
         
         logger.info("All functions has been executed successfully")
         

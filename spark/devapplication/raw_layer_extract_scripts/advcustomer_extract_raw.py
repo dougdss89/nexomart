@@ -38,7 +38,7 @@ def load_source_connections():
         
         spark = session_manager
         
-        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "") #, minio_storage
+        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "")
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -132,23 +132,6 @@ def convert_customer_schema(dataframe):
         print_exc()
         exit(1)
         
-# def write_customer_minio_storage(data, minio_storage, table):
-    
-#     try:
-#         ((
-#             data
-#                 .write
-#                 .mode("append")
-#                 .parquet(f"{minio_storage}/{table}")
-#         ))
-        
-#         return logger.info(f"Data successfully written to: {minio_storage}/{table}")
-    
-
-#     except Exception as e:
-#         logger.info(f"Fail to persist data on {minio_storage}. Verify: {e}")
-#         print_exc()
-#         exit(1)
         
 def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
     """ Write DataFrame to delta table. """
@@ -193,9 +176,7 @@ def main():
     customer_df = extract_landing_data(spark, minio_landing, "customer")
     
     dataframe  = convert_customer_schema(customer_df)
-    
-    # write_customer_minio_storage(customer, miniopath, "customer")
-    
+        
     write_to_delta(dataframe, bronze_delta, filepath,  raw_table)
     
     spark_stop(spark)

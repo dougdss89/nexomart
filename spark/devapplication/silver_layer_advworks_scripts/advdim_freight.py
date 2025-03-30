@@ -67,16 +67,19 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path: str, table_name: s
         
         minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
         
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_freight")
+        
         dataframe = (spark.sql(f""" 
                                
-                            select
-                                row_number() over(order by shipmethodid) as shipmethod_key,
-                                cast(shipbase as decimal(12,2)) as shipbase_ds,
-                                cast(shipbase as decimal(12,2)) as shiprate_ds, 
-                                *
-                       
-                            from {minio_bronze_path}
-                            """))
+                        select
+                            row_number() over(order by shipmethodid) as shipmethod_key,
+                            cast(shipbase as decimal(12,2)) as shipbase_ds,
+                            cast(shipbase as decimal(12,2)) as shiprate_ds, 
+                            *
+                       from temp_freight
+                    """))
         
         logger.info(f"The data source were successfully extracted: {dataframe}")
         

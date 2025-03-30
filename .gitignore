@@ -16,6 +16,7 @@ __pycache__/
 *estudos/
 *teste/
 *_dev/
+/home/doug/project/unitycatalog
 
 # Direcionamento de arquivos e pastas específicos
 /spark/requirements.txt
@@ -29,4 +30,4 @@ redis
 /spark/devapplication/sharedmodules/
 /minio/data*
 /spark/jobs/notebooks
-
+/home/doug/project/unitycatalog

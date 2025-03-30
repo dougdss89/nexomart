@@ -35,9 +35,9 @@ WORKDIR ${SPARK_HOME}
 
 RUN chown -R spark:spark ${HADOOP_HOME} && chown -R spark:spark ${SPARK_HOME}
 # Download do arquivo de binários do Spark 
-RUN curl -fSL https://archive.apache.org/dist/spark/spark-3.4.3/spark-3.4.3-bin-hadoop3-scala2.13.tgz -o spark-3.4.3-bin-hadoop3-scala2.13.tgz \
- && tar -xvzf spark-3.4.3-bin-hadoop3-scala2.13.tgz --directory /opt/spark --strip-components 1 \
- && rm -rf spark-3.4.3-bin-hadoop3-scala2.13.tgz
+RUN curl -fSL https://dlcdn.apache.org/spark/spark-3.5.5/spark-3.5.5-bin-hadoop3-scala2.13.tgz -o spark-3.5.5-bin-hadoop3-scala2.13.tgz \
+ && tar -xvzf spark-3.5.5-bin-hadoop3-scala2.13.tgz --directory /opt/spark --strip-components 1 \
+ && rm -rf spark-3.5.5-bin-hadoop3-scala2.13.tgz
 
 
 # Prepara o ambiente com PySpark

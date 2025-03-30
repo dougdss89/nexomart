@@ -110,11 +110,7 @@ def extract_landing_data(spark, minio_landing, raw_table):
         logger.error(f"Failed to extract data from {raw_table}: {e}")
         print_exc()
         exit(1)
-        
-def writeiceberg(dataframe):
-    
-    dataframe.write.format("iceberg").mode("append").saveAsTable("icebergtb.advworks_rawdb.raw_dimproduct")
-        
+                
 def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
     """ Write DataFrame to delta table. """
     try:
@@ -122,7 +118,8 @@ def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
 
         (
             df
-            .write.format("delta")
+            .write
+            .format("delta")
             .mode("append")  # Use "append" to add data instead
             .save(f"{minio_path}")
         )
@@ -134,7 +131,7 @@ def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
         exit(1)
         
     except Exception as e:
-        logger.error(f"Failed to write table {table_name} to Iceberg table: {e}")
+        logger.error(f"Failed to write table {table_name} to Delta table: {e}")
         print_exc()
         exit(1)
         
@@ -158,9 +155,7 @@ def main():
     product_df = extract_landing_data(spark, minio_landing, "product")
     
     dataframe = convert_product_schema(product_df)
-        
-    writeiceberg(dataframe)
-    
+            
     write_to_delta(dataframe, bronze_delta, filepath, raw_table)
     
     spark_stop(spark)

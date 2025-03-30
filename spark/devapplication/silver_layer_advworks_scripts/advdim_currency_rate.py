@@ -63,14 +63,19 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
     try:
         
         minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
-        dataframe = spark.sql(f""" 
-                                select  
-                                    row_number() over(order by currencyrateid) as currencyrate_key,
-                                    * 
-                                
-                                from {minio_bronze_path} 
-                            """ )
-                
+
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_currency")
+        
+        dataframe = spark.sql(""" 
+                            
+                            select  
+                                row_number() over(order by currencyrateid) as currencyrate_key,
+                                *
+                            from temp_currency
+                        """)
+                        
         logger.info(f"The data source were successfully extracted: {dataframe}")
             
         return dataframe
@@ -152,7 +157,7 @@ def main():
         
         spark, bronze_delta, silver_delta = load_source_configurations(application_name)
         
-        dataframe = getCreateSurrogateKey(spark, bronze_delta= bronze_delta, file_path=folder_path, table_mane= table_name)
+        dataframe = getCreateSurrogateKey(spark, dataframe, bronze_delta= bronze_delta, file_path=folder_path, table_mane= table_name)
         
         writeCurrencyRateDimension(dataframe, silver_layer= silver_delta, file_path= folder_path, table_name= dimension_table)
         

@@ -69,8 +69,12 @@ def getCreateSurrogateKey(spark, path_name:str, bronze_delta: str, table_name: s
     try:
         minio_bronze_path = f"{bronze_delta}/{path_name}/{table_name}"
         
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_fact_purchase")
+        
         dataframe = spark.sql(f""" 
-                              select 
+                                select 
                                     row_number() over(order by purchaseorderid) as fact_purchasekey,
                                     cast(unitprice as decimal(12, 2)) as unitprice_ds,
                                     cast(freight as decimal(12,2)) as freight_ds,
@@ -80,7 +84,7 @@ def getCreateSurrogateKey(spark, path_name:str, bronze_delta: str, table_name: s
                                     cast(totaldue  as decimal(12, 2)) as totaldue_ds,
                                     
                                     *
-                                from {minio_bronze_path}
+                                from temp_fact_purchase
                             """)
         logger.info(f"The data source were successfully extracted: {dataframe}")
         

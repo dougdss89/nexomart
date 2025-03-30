@@ -21,13 +21,13 @@ def load_source_configurations():
     
     try:
         
-        iceberg_rawdb = config.get("hadoop_paths", {})
-        iceberg_db = config.get("hadoop_paths", {})
+        bronze_delta = config.get("delta_path", {})
+        silver_delta = config.get("delta_path", {})
         
         validate_required_keys(
-            config = iceberg_rawdb,
-            required_keys=["raw_icebergdb", "silver_icebergdb"],
-            config_name= "hadoop_paths"
+            config = bronze_delta,
+            required_keys=["bronze_delta", "silver_delta"],
+            config_name= "delta_path"
         )
         
         spark_manager = SparkSessionManager(app_name= "fact_production_table")
@@ -36,7 +36,7 @@ def load_source_configurations():
         
         logging.info(f"All key values configurations has been imported successfully")
         
-        return spark, iceberg_rawdb.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
+        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
         
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -61,9 +61,15 @@ def load_source_configurations():
     logger.info(f"Spark Session created: {spark}")
     
 #surrogate key
-def getCreateSurrogateKey(spark, iceberg_rawdb: str,  table_name: str) -> DataFrame:
+def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> str:
     
     try:
+        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_fact_production")
+        
         dataframe = spark.sql(f""" 
                               
                                 select 
@@ -73,7 +79,7 @@ def getCreateSurrogateKey(spark, iceberg_rawdb: str,  table_name: str) -> DataFr
                                     cast(plannedcost as decimal(12,2)) as plannedcost_ds,
                                     *
 
-                                from icebergtb.{iceberg_rawdb}.{table_name}
+                                from temp_fact_production
                             """)
         
         logger.info(f"The data source were successfully extracted: {dataframe}")

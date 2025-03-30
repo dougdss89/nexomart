@@ -67,17 +67,7 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
     try:
         minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
 
-        dataframe = spark.sql(f""" 
-                              select 
-                                currencycode,
-                                currencyname,
-                                countryregioncode,
-                                countryname,
-                                inserted_date,
-                                modified_date,
-                                eltversion
-                            from {minio_bronze_path}
-                        """)
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
         
         logger.info(f"The data source were successfully extracted: {dataframe}")
         
@@ -99,6 +89,38 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
         print_exc(e)
         exit(1)
         
+def temporaryView(dataframe: DataFrame, spark: str) -> DataFrame:
+    
+    try:
+        
+        dataframe.createOrReplaceTempView("temp_currency")
+        
+        dataframe = spark.sql(""" 
+                                select 
+                                    row_number() over(order by currencydode) as currencykey,
+                                    *
+                                from temp_currency
+                            """)  
+        
+        logger.info(f"The data source were successfully extracted: {dataframe}")
+        
+        return dataframe
+    
+    except TimeoutError as e:
+        logger.error(f"Connection timeout. Please reconnect: {e}")
+        print_exc(e)
+        exit(1)
+        
+    except RuntimeError as e:
+        logger.error(f"Invalid runtime error: {e}")
+        print_exc(e)
+        exit(1)
+        
+        
+    except Exception as e:
+        logger.error(f"Unexpected error occur. Verify: {e}")
+        print_exc(e)
+        exit(1)    
         
 def writeCurrencyCodeDimension(dataframe:DataFrame, silver_layer:str, file_path:str, table_name:str) -> str:
     
@@ -159,6 +181,8 @@ def main() -> str:
         spark, bronze_delta, silver_delta = load_source_configurations(application_name)
         
         dataframe = getCreateSurrogateKey(spark, bronze_delta, folder_path, table_name)
+        
+        dataframe = temporaryView(dataframe, spark)
         
         writeCurrencyCodeDimension(dataframe, silver_delta, folder_path, dimension_table)
         

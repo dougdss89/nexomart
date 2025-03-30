@@ -58,17 +58,21 @@ def load_source_configurations(spark_application: str):
     logger.info(f"Spark Session created: {spark}")
 
 #create surrogate key
-def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> DataFrame:
+def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> str:
     
     try:
         
         minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+        
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_warehouse")
 
         dataframe = (spark.sql(f""" 
-                           select 
+                            select 
                                 row_number() over(order by productid) as warehousekey,
                                 * 
-                            from {minio_bronze_path}
+                            from temp_warehouse
                         """
                     ))
         

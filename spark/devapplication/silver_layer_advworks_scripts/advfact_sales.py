@@ -1,4 +1,3 @@
-from nbformat import writes
 from startSparkSession import SparkSessionManager
 from pyspark.sql.functions import *
 from pyspark.sql.dataframe import DataFrame
@@ -11,7 +10,7 @@ from pyspark.sql.utils import AnalysisException
 from py4j.protocol import Py4JJavaError #java exception error
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(format)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 #import env file
@@ -26,7 +25,7 @@ def load_source_configurations():
         
         validate_required_keys(
             config = bronze_delta,
-            required_keys= ["bronze_layer", "gold"],
+            required_keys= ["bronze_layer", "silver_layer"],
             config_name = "delta_path"
         )
         
@@ -74,6 +73,10 @@ def getCreateSurrogateKey(spark, path_name:str, bronze_delta: str, table_name: s
         
         minio_bronze_path = f"{bronze_delta}/{path_name}/{table_name}"
         
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_fact_sales")
+        
         dataframe = spark.sql(f""" 
                                 select 
                                     *, 
@@ -82,7 +85,8 @@ def getCreateSurrogateKey(spark, path_name:str, bronze_delta: str, table_name: s
                                     cast(linetotal as decimal(12,2)) as  linetotal_ds,
                                     cast(freight as decimal(12,2)) as freight_ds
                                     
-                                from {minio_bronze_path}""")
+                                from temp_fact_sales
+                            """)
         
         logger.info(f"The data source were successfully extracted: {dataframe}")
         
@@ -184,7 +188,7 @@ def cleanerFactDataframe(dataframe: DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writeSalesFact(dataframe: DataFrame, folder_path:str, silver_layer: str, fact_name: str) -> str:
+def writeSalesFact(dataframe: DataFrame,  silver_layer: str, folder_path:str, fact_name: str) -> str:
     
     try:
         
@@ -201,10 +205,6 @@ def writeSalesFact(dataframe: DataFrame, folder_path:str, silver_layer: str, fac
         logger.info(f"Dimension {fact_name} was written successfully to Delta {minio_path}")
         
         return f"Dimension writing successfully completed to delta: {fact_name}"
-        
-    except AnalysisException as e:
-        logger.error(f"Analysis error while writing table {fact_name} to delta: {e}")
-        return "AnalysisException"
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error while writing table {fact_name} to delta: {e}")
@@ -253,9 +253,9 @@ def main() -> str:
         dataframe = cleanerFactDataframe(dataframe)
         logger.info(f"Cleaner table successfully completed: {dataframe.schema}")
         
-        writeSalesFact(dataframe, folder_path=folder_path, silver_layer=silver_delta, fact_name=fact_name)
-        logger.info(f"dataframe has been writted successfully: {dataframe.schema} 
-                        on path: {silver_delta}/{folder_path}/{fact_name}")
+        writeSalesFact(dataframe, silver_layer=silver_delta, folder_path=folder_path, fact_name=fact_name)
+        logger.info(f"""dataframe has been writted successfully: {fact_name}. 
+                            Storage path: {silver_delta}/{folder_path}/{fact_name}""")
         
         sparkStop(spark)
         logger.info(f"Spark Session stopped")
@@ -266,10 +266,6 @@ def main() -> str:
     except FileNotFoundError as e:
         logger.error(f"Configuration file or resource not found: {e}")
         return "FileNotFoundError"
-    
-    except AnalysisException as e:
-        logger.error(f"Data analysis error: {e}")
-        return "AnalysisException"
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error during Spark operation: {e}")

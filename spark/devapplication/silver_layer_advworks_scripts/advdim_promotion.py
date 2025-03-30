@@ -63,6 +63,10 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
     try:
         minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
         
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_promotion")
+        
         dataframe = (spark.sql(f""" 
                                 select
                                 
@@ -71,7 +75,8 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
                                     cast(discountpct as decimal(5, 2)) as discount,
                                     * 
                                     
-                                from {minio_bronze_path}"""
+                                from temp_promotion
+                            """
                         ))
         logger.info(f"The data source were successfully extracted: {dataframe}")
         

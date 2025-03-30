@@ -64,11 +64,15 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
         
         minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
         
-        dataframe = (spark.sql( f"""
-                               select 
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_product_category")
+        
+        dataframe = (spark.sql(f"""
+                                select 
                                     row_number() over (order by productcategoryid) as productcategory_key,
                                     * 
-                                from {minio_bronze_path}
+                                from temp_product_category
                                
                             """))
         

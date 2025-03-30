@@ -63,6 +63,10 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
     try:
         
         minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+        
+        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        
+        dataframe.createTempView("temp_supplier")
 
         dataframe = (spark.sql(f""" 
                             select 
@@ -70,10 +74,8 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
                                 businessentityid as supplierid,
                                 productid as productseller_id,
                                 *
-                            from {minio_bronze_path}""")
-             .drop(col("businessentityid"))
-             .drop(col("productid"))
-)
+                            from temp_supplier
+                        """))
         return dataframe
     
     except TimeoutError as e:
@@ -142,10 +144,9 @@ def transformSupplierType(dataframe: DataFrame) -> DataFrame:
                     .withColumn("suppliername", regexp_replace("name", r"(?i)\bcorp\b", "Corporation"))
                     .withColumn("suppliername", regexp_replace("name", r"(?i)\bco\b", "Company"))
                     .withColumn("suppliername", regexp_replace("name", r"(?i)\binc\b", "Incorporation"))
-                    
-                    
-                    
-        )
+                    .drop(col("businessentityid"))
+                    .drop(col("productid")))
+        
         logger.info("Supplier Type column transformed successfully")
         return dataframe
     
