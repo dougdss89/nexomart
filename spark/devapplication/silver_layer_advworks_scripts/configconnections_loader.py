@@ -130,9 +130,9 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
             "minio_landing":processed_config.get("MINIO_LANDING"),
         },
         
-        "delta_path":{
+        "hadoop_paths":{
           "bronze_layer": processed_config.get("BRONZE_LAYER"), 
-          "silver_layer": processed_config.get("SILVER_LAYER"), 
+          "silver_icebergdb": processed_config.get("silver_icebergdb"), 
           "gold_layer": processed_config.get("GOLD_LAYER"),  
         },
         

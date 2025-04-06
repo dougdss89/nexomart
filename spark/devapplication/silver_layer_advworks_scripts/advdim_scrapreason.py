@@ -20,20 +20,20 @@ def load_source_configurations(spark_application: str):
     try:
         config = load_config()
         
-        bronze_delta = config.get("delta_path", {})
-        silver_delta = config.get("delta_path", {})
+        iceberg = config.get("hadoop_paths", {})
+        iceberg_db = config.get("hadoop_paths", {})
         
         validate_required_keys(
-            config = bronze_delta,
-            required_keys= ["bronze_delta", "silver_delta"],
-            config_name = "delta_path"
+            config = iceberg,
+            required_keys= ["iceberg", "iceberg_db"],
+            config_name = "hadoop_paths"
         )
         
         spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
+        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
 
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -58,17 +58,17 @@ def load_source_configurations(spark_application: str):
     logger.info(f"Spark Session created: {spark}")
     
 #create surrogate key
-def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> str:
+def getCreateSurrogateKey(spark, iceberg:str, table_name:str) -> str:
     
     try:
         
-        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+        raw_lakehouse = f"{iceberg}.{table_name}"
 
         dataframe = (spark.sql(f""" 
                             select 
                                 row_number() over (order by scrapreasonid) as scrapreason_key,
                                 *
-                            from {minio_bronze_path}
+                            from {raw_lakehouse}
                     """))
         return dataframe
     
@@ -87,27 +87,25 @@ def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str
         print_exc(e)
         exit(1)
         
-def writeScrapReasonDimension(dataframe:DataFrame, silver_layer:str, file_path:str, table_name:str) -> str:
+def writeScrapReasonDimension(dataframe:DataFrame, silver_icebergdb:str, table_name:str) -> str:
     
     try:
-        minio_path = f"{silver_layer}/{file_path}/{table_name}"
+        lakehouse = f"{silver_icebergdb}.{table_name}"
 
         (
             dataframe
                 .write
                 .mode("append")
-                .format("delta")
-                .save(f"{minio_path}")
+                .format("iceberg")
+                .saveAsTable(f"{lakehouse}")
         )
         
-        return f"Table writing successfully completed to delta: {table_name}"
+        return f"Table writing successfully completed to iceberg: {table_name}"
     
-    except AnalysisException as e:
-        logger.error(f"Analysis error while writing table {table_name} to delta: {e}")
-        return "AnalysisException"
+
     
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {table_name} to delta: {e}")
+        logger.error(f"Java/Scala error while writing table {table_name} to iceberg: {e}")
         return "Py4JJavaError"
     
     except NoCredentialsError as e:
@@ -119,7 +117,7 @@ def writeScrapReasonDimension(dataframe:DataFrame, silver_layer:str, file_path:s
         return "PartialCredentialsError"
     
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {table_name} to delta: {e}")
+        logger.error(f"Unexpected error while writing table {table_name} to iceberg: {e}")
         return "UnexpectedError"
     
 def sparkStop(spark) -> str:
@@ -139,16 +137,16 @@ def main():
         application_name = "dimension_scrapreason_table"
         table_name = "raw_dimscrapreason"
         dimension_table = "dim_scrapreason"
-        folder_path = "advworks"
         
-        spark, bronze_delta, silver_delta = load_source_configurations(application_name)
+        
+        spark, iceberg, iceberg_db = load_source_configurations(application_name)
 
-        dataframe = getCreateSurrogateKey(spark, bronze_delta= bronze_delta, file_path=folder_path, table_mane= table_name)
+        dataframe = getCreateSurrogateKey(spark, iceberg= iceberg,table_mane= table_name)
         logger.info(f"Dimension surrogate key created: {dataframe.schema}")
         
-        writeScrapReasonDimension(dataframe, silver_layer= silver_delta, file_path= folder_path, table_name= dimension_table)
+        writeScrapReasonDimension(dataframe, silver_icebergdb= iceberg_db, table_name= dimension_table)
         logger.info(f"dataframe has been writted successfully: {dataframe.printSchema()} 
-                        on path: {silver_delta}/{folder_path}/{dimension_table}")
+                        on path: {iceberg_db}.{dimension_table}")
         
         sparkStop(spark)
         logger.info("Spark Session stopped")
@@ -160,9 +158,7 @@ def main():
         logger.error(f"Configuration file or resource not found: {e}")
         return "FileNotFoundError"
     
-    except AnalysisException as e:
-        logger.error(f"Data analysis error: {e}")
-        return "AnalysisException"
+
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error during Spark operation: {e}")

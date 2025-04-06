@@ -16,7 +16,7 @@ def load_source_connections():
 
         # Validating imported keys
         minio_landing = config.get("hadoop_paths", {})
-        bronze_delta = config.get("delta_path", {})
+        iceberg = config.get("hadoop_paths", {})
 
         validate_required_keys(
             config=minio_landing,
@@ -25,20 +25,20 @@ def load_source_connections():
         )
         
         validate_required_keys(
-            config=bronze_delta,
-            required_keys=["bronze_layer"],
-            config_name="delta_path"
+            config=iceberg,
+            required_keys=["raw_icebergdb"],
+            config_name="hadoop_paths"
         )
 
         # Creating SparkSession
         spark = (
             SparkSession.builder
-            .appName('extract_country_region_landing')
-            .enableHiveSupport()
+            .appName('extract_dataframe_landing')
+            
             .getOrCreate()
         )
 
-        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "") #, minio_storage
+        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", "") #, minio_storage
 
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -57,10 +57,10 @@ def load_source_connections():
     
 def extract_landing_data(spark, minio_landing, raw_table:str):
     try:
-        df = spark.read.parquet(f"{minio_landing}/{raw_table}")
+        dataframe = spark.read.parquet(f"{minio_landing}/{raw_table}")
         logger.info(f"Data extracted successfully for table: {raw_table}")
         
-        return df
+        return dataframe
     
     except Exception as e:
         logger.error(f"Failed to extract data from {raw_table}: {e}")
@@ -69,7 +69,7 @@ def extract_landing_data(spark, minio_landing, raw_table:str):
         
 def convert_country_schema(dataframe):
     
-    country_region = dataframe.selectExpr(
+    dataframe = dataframe.selectExpr(
 
                                     "cast(territoryid as int) as territoryid",
                                     "cast(name as string) as name",
@@ -79,37 +79,25 @@ def convert_country_schema(dataframe):
                                     "cast(modified_date as timestamp) as modified_date",
                                     "cast(eltversion as int) as eltversion")
     
-    return country_region
+    return dataframe
 
-# def write_minio_country_rg_storage(data, minio_storage, table):
-    
-#     try:
-        
-#         data.write.mode("overwrite").parquet(f"{minio_storage}/{table}")
-        
-#         return logger.info(f"Data successfully written to: {minio_storage}/{table}")
-        
-#     except Exception as e:
-#         logger.error(f"Fail to persist data on {minio_storage}. Verify: {e}")
-#         print_exc()
-#         exit(1)
 
  
-def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
-    """ Write DataFrame to delta table. """
+def write_to_iceberg(dataframe, raw_icebergdb:str,  table_name:str):
+    """ Write DataFrame to iceberg table. """
     try:
-        minio_path = f"{bronze_layer}/{file_path}/{table_name}"
+        raw_lakehouse = f"{raw_icebergdb}.{table_name}"
 
         (
-            df
-            .write.format("delta")
+            dataframe
+            .write.format("iceberg")
             .mode("append")  # Use "append" to add data instead
-            .save(f"{minio_path}")
+            .saveAsTable(f"{raw_lakehouse}")
         )
-        print(f"Table {table_name} written successfully to Delta.")
+        print(f"Table {table_name} written successfully to iceberg.")
         
     except Exception as e:
-        print(f"Failed to write table {table_name} to Delta: {e}")
+        print(f"Failed to write table {table_name} to iceberg: {e}")
         print_exc()
         exit(1)
 
@@ -124,17 +112,14 @@ def spark_stop(spark):
         print_exc()
 
 def main():
-    spark, minio_landing, bronze_delta = load_source_connections()
-    filepath = "advworks"
+    spark, minio_landing, iceberg = load_source_connections()
     raw_table = "raw_dimcountryregion"
     
-    country_df = extract_landing_data(spark, minio_landing, "countryregion")
+    dataframe = extract_landing_data(spark, minio_landing, "countryregion")
     
-    dataframe = convert_country_schema(country_df)
-    
-    # write_minio_country_rg_storage(country_region, minio_path, "country_region")
-    
-    write_to_delta(dataframe, bronze_delta, filepath,  raw_table)
+    dataframe = convert_country_schema(dataframe)
+        
+    write_to_iceberg(dataframe, iceberg, raw_table)
     
     spark_stop(spark)
     

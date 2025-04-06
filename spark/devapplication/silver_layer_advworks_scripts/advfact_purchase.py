@@ -8,7 +8,6 @@ from sys import exit
 from traceback import print_exc
 import logging
 
-from pyspark.sql.utils import AnalysisException
 from py4j.protocol import Py4JJavaError #java exception error
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
@@ -22,14 +21,14 @@ def load_source_configurations(spark_application: str):
     try:
         config = load_config()
         
-        bronze_delta = config.get("delta_path", {})
-        silver_delta = config.get("delta_path", {})
+        iceberg = config.get("hadoop_paths", {})
+        iceberg_db = config.get("hadoop_paths", {})
         
         validate_required_keys(
             
-            config = bronze_delta,
-            required_keys= ["bronze_layer", "silver_layer"],
-            config_name = "delta_path"
+            config = iceberg,
+            required_keys= ["raw_icebergdb", "silver_icebergdb"],
+            config_name = "hadoop_paths"
         )
         
         spark_manager = SparkSessionManager(f"{spark_application}")
@@ -38,7 +37,7 @@ def load_source_configurations(spark_application: str):
         
         logging.info(f"All key values configurations has been imported successfully")
         
-        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
+        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
     
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -64,12 +63,12 @@ def load_source_configurations(spark_application: str):
     
     
 #create surrogate key
-def getCreateSurrogateKey(spark, path_name:str, bronze_delta: str, table_name: str) -> DataFrame:
+def getCreateSurrogateKey(spark, path_name:str, iceberg: str, table_name: str) -> DataFrame:
     
     try:
-        minio_bronze_path = f"{bronze_delta}/{path_name}/{table_name}"
+        raw_lakehouse = f"{iceberg}/{path_name}/{table_name}"
         
-        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
         dataframe.createTempView("temp_fact_purchase")
         
@@ -150,28 +149,24 @@ def cleanerFactDataframe(dataframe: DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writePurchaseFact(dataframe: DataFrame, file_path:str, silver_layer:str, fact_name:str) -> str:
+def writePurchaseFact(dataframe: DataFrame, silver_icebergdb:str, fact_name:str) -> str:
     
     try:
-        minio_path = f"{silver_layer}/{file_path}/{fact_name}"
+        lakehouse = f"{silver_icebergdb}.{fact_name}"
         (
             dataframe
                 .write()
                 .mode("append")
-                .format("delta")
-                .save(f"{minio_path}")
+                .format("iceberg")
+                .saveAsTable(f"{lakehouse}")
         )
         
-        logger.info(f"Table {fact_name} was written successfully to Delta {minio_path}")
+        logger.info(f"Table {fact_name} was written successfully to iceberg {lakehouse}")
         
-        return f"Table writing successfully completed to delta: {fact_name}"
-    
-    except AnalysisException as e:
-        logger.error(f"Analysis error while writing table {fact_name} to delta: {e}")
-        return "AnalysisException"
-    
+        return f"Table writing successfully completed to iceberg: {fact_name}"
+        
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {fact_name} to delta: {e}")
+        logger.error(f"Java/Scala error while writing table {fact_name} to iceberg: {e}")
         return "Py4JJavaError"
     
     except NoCredentialsError as e:
@@ -183,7 +178,7 @@ def writePurchaseFact(dataframe: DataFrame, file_path:str, silver_layer:str, fac
         return "PartialCredentialsError"
     
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {fact_name} to delta: {e}")
+        logger.error(f"Unexpected error while writing table {fact_name} to iceberg: {e}")
         return "UnexpectedError"
     
 #stop spark session
@@ -205,19 +200,19 @@ def main():
         application_name = "fact_purchase_table"
         table_name = "raw_fact_purchase"
         fact_name = "fact_purchase"
-        folder_path = "advworks"
         
-        spark, bronze_delta, silver_delta = load_source_configurations(spark_application= application_name)
         
-        dataframe = getCreateSurrogateKey(spark, bronze_delta= bronze_delta, path_name=folder_path, table_name=table_name)
+        spark, iceberg, iceberg_db = load_source_configurations(spark_application= application_name)
+        
+        dataframe = getCreateSurrogateKey(spark, iceberg= iceberg, path_name=table_name=table_name)
         logger.info(f"Surrogate Key created: {dataframe.schema}")
         
         dataframe = cleanerFactDataframe(dataframe)
         logger.info(f"Dataframe table has been cleaned: {dataframe.schema}")
         
-        writePurchaseFact(dataframe= dataframe, silver_layer= silver_delta, file_path= folder_path, fact_name= fact_name)
+        writePurchaseFact(dataframe= dataframe, silver_icebergdb= iceberg_db, fact_name= fact_name)
         logger.info(f"dataframe has been writted successfully: {dataframe.schema} 
-                        on path: {silver_delta}/{folder_path}/{fact_name}")
+                        on path: {iceberg_db}.{fact_name}")
         
         sparkStop(spark)
         logger.info("Spark Session stopped")
@@ -228,10 +223,6 @@ def main():
     except FileNotFoundError as e:
         logger.error(f"Configuration file or resource not found: {e}")
         return "FileNotFoundError"
-    
-    except AnalysisException as e:
-        logger.error(f"Data analysis error: {e}")
-        return "AnalysisException"
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error during Spark operation: {e}")

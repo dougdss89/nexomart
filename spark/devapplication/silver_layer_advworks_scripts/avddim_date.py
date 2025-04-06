@@ -60,13 +60,13 @@ def load_source_configurations():
     
 #create surrogate key
 
-def getCreateSurrogateKey(spark,  bronze_delta: str, path_name:str, table_name: str,) -> DataFrame:
+def getCreateSurrogateKey(spark,  iceberg: str, path_name:str, table_name: str,) -> DataFrame:
     
     try:
         
-        minio_bronze_path = f"{bronze_delta}/{path_name}/{table_name}"
+        raw_lakehouse = f"{iceberg}/{path_name}/{table_name}"
         
-        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
         dataframe.createTempView("temp_dimdate")
         
@@ -99,24 +99,22 @@ def getCreateSurrogateKey(spark,  bronze_delta: str, path_name:str, table_name: 
         print_exc(e)
         exit(1)
         
-def writeDateDimension(dataframe:DataFrame, silver_layer:str, file_path:str, table_name:str) -> str:
+def writeDateDimension(dataframe:DataFrame, silver_icebergdb:str, table_name:str) -> str:
     
     try:
-        minio_path = f"{silver_layer}/{file_path}/{table_name}"
+        lakehouse = f"{silver_icebergdb}.{table_name}"
         
         (
             dataframe
                 .write
                 .mode("append")
                 .format("iceberg")
-                .save(f"{minio_path}")
+                .saveAsTable(f"{lakehouse}")
         )
         
-        return f"Table writing successfully completed to delta: {table_name}"
+        return f"Table writing successfully completed to iceberg: {table_name}"
                
-    except AnalysisException as e:
-        logger.error(f"Analysis error while writing table {table_name} to Iceberg: {e}")
-        return "AnalysisException"
+
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error while writing table {table_name} to Iceberg: {e}")
@@ -153,14 +151,14 @@ def main():
         table_name = "raw_dimdate"
         dimension_name = "dim_date"
         application_name = "dimension_dimdate_table"
-        folder_path = "advworks" 
+         
     
-        spark, bronze_delta, silver_delta = load_source_configurations(application_name)
+        spark, iceberg, iceberg_db = load_source_configurations(application_name)
 
-        dataframe = getCreateSurrogateKey(spark, bronze_delta, folder_path, table_name)
+        dataframe = getCreateSurrogateKey(spark, iceberg, table_name)
         logger.info(f"SurrogateKey schema: {dataframe.schema}")
                 
-        writeDateDimension(dataframe, silver_delta, folder_path, dimension_name)
+        writeDateDimension(dataframe, iceberg_db, dimension_name)
         
         sparkStop(spark)
         
@@ -171,9 +169,7 @@ def main():
         logger.error(f"Configuration file or resource not found: {e}")
         return "FileNotFoundError"
     
-    except AnalysisException as e:
-        logger.error(f"Data analysis error: {e}")
-        return "AnalysisException"
+
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error during Spark operation: {e}")

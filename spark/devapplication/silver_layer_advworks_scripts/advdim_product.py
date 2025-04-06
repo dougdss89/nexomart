@@ -22,14 +22,14 @@ def load_source_configurations(spark_application: str):
         config = load_config()
         
         #get var
-        bronze_delta = config.get("delta_path", {})
-        silver_delta = config.get("delta_path", {})
+        iceberg = config.get("hadoop_paths", {})
+        iceberg_db = config.get("hadoop_paths", {})
         
         #validate keys
         validate_required_keys(
-            config = bronze_delta,
-            required_keys= ["bronze_layer", "silver_layer"],
-            config_name= "delta_path"
+            config = iceberg,
+            required_keys= ["raw_icebergdb", "silver_icebergdb"],
+            config_name= "hadoop_paths"
         )
         
         spark_manager = SparkSessionManager(spark_application)
@@ -40,7 +40,7 @@ def load_source_configurations(spark_application: str):
         
         logging.info(f"All key values configurations has been imported successfully")
         
-        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
+        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
     
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -64,13 +64,13 @@ def load_source_configurations(spark_application: str):
         
     logger.info(f"Spark Session created: {spark}")
     
-def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> DataFrame:
+def getCreateSurrogateKey(spark, iceberg:str, table_name:str) -> DataFrame:
     
     try:
         
-        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+        raw_lakehouse = f"{iceberg}.{table_name}"
         
-        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
         dataframe.createTempView("temp_product")
                 
@@ -465,23 +465,23 @@ def transformProductColumn(dataframe: DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
 
-def writeProductDimension(dataframe:DataFrame, silver_layer:str, file_path:str, table_name:str) -> str:
+def writeProductDimension(dataframe:DataFrame, silver_icebergdb:str, table_name:str) -> str:
     
     try:
-        minio_path = f"{silver_layer}/{file_path}/{table_name}"
+        lakehouse = f"{silver_icebergdb}.{table_name}"
 
         (
             dataframe
                 .write
                 .mode("append")
-                .format("delta")
-                .save(f"{minio_path}")
+                .format("iceberg")
+                .saveAsTable(f"{lakehouse}")
         )
         
-        return f"Table writing successfully completed to delta: {table_name}"
+        return f"Table writing successfully completed to iceberg: {table_name}"
     
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {table_name} to delta: {e}")
+        logger.error(f"Java/Scala error while writing table {table_name} to iceberg: {e}")
         return "Py4JJavaError"
     
     except NoCredentialsError as e:
@@ -493,7 +493,7 @@ def writeProductDimension(dataframe:DataFrame, silver_layer:str, file_path:str, 
         return "PartialCredentialsError"
     
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {table_name} to delta: {e}")
+        logger.error(f"Unexpected error while writing table {table_name} to iceberg: {e}")
         return "UnexpectedError"
             
 def sparkStop(spark) -> str:
@@ -513,11 +513,11 @@ def main():
         application_name = "dimension_product_table"
         table_name = "raw_dimproduct"
         dimension_table = "dim_product"
-        folder_path = "advworks"
         
-        spark, bronze_delta, silver_delta = load_source_configurations(application_name)
         
-        dataframe = getCreateSurrogateKey(spark, bronze_delta= bronze_delta, file_path=folder_path, table_name= table_name)
+        spark, iceberg, iceberg_db = load_source_configurations(application_name)
+        
+        dataframe = getCreateSurrogateKey(spark, iceberg= iceberg,table_name= table_name)
         logger.info(f"Dimension surrogate key created: {dataframe.schema}")
         
         dataframe = transformProductName(dataframe)
@@ -553,10 +553,10 @@ def main():
         dataframe = transformProductColumn(dataframe)
         logger.info(f"Columns processed successfully: {dataframe.schema}")
 
-        writeProductDimension(dataframe, silver_layer= silver_delta, file_path= folder_path, table_name= dimension_table)
+        writeProductDimension(dataframe, silver_icebergdb= iceberg_db, table_name= dimension_table)
         logger.info(f"""
                         Dataframe has been writted successfully: {dimension_table}.
-                        Storage Path: {silver_delta}/{folder_path}/{dimension_table}
+                        Storage Path: {iceberg_db}.{dimension_table}
                     """)
         
         sparkStop(spark)

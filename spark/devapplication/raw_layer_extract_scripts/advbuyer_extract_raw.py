@@ -16,7 +16,7 @@ def load_source_connections():
 
         # Validating imported keys
         minio_landing = config.get("hadoop_paths", {})
-        bronze_delta = config.get("delta_path", {})
+        iceberg = config.get("hadoop_paths", {})
 
         validate_required_keys(
             config=minio_landing,
@@ -25,20 +25,20 @@ def load_source_connections():
         )
         
         validate_required_keys(
-            config=bronze_delta,
-            required_keys=["bronze_layer"],
-            config_name="delta_path"
+            config=iceberg,
+            required_keys=["raw_icebergdb"],
+            config_name="hadoop_paths"
         )
 
         # Creating SparkSession
         spark = (
             SparkSession.builder
             .appName('extract_buyer_landing')
-            .enableHiveSupport()
+            
             .getOrCreate()
         )
 
-        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "") #, minio_storage
+        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", "") #, minio_storage
 
     except (FileNotFoundError, KeyError) as e:
         print(f"Could not load connections from source: {e}")
@@ -59,9 +59,11 @@ def load_source_connections():
 def extract_landing_buyer(spark, minio_landing, raw_table_mame:str):
     """ Extract buyer data from the landing zone. """
     try:
-        df_buyer_raw = spark.read.parquet(f"{minio_landing}/{raw_table_mame}")
+
         
-        return df_buyer_raw
+        dataframe = spark.read.parquet(f"{minio_landing}/{raw_table_mame}")
+        
+        return dataframe
     
     except Exception as e:
         print(f"Failed to extract buyer data: {e}")
@@ -71,7 +73,7 @@ def extract_landing_buyer(spark, minio_landing, raw_table_mame:str):
 def buyer_replace_schema(dataframe):
     
 # Aplicar as transformações de tipo nas colunas
-    buyer_dataframe = dataframe.select(
+    dataframe = dataframe.select(
                             col("businessentityid").cast("int").alias("businessentityid"),
                             col("firstname").cast("string").alias("firstname"),
                             col("lastname").cast("string").alias("lastname"),
@@ -95,35 +97,26 @@ def buyer_replace_schema(dataframe):
                             col("modified_date").cast("timestamp").alias("modified_date"),
                             col("eltversion").cast("int").alias("eltversion")
                         )
-    return buyer_dataframe
-
-# def write_minio_buyer_storage(data, minio_storage, table):
-    
-#     try:
-#         data.write.mode("overwrite").parquet(f"{minio_storage}/{table}")
-        
-#         print(f"{table} written successfully on {minio_storage}")
-        
-#     except Exception as e:
-#         print(f"Fail to create file on {minio_storage}. Verify: {e}")
-#         print_exc()
-#         exit(1)
+    return dataframe
  
-def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
-    """ Write DataFrame to delta table. """
+def write_to_iceberg(spark, dataframe, raw_icebergdb:str, table_name:str):
+    """ Write DataFrame to iceberg table. """
     try:
-        minio_path = f"{bronze_layer}/{file_path}/{table_name}"
-
+        
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {raw_icebergdb}")
+        
+        raw_lakehouse = f"{raw_icebergdb}.{table_name}"
+        
         (
-            df
-            .write.format("delta")
+            dataframe
+            .write.format("iceberg")
             .mode("append")  # Use "append" to add data instead
-            .save(f"{minio_path}")
+            .saveAsTable(f"{raw_lakehouse}")
         )
-        print(f"Table {table_name} written successfully to Delta.")
+        print(f"Table {table_name} written successfully to iceberg.")
         
     except Exception as e:
-        print(f"Failed to write table {table_name} to Delta: {e}")
+        print(f"Failed to write table {table_name} to iceberg: {e}")
         print_exc()
         exit(1)
 
@@ -139,18 +132,16 @@ def spark_stop(spark):
         print_exc()
 
 def main():
-    spark, minio_landing, bronze_delta = load_source_connections()
-    filepath = "advworks"
+    spark, minio_landing, iceberg = load_source_connections()
+    
 
     # Extract data from landing zone
-    buyer_df = extract_landing_buyer(spark, minio_landing, "buyer")
+    dataframe = extract_landing_buyer(spark, minio_landing, "buyer")
     
-    buyer_dataframe = buyer_replace_schema(buyer_df)
+    dataframe = buyer_replace_schema(dataframe)
         
-    # write_minio_buyer_storage(buyer_dataframe, minio_path, "buyer")
-    
     # Write data to Iceberg
-    write_to_delta(buyer_dataframe, bronze_delta, filepath, "raw_dimbuyer")
+    write_to_iceberg(spark, dataframe, iceberg, "raw_dimbuyer")
     
     # Stop SparkSession
     spark_stop(spark)

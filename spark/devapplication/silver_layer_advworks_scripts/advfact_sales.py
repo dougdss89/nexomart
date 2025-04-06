@@ -20,13 +20,13 @@ def load_source_configurations():
     try:
         config = load_config()
         
-        bronze_delta = config.get("delta_path", {})
-        silver_delta = config.get("delta_path", {})
+        iceberg = config.get("hadoop_paths", {})
+        iceberg_db = config.get("hadoop_paths", {})
         
         validate_required_keys(
-            config = bronze_delta,
-            required_keys= ["bronze_layer", "silver_layer"],
-            config_name = "delta_path"
+            config = iceberg,
+            required_keys= ["raw_icebergdb", "silver_icebergdb"],
+            config_name = "hadoop_paths"
         )
         
         #creating spark_session
@@ -41,7 +41,7 @@ def load_source_configurations():
         
         logging.info(f"All key values configurations has been imported successfully")
         
-        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
+        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
         
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -67,13 +67,13 @@ def load_source_configurations():
     
 #creating surrogate fact_sales key
 
-def getCreateSurrogateKey(spark, path_name:str, bronze_delta: str, table_name: str,) -> DataFrame:
+def getCreateSurrogateKey(spark, path_name:str, iceberg: str, table_name: str,) -> DataFrame:
     
     try:
         
-        minio_bronze_path = f"{bronze_delta}/{path_name}/{table_name}"
+        raw_lakehouse = f"{iceberg}/{path_name}/{table_name}"
         
-        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
         dataframe.createTempView("temp_fact_sales")
         
@@ -188,26 +188,26 @@ def cleanerFactDataframe(dataframe: DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writeSalesFact(dataframe: DataFrame,  silver_layer: str, folder_path:str, fact_name: str) -> str:
+def writeSalesFact(dataframe: DataFrame,  silver_icebergdb: str, folder_path:str, fact_name: str) -> str:
     
     try:
         
-        minio_path = f"{silver_layer}/{folder_path}/{fact_name}"
+        lakehouse = f"{silver_icebergdb}.{fact_name}"
         (
             dataframe
                 .write
-                .format("delta")
+                .format("iceberg")
                 .mode("append")
-                .save(minio_path)
+                .saveAsTable(lakehouse)
         )
         
 
-        logger.info(f"Dimension {fact_name} was written successfully to Delta {minio_path}")
+        logger.info(f"Dimension {fact_name} was written successfully to iceberg {lakehouse}")
         
-        return f"Dimension writing successfully completed to delta: {fact_name}"
+        return f"Dimension writing successfully completed to iceberg: {fact_name}"
     
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {fact_name} to delta: {e}")
+        logger.error(f"Java/Scala error while writing table {fact_name} to iceberg: {e}")
         return "Py4JJavaError"
     
     except NoCredentialsError as e:
@@ -219,7 +219,7 @@ def writeSalesFact(dataframe: DataFrame,  silver_layer: str, folder_path:str, fa
         return "PartialCredentialsError"
     
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {fact_name} to delta: {e}")
+        logger.error(f"Unexpected error while writing table {fact_name} to iceberg: {e}")
         return "UnexpectedError"
     
 def sparkStop(spark) -> str:
@@ -240,11 +240,11 @@ def main() -> str:
     try:
         table_name = "raw_fact_sales"
         fact_name = "fact_sales"
-        folder_path = "advworks"
-
-        spark, bronze_delta, silver_delta = load_source_configurations()
         
-        dataframe =  getCreateSurrogateKey(spark, folder_path, bronze_delta, table_name)
+
+        spark, iceberg, iceberg_db = load_source_configurations()
+        
+        dataframe =  getCreateSurrogateKey(spark, iceberg, table_name)
         logger.info(f"getSurrogateKey schema: {dataframe.schema}")
         
         dataframe = fillNullValues(dataframe)
@@ -253,9 +253,9 @@ def main() -> str:
         dataframe = cleanerFactDataframe(dataframe)
         logger.info(f"Cleaner table successfully completed: {dataframe.schema}")
         
-        writeSalesFact(dataframe, silver_layer=silver_delta, folder_path=folder_path, fact_name=fact_name)
+        writeSalesFact(dataframe, silver_icebergdb=iceberg_db, folder_path=fact_name=fact_name)
         logger.info(f"""dataframe has been writted successfully: {fact_name}. 
-                            Storage path: {silver_delta}/{folder_path}/{fact_name}""")
+                            Storage path: {iceberg_db}.{fact_name}""")
         
         sparkStop(spark)
         logger.info(f"Spark Session stopped")

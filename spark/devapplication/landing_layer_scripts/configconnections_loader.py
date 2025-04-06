@@ -131,7 +131,7 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
         },
         
         "delta_path":{
-          "bronze_layer": processed_config.get("BRONZE_LAYER"), 
+          "raw_icebergdb": processed_config.get("raw_icebergdb"), 
           "silver_layer": processed_config.get("SILVER_LAYER"), 
           "gold_layer": processed_config.get("GOLD_LAYER"),  
         },

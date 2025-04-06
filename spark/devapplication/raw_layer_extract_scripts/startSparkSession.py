@@ -39,7 +39,6 @@ class SparkSessionManager:
 
         # create spark session
         spark = (spark_builder
-                 .enableHiveSupport()
                  .getOrCreate()
                 )
 

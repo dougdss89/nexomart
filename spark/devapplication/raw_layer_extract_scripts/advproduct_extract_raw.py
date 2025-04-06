@@ -16,7 +16,7 @@ def load_source_connections():
 
         # Validating imported keys
         minio_landing = config.get("hadoop_paths", {})
-        bronze_delta = config.get("delta_path", {})
+        iceberg = config.get("hadoop_paths", {})
 
         validate_required_keys(
             config=minio_landing,
@@ -25,20 +25,20 @@ def load_source_connections():
         )
         
         validate_required_keys(
-            config=bronze_delta,
-            required_keys=["bronze_layer"],
-            config_name="delta_path"
+            config=iceberg,
+            required_keys=["raw_icebergdb"],
+            config_name="hadoop_paths"
         )
         
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_product_landing"
+                            app_name="extract_landing"
         )
         
         spark = session_manager.create_session()
         
-        return spark, minio_landing.get("minio_landing", ""), bronze_delta.get("bronze_layer", "")
+        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", "")
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -55,12 +55,12 @@ def load_source_connections():
         print_exc()
         exit(1)
         
-def convert_product_schema(tmp_product):
+def convert_schema(dataframe):
     
     try:
-        tmp_product.select(
+        dataframe.select(
             
-                        col("productid").cast("int").alias("product_id"),
+                        col("productid").cast("int").alias("id"),
                         col("productname").cast("string").alias("productname"),
                         col("productnumber").cast("string").alias("productname"),
                         col("productsubcategoryid").cast("int").alias("productsubcategory_id"),
@@ -89,49 +89,49 @@ def convert_product_schema(tmp_product):
                         col("modified_date").cast("timestamp").alias("modified_date"),
                         col("eltversion").cast("int").alias("eltversion")
         )
-        return tmp_product
+        return dataframe
     
     except Exception as e:
-        logger.error(f"Error to convert dataframe schema {tmp_product}. Please verify: {e}")
+        logger.error(f"Error to convert dataframe schema {dataframe}. Please verify: {e}")
         print_exc()
         exit(1)
         
 def extract_landing_data(spark, minio_landing, raw_table):
     try:
-        product_df = (spark
+        dataframe = (spark
                         .read
                         .parquet(f"{minio_landing}/{raw_table}")
                     )
         logger.info(f"Data extracted sucessfully for table: {raw_table}")
         
-        return product_df
+        return dataframe
     
     except Exception as e:
         logger.error(f"Failed to extract data from {raw_table}: {e}")
         print_exc()
         exit(1)
                 
-def write_to_delta(df, bronze_layer:str, file_path:str, table_name:str):
-    """ Write DataFrame to delta table. """
+def write_to_iceberg(dataframe, raw_icebergdb:str,  table_name:str):
+    """ Write DataFrame to iceberg table. """
     try:
-        minio_path = f"{bronze_layer}/{file_path}/{table_name}"
+        raw_lakehouse = f"{raw_icebergdb}.{table_name}"
 
         (
-            df
+            dataframe
             .write
-            .format("delta")
+            .format("iceberg")
             .mode("append")  # Use "append" to add data instead
-            .save(f"{minio_path}")
+            .saveAsTable(f"{raw_lakehouse}")
         )
-        return(f"Table {table_name} written successfully to Delta.")
+        return(f"Table {table_name} written successfully to iceberg.")
         
     except Exception as e:
-        print(f"Failed to write table {table_name} to Delta: {e}")
+        print(f"Failed to write table {table_name} to iceberg: {e}")
         print_exc()
         exit(1)
         
     except Exception as e:
-        logger.error(f"Failed to write table {table_name} to Delta table: {e}")
+        logger.error(f"Failed to write table {table_name} to iceberg table: {e}")
         print_exc()
         exit(1)
         
@@ -148,15 +148,15 @@ def spark_stop(spark):
         
 def main():
     
-    spark, minio_landing, bronze_delta = load_source_connections()
-    filepath = "advworks"
+    spark, minio_landing, iceberg = load_source_connections()
+    
     raw_table = "raw_dimproduct"
     
-    product_df = extract_landing_data(spark, minio_landing, "product")
+    dataframe = extract_landing_data(spark, minio_landing, "product")
     
-    dataframe = convert_product_schema(product_df)
+    dataframe = convert_schema(dataframe)
             
-    write_to_delta(dataframe, bronze_delta, filepath, raw_table)
+    write_to_iceberg(dataframe, iceberg,  raw_table)
     
     spark_stop(spark)
     

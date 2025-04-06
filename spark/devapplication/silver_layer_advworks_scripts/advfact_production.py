@@ -21,13 +21,13 @@ def load_source_configurations():
     
     try:
         
-        bronze_delta = config.get("delta_path", {})
-        silver_delta = config.get("delta_path", {})
+        iceberg = config.get("hadoop_paths", {})
+        iceberg_db = config.get("hadoop_paths", {})
         
         validate_required_keys(
-            config = bronze_delta,
-            required_keys=["bronze_delta", "silver_delta"],
-            config_name= "delta_path"
+            config = iceberg,
+            required_keys=["iceberg", "iceberg_db"],
+            config_name= "hadoop_paths"
         )
         
         spark_manager = SparkSessionManager(app_name= "fact_production_table")
@@ -36,7 +36,7 @@ def load_source_configurations():
         
         logging.info(f"All key values configurations has been imported successfully")
         
-        return spark, bronze_delta.get("bronze_layer", ""), silver_delta.get("silver_layer", "")
+        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
         
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -61,12 +61,12 @@ def load_source_configurations():
     logger.info(f"Spark Session created: {spark}")
     
 #surrogate key
-def getCreateSurrogateKey(spark, bronze_delta:str, file_path:str, table_name:str) -> str:
+def getCreateSurrogateKey(spark, iceberg:str, table_name:str) -> str:
     
     try:
-        minio_bronze_path = f"{bronze_delta}/{file_path}/{table_name}"
+        raw_lakehouse = f"{iceberg}.{table_name}"
 
-        dataframe = spark.read.format("delta").load(minio_bronze_path)
+        dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
         dataframe.createTempView("temp_fact_production")
         
@@ -194,7 +194,7 @@ def writeProductionFact(dataframe: DataFrame, iceberg_db:str, fact_name: str) ->
                 .write
                 .mode("append")
                 .format("iceberg")
-                .saveAsTable(f"{iceberg_db}.{fact_name}")
+                .saveAsTableAsTable(f"{iceberg_db}.{fact_name}")
         )
         
         logger.info(f"Dimension {fact_name} was written successfully to Iceberg {iceberg_db}")
@@ -262,9 +262,7 @@ def main():
         logger.error(f"Configuration file or resource not found: {e}")
         return "FileNotFoundError"
     
-    except AnalysisException as e:
-        logger.error(f"Data analysis error: {e}")
-        return "AnalysisException"
+
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error during Spark operation: {e}")
