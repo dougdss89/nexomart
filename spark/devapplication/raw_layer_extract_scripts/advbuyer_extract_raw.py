@@ -17,6 +17,7 @@ def load_source_connections():
         # Validating imported keys
         minio_landing = config.get("hadoop_paths", {})
         iceberg = config.get("hadoop_paths", {})
+        iceberg_catalog = config.get("hadoop_paths", {})
 
         validate_required_keys(
             config=minio_landing,
@@ -29,6 +30,12 @@ def load_source_connections():
             required_keys=["raw_icebergdb"],
             config_name="hadoop_paths"
         )
+        
+        validate_required_keys(
+            config=iceberg_catalog,
+            required_keys=["iceberg_catalog"],
+            config_name="hadoop_paths"
+        )
 
         # Creating SparkSession
         spark = (
@@ -38,7 +45,7 @@ def load_source_connections():
             .getOrCreate()
         )
 
-        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", "") #, minio_storage
+        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", ""), iceberg_catalog.get("iceberg_catalog", "")
 
     except (FileNotFoundError, KeyError) as e:
         print(f"Could not load connections from source: {e}")
@@ -55,7 +62,6 @@ def load_source_connections():
         print_exc()
         exit(1)
         
-
 def extract_landing_buyer(spark, minio_landing, raw_table_mame:str):
     """ Extract buyer data from the landing zone. """
     try:
@@ -99,14 +105,11 @@ def buyer_replace_schema(dataframe):
                         )
     return dataframe
  
-def write_to_iceberg(spark, dataframe, raw_icebergdb:str, table_name:str):
+def write_to_iceberg(dataframe, catalog:str, raw_icebergdb:str, table_name:str):
     """ Write DataFrame to iceberg table. """
     try:
-        
-        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {raw_icebergdb}")
-        
-        raw_lakehouse = f"{raw_icebergdb}.{table_name}"
-        
+        raw_lakehouse = f"{catalog}.{raw_icebergdb}.{table_name}"
+
         (
             dataframe
             .write.format("iceberg")
@@ -114,6 +117,8 @@ def write_to_iceberg(spark, dataframe, raw_icebergdb:str, table_name:str):
             .saveAsTable(f"{raw_lakehouse}")
         )
         print(f"Table {table_name} written successfully to iceberg.")
+        
+        return logger.info(f"Table {table_name} written successfully to iceberg.")
         
     except Exception as e:
         print(f"Failed to write table {table_name} to iceberg: {e}")
@@ -132,16 +137,17 @@ def spark_stop(spark):
         print_exc()
 
 def main():
-    spark, minio_landing, iceberg = load_source_connections()
+    spark, minio_landing, iceberg, iceberg_catalog = load_source_connections()
+    raw_table = "raw_dimbuyer"
     
-
+    
     # Extract data from landing zone
     dataframe = extract_landing_buyer(spark, minio_landing, "buyer")
     
     dataframe = buyer_replace_schema(dataframe)
         
     # Write data to Iceberg
-    write_to_iceberg(spark, dataframe, iceberg, "raw_dimbuyer")
+    write_to_iceberg(dataframe=dataframe, catalog=iceberg_catalog, raw_icebergdb=iceberg, table_name= raw_table)
     
     # Stop SparkSession
     spark_stop(spark)

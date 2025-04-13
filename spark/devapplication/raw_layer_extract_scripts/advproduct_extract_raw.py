@@ -17,6 +17,7 @@ def load_source_connections():
         # Validating imported keys
         minio_landing = config.get("hadoop_paths", {})
         iceberg = config.get("hadoop_paths", {})
+        iceberg_catalog = config.get("hadoop_paths", {})
 
         validate_required_keys(
             config=minio_landing,
@@ -30,6 +31,12 @@ def load_source_connections():
             config_name="hadoop_paths"
         )
         
+        validate_required_keys(
+            config=iceberg_catalog,
+            required_keys=["iceberg_catalog"],
+            config_name="hadoop_paths"
+        )
+        
         #create spark session
         
         session_manager = SparkSessionManager(
@@ -38,7 +45,7 @@ def load_source_connections():
         
         spark = session_manager.create_session()
         
-        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", "")
+        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "")
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {e}")
@@ -148,7 +155,7 @@ def spark_stop(spark):
         
 def main():
     
-    spark, minio_landing, iceberg = load_source_connections()
+    spark, minio_landing, iceberg, iceberg_catalog = load_source_connections()
     
     raw_table = "raw_dimproduct"
     
@@ -156,7 +163,7 @@ def main():
     
     dataframe = convert_schema(dataframe)
             
-    write_to_iceberg(dataframe, iceberg,  raw_table)
+    write_to_iceberg(dataframe=dataframe, catalog=iceberg_catalog, raw_icebergdb=iceberg, table_name= raw_table)
     
     spark_stop(spark)
     

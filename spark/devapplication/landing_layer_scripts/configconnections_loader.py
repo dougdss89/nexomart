@@ -128,6 +128,7 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
             "goldtable": processed_config.get("HADOOP_CLUSTER_GOLD"),
             "spark_warehouse": processed_config.get("HADOOP_WAREHOUSE"),
             "minio_landing":processed_config.get("MINIO_LANDING"),
+            "iceberg_catalog": processed_config.get("ICEBERG_MAIN_CATALOG"),
         },
         
         "delta_path":{

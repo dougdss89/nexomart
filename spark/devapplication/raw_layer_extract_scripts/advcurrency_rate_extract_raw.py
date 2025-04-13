@@ -17,6 +17,7 @@ def load_source_connections():
         # Validating imported keys
         minio_landing = config.get("hadoop_paths", {})
         iceberg = config.get("hadoop_paths", {})
+        iceberg_catalog = config.get("hadoop_paths", {})
 
         validate_required_keys(
             config=minio_landing,
@@ -30,28 +31,34 @@ def load_source_connections():
             config_name="hadoop_paths"
         )
         
-        #create spark session
-        
-        session_manager = SparkSessionManager(
-                            app_name="extract_currency_rate_landing"
+        validate_required_keys(
+            config=iceberg_catalog,
+            required_keys=["iceberg_catalog"],
+            config_name="hadoop_paths"
         )
-        
-        spark = session_manager.create_session()
-        
-        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", "") #, minio_storage
-    
+
+        # Creating SparkSession
+        spark = (
+            SparkSession.builder
+            .appName('extract_buyer_landing')
+            
+            .getOrCreate()
+        )
+
+        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", ""), iceberg_catalog.get("iceberg_catalog", "")
+
     except (FileNotFoundError, KeyError) as e:
-        logger.error(f"Could not load connections from source: {e}")
+        print(f"Could not load connections from source: {e}")
         print_exc()
         exit(1)
-        
+
     except RuntimeError as e:
-        logger.error(f"Failed to create Spark Session. Runtime Error: {e}")
+        print(f"Failed to create SparkSession. Runtime error: {e}")
         print_exc()
         exit(1)
-        
+
     except Exception as e:
-        logger.error(f"Unexpected error occur. {e}")
+        print(f"Unexpected error occurred. Please verify: {e}")
         print_exc()
         exit(1)
         
@@ -94,10 +101,10 @@ def convert_currencyrate_schema(dataframe):
         print_exc()
         exit(1)
         
-def write_to_iceberg(dataframe, raw_icebergdb:str,  table_name:str):
+def write_to_iceberg(dataframe, catalog:str, raw_icebergdb:str, table_name:str):
     """ Write DataFrame to iceberg table. """
     try:
-        raw_lakehouse = f"{raw_icebergdb}.{table_name}"
+        raw_lakehouse = f"{catalog}.{raw_icebergdb}.{table_name}"
 
         (
             dataframe
@@ -105,15 +112,12 @@ def write_to_iceberg(dataframe, raw_icebergdb:str,  table_name:str):
             .mode("append")  # Use "append" to add data instead
             .saveAsTable(f"{raw_lakehouse}")
         )
-        return(f"Table {table_name} written successfully to iceberg.")
+        print(f"Table {table_name} written successfully to iceberg.")
+        
+        return logger.info(f"Table {table_name} written successfully to iceberg.")
         
     except Exception as e:
         print(f"Failed to write table {table_name} to iceberg: {e}")
-        print_exc()
-        exit(1)
-        
-    except Exception as e:
-        logger.error(f"Failed to write table {table_name} to Iceberg table: {e}")
         print_exc()
         exit(1)
         
@@ -130,7 +134,7 @@ def spark_stop(spark):
         
 def main():
     
-    spark, minio_landing, iceberg = load_source_connections()
+    spark, minio_landing, iceberg, iceberg_catalog = load_source_connections()
     raw_table = "raw_dimcurrencyrate"
     
     dataframe = extract_landing_data(spark, minio_landing, "currency_rate")
@@ -139,7 +143,7 @@ def main():
     
     # write_currency_rate_minio_storage(currency_rate, miniopath, "currency_rate" )
         
-    write_to_iceberg(dataframe, iceberg,  raw_table)
+    write_to_iceberg(dataframe=dataframe, catalog=iceberg_catalog, raw_icebergdb=iceberg, table_name= raw_table)
     
     spark_stop(spark)
 
