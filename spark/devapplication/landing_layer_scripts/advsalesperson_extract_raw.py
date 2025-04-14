@@ -126,9 +126,7 @@ def extract_salesperson_raw(spark, mssql_properties, mssql_adventureworks):
                                                 sales.salesterritory as sst
                                             on sst.territoryid = ssp.territoryid
 
-                                            """        
-
-                            ).load())
+                                            """                            ).load())
     
         return df_salesperson_raw
 

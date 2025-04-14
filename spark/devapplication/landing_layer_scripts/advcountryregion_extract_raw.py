@@ -49,8 +49,6 @@ def load_source_connections():
         if not mssql_properties:
             print(f"We detected certain dependencies on {mssql_properties} that was not loaded. Reload {mssql_adventureworks} and retry it")
             return None, None, None
-        
-
     #create spark session
         spark = (SparkSession
                     .builder

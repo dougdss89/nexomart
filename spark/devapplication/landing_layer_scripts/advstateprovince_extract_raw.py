@@ -94,9 +94,7 @@ def extract_stateprovince_raw(spark, mssql_properties, mssql_adventureworks):
 									            getdate() as inserted_date,
 	                                            '9999-31-12 00:00:00.000' as modified_date,
                                                 '1' as eltversion
-                                                
-
-                                            from person.stateprovince as psp
+                                                                                    from person.stateprovince as psp
                                                                                         
                                             """           
                                 ).load())

@@ -6,9 +6,9 @@ from configconnections_loader import load_config, validate_required_keys
 import logging
 from traceback import print_exc
 
-from pyspark.sql.utils import AnalysisException
+
 from py4j.protocol import Py4JJavaError #java exception error
-from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+
 
 #logging 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -21,27 +21,22 @@ def load_source_configurations(spark_application: str):
     try:
         config = load_config()
         
-        #get var
         iceberg = config.get("hadoop_paths", {})
         iceberg_db = config.get("hadoop_paths", {})
+        iceberg_catalog = config.get("hadoop_paths", {})
         
-        #validate keys
         validate_required_keys(
             config = iceberg,
-            required_keys= ["raw_icebergdb", "silver_icebergdb"],
-            config_name= "hadoop_paths"
+            required_keys= ["raw_icebergdb", "silver_icebergdb", "iceberg_catalog"],
+            config_name = "hadoop_paths"
         )
         
         spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        spark.sparkContext.setLogLevel("INFO")
-        
-        logging.info(f"All key values configurations has been imported successfully")
-        
-        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
-    
+        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "")
+
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
         print_exc()
@@ -63,12 +58,15 @@ def load_source_configurations(spark_application: str):
         exit(1)
         
     logger.info(f"Spark Session created: {spark}")
+        
+    logger.info(f"Spark Session created: {spark}")
     
-def getCreateSurrogateKey(spark, iceberg:str, table_name:str) -> DataFrame:
+def getCreateSurrogateKey(spark, catalog:str, iceberg:str, table_name:str) -> DataFrame:
+
     
     try:
         
-        raw_lakehouse = f"{iceberg}.{table_name}"
+        raw_lakehouse = f"{catalog}.{iceberg}.{table_name}"
         
         dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
@@ -465,10 +463,10 @@ def transformProductColumn(dataframe: DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
 
-def writeProductDimension(dataframe:DataFrame, silver_icebergdb:str, table_name:str) -> str:
+def writeProductDimension(dataframe:DataFrame, catalog:str, silver_icebergdb:str, table_name:str) -> DataFrame:
     
     try:
-        lakehouse = f"{silver_icebergdb}.{table_name}"
+        lakehouse = f"{catalog}.{silver_icebergdb}.{table_name}"
 
         (
             dataframe
@@ -478,20 +476,12 @@ def writeProductDimension(dataframe:DataFrame, silver_icebergdb:str, table_name:
                 .saveAsTable(f"{lakehouse}")
         )
         
-        return f"Table writing successfully completed to iceberg: {table_name}"
+        return logger.info(f"Table writing successfully completed to iceberg: {table_name}")
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error while writing table {table_name} to iceberg: {e}")
         return "Py4JJavaError"
-    
-    except NoCredentialsError as e:
-        logger.error(f"Missing credentials for MinIO/S3: {e}")
-        return "NoCredentialsError"
-    
-    except PartialCredentialsError as e:
-        logger.error(f"Incomplete credentials for MinIO/S3: {e}")
-        return "PartialCredentialsError"
-    
+
     except Exception as e:
         logger.error(f"Unexpected error while writing table {table_name} to iceberg: {e}")
         return "UnexpectedError"
@@ -515,9 +505,9 @@ def main():
         dimension_table = "dim_product"
         
         
-        spark, iceberg, iceberg_db = load_source_configurations(application_name)
+        spark, iceberg, iceberg_db, iceberg_catalog = load_source_configurations(application_name)
         
-        dataframe = getCreateSurrogateKey(spark, iceberg= iceberg,table_name= table_name)
+        dataframe = getCreateSurrogateKey(spark, iceberg_catalog, iceberg, table_name)
         logger.info(f"Dimension surrogate key created: {dataframe.schema}")
         
         dataframe = transformProductName(dataframe)
@@ -553,7 +543,7 @@ def main():
         dataframe = transformProductColumn(dataframe)
         logger.info(f"Columns processed successfully: {dataframe.schema}")
 
-        writeProductDimension(dataframe, silver_icebergdb= iceberg_db, table_name= dimension_table)
+        writeProductDimension(dataframe, catalog=iceberg_catalog, silver_icebergdb= iceberg_db, table_name= dimension_table)
         logger.info(f"""
                         Dataframe has been writted successfully: {dimension_table}.
                         Storage Path: {iceberg_db}.{dimension_table}

@@ -6,43 +6,36 @@ from sys import exit
 from traceback import print_exc
 import logging
 
-from pyspark.sql.utils import AnalysisException
+
 from py4j.protocol import Py4JJavaError #java exception error
-from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 #import env file
 
-def load_source_configurations():
+def load_source_configurations(spark_application: str):
     
     try:
         config = load_config()
         
         iceberg = config.get("hadoop_paths", {})
         iceberg_db = config.get("hadoop_paths", {})
+        iceberg_catalog = config.get("hadoop_paths", {})
         
         validate_required_keys(
             config = iceberg,
-            required_keys= ["raw_icebergdb", "silver_icebergdb"],
+            required_keys= ["raw_icebergdb", "silver_icebergdb", "iceberg_catalog"],
             config_name = "hadoop_paths"
         )
         
-        #creating spark_session
-        
-        spark_manager = SparkSessionManager("fact_sales_table")
+        spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        spark_manager = SparkSessionManager(app_name= "fact_production_table")
-        
-        spark = spark_manager.create_session()
-        
-        logging.info(f"All key values configurations has been imported successfully")
-        
-        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
-        
+        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "")
+
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
         print_exc()
@@ -188,11 +181,11 @@ def cleanerFactDataframe(dataframe: DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writeSalesFact(dataframe: DataFrame,  silver_icebergdb: str, folder_path:str, fact_name: str) -> str:
+def writeSalesFact(dataframe:DataFrame, catalog:str, silver_icebergdb:str, fact_name:str) -> DataFrame:
     
     try:
         
-        lakehouse = f"{silver_icebergdb}.{fact_name}"
+        lakehouse = f"{catalog}.{silver_icebergdb}.{fact_name}"
         (
             dataframe
                 .write
@@ -200,8 +193,6 @@ def writeSalesFact(dataframe: DataFrame,  silver_icebergdb: str, folder_path:str
                 .mode("append")
                 .saveAsTable(lakehouse)
         )
-        
-
         logger.info(f"Dimension {fact_name} was written successfully to iceberg {lakehouse}")
         
         return f"Dimension writing successfully completed to iceberg: {fact_name}"
@@ -209,15 +200,7 @@ def writeSalesFact(dataframe: DataFrame,  silver_icebergdb: str, folder_path:str
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error while writing table {fact_name} to iceberg: {e}")
         return "Py4JJavaError"
-    
-    except NoCredentialsError as e:
-        logger.error(f"Missing credentials for MinIO/S3: {e}")
-        return "NoCredentialsError"
-    
-    except PartialCredentialsError as e:
-        logger.error(f"Incomplete credentials for MinIO/S3: {e}")
-        return "PartialCredentialsError"
-    
+
     except Exception as e:
         logger.error(f"Unexpected error while writing table {fact_name} to iceberg: {e}")
         return "UnexpectedError"
@@ -240,11 +223,11 @@ def main() -> str:
     try:
         table_name = "raw_fact_sales"
         fact_name = "fact_sales"
-        
+        application_name = "fact_sales_table"
 
-        spark, iceberg, iceberg_db = load_source_configurations()
+        spark, iceberg, iceberg_db, iceberg_catalog = load_source_configurations(application_name)
         
-        dataframe =  getCreateSurrogateKey(spark, iceberg, table_name)
+        dataframe =  getCreateSurrogateKey(spark, iceberg_catalog, iceberg, table_name)
         logger.info(f"getSurrogateKey schema: {dataframe.schema}")
         
         dataframe = fillNullValues(dataframe)
@@ -253,7 +236,7 @@ def main() -> str:
         dataframe = cleanerFactDataframe(dataframe)
         logger.info(f"Cleaner table successfully completed: {dataframe.schema}")
         
-        writeSalesFact(dataframe, silver_icebergdb=iceberg_db, folder_path=fact_name=fact_name)
+        writeSalesFact(dataframe, catalog=iceberg_catalog, iceberg_db=iceberg_db, fact_name=fact_name)
         logger.info(f"""dataframe has been writted successfully: {fact_name}. 
                             Storage path: {iceberg_db}.{fact_name}""")
         

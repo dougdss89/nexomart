@@ -113,9 +113,7 @@ def extract_fact_sales_raw(spark, mssql_properties, mssql_adventureworks):
                                             getdate() as inserted_date,
 											'9999-12-31 00:00:00.000' as modified_date,
 											'1' as eltversion
-                                            
-
-                                        from sales.salesorderdetail as sso
+                                                                            from sales.salesorderdetail as sso
 
                                         left join
 

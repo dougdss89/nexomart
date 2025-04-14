@@ -6,38 +6,36 @@ from sys import exit
 from traceback import print_exc
 import logging
 
-from pyspark.sql.utils import AnalysisException
+
 from py4j.protocol import Py4JJavaError #java exception error
-from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(format)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 #import env file
 
-def load_source_configurations():
-    
-    config = load_config()
+def load_source_configurations(spark_application: str):
     
     try:
+        config = load_config()
         
         iceberg = config.get("hadoop_paths", {})
         iceberg_db = config.get("hadoop_paths", {})
+        iceberg_catalog = config.get("hadoop_paths", {})
         
         validate_required_keys(
             config = iceberg,
-            required_keys=["iceberg", "iceberg_db"],
-            config_name= "hadoop_paths"
+            required_keys= ["raw_icebergdb", "silver_icebergdb", "iceberg_catalog"],
+            config_name = "hadoop_paths"
         )
         
-        spark_manager = SparkSessionManager(app_name= "fact_production_table")
+        spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        logging.info(f"All key values configurations has been imported successfully")
-        
-        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", "")
-        
+        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "")
+
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {e}")
         print_exc()
@@ -54,17 +52,18 @@ def load_source_configurations():
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. {e}")
+        logger.error(f"Unexpected error occurred. {e}")
         print_exc()
         exit(1)
         
     logger.info(f"Spark Session created: {spark}")
     
 #surrogate key
-def getCreateSurrogateKey(spark, iceberg:str, table_name:str) -> str:
+def getCreateSurrogateKey(spark, catalog:str, iceberg:str, table_name:str) -> DataFrame:
+
     
     try:
-        raw_lakehouse = f"{iceberg}.{table_name}"
+        raw_lakehouse = f"{catalog}.{iceberg}.{table_name}"
 
         dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
@@ -185,19 +184,19 @@ def cleanerfactDataFrame(dataframe:DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writeProductionFact(dataframe: DataFrame, iceberg_db:str, fact_name: str) -> str:
+def writeProductionFact(dataframe:DataFrame, catalog:str, silver_icebergdb:str, fact_name:str) -> DataFrame:
     
     try:
-        
+        lakehouse = f"{catalog}.{silver_icebergdb}.{fact_name}"
         (
             dataframe
                 .write
                 .mode("append")
                 .format("iceberg")
-                .saveAsTableAsTable(f"{iceberg_db}.{fact_name}")
+                .saveAsTable(f"{lakehouse}")
         )
         
-        logger.info(f"Dimension {fact_name} was written successfully to Iceberg {iceberg_db}")
+        logger.info(f"Dimension {fact_name} was written successfully to Iceberg {silver_icebergdb}")
         
         return f"Dimension writing successfully completed to Iceberg: {fact_name}"
         
@@ -208,15 +207,7 @@ def writeProductionFact(dataframe: DataFrame, iceberg_db:str, fact_name: str) ->
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error while writing table {fact_name} to Iceberg: {e}")
         return "Py4JJavaError"
-    
-    except NoCredentialsError as e:
-        logger.error(f"Missing credentials for MinIO/S3: {e}")
-        return "NoCredentialsError"
-    
-    except PartialCredentialsError as e:
-        logger.error(f"Incomplete credentials for MinIO/S3: {e}")
-        return "PartialCredentialsError"
-    
+
     except Exception as e:
         logger.error(f"Unexpected error while writing table {fact_name} to Iceberg: {e}")
         return "UnexpectedError"
@@ -238,11 +229,12 @@ def sparkStop(spark) -> str:
 def main():
     table_name = "raw_fact_production"
     fact_name = "fact_production"
+    application_name = "fact_production_table"
     
     try:
-        spark, iceberg_rawdb, iceberg_db = load_source_configurations()
+        spark, iceberg, iceberg_db, iceberg_catalog = load_source_configurations(application_name)
         
-        dataframe = getCreateSurrogateKey(spark, iceberg_rawdb, table_name)
+        dataframe = getCreateSurrogateKey(spark, iceberg_catalog, iceberg, table_name)
     
         dataframe = fillNullValues(dataframe)
         logger.info(f"fillNullValues schema: {dataframe}")
@@ -250,7 +242,7 @@ def main():
         dataframe = cleanerfactDataFrame(dataframe)
         logger.info(f"cleanerfactDataFrame schema: {dataframe}")
                
-        writeProductionFact(dataframe, iceberg_db, fact_name)
+        writeProductionFact(dataframe, catalog=iceberg_catalog, iceberg_db=iceberg_db, fact_name=fact_name)
         logger.info(f"writeProductionFact schema: {dataframe.schema}")
         
         sparkStop(spark)
@@ -261,9 +253,7 @@ def main():
     except FileNotFoundError as e:
         logger.error(f"Configuration file or resource not found: {e}")
         return "FileNotFoundError"
-    
 
-    
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error during Spark operation: {e}")
         return "Py4JJavaError"
