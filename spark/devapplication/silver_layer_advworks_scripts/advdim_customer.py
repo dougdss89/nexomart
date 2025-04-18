@@ -379,8 +379,8 @@ def main():
         logger.info(f"CleanCustomerDataframe schema: {dataframe.schema}")
         
         writeCustomerDimension(dataframe, catalog=iceberg_catalog, silver_icebergdb= iceberg_db, table_name= dimension_table)
-        logger.info(f"dataframe has been writted successfully: {dataframe.printSchema()} 
-                        on path: {iceberg_db}.{dimension_table}")
+        logger.info(f"""dataframe has been writted successfully: {dataframe.printSchema()} 
+                        on path: {iceberg_db}.{dimension_table}""")
         
         sparkStop(spark)
         

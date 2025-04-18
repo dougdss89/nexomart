@@ -5,13 +5,10 @@ from configconnections_loader import validate_required_keys, load_config
 from sys import exit
 from traceback import print_exc
 import logging
-
-
 from py4j.protocol import Py4JJavaError #java exception error
 
-
 #logging
-logging.basicConfig(level = logging.INFO, format = "%(asctime)s - %(format)s - %(message)s")
+logging.basicConfig(level = logging.INFO, format='%(asctime)s - (levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 #import .env file
@@ -70,7 +67,7 @@ def getCreateSurrogateKey(spark, catalog:str, iceberg:str, table_name:str) -> Da
         
         dataframe.createTempView("temp_freight")
         
-        dataframe = (spark.sql(f""" 
+        dataframe = (spark.sql(""" 
                                
                         select
                             row_number() over(order by shipmethodid) as shipmethod_key,
@@ -202,7 +199,7 @@ def main():
     
     try:
         application_name = "dimension_freight_table"
-        table_name = "raw_dimfreigth"
+        table_name = "raw_dimfreight"
         dimension_table = "dim_freight"
         
         
@@ -215,8 +212,8 @@ def main():
         logger.info(f"Freight Category column created: {dataframe.schema}")
         
         writeFreightDimension(dataframe= dataframe, catalog=iceberg_catalog, silver_icebergdb= iceberg_db, table_name= dimension_table)
-        logger.info(f"dataframe has been writted successfully: {dataframe.schema} 
-                        on path: {iceberg_db}.{dimension_table}")
+        logger.info(f"""dataframe has been writted successfully: {dataframe.schema}
+                        on path: {iceberg_db}.{dimension_table}""")
         
         sparkStop(spark)
         logger.info("Spark Session stopped")

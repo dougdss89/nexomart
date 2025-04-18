@@ -6,9 +6,7 @@ from sys import exit
 from traceback import print_exc
 import logging
 
-
 from py4j.protocol import Py4JJavaError #java exception error
-
 
 #create log configurations
 
@@ -87,11 +85,7 @@ def getCreateSurrogateKey(spark, catalog:str, iceberg:str, table_name:str) -> Da
         logger.error(f"Unexpected error occur. Verify: {e}")
         print_exc(e)
         exit(1)
-        
-    except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
-        print_exc(e)
-        exit(1)
+    
         
 def temporaryView(dataframe: DataFrame, spark: str) -> DataFrame:
     
@@ -119,8 +113,7 @@ def temporaryView(dataframe: DataFrame, spark: str) -> DataFrame:
         logger.error(f"Invalid runtime error: {e}")
         print_exc(e)
         exit(1)
-        
-        
+              
     except Exception as e:
         logger.error(f"Unexpected error occur. Verify: {e}")
         print_exc(e)
@@ -191,8 +184,9 @@ def main() -> str:
         return "Py4JJavaError"
     
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return "UnexpectedError"
+        logger.error(f"Unexpected error occur. Verify: {e}")
+        print_exc(e)
+        exit(1)
     
     finally:
         # Garante que a sessão do Spark seja encerrada, mesmo em caso de erro
@@ -202,4 +196,3 @@ def main() -> str:
 if __name__ == "__main__":
     main()
     logger.info("Sparkjob completed sucessfully")
-    

@@ -134,7 +134,7 @@ def main():
     spark, minio_landing, iceberg, iceberg_catalog = load_source_connections()
     raw_table = "raw_dimfreight"
     
-    dataframe = extract_landing_data(spark, minio_landing, "freigth")
+    dataframe = extract_landing_data(spark, minio_landing, "freight")
     
     dataframe = convert_freight_schema(dataframe)
     

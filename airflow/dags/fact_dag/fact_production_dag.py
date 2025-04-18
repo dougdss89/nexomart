@@ -1,10 +1,10 @@
 from sched import scheduler
-from airflow.decorators import dag
+from airflow.decorators import dag, task
 from datetime import datetime, timedelta
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
 import logging
-from raw_dimension_dag.configconnections_loader import load_config, validate_required_keys
+from raw_fact_dag.configconnections_loader import load_config, validate_required_keys
 from traceback import print_exc
 
 logging.basicConfig(level = logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,17 +24,15 @@ def load_folder_jobs():
     
     try:
         config = load_config()
-        
+
         landing_folder = config.get("job_dag_folder", {}).get("airflow_landing_folder", "")
         raw_layer_folder = config.get("job_dag_folder", {}).get("airflow_rawlayer_folder", "")
-        
-        validate_required_keys(
-            
-            config = config.get("job_dag_folder", {}),
-            required_keys=["airflow_landing_folder", "airflow_landing_folder"],
-            config_name="job_dag_folder"
-        )
 
+        validate_required_keys(config= config.get("job_dag_folder", {}),
+                           required_keys= ["airflow_landing_folder", "airflow_rawlayer_folder"],
+                           config_name="job_dag_folder"
+                        )
+    
         logging.info("Variables Imported Sucessfully")
     
         return landing_folder, raw_layer_folder
@@ -53,16 +51,16 @@ def load_folder_jobs():
 
 @dag(
     
-    dag_id = "date_dimension_orchestrator",
+    dag_id = "fact_production_orchestrator",
+    description= "Orchestrating Fact Production Dimension",
     default_args= default_args,
-    schedule = "@daily",
-    start_date= datetime(2025, 1, 1),
+    schedule = None,
     catchup = False,
-    tags = ["spark", "dimension"],
-    description= "Orchestrating date dimension"
+    start_date= datetime(2025, 1, 1),
+    tags = ["spark", "fact"]
 )
 
-def extract_date():
+def extract_fact_production():
     
     landing_folder, raw_layer_folder = load_folder_jobs()
     
@@ -72,25 +70,26 @@ def extract_date():
     
     start = EmptyOperator(task_id = "start_load")
     
-    extract_date_data = SparkSubmitOperator(
+    extract_fact_production_data = SparkSubmitOperator(
         
-        task_id = "extract_date_data",
-        application = f"{landing_folder}/advdate_extract_raw.py",
+        task_id = "extract_fact_production_data",
+        application = f"{landing_folder}/advfact_production_extract_raw.py",
         conn_id = "sparkconn",
         verbose= True
     )
     
-    write_to_date_iceberg_table = SparkSubmitOperator(
+    write_to_fact_production_iceberg_table = SparkSubmitOperator(
         
-        task_id = "write_to_date_table",
-        application= f"{raw_layer_folder}/advdate_extract_raw.py",
+        task_id = "write_to_fact_production_iceberg_table",
+        application= f"{raw_layer_folder}/advfact_production_extract_raw.py",
         conn_id = "sparkconn",
         verbose = True
     )
     
-    end = EmptyOperator(task_id = "end", trigger_rule= "all_success")
+    end = EmptyOperator(task_id ="end", trigger_rule= "all_success")
     
-    start >> extract_date_data >> write_to_date_iceberg_table >> end
+    start >> extract_fact_production_data >> write_to_fact_production_iceberg_table >> end
     
-dag = extract_date()
+dag = extract_fact_production()
+
 logging.info("Dag completed sucessfully")

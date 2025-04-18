@@ -11,7 +11,7 @@ from py4j.protocol import Py4JJavaError #java exception error
 
 
 #logging
-logging.basicConfig(level = logging.INFO, format = "%(asctime)s - %(format)s - %(message)s")
+logging.basicConfig(level = logging.INFO, format = "%(asctime)s - (levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 #import .env file
@@ -137,8 +137,8 @@ def main():
         logger.info(f"Dimension surrogate key created: {dataframe.schema}")
         
         writeScrapReasonDimension(dataframe, catalog=iceberg_catalog, silver_icebergdb= iceberg_db, table_name= dimension_table)
-        logger.info(f"dataframe has been writted successfully: {dataframe.printSchema()} 
-                        on path: {iceberg_db}.{dimension_table}")
+        logger.info(f"""dataframe has been writted successfully: {dataframe.printSchema()} 
+                        on path: {iceberg_db}.{dimension_table}""")
         
         sparkStop(spark)
         logger.info("Spark Session stopped")

@@ -2,30 +2,30 @@ import os
 from typing import Dict, Any
 from dotenv import dotenv_values
 
-def find_env_file(start_path: str = None) -> str:
+def find_env_file(Start_load_path: str=None) -> str:
     """
     Procura pelo arquivo .env considerando variáveis de ambiente e volumes Docker.
 
-    :param start_path: Caminho inicial opcional para procurar o arquivo .env
+    :param Start_load_path: Caminho inicial opcional para procurar o arquivo .env
     :return: Caminho completo para o arquivo .env
     :raises FileNotFoundError: Se o arquivo .env não for encontrado
     """
     # Primeiro, verifica se existe uma variável de ambiente apontando para o diretório base
-    base_dir = os.getenv('PROJECT_BASE_DIR')
-    module_dir = os.getenv('MODULE_DIR')
+    base_dir=os.getenv('PROJECT_BASE_DIR')
+    module_dir=os.getenv('MODULE_DIR')
     
-    search_paths = []
+    search_paths=[]
     
     # Adiciona caminhos de busca em ordem de prioridade
-    if start_path:
-        search_paths.append(start_path)
+    if Start_load_path:
+        search_paths.append(Start_load_path)
     if module_dir:
         search_paths.append(module_dir)
     if base_dir:
         search_paths.append(base_dir)
     
     # Adiciona o diretório do módulo atual
-    current_module_dir = os.path.dirname(os.path.abspath(__file__))
+    current_module_dir=os.path.dirname(os.path.abspath(__file__))
     search_paths.append(current_module_dir)
     
     # Adiciona o diretório atual de trabalho
@@ -39,20 +39,20 @@ def find_env_file(start_path: str = None) -> str:
 
     # Procura o .env em cada caminho e seus diretórios superiores
     for base_path in search_paths:
-        current_dir = base_path
+        current_dir=base_path
         while current_dir != os.path.dirname(current_dir):  # Enquanto não chegar na raiz
-            potential_path = os.path.join(current_dir, '.env')
+            potential_path=os.path.join(current_dir, '.env')
             print(f"Verificando: {potential_path}")
             
             if os.path.exists(potential_path):
                 print(f"Arquivo .env encontrado em: {potential_path}")
                 return potential_path
                 
-            current_dir = os.path.dirname(current_dir)
+            current_dir=os.path.dirname(current_dir)
 
     raise FileNotFoundError("Arquivo .env não encontrado em nenhum dos caminhos de busca.")
 
-def load_config(env_path: str = None) -> Dict[str, Any]:
+def load_config(env_path: str=None) -> Dict[str, Any]:
     """
     Carrega e prepara as configurações do arquivo .env, substituindo placeholders dinâmicos.
 
@@ -62,10 +62,10 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
     """
     # Caso o caminho não seja passado, procura pelo arquivo .env no diretório atual ou superior
     if not env_path:
-        env_path = find_env_file()
+        env_path=find_env_file()
 
     # Carrega as variáveis do arquivo .env
-    config = dotenv_values(env_path)
+    config=dotenv_values(env_path)
     if not config:
         raise FileNotFoundError(f"Erro ao carregar o arquivo .env de {env_path}. Verifique o caminho e o formato.")
 
@@ -79,18 +79,18 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
 
         for var_name, var_value in config.items():
             if var_value:  # Evita substituir com valores nulos
-                value = value.replace(f"${{{var_name}}}", var_value)
-                value = value.replace(f"${var_name}", var_value)
+                value=value.replace(f"${{{var_name}}}", var_value)
+                value=value.replace(f"${var_name}", var_value)
         return value
 
     # Processa todas as variáveis do .env
-    processed_config = {
+    processed_config={
         key: replace_env_vars(value)
         for key, value in config.items()
     }
 
-    configurations = {
-        "mssql_sources": {
+    configurations={
+        "mssql_datas": {
             "adventureworks": {
                 "url": processed_config.get("MSSQLURLADVENTUREWORKS"),
                 "database": processed_config.get("MSSQLDATABASEADVENTUREWORKS"),
@@ -135,6 +135,7 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
         "job_dag_folder": {
             "airflow_landing_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_LANDING_SCRIPT"),
             "airflow_rawlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_RAW_SCRIPT"),
+            "airflow_silverlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_SILVER_SCRIPT"),
             "spark_landing_folder": processed_config.get("SPARK_LANDING_FOLDER"),
             "spark_rawlayer_folder": processed_config.get("SPARK_RAW_LAYER_SCRIPT"),
             "airflow_dag_folder": processed_config.get("DAGSFOLDER")
@@ -162,7 +163,7 @@ def validate_required_keys(config: Dict[str, str], required_keys: list, config_n
     :raises RuntimeError: Se alguma chave estiver ausente
     """
     if not config or not all(key in config and config[key] for key in required_keys):
-        missing_keys = [key for key in required_keys if not config.get(key)]
+        missing_keys=[key for key in required_keys if not config.get(key)]
         raise RuntimeError(f"Missing required configuration in {config_name}: {', '.join(missing_keys)}")
 
 
@@ -178,7 +179,7 @@ def print_pretty_config(config: Dict[str, Any]) -> None:
 
 if __name__ == "__main__":
     try:
-        config = load_config()
+        config=load_config()
         print("Configurações carregadas com sucesso:")
         print("Fim da importação")
         print_pretty_config(config)

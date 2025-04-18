@@ -51,44 +51,44 @@ def load_jobs_folder():
         
 @dag(
     
-    dag_id = "fact_sales_orchestrator",
+    dag_id = "fact_purchase_orchestrator",
     description= "Orchestrating Fact purchasing table",
     default_args= default_args,
-    schedule = "@daily",
+    schedule = None,
     catchup = False,
     start_date= datetime(2025, 1, 1),
     tags = ["spark", "fact"]
 )
 
-def extract_fact_sales():
+def extract_fact_purchase():
     
     landing_folder, raw_layer_folder = load_jobs_folder()
     
-    """_summary_ dag to extract fact sales data
+    """_summary_ dag to extract fact purchase data
     """
     
     start = EmptyOperator( task_id = "start_load")
     
-    extract_fact_sales_data = SparkSubmitOperator(
+    extract_fact_purchase_data = SparkSubmitOperator(
 
-        task_id = "extract_fact_sales_data",
-        application = f"{landing_folder}/advfact_sales_extract_raw.py",
+        task_id = "extract_fact_purchase_data",
+        application = f"{landing_folder}/advfact_purchase_extract_raw.py",
         conn_id= "sparkconn",
         verbose= True
     )
     
-    write_to_fact_sales_iceberg_table = SparkSubmitOperator(
+    write_to_fact_purchase_iceberg_table = SparkSubmitOperator(
         
-        task_id = "write_to_fact_sales_iceberg_table",
-        application=f"{raw_layer_folder}/advfact_sales_extract_raw.py",
+        task_id = "write_to_fact_purchase_iceberg_table",
+        application=f"{raw_layer_folder}/advfact_purchase_extract_raw.py",
         conn_id= "sparkconn",
         verbose = True        
     )
     
     end = EmptyOperator(task_id = "end_load", trigger_rule= "all_success")
     
-    start >> extract_fact_sales_data >> write_to_fact_sales_iceberg_table >> end
+    start >> extract_fact_purchase_data >> write_to_fact_purchase_iceberg_table >> end
     
-dag = extract_fact_sales()
+dag = extract_fact_purchase()
 
 logging.info("Dag completed sucessfully")

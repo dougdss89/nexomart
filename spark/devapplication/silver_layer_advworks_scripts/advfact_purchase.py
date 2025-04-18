@@ -11,7 +11,7 @@ import logging
 from py4j.protocol import Py4JJavaError #java exception error
 
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(format)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - (levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 #import .env file

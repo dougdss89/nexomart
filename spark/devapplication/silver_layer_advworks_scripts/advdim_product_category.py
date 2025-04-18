@@ -1,6 +1,3 @@
-from email.mime import application
-from nbformat import writes
-from pydantic import FilePath
 from startSparkSession import SparkSessionManager
 from pyspark.sql.functions import *
 from pyspark.sql.dataframe import DataFrame
@@ -15,7 +12,7 @@ from py4j.protocol import Py4JJavaError #java exception error
 
 #logging 
 
-logging.basicConfig(level = logging.INFO, format= "%(asctime)s - %(format)s - %(message)s")
+logging.basicConfig(level = logging.INFO, format= "%(asctime)s - (levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 #import .env file
@@ -156,8 +153,8 @@ def main():
         logger.info(f"Dimension surrogate key created: {dataframe.schema}")
         
         writeProductCategoryDataframe(dataframe= dataframe, catalog=iceberg_catalog, silver_icebergdb= iceberg_db, table_name= dimension_table)
-        logger.info(f"dataframe has been writted successfully: {dataframe.schema} 
-                        on path: {iceberg_db}.{dimension_table}")
+        logger.info(f"""dataframe has been writted successfully: {dataframe.schema} 
+                        on path: {iceberg_db}.{dimension_table}""")
         
         spark.stop(spark)
         

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
 import logging
-from raw_dimension_dag.configconnections_loader import load_config, validate_required_keys
+from raw_fact_dag.configconnections_loader import load_config, validate_required_keys
 from traceback import print_exc
 
 logging.basicConfig(level = logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -51,44 +51,44 @@ def load_jobs_folder():
         
 @dag(
     
-    dag_id = "freigth_data_orchestrator",
-    description= "Orchestrating freigth table",
+    dag_id = "fact_sales_orchestrator",
+    description= "Orchestrating Fact purchasing table",
     default_args= default_args,
-    schedule = "@daily",
+    schedule = None,
     catchup = False,
     start_date= datetime(2025, 1, 1),
-    tags = ["spark", "dimension"]
+    tags = ["spark", "fact"]
 )
 
-def extract_freigth_data():
+def extract_fact_sales():
     
     landing_folder, raw_layer_folder = load_jobs_folder()
     
-    """_summary_ dag to extract freigth dimension data
+    """_summary_ dag to extract fact sales data
     """
     
     start = EmptyOperator( task_id = "start_load")
     
-    extract_freigth_data = SparkSubmitOperator(
+    extract_fact_sales_data = SparkSubmitOperator(
 
-        task_id = "extract_freigth_data",
-        application = f"{landing_folder}/advfreigth_extract_raw.py",
+        task_id = "extract_fact_sales_data",
+        application = f"{landing_folder}/advfact_sales_extract_raw.py",
         conn_id= "sparkconn",
         verbose= True
     )
     
-    write_to_freigth_iceberg_table = SparkSubmitOperator(
+    write_to_fact_sales_iceberg_table = SparkSubmitOperator(
         
-        task_id = "write_to_freigth_iceberg_table",
-        application=f"{raw_layer_folder}/advfreigth_extract_raw.py",
+        task_id = "write_to_fact_sales_iceberg_table",
+        application=f"{raw_layer_folder}/advfact_sales_extract_raw.py",
         conn_id= "sparkconn",
         verbose = True        
     )
     
     end = EmptyOperator(task_id = "end_load", trigger_rule= "all_success")
     
-    start >> extract_freigth_data >> write_to_freigth_iceberg_table >> end
+    start >> extract_fact_sales_data >> write_to_fact_sales_iceberg_table >> end
     
-dag = extract_freigth_data()
+dag = extract_fact_sales()
 
 logging.info("Dag completed sucessfully")

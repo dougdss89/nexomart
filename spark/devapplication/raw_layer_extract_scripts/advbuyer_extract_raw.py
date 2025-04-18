@@ -45,7 +45,7 @@ def load_source_connections():
             .getOrCreate()
         )
 
-        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", ""), iceberg_catalog.get("iceberg_catalog", "")
+        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "")
 
     except (FileNotFoundError, KeyError) as e:
         print(f"Could not load connections from source: {e}")

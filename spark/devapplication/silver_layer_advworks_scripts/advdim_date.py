@@ -1,4 +1,3 @@
-from os import write
 from startSparkSession import SparkSessionManager
 from pyspark.sql.functions import *
 from pyspark.sql.dataframe import DataFrame

@@ -1,6 +1,6 @@
 import logging
 from configconnections_loader import load_config, validate_required_keys
-from startSparkSession import SparkSessionManager
+from pyspark.sql.session import SparkSession
 from pyspark.sql.functions import col, cast
 from sys import exit
 from traceback import print_exc
@@ -38,6 +38,7 @@ def load_source_connections():
         )
 
         # Creating SparkSession
+
         spark = (
             SparkSession.builder
             .appName('extract_buyer_landing')
@@ -45,7 +46,7 @@ def load_source_connections():
             .getOrCreate()
         )
 
-        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", ""), iceberg_catalog.get("iceberg_catalog", "")
+        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "")
 
     except (FileNotFoundError, KeyError) as e:
         print(f"Could not load connections from source: {e}")
