@@ -43,13 +43,13 @@ def load_source_connection():
     
     
     except RuntimeError as e:
-        print(f"Failed to create configuration: {e}")
+        print(f"Failed to create configuration: {str(e)}")
         print_exc()
         
         return None
     
     except Exception as e:
-        print(f"Unexpected error occur: {e}")
+        print(f"Unexpected error occur: {str(e)}")
         print_exc()
         return None, None, None
 

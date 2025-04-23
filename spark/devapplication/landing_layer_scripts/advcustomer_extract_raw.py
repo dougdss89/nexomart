@@ -12,7 +12,7 @@ def load_source_connections():
     try:
         config = load_config()
     except (FileNotFoundError, KeyError) as e:
-        print(f"Could not load source connections from file: {e}")
+        print(f"Could not load source connections from file: {str(e)}")
         return None, None, None
 
     # Validar chaves necessárias
@@ -24,7 +24,7 @@ def load_source_connections():
         minio_landing = config.get("hadoop_paths", {})
         
     except KeyError as e:
-        print(f"Missing required configuration key: {e}")
+        print(f"Missing required configuration key: {str(e)}")
         return None, None, None
     
     #creating spark session    

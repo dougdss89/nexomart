@@ -15,12 +15,12 @@ def load_source_connections():
         config = load_config()
         
     except FileExistsError as e:
-        print(f"File .env was not founded and loaded: {e}")
+        print(f"File .env was not founded and loaded: {str(e)}")
         print_exc()
         return None
     
     except KeyError as e:
-        print(f"Missing some key-values pair: {e}")
+        print(f"Missing some key-values pair: {str(e)}")
         print_exc()
         return None
     
@@ -63,13 +63,13 @@ def load_source_connections():
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
 
     except RuntimeError as e:
-        print(f"Fail to create spark session: {e}")
+        print(f"Fail to create spark session: {str(e)}")
         print_exc()
         
         return None
     
     except Exception as e:
-        print(f"unexpected error ocurred: {e}")
+        print(f"unexpected error ocurred: {str(e)}")
         print_exc()
         
         return None, None, None
@@ -124,12 +124,12 @@ def extract_scrapreason_raw(spark, mssql_properties, mssql_adventureworks):
         return df_warehouse_extract_raw
     
     except RuntimeError as e:
-        print(f"Fail to extract data from source: {e} ")
+        print(f"Fail to extract data from source: {str(e)} ")
         print_exc()
         return None
     
     except Exception as e:
-        print(f"unexpected error encountered: {e}")
+        print(f"unexpected error encountered: {str(e)}")
         print_exc()
         return None, None, None
 
@@ -160,7 +160,7 @@ def main():
             {df_warehouse}""")
             
     except Exception as e:
-        print(f"Main script encontered error: {e}")
+        print(f"Main script encontered error: {str(e)}")
         print_exc()
         
     finally:

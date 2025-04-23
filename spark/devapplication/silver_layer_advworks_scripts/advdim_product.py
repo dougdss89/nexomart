@@ -38,22 +38,22 @@ def load_source_configurations(spark_application: str):
         return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "")
 
     except FileNotFoundError as e:
-        logger.error(f"Could not load connections from source: {e}")
+        logger.error(f"Could not load connections from source: {str(e)}")
         print_exc()
         exit(1)
         
     except KeyError as e:
-        logger.error(f"key value pair error. Value not found. Verify: {e}")
+        logger.error(f"key value pair error. Value not found. Verify: {str(e)}")
         print_exc()
         exit(1)
         
     except RuntimeError as e:
-        logger.error(f"Failed to create Spark Session. Runtime Error: {e}")
+        logger.error(f"Failed to create Spark Session. Runtime Error: {str(e)}")
         print_exc()
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occurred. {e}")
+        logger.error(f"Unexpected error occurred. {str(e)}")
         print_exc()
         exit(1)
         
@@ -72,7 +72,7 @@ def getCreateSurrogateKey(spark, catalog:str, iceberg:str, table_name:str) -> Da
         
         dataframe.createTempView("temp_product")
                 
-        dataframe = spark.sql(f""" 
+        dataframe = spark.sql(""" 
                                 select 
                                     row_number() over(order by productid) as productkey,                                    
                                     *
@@ -84,17 +84,17 @@ def getCreateSurrogateKey(spark, catalog:str, iceberg:str, table_name:str) -> Da
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except RuntimeError as e:
-        logger.error(f"Invalid runtime error: {e}")
+        logger.error(f"Invalid runtime error: {str(e)}")
         print_exc(e)
         exit(1)   
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
     
@@ -115,12 +115,12 @@ def transformProductName(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)    
 
@@ -135,12 +135,12 @@ def transformProductModel(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -163,12 +163,12 @@ def transformProductClass(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -196,12 +196,12 @@ def transformProductSize(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
 
@@ -226,12 +226,12 @@ def transformProductLine(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -254,12 +254,12 @@ def transformProductColor(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
 
@@ -280,12 +280,12 @@ def transformProductStyle(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -308,12 +308,12 @@ def transformProductModelName(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -336,12 +336,12 @@ def transformProductMeasureCode(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -363,12 +363,12 @@ def transformProductManufClass(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -388,12 +388,12 @@ def transformProductSize(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -420,12 +420,12 @@ def transformProductNull(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -454,12 +454,12 @@ def transformProductColumn(dataframe: DataFrame) -> DataFrame:
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
 
@@ -479,11 +479,11 @@ def writeProductDimension(dataframe:DataFrame, catalog:str, silver_icebergdb:str
         return logger.info(f"Table writing successfully completed to iceberg: {table_name}")
     
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {table_name} to iceberg: {e}")
+        logger.error(f"Java/Scala error while writing table {table_name} to iceberg: {str(e)}")
         return "Py4JJavaError"
 
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {table_name} to iceberg: {e}")
+        logger.error(f"Unexpected error while writing table {table_name} to iceberg: {str(e)}")
         return "UnexpectedError"
             
 def sparkStop(spark) -> str:
@@ -494,7 +494,7 @@ def sparkStop(spark) -> str:
         return f"Spark Session stoped Successfully: {spark}"
     
     except Exception as e:
-        logger.error(f"Failed to stop SparkSession: {e}")
+        logger.error(f"Failed to stop SparkSession: {str(e)}")
         print_exc(e)
         
 def main():
@@ -556,7 +556,7 @@ def main():
         return "Success"
         
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.error(f"Unexpected error: {str(e)}")
         return "UnexpectedError"
     
     finally:

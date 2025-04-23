@@ -13,12 +13,12 @@ def load_source_connections():
         print("Configurations loaded successfully")
         
     except FileNotFoundError as e:
-        print(f"File .env not found. Impossible to load environment variables: {e}")
+        print(f"File .env not found. Impossible to load environment variables: {str(e)}")
         print_exc() 
         return None
     
     except KeyError as e:
-        print(f"Missing key-values pair: {e}")
+        print(f"Missing key-values pair: {str(e)}")
         print_exc()
         return None
     
@@ -56,12 +56,12 @@ def load_source_connections():
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except RuntimeError as e:
-        print(f"Fail to create Spark Session. Run time error: {e}")
+        print(f"Fail to create Spark Session. Run time error: {str(e)}")
         print_exc()
         return None
     
     except Exception as e:
-        print(f"Unexpected error ocurred. Please verify: {e}")
+        print(f"Unexpected error ocurred. Please verify: {str(e)}")
         print_exc()
         exit(1)
         return None, None, None
@@ -129,16 +129,16 @@ def extract_fact_sales_raw(spark, mssql_properties, mssql_adventureworks):
         return df_fact_sales_raw
     
     except ConnectionError as e:
-        print(f"Error to connect on database. Fail to extract data: {e}")
+        print(f"Error to connect on database. Fail to extract data: {str(e)}")
         print_exc()
         return None
     
     except TimeoutError as e:
-        print(f"Timeout error to connect on database: {e}")
+        print(f"Timeout error to connect on database: {str(e)}")
         print_exc()
         return None
     except Exception as e:
-        print(f"Unexpected error ocurred: {e}")
+        print(f"Unexpected error ocurred: {str(e)}")
         print_exc()
         exit(1)
         return None, None, None
@@ -151,12 +151,12 @@ def spark_stop(spark):
         print(f"Spark Session closed")
         
     except TimeoutError as e:
-        print(f"Spark Session not founded: {e}")
+        print(f"Spark Session not founded: {str(e)}")
         print_exc()
         return None
     
     except Exception as e:
-        print(f"Unexpected error ocurred: {e}")
+        print(f"Unexpected error ocurred: {str(e)}")
         print_exc()
         return None, None, None
     
@@ -182,13 +182,13 @@ def main():
             {df_sales}""")
             
     except RuntimeError as e:
-        print(f"Error to execute script: {e}")
+        print(f"Error to execute script: {str(e)}")
         
     except ConnectionError as e:
-        print(f"Error to connect on Data Lake Hadoop: {e}")
+        print(f"Error to connect on Data Lake Hadoop: {str(e)}")
         
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        print(f"Unexpected error: {str(e)}")
         print_exc
         exit(1)
         

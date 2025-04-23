@@ -188,6 +188,6 @@ if __name__ == "__main__":
         validate_required_keys(config["spark_jars"], ["mssql_spark_jars", "postgresql_jar"], "Spark JARs")
 
     except Exception as e:
-        print(f"Erro ao carregar configurações: {e}")
+        print(f"Erro ao carregar configurações: {str(e)}")
         import traceback
         traceback.print_exc()

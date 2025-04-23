@@ -16,10 +16,10 @@ def load_source_connections():
         
         
     except FileExistsError as e:
-        print("File .env not founded: {e}")
+        print("File .env not founded: {str(e)}")
         
     except KeyError as e:
-        print("Missing some key-values pair: {e}")
+        print("Missing some key-values pair: {str(e)}")
         
     #importing key-values from .env
     #validating data imported
@@ -57,13 +57,13 @@ def load_source_connections():
 
     
     except RuntimeError as e:
-        print(f"Failed to create configuration: {e}")
+        print(f"Failed to create configuration: {str(e)}")
         print_exc()
         
         return None
     
     except Exception as e:
-        print(f"Unexpected error occur: {e}")
+        print(f"Unexpected error occur: {str(e)}")
         print_exc()
         return None, None, None
     
@@ -131,7 +131,7 @@ def extract_salesperson_raw(spark, mssql_properties, mssql_adventureworks):
         return df_salesperson_raw
 
     except Exception as e:
-        print(f"Error to extract and create  dataframe: {e}")
+        print(f"Error to extract and create  dataframe: {str(e)}")
         print_exc()
         return None, None, None
     
@@ -168,7 +168,7 @@ def main():
                   {salesperson_df}.""")
     
     except Exception as e:
-        print(f"Main script encontered some error value: {e}")
+        print(f"Main script encontered some error value: {str(e)}")
         print_exc()
         
         return None, None, None

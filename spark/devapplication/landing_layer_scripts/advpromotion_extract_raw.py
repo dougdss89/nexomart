@@ -12,12 +12,12 @@ def load_source_connections():
         config = load_config()
         
     except FileNotFoundError as e:
-        print(f"Config file .env was not load: {e}")
+        print(f"Config file .env was not load: {str(e)}")
         print_exc()
         return None
     
     except KeyError as e:
-        print(f"Missing some key-values pair: {e}")
+        print(f"Missing some key-values pair: {str(e)}")
         print_exc()
         return None
     
@@ -54,12 +54,12 @@ def load_source_connections():
         
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     except RuntimeError as e:
-        print(f"Fail to validate configurations: {e}")
+        print(f"Fail to validate configurations: {str(e)}")
         print_exc()
         return None
     
     except Exception as e:
-        print(f"Unexpected error occur: {e}")
+        print(f"Unexpected error occur: {str(e)}")
         print_exc()
         return None, None, None
     
@@ -104,7 +104,7 @@ def extract_promotion_raw(spark, mssql_properties, mssql_adventureworks):
         return df_promotion_raw
     
     except Exception as e:
-        print(f"Error to extract and create {df_promotion_raw} dataframe: {e}")
+        print(f"Error to extract and create {df_promotion_raw} dataframe: {str(e)}")
         print_exc()
         return None, None, None
     
@@ -136,7 +136,7 @@ def main():
             
                         
     except Exception as e:
-        print(f"Main script encontered error: {e}")
+        print(f"Main script encontered error: {str(e)}")
         print_exc()
         
     finally:

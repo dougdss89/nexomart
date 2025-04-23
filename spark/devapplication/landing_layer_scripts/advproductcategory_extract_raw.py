@@ -13,11 +13,11 @@ def load_source_connections():
         config = load_config()  
     
     except FileNotFoundError as e:
-        print(f"File .env not founded: {e}")
+        print(f"File .env not founded: {str(e)}")
         return None
     
     except KeyError as e:
-        print("Missing some key-values pair: {e}")
+        print("Missing some key-values pair: {str(e)}")
         return None
     
     #validating imported keys
@@ -54,11 +54,11 @@ def load_source_connections():
 
     
     except RuntimeError as e:
-        print(f"Configuration validation failed: {e}")
+        print(f"Configuration validation failed: {str(e)}")
         return None, None, None
     
     except Exception as e:
-        print(f"Unexpected error occurred: {e}")
+        print(f"Unexpected error occurred: {str(e)}")
         print_exc()
         return None, None, None
     
@@ -97,7 +97,7 @@ def extract_product_category_raw(spark, mssql_properties, mssql_adventureworks):
         return df_product_category_raw
 
     except Exception as e:
-        print(f"Error extracting freight data: {e}")
+        print(f"Error extracting freight data: {str(e)}")
         print_exc()
         return None
     
@@ -124,7 +124,7 @@ def main():
             print(f"Dataframe loaded successfully on destination: {product_category_df}")
             
     except Exception as e:
-        print("Main script encontered error: {e}")
+        print("Main script encontered error: {str(e)}")
         print_exc()
         
     finally:

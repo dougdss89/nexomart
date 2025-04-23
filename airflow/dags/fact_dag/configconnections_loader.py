@@ -2,11 +2,11 @@ import os
 from typing import Dict, Any
 from dotenv import dotenv_values
 
-def find_env_file(start_path: str = None) -> str:
+def find_env_file(Start_path: str = None) -> str:
     """
     Procura pelo arquivo .env considerando variáveis de ambiente e volumes Docker.
 
-    :param start_path: Caminho inicial opcional para procurar o arquivo .env
+    :param Start_path: Caminho inicial opcional para procurar o arquivo .env
     :return: Caminho completo para o arquivo .env
     :raises FileNotFoundError: Se o arquivo .env não for encontrado
     """
@@ -17,8 +17,8 @@ def find_env_file(start_path: str = None) -> str:
     search_paths = []
     
     # Adiciona caminhos de busca em ordem de prioridade
-    if start_path:
-        search_paths.append(start_path)
+    if Start_path:
+        search_paths.append(Start_path)
     if module_dir:
         search_paths.append(module_dir)
     if base_dir:
@@ -188,6 +188,6 @@ if __name__ == "__main__":
         validate_required_keys(config["spark_jars"], ["mssql_spark_jars", "postgresql_jar"], "Spark JARs")
 
     except Exception as e:
-        print(f"Erro ao carregar configurações: {e}")
+        print(f"Erro ao carregar configurações: {str(e)}")
         import traceback
         traceback.print_exc()

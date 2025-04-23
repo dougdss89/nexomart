@@ -48,17 +48,17 @@ def load_source_connections():
         return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "") #, minio_storage
     
     except (FileNotFoundError, KeyError) as e:
-        logger.error(f"Could not load connections from source: {e}")
+        logger.error(f"Could not load connections from source: {str(e)}")
         print_exc()
         exit(1)
 
     except RuntimeError as e:
-        logger.error(f"Failed to create SparkSession. Runtime error: {e}")
+        logger.error(f"Failed to create SparkSession. Runtime error: {str(e)}")
         print_exc()
         exit(1)
 
     except Exception as e:
-        logger.error(f"Unexpected error occurred. Please verify: {e}")
+        logger.error(f"Unexpected error occurred. Please verify: {str(e)}")
         print_exc()
         exit(1)
     
@@ -73,7 +73,7 @@ def extract_landing_data(spark, minio_landing, raw_table):
         return dataframe
     
     except Exception as e:
-        logger.error(f"Failed to extract data from {raw_table}: {e}")
+        logger.error(f"Failed to extract data from {raw_table}: {str(e)}")
         print_exc()
         exit(1)
         
@@ -106,7 +106,7 @@ def convert_factproduction_schema(dataframe):
         return dataframe
     
     except Exception as e:
-        logger.error(f"Error to convert dataframe schema: {dataframe}. Please verify: {e}")
+        logger.error(f"Error to convert dataframe schema: {dataframe}. Please verify: {str(e)}")
         print_exc()
         exit(1)
         
@@ -127,7 +127,7 @@ def write_to_iceberg(dataframe, catalog:str, raw_icebergdb:str, table_name:str):
         return logger.info(f"Table {table_name} written successfully to iceberg.")
         
     except Exception as e:
-        print(f"Failed to write table {table_name} to iceberg: {e}")
+        print(f"Failed to write table {table_name} to iceberg: {str(e)}")
         print_exc()
         exit(1)
         
@@ -138,7 +138,7 @@ def spark_stop(spark):
             logger.info("SparkSession stoped successfully")
             
     except Exception as e:
-        logger.error(f"Failed to stop SparkSession: {e}")
+        logger.error(f"Failed to stop SparkSession: {str(e)}")
         print_exc()
         
         

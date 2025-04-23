@@ -16,11 +16,11 @@ def load_source_connections():
         print("Configuration loaded")
         
     except FileNotFoundError as e:
-        print(f"File .env was not founded. Verifiy file path: {e}")
+        print(f"File .env was not founded. Verifiy file path: {str(e)}")
         return None
     
     except KeyError as e:
-        print("Some key-values pair was not loaded: {e}")
+        print("Some key-values pair was not loaded: {str(e)}")
         return None
     
     #validating imported keys
@@ -57,11 +57,11 @@ def load_source_connections():
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except RuntimeError as e:
-        print(f"Fail to validate configuration: {e}")
+        print(f"Fail to validate configuration: {str(e)}")
         return None, None, None
     
     except Exception as e:
-        print(f"Unexpected error ocurred: {e}")
+        print(f"Unexpected error ocurred: {str(e)}")
         print_exc()
         return None, None, None
     
@@ -131,7 +131,7 @@ def extract_product_raw(spark, mssql_properties, mssql_adventureworks):
         return df_product_raw
     
     except Exception as e:
-        print(f"Error extraction product data: {e}")
+        print(f"Error extraction product data: {str(e)}")
         print_exc()
         return None
     
@@ -158,7 +158,7 @@ def main():
             print("Dataframe loaded successfully to HDFS")
             
     except Exception as e:
-        print("Main script error: {e}")
+        print("Main script error: {str(e)}")
         print_exc()
         return None
     

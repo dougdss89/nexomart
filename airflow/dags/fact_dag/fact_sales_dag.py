@@ -1,53 +1,62 @@
-from sched import scheduler
-from airflow.decorators import dag, task
-from datetime import datetime, timedelta
+from airflow.decorators import dag
+from datetime import datetime
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.exceptions import  AirflowException
 import logging
-from raw_fact_dag.configconnections_loader import load_config, validate_required_keys
-from traceback import print_exc
 
-logging.basicConfig(level = logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Agora podemos importar nosso módulo
+from dimension_dag.configconnections_loader import load_config, validate_required_keys
+
+logging.basicConfig(level = logging.INFO, format='%(asctime)s - %%(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
+# Configurações padrão do DAG
 default_args = {
     "owner": "spark",
     "depends_on_past": False,
     "email_on_failure": False,
     "email_on_retry": False,
     "retries": 0,
-    "retry_delay": timedelta(seconds=20),
 }
 
-def load_jobs_folder():
+def load_folders_job():
     
     try:
-        
         config = load_config()
         
-        landing_folder = config.get("job_dag_folder", "").get("airflow_landing_folder", "")
-        raw_layer_folder = config.get("job_dag_folder", "").get("airflow_rawlayer_folder")
+        job_dag_folder = config.get("job_dag_folder", {})
         
-        validate_required_keys(config = config.get("job_dag_folder", ""),
-                               required_keys=["airflow_landing_folder", "airflow_rawlayer_folder"],
-                               config_name="job_dag_folder")
+        validate_required_keys(config = config.get("job_dag_folder", {}),
+                            required_keys = ["airflow_landing_folder", 
+                                           "airflow_rawlayer_folder", 
+                                           "airflow_silverlayer_folder"],
+                            config_name = "job_dag_folder")
+                
+        landing_folder = job_dag_folder.get("airflow_landing_folder", "")
+        raw_layer_folder = job_dag_folder.get("airflow_rawlayer_folder", "")
+        silver_layer_folder = job_dag_folder.get("airflow_silverlayer_folder", "")
         
-        logging.info("Variables imported successfully")
+        logging.info("Variables imported sucessfully")
         
-        return landing_folder, raw_layer_folder
-
-    except ImportError as e:
-        logging.error(f"Error to import function load_config: {e}")
-        print_exc()
-        
-    except ValueError as e:
-        logging.error(f"Missing some variables: {e}")
-        print_exc()
-        
+        return landing_folder, raw_layer_folder, silver_layer_folder
+    
+    except ModuleNotFoundError as e:
+        logger.error(f"Impossible to load module. Please verify: {str(e)}")
+        raise AirflowException(f"Impossible to load module. Please verify: {str(e)}")
+    
     except Exception as e:
-        logging.error(f"Unexpected error. Please, verify: {e}")
-        print_exc()
+        logger.error(f"An exception error has occur. Please verify: {str(e)}")
+        raise AirflowException(f"An exception error has occur. Please verify: {str(e)}")
+    
+def spark_handle_failure(context):
+    
+    task_instance = context['task_instance']
+    error_message = f"Task {task_instance.task_id} has failed to execute. {context['exception']}"
+    
+    logger.error(f"{str(error_message)}")
+    raise AirflowException(f"{error_message}")
         
 @dag(
     
@@ -60,35 +69,53 @@ def load_jobs_folder():
     tags = ["spark", "fact"]
 )
 
-def extract_fact_sales():
+def Extract_fact_sales():
+    try:
     
-    landing_folder, raw_layer_folder = load_jobs_folder()
-    
-    """_summary_ dag to extract fact sales data
-    """
-    
-    start = EmptyOperator( task_id = "start_load")
-    
-    extract_fact_sales_data = SparkSubmitOperator(
-
-        task_id = "extract_fact_sales_data",
-        application = f"{landing_folder}/advfact_sales_extract_raw.py",
-        conn_id= "sparkconn",
-        verbose= True
-    )
-    
-    write_to_fact_sales_iceberg_table = SparkSubmitOperator(
+        landing_folder, raw_layer_folder, silver_layer_folder = load_folders_job()
         
-        task_id = "write_to_fact_sales_iceberg_table",
-        application=f"{raw_layer_folder}/advfact_sales_extract_raw.py",
-        conn_id= "sparkconn",
-        verbose = True        
-    )
-    
-    end = EmptyOperator(task_id = "end_load", trigger_rule= "all_success")
-    
-    start >> extract_fact_sales_data >> write_to_fact_sales_iceberg_table >> end
-    
-dag = extract_fact_sales()
+        """_summary_ dag to extract fact sales data
+        """
+        
+        Start = EmptyOperator( task_id = "Start_load")
+        
+        Extract_fact_sales_data = SparkSubmitOperator(
 
+            task_id = "Extract_fact_sales_data",
+            application = f"{landing_folder}/advfact_sales_extract_raw.py",
+            conn_id= "sparkconn",
+            verbose= True
+        )
+        
+        Write_to_fact_sales_bronze_layer = SparkSubmitOperator(
+            
+            task_id = "Write_to_fact_sales_bronze_layer",
+            application=f"{raw_layer_folder}/advfact_sales_extract_raw.py",
+            conn_id= "sparkconn",
+            verbose = True,
+            on_failure_callback = spark_handle_failure       
+        )
+        
+        Write_to_fact_sales_silver_layer = SparkSubmitOperator(
+            
+            task_id = "Write_to_fact_sales_silver_layer",
+            application=f"{silver_layer_folder}/advfact_sales.py",
+            conn_id= "sparkconn",
+            verbose = True,
+            on_failure_callback = spark_handle_failure       
+        )
+        
+        End = EmptyOperator(task_id ="End", trigger_rule= "all_success")
+        
+        Start >> Extract_fact_sales_data >> Write_to_fact_sales_bronze_layer >> Write_to_fact_sales_silver_layer >> End
+        
+    except FileNotFoundError as e:
+        logger.error(f"File error: {str(e)}")
+        raise AirflowException(f"File not found: {str(e)}")
+    
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        raise AirflowException(f"DAG failed: {str(e)}")     
+    
+dag = Extract_fact_sales()
 logging.info("Dag completed sucessfully")

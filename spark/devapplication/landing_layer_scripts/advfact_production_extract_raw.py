@@ -15,11 +15,11 @@ def load_source_connections():
         print(".env file loaded successfully")
         
     except FileNotFoundError as e:
-        print(f"File not founded: {e}")
+        print(f"File not founded: {str(e)}")
         print_exc()
         
     except KeyError as e:
-        print(f"Error to load some key-values pair from env variables: {e}")
+        print(f"Error to load some key-values pair from env variables: {str(e)}")
         print_exc()
     
     #validade keys and create spark session
@@ -58,11 +58,11 @@ def load_source_connections():
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except RuntimeError as e:
-        print(f"Runtime error to validade keys or create Spark Session: {e}")
+        print(f"Runtime error to validade keys or create Spark Session: {str(e)}")
         print_exc()
         
     except Exception as e:
-        print(f"Unexpected error encountered: {e}")
+        print(f"Unexpected error encountered: {str(e)}")
         print_exc()
         exit(1)
         
@@ -115,15 +115,15 @@ def extract_store_raw(spark, mssql_properties, mssql_adventureworks):
         return df_fact_production_raw
     
     except ConnectionRefusedError as e:
-        print(f"Error to connect on database source: {e}")
+        print(f"Error to connect on database source: {str(e)}")
         print_exc()
         
     except TimeoutError as e:
-        print(f"Timeout error. Verify connection network: {e}")
+        print(f"Timeout error. Verify connection network: {str(e)}")
         print_exc()
         
     except Exception as e:
-        print(f"Some unexpected error ocurred: {e}")
+        print(f"Some unexpected error ocurred: {str(e)}")
         print_exc()
         exit(1)
 
@@ -156,13 +156,13 @@ def main():
             {df_fact_production}""")
             
     except RuntimeError as e:
-        print(f"Error to execute script: {e}")
+        print(f"Error to execute script: {str(e)}")
         
     except ConnectionError as e:
-        print(f"Error to connect on Data Lake Hadoop: {e}")
+        print(f"Error to connect on Data Lake Hadoop: {str(e)}")
         
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        print(f"Unexpected error: {str(e)}")
         print_exc
         exit(1)
         

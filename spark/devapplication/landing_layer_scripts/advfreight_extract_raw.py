@@ -11,10 +11,10 @@ def load_source_connections():
         print("Configuration loaded.")
         
     except FileNotFoundError as e:
-        print(f"File .env was not found: {e}")
+        print(f"File .env was not found: {str(e)}")
         return None, None, None
     except KeyError as e:
-        print(f"Missing key-value pairs: {e}")
+        print(f"Missing key-value pairs: {str(e)}")
         return None, None, None
 
     #validating imported keys
@@ -51,11 +51,11 @@ def load_source_connections():
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except RuntimeError as e:
-        print(f"Configuration validation failed: {e}")
+        print(f"Configuration validation failed: {str(e)}")
         return None, None, None
     
     except Exception as e:
-        print(f"Unexpected error occurred: {e}")
+        print(f"Unexpected error occurred: {str(e)}")
         print_exc()
         return None, None, None
 
@@ -90,7 +90,7 @@ def extract_freight_raw(spark, mssql_properties, mssql_adventureworks):
         return df_freight_raw
     
     except Exception as e:
-        print(f"Error extracting freight data: {e}")
+        print(f"Error extracting freight data: {str(e)}")
         print_exc()
         return None
 

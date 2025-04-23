@@ -14,12 +14,12 @@ def load_source_connections():
         print(f"Configuration loaded")
         
     except FileNotFoundError as e:
-        print(f"File .env not founded: {e}. Error to load configuration variable")
+        print(f"File .env not founded: {str(e)}. Error to load configuration variable")
         traceback.print_exc()
         return None
     
     except KeyError as e:
-        print(f"Missing some key-value pair: {e}")
+        print(f"Missing some key-value pair: {str(e)}")
         traceback.print_exc()
         return None
     
@@ -57,7 +57,7 @@ def load_source_connections():
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except Exception as e:
-        print(f"Fail to create SparkSession: {e}")
+        print(f"Fail to create SparkSession: {str(e)}")
         traceback.print_exc()
         return None
     

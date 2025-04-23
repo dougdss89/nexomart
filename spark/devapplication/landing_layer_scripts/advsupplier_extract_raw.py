@@ -15,10 +15,10 @@ def load_source_connections():
         
         
     except FileExistsError as e:
-        print("File .env not founded: {e}")
+        print("File .env not founded: {str(e)}")
         
     except KeyError as e:
-        print("Missing some key-values pair: {e}")
+        print("Missing some key-values pair: {str(e)}")
         
     #importing key-values from .env
     #validating data imported
@@ -56,13 +56,13 @@ def load_source_connections():
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except RuntimeError as e:
-        print(f"Failed to create configuration: {e}")
+        print(f"Failed to create configuration: {str(e)}")
         print_exc()
         
         return None
     
     except Exception as e:
-        print(f"Unexpected error occur: {e}")
+        print(f"Unexpected error occur: {str(e)}")
         print_exc()
         return None, None, None
         
@@ -129,15 +129,15 @@ def extract_store_raw(spark, mssql_properties, mssql_adventureworks):
         return df_supplier_raw
     
     except ConnectionRefusedError as e:
-        print(f"Error to connect on database source: {e}")
+        print(f"Error to connect on database source: {str(e)}")
         print_exc()
         
     except TimeoutError as e:
-        print(f"Timeout error. Verify connection network: {e}")
+        print(f"Timeout error. Verify connection network: {str(e)}")
         print_exc()
         
     except Exception as e:
-        print(f"Some unexpected error ocurred: {e}")
+        print(f"Some unexpected error ocurred: {str(e)}")
         print_exc()
         exit(1)
 
@@ -169,13 +169,13 @@ def main():
             {df_supplier}""", end="\n")
             
     except RuntimeError as e:
-        print(f"Error to execute script: {e}")
+        print(f"Error to execute script: {str(e)}")
         
     except ConnectionError as e:
-        print(f"Error to connect on Data Lake Hadoop: {e}")
+        print(f"Error to connect on Data Lake Hadoop: {str(e)}")
         
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        print(f"Unexpected error: {str(e)}")
         print_exc
         exit(1)
         

@@ -13,19 +13,19 @@ def load_source_connections():
         print(f"Configuration loaded: {config}")
         
     except FileNotFoundError as e:
-        print(f'File .env not founded: {e}')
+        print(f'File .env not founded: {str(e)}')
         traceback.print_exc()
         
         return None, None, None
     
     except KeyError as e:
-        print(f"Missing some key configs: {e}")
+        print(f"Missing some key configs: {str(e)}")
         traceback.print_exc()
         
         return None, None, None
     
     except Exception as e:
-        print(f"unexpected error while load configuration: {e}")
+        print(f"unexpected error while load configuration: {str(e)}")
         traceback.print_exc()
         
         return None, None, None

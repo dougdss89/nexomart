@@ -1,5 +1,3 @@
-from email.mime import application
-from nbformat import writes
 from startSparkSession import SparkSessionManager
 from pyspark.sql.functions import *
 from pyspark.sql.dataframe import DataFrame
@@ -11,7 +9,7 @@ import logging
 from py4j.protocol import Py4JJavaError #java exception error
 
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - (levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 #import .env file
@@ -38,22 +36,22 @@ def load_source_configurations(spark_application: str):
         return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "")
 
     except FileNotFoundError as e:
-        logger.error(f"Could not load connections from source: {e}")
+        logger.error(f"Could not load connections from source: {str(e)}")
         print_exc()
         exit(1)
         
     except KeyError as e:
-        logger.error(f"key value pair error. Value not found. Verify: {e}")
+        logger.error(f"key value pair error. Value not found. Verify: {str(e)}")
         print_exc()
         exit(1)
         
     except RuntimeError as e:
-        logger.error(f"Failed to create Spark Session. Runtime Error: {e}")
+        logger.error(f"Failed to create Spark Session. Runtime Error: {str(e)}")
         print_exc()
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occurred. {e}")
+        logger.error(f"Unexpected error occurred. {str(e)}")
         print_exc()
         exit(1)
         
@@ -64,13 +62,13 @@ def load_source_configurations(spark_application: str):
 def getCreateSurrogateKey(spark, path_name:str, iceberg: str, table_name: str) -> DataFrame:
     
     try:
-        raw_lakehouse = f"{iceberg}/{path_name}/{table_name}"
+        raw_lakehouse = f"{iceberg}.{path_name}.{table_name}"
         
         dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
         dataframe.createTempView("temp_fact_purchase")
         
-        dataframe = spark.sql(f""" 
+        dataframe = spark.sql(""" 
                                 select 
                                     row_number() over(order by purchaseorderid) as fact_purchasekey,
                                     cast(unitprice as decimal(12, 2)) as unitprice_ds,
@@ -88,17 +86,17 @@ def getCreateSurrogateKey(spark, path_name:str, iceberg: str, table_name: str) -
         return dataframe
     
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
         
     except RuntimeError as e:
-        logger.error(f"Invalid runtime error: {e}")
+        logger.error(f"Invalid runtime error: {str(e)}")
         print_exc(e)
         exit(1)   
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -128,22 +126,22 @@ def cleanerFactDataframe(dataframe: DataFrame) -> DataFrame:
         
         return dataframe
     except TimeoutError as e:
-        logger.error(f"Connection timeout. Please reconnect: {e}")
+        logger.error(f"Connection timeout. Please reconnect: {str(e)}")
         print_exc(e)
         exit(1)
                 
     except RuntimeError as e:
-        logger.error(f"Invalid runtime error: {e}")
+        logger.error(f"Invalid runtime error: {str(e)}")
         print_exc(e)
         exit(1)
         
     except TypeError as e:
-        logger.error(f"Invalid datatype schema. {e}")
+        logger.error(f"Invalid datatype schema. {str(e)}")
         print_exc(e)
         exit(1)
         
     except Exception as e:
-        logger.error(f"Unexpected error occur. Verify: {e}")
+        logger.error(f"Unexpected error occur. Verify: {str(e)}")
         print_exc(e)
         exit(1)
         
@@ -164,11 +162,11 @@ def writePurchaseFact(dataframe:DataFrame, catalog:str, silver_icebergdb:str, fa
         return f"Table writing successfully completed to iceberg: {fact_name}"
         
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error while writing table {fact_name} to iceberg: {e}")
+        logger.error(f"Java/Scala error while writing table {fact_name} to iceberg: {str(e)}")
         return "Py4JJavaError"
 
     except Exception as e:
-        logger.error(f"Unexpected error while writing table {fact_name} to iceberg: {e}")
+        logger.error(f"Unexpected error while writing table {fact_name} to iceberg: {str(e)}")
         return "UnexpectedError"
     
 #stop spark session
@@ -181,7 +179,7 @@ def sparkStop(spark) -> str:
         return f"Spark Session stoped Successfully: {spark}"
     
     except Exception as e:
-        logger.error(f"Failed to stop SparkSession: {e}")
+        logger.error(f"Failed to stop SparkSession: {str(e)}")
         print_exc(e)
         
 def main():
@@ -198,11 +196,11 @@ def main():
         logger.info(f"Surrogate Key created: {dataframe.schema}")
         
         dataframe = cleanerFactDataframe(dataframe)
-        logger.info(f"Dataframe table has been cleaned: {dataframe.schema}")
+        logger.info(f"""dataframe table has been cleaned: {dataframe.schema}""")
         
-        writePurchaseFact(dataframe, catalog=iceberg_catalog, iceberg_db=iceberg_db, fact_name=fact_name)
-        logger.info(f"dataframe has been writted successfully: {dataframe.schema} 
-                        on path: {iceberg_db}.{fact_name}")
+        writePurchaseFact(dataframe, catalog=iceberg_catalog, silver_icebergdb=iceberg_db, fact_name=fact_name)
+        logger.info(f"""dataframe has been writted successfully: {dataframe.printSchema()} 
+                        on path: {iceberg_db}.{fact_name}""")
         
         sparkStop(spark)
         logger.info("Spark Session stopped")
@@ -211,15 +209,15 @@ def main():
         return "Success"
     
     except FileNotFoundError as e:
-        logger.error(f"Configuration file or resource not found: {e}")
+        logger.error(f"Configuration file or resource not found: {str(e)}")
         return "FileNotFoundError"
     
     except Py4JJavaError as e:
-        logger.error(f"Java/Scala error during Spark operation: {e}")
+        logger.error(f"Java/Scala error during Spark operation: {str(e)}")
         return "Py4JJavaError"
     
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.error(f"Unexpected error: {str(e)}")
         return "UnexpectedError"
     
     finally:

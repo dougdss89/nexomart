@@ -9,7 +9,7 @@ def load_source_connections():
         config = load_config()
         
     except(FileNotFoundError, KeyError) as e:
-        print(f"Could not load connections from source: {e}")
+        print(f"Could not load connections from source: {str(e)}")
         return None, None, None, None
     
     try:
@@ -59,12 +59,12 @@ def load_source_connections():
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing") 
     
     except RuntimeError as e:
-        print(f"Failed to create Spark Session. Runtime error: {e}")
+        print(f"Failed to create Spark Session. Runtime error: {str(e)}")
         print_exc()
         return None, None, None, None
     
     except Exception as e:
-        print(f"Unexpected error occurred. Please verify: {e}")
+        print(f"Unexpected error occurred. Please verify: {str(e)}")
         print_exc()
         exit(1)
 
@@ -115,7 +115,7 @@ def extract_raw_buyer(spark, mssql_adventureworks, mssql_properties):
                        """).load())
         return df_buyer_raw
     except Exception as e:
-        print(f"Error extracting buyer data: {e}")
+        print(f"Error extracting buyer data: {str(e)}")
         print_exc()
         return None
 
@@ -125,7 +125,7 @@ def spark_stop(spark):
         if spark:
             spark.stop()
     except Exception as e:
-        print(f'Error stopping Spark session: {e}')
+        print(f'Error stopping Spark session: {str(e)}')
 
 if __name__ == '__main__':
     try:
@@ -147,7 +147,7 @@ if __name__ == '__main__':
         print("Job completed successfully")
         
     except Exception as e:
-        print(f"Job failed: {e}")
+        print(f"Job failed: {str(e)}")
         print_exc()
         exit(1)
         

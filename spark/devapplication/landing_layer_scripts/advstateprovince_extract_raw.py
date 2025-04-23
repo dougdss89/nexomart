@@ -16,10 +16,10 @@ def load_source_connections():
         
         
     except FileExistsError as e:
-        print("File .env not founded: {e}")
+        print("File .env not founded: {str(e)}")
         
     except KeyError as e:
-        print("Missing some key-values pair: {e}")
+        print("Missing some key-values pair: {str(e)}")
         
     #importing key-values from .env
     #validating data imported
@@ -57,13 +57,13 @@ def load_source_connections():
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
     
     except RuntimeError as e:
-        print(f"Failed to create configuration: {e}")
+        print(f"Failed to create configuration: {str(e)}")
         print_exc()
         
         return None
     
     except Exception as e:
-        print(f"Unexpected error occur: {e}")
+        print(f"Unexpected error occur: {str(e)}")
         print_exc()
         return None, None, None
     
@@ -102,13 +102,13 @@ def extract_stateprovince_raw(spark, mssql_properties, mssql_adventureworks):
         return df_stateprovince_raw
     
     except RuntimeError as e:
-        print(f"Fail to extract data from source: {e}")
+        print(f"Fail to extract data from source: {str(e)}")
         print_exc()
         
         return None
     
     except Exception as e:
-        print(f"Unexpected error ocurred: {e}")
+        print(f"Unexpected error ocurred: {str(e)}")
         print_exc()
         
         return None, None, None
@@ -144,7 +144,7 @@ def main():
                 {df_stateprovince}""")
             
     except Exception as e:
-        print(f"Main script encontered error: {e}")
+        print(f"Main script encontered error: {str(e)}")
         print_exc()
         
     finally:
