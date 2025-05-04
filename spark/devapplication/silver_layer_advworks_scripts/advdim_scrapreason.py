@@ -66,7 +66,7 @@ def getCreateSurrogateKey(spark, catalog:str, iceberg:str, table_name:str) -> Da
         
         raw_lakehouse = f"{catalog}.{iceberg}.{table_name}"
 
-        dataframe = (spark.sql(""" 
+        dataframe = (spark.sql(f""" 
                             select 
                                 row_number() over (order by scrapreasonid) as scrapreason_key,
                                 *

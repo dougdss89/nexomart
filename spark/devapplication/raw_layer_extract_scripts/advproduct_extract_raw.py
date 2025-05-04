@@ -118,10 +118,10 @@ def extract_landing_data(spark, minio_landing, raw_table):
         print_exc()
         exit(1)
                 
-def write_to_iceberg(dataframe, raw_icebergdb:str,  table_name:str):
+def write_to_iceberg(dataframe, catalog:str, raw_icebergdb:str,  table_name:str):
     """ Write DataFrame to iceberg table. """
     try:
-        raw_lakehouse = f"{raw_icebergdb}.{table_name}"
+        raw_lakehouse = f"{catalog}.{raw_icebergdb}.{table_name}"
 
         (
             dataframe

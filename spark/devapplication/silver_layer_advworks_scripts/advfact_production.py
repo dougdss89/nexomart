@@ -231,6 +231,7 @@ def main():
         spark, iceberg, iceberg_db, iceberg_catalog = load_source_configurations(application_name)
         
         dataframe = getCreateSurrogateKey(spark, iceberg_catalog, iceberg, table_name)
+        logger.info(f"Surrogate Key created: {dataframe.schema}")
     
         dataframe = fillNullValues(dataframe)
         logger.info(f"fillNullValues schema: {dataframe}")

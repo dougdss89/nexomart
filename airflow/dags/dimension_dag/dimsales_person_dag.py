@@ -102,7 +102,7 @@ def extract_salesperson_data():
 
         Write_to_salesperson_silver_layer = SparkSubmitOperator(
             
-            task_id = "Write_to_promotion_silver_layer",
+            task_id = "Write_to_salesperson_silver_layer",
             application = f"{silver_layer_folder}/advdim_salesperson.py",
             conn_id = "sparkconn",
             verbose = True,

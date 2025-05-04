@@ -95,7 +95,7 @@ def temporaryView(dataframe: DataFrame, spark: str) -> DataFrame:
         
         dataframe = spark.sql(""" 
                                 select 
-                                    row_number() over(order by currencydode) as currencykey,
+                                    row_number() over(order by currencycode) as currencykey,
                                     *
                                 from temp_currency
                             """)  

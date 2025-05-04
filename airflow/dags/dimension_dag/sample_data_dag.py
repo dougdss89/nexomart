@@ -37,7 +37,7 @@ def load_folders_job():
     default_args = default_args,
     description = "Dag criado para carga de dados",
     # schedule = "interval", #change to daily
-    schedule_interval = timedelta(minutes = 30),
+    schedule_interval = timedelta(minutes =10),
     catchup = False,
     start_date = datetime(2025, 4, 17),
     tags =  ["spark", "tpch", "sample"]

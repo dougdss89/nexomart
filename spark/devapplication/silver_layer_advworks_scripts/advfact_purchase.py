@@ -59,10 +59,10 @@ def load_source_configurations(spark_application: str):
     
     
 #create surrogate key
-def getCreateSurrogateKey(spark, path_name:str, iceberg: str, table_name: str) -> DataFrame:
+def getCreateSurrogateKey(spark, catalog:str, iceberg: str, table_name: str) -> DataFrame:
     
     try:
-        raw_lakehouse = f"{iceberg}.{path_name}.{table_name}"
+        raw_lakehouse = f"{catalog}.{iceberg}.{table_name}"
         
         dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
@@ -151,7 +151,7 @@ def writePurchaseFact(dataframe:DataFrame, catalog:str, silver_icebergdb:str, fa
         lakehouse = f"{catalog}.{silver_icebergdb}.{fact_name}"
         (
             dataframe
-                .write()
+                .write
                 .mode("append")
                 .format("iceberg")
                 .saveAsTable(f"{lakehouse}")
@@ -189,10 +189,9 @@ def main():
         table_name = "raw_fact_purchase"
         fact_name = "fact_purchase"
         
-        
         spark, iceberg, iceberg_db, iceberg_catalog = load_source_configurations(application_name)
         
-        dataframe = getCreateSurrogateKey(spark, iceberg_catalog, iceberg, table_name)
+        dataframe = getCreateSurrogateKey(spark = spark, catalog = iceberg_catalog, iceberg= iceberg, table_name= table_name)
         logger.info(f"Surrogate Key created: {dataframe.schema}")
         
         dataframe = cleanerFactDataframe(dataframe)

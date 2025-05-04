@@ -85,7 +85,7 @@ def write_to_iceberg(dataframe, catalog:str, raw_icebergdb:str, table_name:str):
         (
             dataframe
             .write.format("iceberg")
-            .mode("append")  # Use "append" to add data instead
+            .mode("overwrite")
             .saveAsTable(f"{raw_lakehouse}")
         )
         print(f"Table {table_name} written successfully to iceberg.")

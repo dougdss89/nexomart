@@ -9,7 +9,7 @@ import logging
 
 from py4j.protocol import Py4JJavaError #java exception error
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)% - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 def load_source_configurations(spark_application: str):
@@ -57,25 +57,16 @@ def load_source_configurations(spark_application: str):
     
 #create surrogate key
 
-def getCreateSurrogateKey(spark,  iceberg: str, path_name:str, table_name: str,) -> DataFrame:
+def getCreateSurrogateKey(spark, catalog: str, iceberg:str, table_name: str,) -> DataFrame:
     
     try:
         
-        raw_lakehouse = f"{iceberg}.{path_name}.{table_name}"
+        raw_lakehouse = f"{catalog}.{iceberg}.{table_name}"
         
-        dataframe = spark.read.format("iceberg").load(raw_lakehouse)
-        
-        dataframe.createTempView("temp_dimdate")
-        
-        dataframe = spark.sql(""" 
-                                select 
-                                
-                                    *
-                                    
-                                from temp_dimdate
-                                order by datekey
+        dataframe = spark.sql(f""" select * 
+                                    from {raw_lakehouse}
+                                    order by datekey
                             """)
-        
         logger.info(f"The data source were successfully extracted: {dataframe}")
         
         return dataframe
@@ -138,14 +129,15 @@ def main():
         table_name = "raw_dimdate"
         dimension_table = "dim_date"
         application_name = "dimension_dimdate_table"
-         
-    
+            
         spark, iceberg, iceberg_db, iceberg_catalog = load_source_configurations(application_name)
 
-        dataframe = getCreateSurrogateKey(spark, iceberg_catalog, iceberg, table_name)
+        dataframe = getCreateSurrogateKey(spark = spark, catalog = iceberg_catalog, iceberg = iceberg, table_name = table_name)
         logger.info(f"SurrogateKey schema: {dataframe.schema}")
                 
-        writeDateDimension(dataframe, catalog=iceberg_catalog, silver_icebergdb= iceberg_db, table_name= dimension_table)
+        writeDateDimension(dataframe=dataframe, catalog= iceberg_catalog, silver_icebergdb= iceberg_db, table_name= dimension_table)
+        logger.info(f"""dataframe has been writted successfully: {dataframe.schema} 
+                        on path: {iceberg_db}.{dimension_table}""")
         
         sparkStop(spark)
         
@@ -165,11 +157,10 @@ def main():
         return "UnexpectedError"
     
     finally:
-        # Garante que a sessão do Spark seja encerrada, mesmo em caso de erro
         if 'spark' in locals():
             sparkStop(spark)
             
-if __name__ == "_main__":
+if __name__ == "__main__":
     
     main()
     logger.info("Sparkjob completed successfully") 

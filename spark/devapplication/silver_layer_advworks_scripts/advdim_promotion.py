@@ -182,7 +182,7 @@ def main():
         logger.info(f"Dimension surrogate key created: {dataframe.schema}")
         
         dataframe = cleanerPromotionDataframe(dataframe)
-        logger.info(f"""dataframe cleaned successfully: {dataframe.schema}")
+        logger.info(f"""dataframe cleaned successfully: {dataframe.schema}""")
         
         writePromotionDimension(dataframe= dataframe, catalog=iceberg_catalog, silver_icebergdb= iceberg_db, table_name= dimension_table)
         logger.info(f"""dataframe has been writted successfully: {dataframe.schema} 

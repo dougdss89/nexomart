@@ -106,7 +106,7 @@ def convert_salesperson_schema(dataframe):
                     col("continentname").cast("string").alias("continentname"),
                     col("countryregioncode").cast("string").alias("countryregioncode"),
                     col("territoryid").cast("int").alias("territoryid"),
-                    col("salariedataframelag").cast("string").alias("salariedataframelag"),
+                    col("salariedflag").cast("string").alias("salariedflag"),
                     col("currentflag").cast("string").alias("currentflag")
                 )
         return dataframe

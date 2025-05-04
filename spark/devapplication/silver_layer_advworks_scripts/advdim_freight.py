@@ -106,7 +106,7 @@ def transformFreightCategory(dataframe: DataFrame) -> DataFrame:
                         .withColumn("carrier",  split(col("name"), "-", 2)[0])
             ).fillna({"category": "BASIC"})
         
-        logger.info(f"""dataframe transformed successfully: {dataframe}")
+        logger.info(f"""dataframe transformed successfully: {dataframe}""")
         
         return dataframe
     

@@ -39,12 +39,12 @@ def load_source_connections():
         #create spark session
         
         session_manager = SparkSessionManager(
-                            app_name="extract_landing"
+                            app_name="extract_fact_sales_raw"
         )
         
         spark = session_manager.create_session()
         
-        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "") #, minio_storage
+        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "") 
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {str(e)}")
@@ -64,10 +64,10 @@ def load_source_connections():
 def extract_landing_data(spark, minio_landing, raw_table):
     try:
         dataframe = (spark
-                            .read
-                            .parquet(f"{minio_landing}/{raw_table}")
+                        .read
+                        .parquet(f"{minio_landing}/{raw_table}")
                                 
-                            )
+                    )
         logger.info(f"Data extracted sucessfully for table: {raw_table}")
         
         return dataframe
@@ -125,7 +125,8 @@ def write_to_iceberg(dataframe, catalog:str, raw_icebergdb:str, table_name:str):
 
         (
             dataframe
-            .write.format("iceberg")
+            .write
+            .format("iceberg")
             .mode("append")  # Use "append" to add data instead
             .saveAsTable(f"{raw_lakehouse}")
         )
@@ -157,9 +158,7 @@ def main():
     dataframe = extract_landing_data(spark, minio_landing, "fact_sales")
     
     dataframe = convert_fctsales_schema(dataframe)
-    
-    # write_fct_sales_minio_storage(fact_sales, miniopath, "fact_sales")
-    
+        
     write_to_iceberg(dataframe=dataframe, catalog=iceberg_catalog, raw_icebergdb=iceberg, table_name= raw_table)
     
     spark_stop(spark)

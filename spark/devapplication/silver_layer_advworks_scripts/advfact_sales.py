@@ -60,11 +60,11 @@ def load_source_configurations(spark_application: str):
     
 #creating surrogate fact_sales key
 
-def getCreateSurrogateKey(spark, path_name:str, iceberg: str, table_name: str,) -> DataFrame:
+def getCreateSurrogateKey(spark, catalog:str, iceberg: str, table_name: str) -> DataFrame:
     
     try:
         
-        raw_lakehouse = f"{iceberg}.{path_name}.{table_name}"
+        raw_lakehouse = f"{catalog}.{iceberg}.{table_name}"
         
         dataframe = spark.read.format("iceberg").load(raw_lakehouse)
         
@@ -193,9 +193,9 @@ def writeSalesFact(dataframe:DataFrame, catalog:str, silver_icebergdb:str, fact_
                 .mode("append")
                 .saveAsTable(lakehouse)
         )
-        logger.info(f"Dimension {fact_name} was written successfully to iceberg {lakehouse}")
+        logger.info(f"Fact table {fact_name} was written successfully to iceberg {lakehouse}")
         
-        return f"Dimension writing successfully completed to iceberg: {fact_name}"
+        return f"Fact table writing successfully completed to iceberg: {fact_name}"
     
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error while writing table {fact_name} to iceberg: {str(e)}")
@@ -227,7 +227,7 @@ def main() -> str:
 
         spark, iceberg, iceberg_db, iceberg_catalog = load_source_configurations(application_name)
         
-        dataframe =  getCreateSurrogateKey(spark, iceberg_catalog, iceberg, table_name)
+        dataframe = getCreateSurrogateKey(spark = spark, catalog = iceberg_catalog, iceberg= iceberg, table_name= table_name)
         logger.info(f"getSurrogateKey schema: {dataframe.schema}")
         
         dataframe = fillNullValues(dataframe)
@@ -238,7 +238,7 @@ def main() -> str:
         
         writeSalesFact(dataframe, catalog=iceberg_catalog, silver_icebergdb=iceberg_db, fact_name=fact_name)
         logger.info(f"""dataframe has been writted successfully: {dataframe.printSchema()}. 
-                            Storage path: {iceberg_db}.{fact_name}""")
+                        Storage path: {iceberg_db}.{fact_name}""")
         
         sparkStop(spark)
         logger.info("Spark Session stopped")
@@ -259,7 +259,6 @@ def main() -> str:
         return "UnexpectedError"
     
     finally:
-        # Garante que a sessão do Spark seja encerrada, mesmo em caso de erro
         if 'spark' in locals():
             sparkStop(spark)
             
