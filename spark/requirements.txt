@@ -45,7 +45,7 @@ pyarrow
     # via -r requirements/requirements.in
 pygments
     # via ipython
-pyspark
+pyspark==3.5.2
     # via -r requirements/requirements.in
 python-dateutil
     # via pandas

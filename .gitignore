@@ -1,33 +1,72 @@
-# Ignorar arquivos _old.py ou _old
-*_old.py
-*_cp.py
-*_old
-*_teste.py
+# =============================================================================
+# Arquivos de Configuração de Ferramentas e IDEs
+# (Tool & IDE Configuration)
+# =============================================================================
+.vscode/
+.databricks/
+databricks.yml
+typings/
 
+# =============================================================================
+# Ambientes Virtuais e Dependências Locais
+# (Virtual Environments & Local Dependencies)
+# =============================================================================
+.venv/
+/spark/devapplication/sharedmodules/
 
-# Ignorar arquivos de cache e __init__ do Python
+# =============================================================================
+# Arquivos de Cache e Binários do Python
+# (Python Cache & Binaries)
+# =============================================================================
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Ignorar diretórios que possuam old, estudos ou teste
-*old/
-*estudos/
-*teste/
+# =============================================================================
+# Arquivos de Ambiente e Credenciais
+# (Environment Files & Credentials)
+# É uma boa prática ignorar todos os arquivos .env para evitar o commit de senhas e chaves.
+# =============================================================================
+*.env
+
+# =============================================================================
+# Arquivos e Diretórios Temporários, de Backup ou Testes
+# (Temporary, Backup, or Test Files & Directories)
+# =============================================================================
+# Arquivos de backup, cópias ou testes
+*_old.py
+*_cp.py
+*_old
+*_teste.py
+
+# Diretórios comumente usados para desenvolvimento ou estudos locais
+*_old/
+*_estudos/
+*_teste/
 *_dev/
-/home/doug/project/unitycatalog
 
-# Direcionamento de arquivos e pastas específicos
-/spark/requirements.txt
-redis
+# =============================================================================
+# Exclusões Específicas do Projeto
+# (Project-Specific Exclusions)
+# =============================================================================
+# --- Airflow ---
+/airflow/config/
 /airflow/dags/configconnections_loader.py
-
-# *.env
 /airflow/dags/iceberg*.py
-/airflow/config
+
+# --- Spark ---
+# Nota: Geralmente, o `requirements.txt` é versionado.
+# Se este arquivo é gerado ou específico para um ambiente local, mantê-lo aqui faz sentido.
+/spark/requirements.txt
+/spark/jobs/notebooks/
 /spark/devapplication/raw_layer_extract_scripts/configconnections_loader.py
-/spark/devapplication/sharedmodules/
-/minio/data*
-/spark/jobs/notebooks
-/home/doug/project/unitycatalog
+
+# --- Armazenamento e Dados Locais ---
+/minio/data*/
+redis/
+
+# --- Unity Catalog (exemplo) ---
+# O caminho absoluto foi removido. Se "unitycatalog" for uma pasta na raiz do projeto,
+# use a regra abaixo.
+/unitycatalog/
