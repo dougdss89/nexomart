@@ -1,404 +1,291 @@
-from pyspark.sql.session import SparkSession
-from pyspark.sql.functions import *
-import random
-import string
-from datetime import datetime, timedelta
+import logging
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import * #col, expr, lit, struct, map, array, shuffle, slice, current_timestamp, rand
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType, MapType, ArrayType, TimestampType
 
+# Configuração do Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Configuração do Spark para Iceberg e MinIO
-spark = SparkSession.builder \
-    .appName("spark_sample") \
-    .config("spark.driver.maxResultSize", "6g") \
-    .config("spark.rpc.message.maxSize", "256")\
-    .config("spark.executor.memory", "12g") \
-    .config("spark.executor.cores", "4") \
-    .config("spark.driver.memory", "4g") \
-    .getOrCreate()
+def get_all_id_ranges(spark, tables_with_ids):
+    """
+    Obtém TODOS os intervalos de ID necessários de uma só vez para evitar múltiplos jobs.
+    'tables_with_ids' é um dicionário como: {"table_name": "id_column"}
+    """
+    id_ranges = {}
+    logging.info("Buscando intervalos de ID (MIN/MAX) para as tabelas...")
+    for table, id_col in tables_with_ids.items():
+        try:
+            full_table_name = f"icebergdw.iceberglab.{table}"
+            df = spark.sql(f"SELECT MIN({id_col}) AS min_id, MAX({id_col}) AS max_id FROM {full_table_name}")
+            result = df.collect()[0]
+            min_val, max_val = (result["min_id"], result["max_id"])
+            
+            if min_val is None or max_val is None:
+                logging.warning(f"Tabela '{table}' está vazia ou não foi encontrada. Usando intervalo (1, 1).")
+                id_ranges[table] = (1, 1)
+            else:
+                id_ranges[table] = (min_val, max_val)
+            logging.info(f"-> Intervalo para '{table}': {id_ranges[table]}")
 
-sc = spark.sparkContext
+        except Exception as e:
+            logging.warning(f"Não foi possível obter o intervalo de ID para '{table}'. Usando (1, 1). Erro: {e}")
+            id_ranges[table] = (1, 1)
+    return id_ranges
 
-# Definir schemas das tabelas TPC-H
-schemas = {
-    "nation": StructType([
-        StructField("nationkey", IntegerType(), False),
-        StructField("name", StringType(), False),
-        StructField("regionkey", IntegerType(), False),
-        StructField("comment", StringType(), True)
-    ]),
-    "region": StructType([
-        StructField("regionkey", IntegerType(), False),
-        StructField("name", StringType(), False),
-        StructField("comment", StringType(), True)
-    ]),
-    "part": StructType([
-        StructField("partkey", IntegerType(), False),
-        StructField("name", StringType(), False),
-        StructField("mfgr", StringType(), False),
-        StructField("brand", StringType(), False),
-        StructField("type", StringType(), False),
-        StructField("size", IntegerType(), False),
-        StructField("container", StringType(), False),
-        StructField("retailprice", FloatType(), False),
-        StructField("comment", StringType(), True)
-    ]),
-    "supplier": StructType([
-        StructField("suppkey", IntegerType(), False),
-        StructField("name", StringType(), False),
-        StructField("address", StringType(), False),
-        StructField("nationkey", IntegerType(), False),
-        StructField("phone", StringType(), False),
-        StructField("acctbal", FloatType(), False),
-        StructField("comment", StringType(), True)
-    ]),
-    "partsupp": StructType([
-        StructField("partkey", IntegerType(), False),
-        StructField("suppkey", IntegerType(), False),
-        StructField("availqty", IntegerType(), False),
-        StructField("supplycost", FloatType(), False),
-        StructField("comment", StringType(), True)
-    ]),
-    "customer": StructType([
-        StructField("custkey", IntegerType(), False),
-        StructField("name", StringType(), False),
-        StructField("address", StringType(), False),
-        StructField("nationkey", IntegerType(), False),
-        StructField("phone", StringType(), False),
-        StructField("acctbal", FloatType(), False),
-        StructField("mktsegment", StringType(), False),
-        StructField("comment", StringType(), True)
-    ]),
-    "orders": StructType([
-        StructField("orderkey", IntegerType(), False),
-        StructField("custkey", IntegerType(), False),
-        StructField("orderstatus", StringType(), False),
-        StructField("totalprice", FloatType(), False),
-        StructField("orderdate", StringType(), False),
-        StructField("orderpriority", StringType(), False),
-        StructField("clerk", StringType(), False),
-        StructField("shippriority", IntegerType(), False),
-        StructField("comment", StringType(), True)
-    ]),
-    "lineitem": StructType([
-        StructField("orderkey", IntegerType(), False),
-        StructField("partkey", IntegerType(), False),
-        StructField("suppkey", IntegerType(), False),
-        StructField("linenumber", IntegerType(), False),
-        StructField("quantity", FloatType(), False),
-        StructField("extendedprice", FloatType(), False),
-        StructField("discount", FloatType(), False),
-        StructField("tax", FloatType(), False),
-        StructField("returnflag", StringType(), False),
-        StructField("linestatus", StringType(), False),
-        StructField("shipdate", StringType(), False),
-        StructField("commitdate", StringType(), False),
-        StructField("receiptdate", StringType(), False),
-        StructField("shipinstruct", StringType(), False),
-        StructField("shipmode", StringType(), False),
-        StructField("comment", StringType(), True)
-    ]),
-     "customer_marketing": StructType([
-        StructField("custkey", IntegerType(), False),  # Chave estrangeira para customer
-        StructField("marketing_id", IntegerType(), False),
-        StructField("preferences_map", MapType(StringType(), StringType())),  # Tipo MAP
-        StructField("demographic_info", StructType([  # Tipo STRUCT
-            StructField("age_group", StringType()),
-            StructField("income_bracket", StringType()),
-            StructField("education_level", StringType())
-        ])),
-        StructField("purchased_categories", ArrayType(StringType())),  # Tipo ARRAY
-        StructField("last_update", TimestampType()),
-        StructField("campaign_responses", ArrayType(StructType([
-            StructField("campaign_id", StringType()),
-            StructField("response_date", TimestampType()),
-            StructField("response_type", StringType())
-        ])))
-    ]),
-    "campaign_analytics": StructType([
-        StructField("campaign_id", StringType(), False),
-        StructField("orderkey", IntegerType(), False),  # Relaciona com orders
-        StructField("metrics", MapType(StringType(), StringType())),  # Métricas de campanha
-        StructField("customer_segments", ArrayType(StringType())),  # Segmentos de clientes
-        StructField("timestamps", StructType([  # Estrutura temporal
-            StructField("start_time", TimestampType()),
-            StructField("end_time", TimestampType()),
-            StructField("processing_time", TimestampType())
-        ]))])
-}
+# --- Funções de Geração Distribuída ---
+# def generate_customer_marketing_distributed(spark, num_rows, start_id, id_ranges):
+#     """
+#     Gera dados para a tabela 'customer_marketing' com tipos complexos de forma distribuída.
+#     """
+#     cust_min, cust_max = id_ranges.get("customer", (1, 1))
+    
+#     # Expressões para gerar os dados aleatórios
+#     # Traduzem a lógica das suas funções Python para Spark SQL
+#     preferences_expr = map(
+#         lit("newsletter"), expr("CASE CAST(rand()*4 AS INT) WHEN 0 THEN 'daily' WHEN 1 THEN 'weekly' WHEN 2 THEN 'monthly' ELSE 'none' END"),
+#         lit("promotions"), expr("CASE CAST(rand()*3 AS INT) WHEN 0 THEN 'all' WHEN 1 THEN 'personalized' ELSE 'none' END"),
+#         lit("channel"), expr("CASE CAST(rand()*4 AS INT) WHEN 0 THEN 'email' WHEN 1 THEN 'sms' WHEN 2 THEN 'push' ELSE 'all' END"),
+#         lit("language"), expr("CASE CAST(rand()*4 AS INT) WHEN 0 THEN 'en' WHEN 1 THEN 'es' WHEN 2 THEN 'pt' ELSE 'fr' END")
+#     )
+    
+#     demographic_expr = struct(
+#         expr("CASE CAST(rand()*5 AS INT) WHEN 0 THEN '18-25' WHEN 1 THEN '26-35' WHEN 2 THEN '36-45' WHEN 3 THEN '46-55' ELSE '56+' END").alias("age_group"),
+#         expr("CASE CAST(rand()*4 AS INT) WHEN 0 THEN 'low' WHEN 1 THEN 'medium' WHEN 2 THEN 'high' ELSE 'premium' END").alias("income_bracket"),
+#         expr("CASE CAST(rand()*4 AS INT) WHEN 0 THEN 'high_school' WHEN 1 THEN 'bachelor' WHEN 2 THEN 'master' ELSE 'phd' END").alias("education_level")
+#     )
 
-# Funções auxiliares para gerar tipos complexos
-def generate_preferences_map():
-    preferences = {
-        "newsletter": random.choice(["daily", "weekly", "monthly", "none"]),
-        "promotions": random.choice(["all", "personalized", "none"]),
-        "channel": random.choice(["email", "sms", "push", "all"]),
-        "language": random.choice(["en", "es", "pt", "fr"])
-    }
-    return dict(preferences)
+#     categories_array = array(lit("electronics"), lit("clothing"), lit("home"), lit("books"), lit("groceries"), lit("toys"))
+#     purchased_categories_expr = slice(shuffle(categories_array), 1, 3) # Pega 3 categorias aleatórias
 
-def generate_demographic_struct():
-    return (
-        random.choice(["18-25", "26-35", "36-45", "46-55", "56+"]),
-        random.choice(["low", "medium", "high", "premium"]),
-        random.choice(["high_school", "bachelor", "master", "phd"])
+#     # Gera um array de structs para as respostas de campanha
+#     campaign_responses_expr = array(
+#         struct(
+#             (rand() * 9000 + 1000).cast("int").cast("string").alias("campaign_id"),
+#             (current_timestamp() - expr("INTERVAL 1 DAY * CAST(rand() * 365 AS INT)")).alias("response_date"),
+#             expr("CASE CAST(rand()*4 AS INT) WHEN 0 THEN 'click' WHEN 1 THEN 'open' WHEN 2 THEN 'conversion' ELSE 'unsubscribe' END").alias("response_type")
+#         ),
+#         struct(
+#             (rand() * 9000 + 1000).cast("int").cast("string").alias("campaign_id"),
+#             (current_timestamp() - expr("INTERVAL 1 DAY * CAST(rand() * 365 AS INT)")).alias("response_date"),
+#             expr("CASE CAST(rand()*4 AS INT) WHEN 0 THEN 'click' WHEN 1 THEN 'open' WHEN 2 THEN 'conversion' ELSE 'unsubscribe' END").alias("response_type")
+#         )
+#     )
+
+#     return spark.range(start_id, start_id + num_rows) \
+#         .withColumn("marketing_id", col("id")) \
+#         .withColumn("custkey", (rand() * (cust_max - cust_min) + cust_min).cast("long")) \
+#         .withColumn("preferences_map", preferences_expr) \
+#         .withColumn("demographic_info", demographic_expr) \
+#         .withColumn("purchased_categories", purchased_categories_expr) \
+#         .withColumn("last_update", current_timestamp()) \
+#         .withColumn("campaign_responses", campaign_responses_expr) \
+#         .drop("id")
+
+
+def generate_campaign_analytics_distributed(spark, num_rows, start_id, id_ranges):
+    """
+    Gera dados para a tabela 'campaign_analytics' com tipos complexos de forma distribuída.
+    """
+    order_min, order_max = id_ranges.get("orders", (1, 1))
+    
+    metrics_expr = map(
+        lit("impressions"), (rand() * 99000 + 1000).cast("string"),
+        lit("clicks"), (rand() * 9900 + 100).cast("string"),
+        lit("conversion_rate"), (rand() * 0.19 + 0.01).cast("string"),
+        lit("roi"), (rand() * 4.0 + 1.0).cast("string")
+    )
+    
+    segments_expr = array(
+        (rand() * 100 + 1).cast("int").cast("string"),
+        (rand() * 100 + 1).cast("int").cast("string"),
+        (rand() * 100 + 1).cast("int").cast("string")
     )
 
-def generate_purchased_categories():
-    categories = ["electronics", "clothing", "home", "books", "groceries", "toys"]
-    return random.sample(categories, k=random.randint(1, 3))
-
-# Função corrigida para gerar métricas
-def generate_campaign_metrics():
-    return {
-        "impressions": float("%.2f" % random.uniform(1000, 100000)),
-        "clicks": float("%.2f" % random.uniform(100, 10000)),
-        "conversion_rate": float("%.4f" % random.uniform(0.01, 0.2)),
-        "roi": float("%.2f" % random.uniform(1.0, 5.0))
-    }
-    
-# Funções de geração de dados
-def generate_campaign_response():
-    return {
-        "campaign_id": random.randint(1000, 9999),
-        "response_date": datetime.now() - timedelta(days=random.randint(1, 365)),
-        "response_type": random.choice(["click", "open", "conversion", "unsubscribe"])
-    }
-
-def generate_campaign_responses():
-    return [generate_campaign_response() for _ in range(random.randint(0, 5))]
-
-def generate_customer_segments(max_segment_id=100):
-    return [random.randint(1, max_segment_id) for _ in range(random.randint(1, 5))]
-
-# Funções auxiliares mantidas conforme original
-def generate_random_string(length):
-    return ''.join(random.choices(string.ascii_uppercase, k=length))
-
-def generate_random_phone():
-    return f"{random.randint(100, 999)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}"
-
-def generate_random_date(start_date="2000-01-01", end_date="2025-12-31"):
-    start = datetime.strptime(start_date, "%Y-%m-%d")
-    end = datetime.strptime(end_date, "%Y-%m-%d")
-    delta = end - start
-    random_days = random.randint(0, delta.days)
-    return (start + timedelta(days=random_days)).strftime("%Y-%m-%d")
-
-def round_float(value, decimals=2):
-    return float(f"{value:.{decimals}f}")
-
-def generate_timestamps():
-    """Gera uma tupla de timestamps para a estrutura de dados"""
-    now = datetime.now()
-    start = now - timedelta(days=random.randint(1, 30))
-    return (
-        start,  # datetime Python
-        now,    # datetime Python
-        now     # datetime Python
+    timestamps_expr = struct(
+        (current_timestamp() - expr("INTERVAL 1 DAY * 30")).alias("start_time"),
+        current_timestamp().alias("end_time"),
+        current_timestamp().alias("processing_time")
     )
 
-def get_id_range(table_name, id_column):
-    """Obtém o intervalo de IDs válidos de uma tabela"""
-    try:
-        full_table_name = f"icebergdw.iceberglab.{table_name}"
-        df = spark.sql(f"SELECT MIN({id_column}) AS min_id, MAX({id_column}) AS max_id FROM {full_table_name}")
-        result = df.collect()[0]
-        return (result["min_id"], result["max_id"]) if result["min_id"] is not None else (0, 0)
-    
-    except Exception as e:
-        print(f"Erro ao obter IDs da tabela {table_name}: {str(e)}")
-        return (0, 0)
-    
-# Função para gerar dados de marketing
-def generate_marketing_data(num_rows):
-    cust_min, cust_max = get_id_range("customer", "custkey")
-    current_min, current_max = get_id_range("customer_marketing", "marketing_id")
-    start_id = current_max + 1 if current_max is not None else 0
-    
-    data = []
-    for i in range(num_rows):
-        custkey = random.randint(cust_min, cust_max)
-        data.append((
-            custkey,
-            start_id + i,
-            dict(generate_preferences_map()),  # Garantindo que é um dict
-            generate_demographic_struct(),
-            list(generate_purchased_categories()),  # Garantindo que é uma list
-            datetime.now(),
-            generate_campaign_responses()  # Convertendo para tupla
-        ))
-    return data
+    return spark.range(start_id, start_id + num_rows) \
+        .withColumn("campaign_id", col("id").cast("string")) \
+        .withColumn("orderkey", (rand() * (order_max - order_min) + order_min).cast("long")) \
+        .withColumn("metrics", metrics_expr) \
+        .withColumn("customer_segments", segments_expr) \
+        .withColumn("timestamps", timestamps_expr) \
+        .drop("id")
 
-# Função para gerar dados de campanhas
-def generate_campaign_data(num_rows):
-    data = []
-    for i in range(num_rows):
-        start, end, processed = generate_timestamps()
-        data.append((
-            i + 1,  # campaign_id
-            random.randint(1, 100000),  # orderkey
-            generate_campaign_metrics(),
-            [random.randint(1, 100) for _ in range(random.randint(1, 5))],
-            (start, end, processed)  # timestamps struct
-        ))
-    return data
+def generate_part_distributed(spark, num_rows, start_id):
+    return spark.range(start_id, start_id + num_rows) \
+        .withColumn("partkey", col("id")) \
+        .withColumn("name", expr("concat('Part #', id)")) \
+        .withColumn("mfgr", expr("concat('Manufacturer #', (rand() * 100))")) \
+        .withColumn("brand", expr("concat('Brand #', (rand() * 40))")) \
+        .withColumn("type", expr("concat('Type #', (rand() * 10))")) \
+        .withColumn("size", (rand() * 50 + 1).cast("int")) \
+        .withColumn("container", expr("CASE WHEN rand() < 0.25 THEN 'SM' WHEN rand() < 0.5 THEN 'MD' WHEN rand() < 0.75 THEN 'LG' ELSE 'XL' END")) \
+        .withColumn("retailprice", (rand() * 1000 + 100).cast("decimal(12, 2)")) \
+        .withColumn("comment", lit("Generated by Spark")) \
+        .drop("id")
 
+def generate_supplier_distributed(spark, num_rows, start_id, id_ranges):
+    nation_min, nation_max = id_ranges.get("nation", (1, 1))
+    return spark.range(start_id, start_id + num_rows) \
+        .withColumn("suppkey", col("id")) \
+        .withColumn("name", expr("concat('Supplier #', id)")) \
+        .withColumn("address", expr("concat('Address #', (rand() * 10000))")) \
+        .withColumn("nationkey", (rand() * (nation_max - nation_min) + nation_min).cast("long")) \
+        .withColumn("phone", expr("concat((rand()*900+100), '-', (rand()*900+100), '-', (rand()*9000+1000))")) \
+        .withColumn("acctbal", (rand() * 5500 - 500).cast("decimal(12, 2)")) \
+        .withColumn("comment", lit("Generated by Spark")) \
+        .drop("id")
 
-def generate_sample_data(table_name, num_rows):
-    random.seed(datetime.now().timestamp())
-    
-    # Mapeamento de colunas de ID
-    id_columns = {
-        "nation":   "nationkey",
-        "region":   "regionkey",
-        "part":     "partkey",
-        "supplier": "suppkey",
-        "customer": "custkey",
-        "orders":   "orderkey"
-    }
-    
-    # Obter ID inicial para tabelas com IDs próprios
-    if table_name in id_columns:
-        id_col = id_columns[table_name]
-        current_min, current_max = get_id_range(table_name, id_col)
-        start_id = current_max + 1 if current_max is not None else 0
-    else:
-        start_id = 0
+def generate_customer_distributed(spark, num_rows, start_id, id_ranges):
+    nation_min, nation_max = id_ranges.get("nation", (1, 1))
+    return spark.range(start_id, start_id + num_rows) \
+        .withColumn("custkey", col("id")) \
+        .withColumn("name", expr("concat('Customer #', id)")) \
+        .withColumn("address", expr("concat('Address #', (rand() * 10000))")) \
+        .withColumn("nationkey", (rand() * (nation_max - nation_min) + nation_min).cast("long")) \
+        .withColumn("phone", expr("concat((rand()*900+100), '-', (rand()*900+100), '-', (rand()*9000+1000))")) \
+        .withColumn("acctbal", (rand() * 11000 - 1000).cast("decimal(12, 2)")) \
+        .withColumn("mktsegment", expr("CASE WHEN rand() < 0.2 THEN 'AUTO' WHEN rand() < 0.4 THEN 'BUILD' WHEN rand() < 0.6 THEN 'FURNITURE' WHEN rand() < 0.8 THEN 'HOUSEHOLD' ELSE 'MACHINERY' END")) \
+        .withColumn("comment", lit("Generated by Spark")) \
+        .drop("id")
+        
+def generate_orders_distributed(spark, num_rows, start_id, id_ranges):
+    cust_min, cust_max = id_ranges.get("customer", (1, 1))
+    return spark.range(start_id, start_id + num_rows) \
+        .withColumn("orderkey", col("id")) \
+        .withColumn("custkey", (rand() * (cust_max - cust_min) + cust_min).cast("long")) \
+        .withColumn("orderstatus", expr("CASE WHEN rand() < 0.6 THEN 'O' WHEN rand() < 0.9 THEN 'F' ELSE 'P' END")) \
+        .withColumn("totalprice", (rand() * 10000 + 1000).cast("decimal(12, 2)")) \
+        .withColumn("orderdate", expr("date_sub(current_date(), cast(rand() * 1825 as int))")) \
+        .withColumn("orderpriority", expr("CASE WHEN rand() < 0.2 THEN 'LOW' WHEN rand() < 0.4 THEN 'MEDIUM' WHEN rand() < 0.6 THEN 'HIGH' WHEN rand() < 0.8 THEN 'URGENT' ELSE 'CRITICAL' END")) \
+        .withColumn("clerk", expr("concat('Clerk #', (rand() * 9000 + 1000))")) \
+        .withColumn("shippriority", lit(0)) \
+        .withColumn("comment", lit("Generated by Spark")) \
+        .drop("id")
 
-    # Geração de dados para cada tabela
-    if table_name == "nation":
-        data = [
-            (start_id + i, f"Nation_{generate_random_string(8)}", 
-             random.randint(1, 5), f"Comment_{generate_random_string(6)}")
-            for i in range(num_rows)
-        ]
-    
-    elif table_name == "region":
-        data = [
-            (random.randint(1, 5), f"Region_{generate_random_string(8)}", 
-             f"Comment_{generate_random_string(6)}")
-            for i in range(num_rows)
-        ]
-    
-    elif table_name == "part":
-        data = [
-            (start_id + i, f"Part_{generate_random_string(6)}", 
-             f"MFGR_{random.randint(1, 5)}", f"Brand_{random.randint(1, 10)}",
-             f"Type_{random.randint(1, 10)}", random.randint(1, 100),
-             f"Container_{random.choice(['SM', 'MD', 'LG', 'XL'])}",
-             round_float(100.00 + random.uniform(0, 1000)), 
-             f"Comment_{generate_random_string(6)}")
-            for i in range(num_rows)
-        ]
-    
-    elif table_name == "supplier":
-        nation_min, nation_max = get_id_range("nation", "nationkey")
-        data = [
-            (start_id + i, f"Supplier_{generate_random_string(8)}",
-             f"Address_{random.randint(1, 1000)}", 
-             random.randint(nation_min, nation_max), generate_random_phone(),
-             round_float(500.00 + random.uniform(0, 5000)), 
-             f"Comment_{generate_random_string(6)}")
-            for i in range(num_rows)
-        ]
-    
-    elif table_name == "customer":
-        nation_min, nation_max = get_id_range("nation", "nationkey")
-        data = [
-            (start_id + i, f"Customer_{generate_random_string(8)}",
-             f"Address_{random.randint(1, 1000)}", 
-             random.randint(nation_min, nation_max), generate_random_phone(),
-             round_float(1000.00 + random.uniform(0, 10000)),
-             random.choice(['AUTO', 'BUILD', 'FURNITURE', 'HOUSEHOLD', 'MACHINERY']),
-             f"Comment_{generate_random_string(6)}")
-            for i in range(num_rows)
-        ]
-    
-    elif table_name == "orders":
-        cust_min, cust_max = get_id_range("customer", "custkey")
-        data = [
-            (start_id + i, random.randint(cust_min, cust_max),
-             random.choice(['O', 'P', 'F']), 
-             round_float(1000.00 + random.uniform(0, 10000)),
-             generate_random_date(),
-             random.choice(['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'CRITICAL']),
-             f"Clerk_{random.randint(1000, 9999)}", random.randint(0, 10),
-             f"Comment_{generate_random_string(6)}")
-            for i in range(num_rows)
-        ]
-    
-    elif table_name == "partsupp":
-        part_min, part_max = get_id_range("part", "partkey")
-        supp_min, supp_max = get_id_range("supplier", "suppkey")
-        data = [
-            (random.randint(part_min, part_max), 
-             random.randint(supp_min, supp_max),
-             random.randint(1, 10000), 
-             round_float(10.00 + random.uniform(0, 100)),
-             f"Comment_{generate_random_string(6)}")
-            for _ in range(num_rows)
-        ]
-    
-    elif table_name == "lineitem":
-        order_min, order_max = get_id_range("orders", "orderkey")
-        part_min, part_max = get_id_range("part", "partkey")
-        supp_min, supp_max = get_id_range("supplier", "suppkey")
-        data = [
-            (random.randint(order_min, order_max),
-             random.randint(part_min, part_max),
-             random.randint(supp_min, supp_max),
-             random.randint(1, 100),
-             round_float(1.0 + random.uniform(0, 100)),
-             round_float(10.00 + random.uniform(0, 1000)),
-             round_float(random.uniform(0, 0.5)),
-             round_float(random.uniform(0, 0.2)),
-             random.choice(['N', 'Y']), 
-             random.choice(['O', 'F']),
-             generate_random_date(), generate_random_date(), generate_random_date(),
-             random.choice(['DELIVER', 'PENDING', 'SHIPPED', 'RETURNED']),
-             random.choice(['AIR', 'TRUCK', 'RAIL', 'SHIP', 'MAIL']),
-             f"Comment_{generate_random_string(6)}")
-            for _ in range(num_rows)
-        ]
-    
-    else:
-        raise ValueError(f"Tabela desconhecida: {table_name}")
-    
-    return spark.createDataFrame(data, schema=schemas[table_name])
+def generate_partsupp_distributed(spark, num_rows, id_ranges):
+    part_min, part_max = id_ranges.get("part", (1, 1))
+    supp_min, supp_max = id_ranges.get("supplier", (1, 1))
+    return spark.range(num_rows) \
+        .withColumn("partkey", (rand() * (part_max - part_min) + part_min).cast("long")) \
+        .withColumn("suppkey", (rand() * (supp_max - supp_min) + supp_min).cast("long")) \
+        .withColumn("availqty", (rand() * 9999 + 1).cast("int")) \
+        .withColumn("supplycost", (rand() * 100 + 10).cast("decimal(12, 2)")) \
+        .withColumn("comment", lit("Generated by Spark")) \
+        .drop("id")
+        
+def generate_lineitem_distributed(spark, num_rows, id_ranges):
+    order_min, order_max = id_ranges.get("orders", (1, 1))
+    part_min, part_max = id_ranges.get("part", (1, 1))
+    supp_min, supp_max = id_ranges.get("supplier", (1, 1))
+    # Gerar chaves compostas para lineitem (orderkey, partkey, suppkey)
+    # Aqui, para simplificar, geramos aleatoriamente. Em um cenário real, 
+    # você poderia fazer um crossJoin de subconjuntos para garantir a validade.
+    return spark.range(num_rows) \
+        .withColumn("orderkey", (rand() * (order_max - order_min) + order_min).cast("long")) \
+        .withColumn("partkey", (rand() * (part_max - part_min) + part_min).cast("long")) \
+        .withColumn("suppkey", (rand() * (supp_max - supp_min) + supp_min).cast("long")) \
+        .withColumn("linenumber", (rand() * 6 + 1).cast("int")) \
+        .withColumn("quantity", (rand() * 49 + 1).cast("decimal(12, 2)")) \
+        .withColumn("extendedprice", (rand() * 1000 + 10).cast("decimal(12, 2)")) \
+        .withColumn("discount", (rand() * 0.5).cast("decimal(12, 2)")) \
+        .withColumn("tax", (rand() * 0.2).cast("decimal(12, 2)")) \
+        .withColumn("returnflag", expr("IF(rand() < 0.5, 'N', 'A')")) \
+        .withColumn("linestatus", expr("IF(rand() < 0.5, 'O', 'F')")) \
+        .withColumn("shipdate", expr("date_add(current_date(), cast(rand() * 120 as int))")) \
+        .withColumn("commitdate", expr("date_add(current_date(), cast(rand() * 90 as int))")) \
+        .withColumn("receiptdate", expr("date_add(current_date(), cast(rand() * 150 as int))")) \
+        .withColumn("shipinstruct", expr("CASE WHEN rand() < 0.33 THEN 'DELIVER IN PERSON' WHEN rand() < 0.66 THEN 'COLLECT COD' ELSE 'TAKE BACK RETURN' END")) \
+        .withColumn("shipmode", expr("CASE WHEN rand() < 0.2 THEN 'AIR' WHEN rand() < 0.4 THEN 'TRUCK' WHEN rand() < 0.6 THEN 'RAIL' WHEN rand() < 0.8 THEN 'SHIP' ELSE 'MAIL' END")) \
+        .withColumn("comment", lit("Generated by Spark")) \
+        .drop("id")
+        
+# --- Orquestrador Principal ---
 
 def main():
-    # Ordem correta de geração considerando dependências
-    tables_order = [
-        ("nation",              0),
-        ("region",              0),
-        ("part",                1000000),
-        ("supplier",            1000000),
-        ("partsupp",            1000000),
-        ("customer",            1000000),
-        ("orders",              1000000),
-        ("lineitem",            1000000),
-        ("customer_marketing",  1000000),
-        ("campaign_analytics",  1000000)
+    spark = SparkSession.builder \
+        .appName("Distributed Data Generation for Iceberg") \
+        .enableHiveSupport() \
+        .getOrCreate()
+
+    # Tabelas que não precisam de geração massiva (dimensões pequenas)
+    # A geração no Driver para poucas linhas é aceitável e mais simples.
+    logging.info("Gerando tabelas de dimensão pequenas...")
+    nations_data = [(i, f"NATION_{i}", i % 5, f"Comment for nation {i}") for i in range(100)]
+    spark.createDataFrame(nations_data, ["n_nationkey", "n_name", "n_regionkey", "n_comment"]) \
+         .write.format("iceberg").mode("overwrite").saveAsTable("icebergdw.iceberglab.nation")
+
+    regions_data = [(i, f"REGION_{i}", f"Comment for region {i}") for i in range(500)]
+    spark.createDataFrame(regions_data, ["r_regionkey", "r_name", "r_comment"]) \
+         .write.format("iceberg").mode("overwrite").saveAsTable("icebergdw.iceberglab.region")
+    logging.info("Tabelas de dimensão geradas.")
+
+    # 1. Definir quais tabelas precisam ter seus IDs lidos para chaves estrangeiras
+    needed_ids = {
+        "nation": "n_nationkey",
+        "region": "r_regionkey",
+        "part": "partkey",
+        "supplier": "suppkey",
+        "customer": "custkey",
+        "orders": "orderkey"
+    }
+    id_ranges = get_all_id_ranges(spark, needed_ids)
+
+    # 2. Ordem de geração das tabelas massivas
+    tables_to_generate = [
+        ("nation",              3000),
+        ("region",              100),
+        ("part", 5000000),
+        ("supplier", 4100000),
+        ("customer", 5500000),
+        ("orders", 10000000),
+        ("partsupp", 3000000),
+        ("lineitem", 25000000),
+        ("customer_marketing", 0),   # Adicionado
+        ("campaign_analytics", 0)     # Adicionado
     ]
     
-    for table_name, batch_size in tables_order:
-        print(f"Generating {table_name} data...")
-        sc.setJobDescription(f"TPC-H Data Generation {table_name}")
+    for table_name, num_rows in tables_to_generate:
+        logging.info(f"--- Iniciando geração da tabela: {table_name} com {num_rows} linhas ---")
+        df = None
         
-        if table_name == "customer_marketing":
-            data = generate_marketing_data(batch_size)
-            df = spark.createDataFrame(data, schema=schemas[table_name])
-            
-        elif table_name == "campaign_analytics":
-            data = generate_campaign_data(batch_size)
-            df = spark.createDataFrame(data, schema=schemas[table_name])
-            
+        # Obter o ID inicial para a tabela atual
+        id_col = needed_ids.get(table_name)
+        if id_col:
+            _, current_max = id_ranges.get(table_name, (0, 0))
+            start_id = current_max + 1 if current_max is not None else 1
         else:
-            df = generate_sample_data(table_name, batch_size)
-        
-        df.write.mode("append").format("iceberg").saveAsTable(f"icebergdw.iceberglab.{table_name}")
-    
-    # Verificação final
+            start_id = 1 # Para tabelas como partsupp, lineitem que não têm ID próprio
+
+        if table_name == "part":
+            df = generate_part_distributed(spark, num_rows, start_id)
+        elif table_name == "supplier":
+            df = generate_supplier_distributed(spark, num_rows, start_id, id_ranges)
+        elif table_name == "customer":
+            df = generate_customer_distributed(spark, num_rows, start_id, id_ranges)
+        elif table_name == "orders":
+            df = generate_orders_distributed(spark, num_rows, start_id, id_ranges)
+        elif table_name == "partsupp":
+            df = generate_partsupp_distributed(spark, num_rows, id_ranges)
+        elif table_name == "lineitem":
+            df = generate_lineitem_distributed(spark, num_rows, id_ranges)
+        # elif table_name == "customer_marketing":
+        #     df = generate_customer_marketing_distributed(spark, num_rows, start_id, id_ranges)
+        # elif table_name == "campaign_analytics":
+        #     df = generate_campaign_analytics_distributed(spark, num_rows, start_id, id_ranges)
+        if df:
+            logging.info(f"Gerado DataFrame para '{table_name}'. Salvando no Iceberg...")
+            df.write.format("iceberg").mode("append").saveAsTable(f"icebergdw.iceberglab.{table_name}")
+            logging.info(f"Tabela '{table_name}' salva com sucesso.")
+        else:
+            logging.warning(f"Nenhuma função de geração definida para a tabela: {table_name}")
+
+    logging.info("Processo de geração de dados massivos concluído.")
+                
     spark.sql("""
         SELECT 
             (SELECT COUNT(*) FROM icebergdw.iceberglab.lineitem) AS total_lineitem,
@@ -413,19 +300,9 @@ def main():
             (SELECT COUNT(*) FROM icebergdw.iceberglab.campaign_analytics) AS total_campaigns
     """).show()
     
-    # spark.sql(""" select 
-    #                 (select max(orderkey) from icebergdw.iceberglab.lineitem) as                maxkey_lineitem,
-    #                 (select max(partkey) from icebergdw.iceberglab.partsupp) as                 maxkey_partsupp,
-    #                 (select max(nationkey) from icebergdw.iceberglab.nation) as                 maxkey_nation,
-    #                 (select max(regionkey) from icebergdw.iceberglab.region) as                 maxkey_region,
-    #                 (select max(partkey) from icebergdw.iceberglab.part) as                     maxkey_part,
-    #                 (select max(suppkey) from icebergdw.iceberglab.supplier) as                 maxkey_supplier,
-    #                 (select max(custkey) from icebergdw.iceberglab.customer) as                 maxkey_customer,
-    #                 (select max(orderkey) from icebergdw.iceberglab.orders) as                  maxkey_orders,
-    #                 (SELECT max(marketingkey) from icebergdw.iceberglab.customer_marketing) as  total_marketing,
-    #                 (SELECT max(campaignskey) from icebergdw.iceberglab.campaign_analytics) as  total_campaigns,
-    # """).show()
+    spark.sql(""" SELECT * FROM icebergdw.iceberglab.orders LIMIT 10 """)
+    
+    spark.stop()
 
 if __name__ == "__main__":
     main()
-    spark.stop()

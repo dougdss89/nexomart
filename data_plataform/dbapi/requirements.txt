@@ -1,0 +1,26 @@
+# Web Framework
+fastapi
+uvicorn[standard]
+
+# Database & ORM
+sqlmodel
+alembic
+# asyncpg é recomendado para produção com FastAPI (assíncrono)
+asyncpg
+# psycopg2-binary ainda é útil para o Alembic (que geralmente roda síncrono)
+psycopg2-binary
+
+# MinIO / Object Storage (Escolha UMA das opções abaixo)
+# Opção 1: Cliente Oficial (Simples, mas cuidado com bloqueio em async)
+minio
+# Opção 2: Cliente Async (Ideal para FastAPI + S3/MinIO)
+aioboto3
+
+# Data Validation & Settings
+pydantic-settings
+python-multipart  # ESSENCIAL para Upload de arquivos (Form Data)
+httpx
+
+# Utilities
+pandas
+aiofiles          # Para ler/gravar arquivos locais de forma async

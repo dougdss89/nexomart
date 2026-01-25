@@ -37,7 +37,7 @@ def load_folders_job():
     default_args = default_args,
     description = "Dag criado para carga de dados",
     # schedule = "interval", #change to daily
-    schedule_interval = timedelta(minutes =10),
+    schedule_interval = timedelta(minutes =6),
     catchup = False,
     start_date = datetime(2025, 4, 17),
     tags =  ["spark", "tpch", "sample"]
@@ -53,12 +53,18 @@ def load_sample_data():
         task_id = "load_tpch_sample_data",
         application = f"{landing_folder}/sampledata.py",
         conn_id = "sparkconn",
+        verbose = True)
+        
+    load_tpch_sample_mkt = SparkSubmitOperator(
+        task_id = "load_tpch_sample_mkt",
+        application = f"{landing_folder}/sampledata_mkt.py",
+        conn_id = "sparkconn",
         verbose = True
     )
-    
+        
     End = EmptyOperator(task_id = "End_load", trigger_rule = "all_success")
     
-    Start_load >> load_tpch_sample_data >> End
+    Start_load >> load_tpch_sample_data >> load_tpch_sample_mkt >> End
     
     
 dag = load_sample_data()

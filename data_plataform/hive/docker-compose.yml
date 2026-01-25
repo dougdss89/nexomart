@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+  metastore:
+    image: apache/hive:4.0.0
+    container_name: hive-metastore
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      # Adicione isto se o erro de driver persistir
+      HIVE_DB_TYPE: postgres
+    ports:
+      - "9083:9083" # Porta padrão do protocolo Thrift
+    volumes:
+      # Montamos nossos configs personalizados
+      - ./conf/metastore-site.xml:/opt/hive/conf/metastore-site.xml
+      - ./conf/core-site.xml:/opt/hive/conf/core-site.xml
+      # Injetamos o driver do Postgres na biblioteca do Hive
+      - ./drivers/postgresql-42.7.2.jar:/opt/hive/lib/postgresql.jar
+
+    command: /bin/bash -c "/opt/hive/bin/schematool -dbType postgres -initSchema && /opt/hive/bin/hive --service metastore"
+
+    networks:
+      - hadoopcluster
+
+networks:
+  hadoopcluster:
+    external: true

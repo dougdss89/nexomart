@@ -1,72 +1,76 @@
 # =============================================================================
-# Arquivos de Configuração de Ferramentas e IDEs
-# (Tool & IDE Configuration)
-# =============================================================================
-.vscode/
-.databricks/
-databricks.yml
-typings/
-
-# =============================================================================
-# Ambientes Virtuais e Dependências Locais
-# (Virtual Environments & Local Dependencies)
+# Ambientes Virtuais e Gerenciadores (Python & UV)
 # =============================================================================
 .venv/
-/spark/devapplication/sharedmodules/
+venv/
+venv*/               # Bloqueia venv312, venv310, etc.
+.python-version      # Se você usar o pyenv, mas com UV costuma ser opcional
+.uv/                 # Cache interno do gerenciador UV
 
 # =============================================================================
-# Arquivos de Cache e Binários do Python
-# (Python Cache & Binaries)
+# Cache e Binários (Python & Compilação)
 # =============================================================================
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/         # Linter moderno muito usado com FastAPI
 
 # =============================================================================
-# Arquivos de Ambiente e Credenciais
-# (Environment Files & Credentials)
-# É uma boa prática ignorar todos os arquivos .env para evitar o commit de senhas e chaves.
+# Arquivos de Ambiente e Segurança (CRÍTICO)
 # =============================================================================
-*.env
+.env
+.env.*
+!.env.example        # Permite versionar apenas o modelo (sem senhas)
+*.pem
+*.key
+*.pub
+/secrets/
+.netrc
 
 # =============================================================================
-# Arquivos e Diretórios Temporários, de Backup ou Testes
-# (Temporary, Backup, or Test Files & Directories)
+# Configurações de IDE e SO
 # =============================================================================
-# Arquivos de backup, cópias ou testes
-*_old.py
-*_cp.py
-*_old
-*_teste.py
-
-# Diretórios comumente usados para desenvolvimento ou estudos locais
-*_old/
-*_estudos/
-*_teste/
-*_dev/
+.vscode/
+.idea/
+.databricks/
+databricks.yml
+.DS_Store
+Thumbs.db
 
 # =============================================================================
-# Exclusões Específicas do Projeto
-# (Project-Specific Exclusions)
+# Dados Locais e Bancos (Docker/Data Engineering)
 # =============================================================================
-# --- Airflow ---
+# Ignora volumes de dados do Docker para não subir o DB inteiro pro Git
+/minio/data*/
+/redis/data*/
+/postgres/data*/
+*.db
+*.sqlite
+*.log
+
+# =============================================================================
+# Exclusões Específicas do Projeto (Engenharia de Dados)
+# =============================================================================
+# Airflow
+/airflow/logs/
+/airflow/plugins/
 /airflow/config/
 /airflow/dags/configconnections_loader.py
 /airflow/dags/iceberg*.py
 
-# --- Spark ---
-# Nota: Geralmente, o `requirements.txt` é versionado.
-# Se este arquivo é gerado ou específico para um ambiente local, mantê-lo aqui faz sentido.
-/spark/requirements.txt
+# Spark & Databricks
 /spark/jobs/notebooks/
 /spark/devapplication/raw_layer_extract_scripts/configconnections_loader.py
+/spark/devapplication/sharedmodules/
+# Removido /spark/requirements.txt (geralmente é bom versionar o principal)
 
-# --- Armazenamento e Dados Locais ---
-/minio/data*/
-redis/
-
-# --- Unity Catalog (exemplo) ---
-# O caminho absoluto foi removido. Se "unitycatalog" for uma pasta na raiz do projeto,
-# use a regra abaixo.
-/unitycatalog/
+# Temporários de estudo
+*_old/
+*_teste/
+*_dev/
+*_old.py
+*_teste.py

@@ -1,0 +1,35 @@
+services:
+  trino-coordinator:
+    image: trinodb/trino:latest
+    container_name: trino-coordinator
+    ports:
+      - "8070:8080"
+    volumes:
+      - ./coordinator:/etc/trino
+      - ./catalog:/etc/trino/catalog
+      - dockervol:/dockervol
+    networks:
+      - hadoopcluster
+
+  trino-worker:
+    image: trinodb/trino:latest
+    volumes:
+      - ./worker:/etc/trino
+      - ./catalog:/etc/trino/catalog
+      - ./jobs:/data/jobs
+      - dockervol:/dockervol
+    networks:
+      - hadoopcluster
+    depends_on:
+      - trino-coordinator
+
+    # Comando de inicialização com geração de ID dinâmico
+    command: sh -c "echo -e '\nnode.id='`cat /proc/sys/kernel/random/uuid` >> /etc/trino/node.properties && /usr/lib/trino/bin/launcher run --etc-dir=/etc/trino"
+
+networks:
+  hadoopcluster:
+    external: true
+
+volumes:
+  dockervol:
+    external: true

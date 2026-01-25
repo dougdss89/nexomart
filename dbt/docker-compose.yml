@@ -1,20 +1,18 @@
-version: '3'
-
 services:
-  dbt:
+  dbt_server:
     build: .
-    volumes:
-      - .:/usr/app/dbt
-      - ~/.dbt:/root/.dbt
-      - dockervol:/dockervol:rwx
-      - sparkapps:/sparkapps:rwx
-
+    image: dbt:dbt
+    container_name: dbt_server
 
     networks:
-      - hadoopcluster    # Substitua pelo nome da sua rede existente
-    container_name: dbt_core
-    tty: true
-    command: tail -f /dev/null  # Mantém o container rodando
+      - hadoopcluster
+
+    volumes:
+      # Mapeia sua pasta local para dentro do container
+      - .:/usr/app/dbt
+      - dockervol:/dockervol
+    ports:
+      - "2222:22" # Permite que você acesse via terminal: ssh dbt@localhost -p 2222
 
 networks:
   hadoopcluster:
@@ -22,8 +20,6 @@ networks:
     name: hadoopcluster # Substitua pelo nome da sua rede existente
 
 volumes:
-  sparkapps:
-    external: true
 
   dockervol:
     external: true
