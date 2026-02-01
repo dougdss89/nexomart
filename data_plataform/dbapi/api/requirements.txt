@@ -24,3 +24,11 @@ httpx
 # Utilities
 pandas
 aiofiles          # Para ler/gravar arquivos locais de forma async
+anyio       
+asgiref     
+click       
+hll         
+idna            
+sniffio     
+starlette   
+typing_extensions

@@ -6,6 +6,7 @@ venv/
 venv*/               # Bloqueia venv312, venv310, etc.
 .python-version      # Se você usar o pyenv, mas com UV costuma ser opcional
 .uv/                 # Cache interno do gerenciador UV
+*venv312
 
 # =============================================================================
 # Cache e Binários (Python & Compilação)
