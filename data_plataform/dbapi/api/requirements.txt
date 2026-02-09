@@ -32,3 +32,4 @@ idna
 sniffio     
 starlette   
 typing_extensions
+pycountry

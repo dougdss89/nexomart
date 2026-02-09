@@ -32,5 +32,5 @@ class ProductModelSchema(BaseModel):
     is_active:bool = True
     row_guid:uuid.UUID = Field(default_factory= uuid.uuid4)
     
-class Config:
-    use_enum_values = True #Pydantic exporta os valores do enum
+    class Config:
+        use_enum_values = True #Pydantic exporta os valores do enum

@@ -31,5 +31,5 @@ class ProductSchema(BaseModel):
     is_active:bool = True
     row_guid:uuid.UUID = Field(default_factory=uuid.uuid4)
     
-class Config:
-    from_attributes = True #pydantic lendo modelos do SQLAlchemy
+    class Config:
+        from_attributes = True #pydantic lendo modelos do SQLAlchemy
