@@ -33,3 +33,6 @@ sniffio
 starlette   
 typing_extensions
 pycountry
+pgvector
+sqlalchemy
+pydantic
