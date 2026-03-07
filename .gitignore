@@ -1,33 +1,30 @@
 # =============================================================================
-# Ambientes Virtuais e Gerenciadores (Python & UV)
+# Ambientes Virtuais e Gerenciadores
 # =============================================================================
 .venv/
 venv/
-venv*/               # Bloqueia venv312, venv310, etc.
-.python-version      # Se você usar o pyenv, mas com UV costuma ser opcional
-.uv/                 # Cache interno do gerenciador UV
+venv*/
+.python-version
+.uv/
 *venv312
-**/.vscode/
-
 
 # =============================================================================
-# Cache e Binários (Python & Compilação)
+# Cache e Binários (Python)
 # =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.python-version
 .pytest_cache/
 .mypy_cache/
-.ruff_cache/         # Linter moderno muito usado com FastAPI
+.ruff_cache/
 
 # =============================================================================
 # Arquivos de Ambiente e Segurança (CRÍTICO)
 # =============================================================================
 .env
 .env.*
-!.env.example        # Permite versionar apenas o modelo (sem senhas)
+!.env.example
 *.pem
 *.key
 *.pub
@@ -47,10 +44,9 @@ Thumbs.db
 # =============================================================================
 # Dados Locais e Bancos (Docker/Data Engineering)
 # =============================================================================
-# Ignora volumes de dados do Docker para não subir o DB inteiro pro Git
-/minio/data*/
-/redis/data*/
-/postgres/data*/
+**/minio/data*/
+**/redis/data*/
+**/postgres/data*/
 *.db
 *.sqlite
 *.log
@@ -58,27 +54,24 @@ Thumbs.db
 # =============================================================================
 # Exclusões Específicas do Projeto (Engenharia de Dados)
 # =============================================================================
-# Airflow
-/airflow/logs/
-/airflow/plugins/
-/airflow/config/
-/airflow/dags/configconnections_loader.py
-/airflow/dags/iceberg*.py
-*.jar
+# Airflow (Caminhos relativos à raiz do repo)
+**/airflow/logs/
+**/airflow/plugins/
+**/airflow/config/
 
 # Spark & Databricks
-/spark/jobs/notebooks/
-/spark/devapplication/raw_layer_extract_scripts/configconnections_loader.py
-/spark/devapplication/sharedmodules/
-# Removido /spark/requirements.txt (geralmente é bom versionar o principal)
+**/spark/jobs/notebooks/
 
-# Temporários de estudo
+# Pastas de Infra/Dados que não devem subir
+data_plataform/hive/
+data_plataform/lakehouse/
+data_plataform/fastapi/
+data_plataform/spark/devapplication/
+
+# Temporários de estudo (CUIDADO: isso ignora qualquer pasta que termine com esses nomes)
+# Se você tiver pastas importantes com esses nomes, comente as linhas abaixo.
 *_old/
 *_teste/
-*_dev/
+# *_dev/  <-- COMENTEI ESTA, pois sua pasta era 'devapplication' e ela podia estar causando o conflito.
 *_old.py
 *_teste.py
-/home/doug/project/hive
-/home/doug/project/lakehouse
-/home/doug/project/fastapi
-/home/doug/project/data_plataform/spark/devapplication

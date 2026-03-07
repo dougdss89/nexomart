@@ -123,11 +123,12 @@ services:
 volumes:
   dockervol:
     external: true
-  postgres_data:
   spark-logs:
     external: true
   spark-ivy-cache:
     external: true
+  spark-jobs:
+  configurations:
 
 networks:
   hadoopcluster:
