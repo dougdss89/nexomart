@@ -72,6 +72,5 @@ data_plataform/spark/devapplication/
 # Se você tiver pastas importantes com esses nomes, comente as linhas abaixo.
 *_old/
 *_teste/
-# *_dev/  <-- COMENTEI ESTA, pois sua pasta era 'devapplication' e ela podia estar causando o conflito.
 *_old.py
 *_teste.py
