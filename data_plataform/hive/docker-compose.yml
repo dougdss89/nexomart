@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  metastore:
+    image: apache/hive:4.0.0
+    container_name: hive-metastore
+
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      HIVE_DB_TYPE: postgres
+      AWS_ACCESS_KEY_ID: minioadmin      # <-- Alterado para dois pontos
+      AWS_SECRET_ACCESS_KEY: minioadmin
+
+    ports:
+      - "9083:9083" # Porta padrão do protocolo Thrift
+    volumes:
+      - ./conf/metastore-site.xml:/opt/hive/conf/metastore-site.xml
+      - ./conf/core-site.xml:/opt/hive/conf/core-site.xml
+      - ./drivers/postgresql-42.7.2.jar:/opt/hive/lib/postgresql.jar
+      # ADICIONE ESTAS DUAS LINHAS ABAIXO:
+      - ./drivers/hadoop-aws-3.3.6.jar:/opt/hive/lib/hadoop-aws-3.3.6.jar
+      - ./drivers/aws-java-sdk-bundle-1.12.367.jar:/opt/hive/lib/aws-java-sdk-1.12.367.jar
+
+    command: /bin/bash -c "/opt/hive/bin/schematool -dbType postgres -initSchema ; /opt/hive/bin/hive --service metastore"
+
+    networks:
+      - hadoopcluster
+
+networks:
+  hadoopcluster:
+    external: true

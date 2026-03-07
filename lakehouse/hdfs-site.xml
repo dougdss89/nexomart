@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
+
+<!-- Configurações específicas para o Data Lake com Hadoop HA e Iceberg -->
+
+<configuration>
+
+  <!-- Diretório de metadados do NameNode -->
+  <property>
+    <name>dfs.namenode.name.dir</name>
+    <value>/home/hadoop/ha/data/namenode</value>
+  </property>
+
+  <!-- Número de réplicas dos blocos HDFS (ajuste conforme disponibilidade de nós) -->
+  <property>
+    <name>dfs.replication</name>
+    <value>3</value>  <!-- Alterado de 1 para 3 -->
+  </property>
+
+  <!-- Desabilitar permissões para simplificar o ambiente de testes -->
+  <property>
+    <name>dfs.permissions</name>
+    <value>false</value>
+  </property>
+
+  <!-- Nome do serviço de HA -->
+  <property>
+    <name>dfs.nameservices</name>
+    <value>delta-cluster</value> <!-- Nome atualizado do cluster -->
+  </property>
+
+  <!-- Configuração dos NameNodes com HA -->
+  <property>
+    <name>dfs.ha.namenodes.delta-cluster</name>
+    <value>dlt1,dlt2</value>
+  </property>
+
+  <!-- Endereços RPC dos NameNodes -->
+  <property>
+    <name>dfs.namenode.rpc-address.delta-cluster.dlt1</name>
+    <value>deltamasternode.hdp.com:9000</value>
+  </property>
+  <property>
+    <name>dfs.namenode.rpc-address.delta-cluster.dlt2</name>
+    <value>deltasecondnode.hdp.com:9000</value>
+  </property>
+
+  <!-- Endereços HTTP dos NameNodes -->
+  <property>
+    <name>dfs.namenode.http-address.delta-cluster.dlt1</name>
+    <value>deltamasternode.hdp.com:50070</value>
+  </property>
+  <property>
+    <name>dfs.namenode.http-address.delta-cluster.dlt2</name>
+    <value>deltasecondnode.hdp.com:50070</value>
+  </property>
+
+  <!-- Diretório compartilhado de edições de metadados (Journals) -->
+  <property>
+    <name>dfs.namenode.shared.edits.dir</name>
+    <value>qjournal://deltamasternode.hdp.com:8485;deltasecondnode.hdp.com:8485;deltadatanode.hdp.com:8485/delta-cluster</value>
+  </property>
+
+  <!-- Provedor de failover configurado para o cluster -->
+  <property>
+    <name>dfs.client.failover.proxy.provider.delta-cluster</name>
+    <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+  </property>
+
+  <!-- Ativar failover automático -->
+  <property>
+    <name>dfs.ha.automatic-failover.enabled</name>
+    <value>true</value>
+  </property>
+
+  <!-- Métodos de fencing para garantir que apenas um NameNode esteja ativo -->
+  <property>
+    <name>dfs.ha.fencing.methods</name>
+    <value>sshfence</value>
+  </property>
+  <property>
+    <name>dfs.ha.fencing.ssh.private-key-files</name>
+    <value>/home/hadoop/.ssh/id_rsa</value>
+  </property>
+
+  <!-- Adicionar outro método de fencing baseado em shell -->
+  <property>
+    <name>dfs.ha.fencing.methods</name>
+    <value>shell(/bin/true)</value> <!-- Método secundário para segurança adicional -->
+  </property>
+
+  <!-- Diretório de dados do DataNode -->
+  <property>
+    <name>dfs.datanode.data.dir</name>
+    <value>/home/hadoop/ha/data/datanode</value>
+  </property>
+
+  <!-- Tamanho do bloco HDFS para melhor desempenho com Iceberg -->
+  <property>
+    <name>dfs.blocksize</name>
+    <value>256m</value> <!-- Aumentado para suportar grandes volumes de dados -->
+  </property>
+
+  <!-- Tamanho do buffer de gravação para otimizar operações de escrita -->
+  <property>
+    <name>dfs.client-write-packet-size</name>
+    <value>128</value> <!-- Ajuste para melhor eficiência na escrita de dados -->
+  </property>
+
+  <!-- Tempo limite de heartbeat dos DataNodes -->
+  <property>
+    <name>dfs.heartbeat.interval</name>
+    <value>3</value> <!-- Intervalo reduzido para detecção rápida de falhas -->
+  </property>
+  <property>
+    <name>dfs.namenode.heartbeat.recheck-interval</name>
+    <value>15000</value> <!-- Recheck mais frequente para status de DataNodes -->
+  </property>
+
+</configuration>
+

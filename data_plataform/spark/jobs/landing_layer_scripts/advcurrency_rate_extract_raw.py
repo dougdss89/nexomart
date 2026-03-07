@@ -1,0 +1,139 @@
+from pyspark.sql import SparkSession
+from configconnections_loader import load_config, validate_required_keys
+import sys
+import traceback
+
+def load_source_connections():
+    
+    """ load .env file"""
+    
+    try:
+        print("trying load configurations")
+        config = load_config()
+        
+        print(f"Configuration loaded")
+        
+    except FileNotFoundError as e:
+        print(f"File .env not founded: {str(e)}. Error to load configuration variable")
+        traceback.print_exc()
+        return None
+    
+    except KeyError as e:
+        print(f"Missing some key-value pair: {str(e)}")
+        traceback.print_exc()
+        return None
+    
+        #load properties, configurations and jars file
+    try:
+        spark_jars = config["spark_jars"]
+        mssql_adventureworks = config["mssql_sources"]["adventureworks"]
+        mssql_properties = mssql_adventureworks["properties"]
+        minio_landing = config.get("hadoop_paths", {})
+    
+        #check if variable was loaded
+        if not spark_jars or "mssql_spark_jars" not in spark_jars:
+            print("Missing spark jars configuration file and path")
+            return None, None, None, None
+        
+        if not mssql_adventureworks:
+            print(f"Adventureworks sources and properties was not loaded. Missing properties {mssql_adventureworks}")
+            return None, None, None, None
+        
+        if not mssql_properties:
+            print(f"We detected certain dependencies on {mssql_properties} that was not loaded. Reload {mssql_adventureworks} and retry it")
+            return None, None, None, None
+        
+    #load properties, spark configuration and session
+    
+        spark = (SparkSession
+                    .builder
+                    .appName("extract_currency_rate_raw")
+                    .enableHiveSupport()
+                    .getOrCreate()
+                )
+        return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
+    
+    except Exception as e:
+        print(f"Fail to create SparkSession: {str(e)}")
+        traceback.print_exc()
+        return None
+    
+def extract_currencyrate_raw(spark, mssql_properties, mssql_adventureworks):
+    
+    if not all ([spark, mssql_properties, mssql_adventureworks]):
+        print("Invalid Parameters")
+        
+        return None
+    
+    try:
+        df_currencyrate_raw = (spark
+                                .read
+                                .format("jdbc")
+                                    .option("url", mssql_adventureworks["url"])   
+                                    .option("driver", mssql_properties["driver"])   
+                                    .option("user", mssql_properties["user"])  
+                                    .option("password", mssql_properties["password"])   
+                                    .option("query", 
+                                        
+                                            """ 
+                                                select 
+
+                                                    coalesce(currencyrateid,0) as currencyrateid,
+                                                    fromcurrencycode,
+                                                    tocurrencycode,
+                                                    cast(averagerate as money) as averagerate,
+                                                    cast(endofdayrate as money) as endofdayrate,
+                                                    cast(currencyratedate as date) as currencyratedate,
+                                                    getdate() as inserted_date,
+                                                    '9999-31-12 00:00:00.000' as modified_date,
+                                                    '1' as eltversion
+                                                    
+                                                from sales.currencyrate 
+                                            """    
+                                            
+                                        )).load()
+        return df_currencyrate_raw
+    
+    except Exception as e:
+        print("Failed to load datasource to dataframe")
+        traceback.print_exc()
+        return None
+    
+def stop_spark(spark):
+    if spark:
+        spark.stop()
+        
+def main():
+    
+    #load source connections
+    try:
+        spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
+        
+    #verifying spark
+        if not spark:
+            print("Fail to stablishes spark connection")
+            sys.exit(1)
+            
+    #extract and check if datasources was loaded to dataframe
+    
+        write_currency_rate = extract_currencyrate_raw(spark, mssql_properties, mssql_adventureworks)
+        
+        if write_currency_rate:
+            write_currency_rate.repartition(3).write.mode("overwrite").parquet(f"{minio_landing}/currency_rate")
+            
+            print("Dataframe loaded sucessfully ")
+            
+        print(f"Data frame was loaded successfully on Datalake path: {minio_landing}")
+        
+    except Exception as e:
+        print("Main script was not properly configurated. Verify")
+        traceback.print_exc()
+        return None
+    
+    finally:
+        #closing spark session
+        stop_spark(spark)
+        print("Spark Session closed")
+        
+if __name__ == "__main__":
+    main()

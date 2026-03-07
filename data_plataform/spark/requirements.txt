@@ -1,0 +1,30 @@
+# --- Core Data Stack ---
+pyspark==3.5.8
+pyarrow>=14.0.0
+pandas>=2.2.0
+numpy>=1.26.0
+
+# --- Iceberg & Nessie & Cloud Storage ---
+pynessie>=0.67.0
+pyiceberg[s3fs,pyarrow]>=0.6.0
+boto3>=1.34.0
+botocore>=1.34.0
+
+# --- API Development (Carga Mock) ---
+fastapi>=0.110.0
+uvicorn>=0.27.0
+python-multipart
+requests
+
+# --- Interactive Debugging ---
+ipython
+traitlets
+pygments
+stack-data
+
+# --- Utils ---
+python-dateutil
+pytz
+six
+python-dotenv
+dotenv
