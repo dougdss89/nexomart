@@ -1,1 +1,0 @@
-select * from {{ ref('dimension_color' )}}
