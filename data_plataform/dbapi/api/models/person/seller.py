@@ -1,16 +1,11 @@
-
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, text, Index, Numeric
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Column, Integer, String, DateTime, text, Index, Numeric, cast, date, Foreign_key
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
-from api.models.base import Base
-import uuid
+from api.models.base import AuditMixin, Base
 
-class SellerModel(Base):
+class SellerModel(Base, AuditMixin):
     
     __tablename__ = "seller"
-    __table_args__ = (
-            Index('ix_seller_demographics', 'demographics', postgresql_using='gin'),
-            {"schema": "person"})
     
     seller_id = Column(Integer, primary_key=True, autoincrement=True)
     seller_name = Column(String(100), nullable=False)
@@ -20,12 +15,23 @@ class SellerModel(Base):
     opened_date = Column(DateTime(timezone=True), nullable=False, serverdefault=func.now())
     
     commission_rate = Column(Numeric(19, 4), nullable=False, default=0.0)
+        
+    country_id = Column(Integer, Foreign_key("person.countryregion.country_id"), nullable=False )
     
     demographics = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     
-    country_id = Column(Integer, nullable=False, Foreign_key="person.countryregion.country_id")
+    __table_args__ = (
+        Index('ix_seller_demographics_information_sellertype', cast(demographics['information']['sellertype'].astext)),
+        Index('ix_seller_demographics_bank_account_bank_code', cast(demographics['bank_account']['bank_code'].astext)),
     
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    is_active = Column(Boolean, default=True)
-    row_guid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
+        Index('ix_seller_demographics_address_country',cast(demographics['address'][6]['country'].astext)),
+        Index('ix_seller_demographics_address_address_type', cast(demographics['address'][0]['address_type'].astext)),
+        Index('ix_seller_demographics_address_city', cast(demographics['address'][4]['city'].astext)),
+        Index('ix_seller_demographics_address_state_name', cast(demographics['address'][5]['state_name'].astext)),
+        
+        Index('ix_seller_demographics_metrics_total_sold', cast(demographics['metrics']['total_items_sold'].astext, Integer)),
+        Index('ix_seller_demographics_metrics_count_orders', cast(demographics['metrics']['count_orders'].astext, Integer)),
+        Index('ix_seller_demographics_metrics_date_first_sale', cast(demographics['metrics']['date_first_sale'].astext, date)),
+        Index('ix_seller_demographics_metrics_date_last_sale',  cast(demographics['metrics']['date_last_sale'].astext, date)),
+
+        {"schema": "person"})

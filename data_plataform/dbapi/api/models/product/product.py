@@ -1,13 +1,10 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, text, Foreign_Key
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.sql import func
-from api.models.base import Base
-import uuid
+from sqlalchemy import Column, Integer, String, text, Foreign_Key, Index
+from sqlalchemy.dialects.postgresql import JSONB
+from api.models.base import Base, AuditMixin
 
-class ProductModel(Base):
+class ProductModel(Base, AuditMixin):
     
     __tablename__ = "product"
-    __table_args__ = ({"schema": "product"})
     
     product_id = Column(Integer, primary_key=True, autoincrement=True)
     product_name = Column(String(100), nullable=False)
@@ -22,12 +19,16 @@ class ProductModel(Base):
     
     productdetails = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    is_active =  Column(Boolean, default=True)
-    row_guid  =   Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
     
-    #relationship
-    # model = relationship("ProductModel")
-    # category = relationship("ProductCategory")
-    
+    __table_args__ = (
+        
+        Index('ix_product_product_details_color', productdetails['details']['color'].astext),
+        Index('ix_product_product_details_size', productdetails['details']['size'].astext),
+        Index('ix_product_product_details_product_price', productdetails['details']['product_price'].astext),
+        Index('ix_product_product_details_product_brand', productdetails['details']['product_brand'].astext),
+        Index('ix_product_product_details_product_sku', productdetails['details']['product_sku'].astext),
+        
+        #GIN para generalistas
+        Index('ix_product_product_details_gin', productdetails, postgresql_using='gin'),
+
+        {"schema": "product"})

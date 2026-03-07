@@ -1,12 +1,10 @@
 # models/product.py
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Column, Integer, String, text
+from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
-from sqlalchemy.sql import func
-from .base import Base
-import uuid
+from api.models.base import Base, AuditMixin
 
-class ProductEmbeddingModel(Base):
+class ProductEmbeddingModel(Base, AuditMixin):
     __tablename__ = "productembedding"
     __table_args__ = {"schema": "product"} # Organização por Schemas no Postgres
 
@@ -25,8 +23,3 @@ class ProductEmbeddingModel(Base):
     # Tudo o que era sub-modelo no Pydantic (AIModelMetadata), aqui vira simplesmente JSONB
     ai_metadata = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     
-    # --- METADADOS ---
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    is_active = Column(Boolean, default=True)
-    row_guid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)

@@ -1,10 +1,8 @@
 from sqlalchemy import Column, Integer, Boolean, DateTime, String, Numeric
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from api.models.base import Base
-import uuid
+from api.models.base import AuditMixin, Base
 
-class HumanResourcesJobRoleModel(Base):
+class HumanResourcesJobRoleModel(Base, AuditMixin):
     
     __tablename__ = "jobrole"
     __table_args__ = {"schema": "humanresources"}
@@ -19,8 +17,3 @@ class HumanResourcesJobRoleModel(Base):
     effective_enddate = Column(DateTime(timezone=True), nullable = True, server_default=func.now())
     
     is_current = Column(Boolean, nullable = False, default = True)
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    is_active = Column(Boolean, default=True)
-    row_guid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)

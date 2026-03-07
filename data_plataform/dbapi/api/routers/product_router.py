@@ -22,3 +22,5 @@ def validate_references(db: Session, category_id: int, model_id: int):
             status_code=status.HTTP_404_NOT_FOUND, 
             detail=f"Model ID {model_id} not found"
         )
+        
+        

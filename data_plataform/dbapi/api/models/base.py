@@ -1,7 +1,7 @@
 # app/models/base.py
 import uuid
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Boolean, DateTime
+from sqlalchemy import Column, Boolean, DateTime, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from datetime import datetime, date
@@ -25,13 +25,13 @@ class Base(DeclarativeBase):
                 result[column.name] = value
         return result
 
-# --- AQUI ESTÁ A MÁGICA ---
 class AuditMixin:
     """
     Mixin para injetar colunas de rastreabilidade e auditoria.
     Basta herdar desta classe para a tabela ganhar esses 4 campos automaticamente.
     """
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=True, default=None, onupdate=func.now())
     is_active = Column(Boolean, default=True, nullable=False)
+    row_version = Column(Integer, default=1, nullable=False)
     row_guid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)

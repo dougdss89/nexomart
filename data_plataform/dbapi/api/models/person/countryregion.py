@@ -1,11 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
-from api.models.base import Base
-import uuid
+from sqlalchemy import Column, Integer, String
+from api.models.base import AuditMixin, Base
 
 
-class CountryRegionModel(Base):
+class CountryRegionModel(Base, AuditMixin):
     
     __tablename__ = "countryregion"
     __table_args__ = ({"schema": "person"})
@@ -15,9 +12,5 @@ class CountryRegionModel(Base):
     country_code = Column(String(3), nullable=False)
     countryregion = Column(String(100), nullable=False)
     
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    is_active = Column(Boolean, default=True)
-    row_guid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
 
     

@@ -4,32 +4,35 @@ from pathlib import Path
 
 CURRENT_FILE_DIR = Path(__file__).resolve().parent
 
-API_ROOT_DIR = CURRENT_FILE_DIR.data_plataform.dbapi
+# Usando barras para compatibilidade de caminhos
+API_ROOT_DIR = CURRENT_FILE_DIR / "data_plataform" / "dbapi"
 ENV_FILE_PATH = API_ROOT_DIR / ".env"
 
 class Settings(BaseSettings):
     
     model_config = SettingsConfigDict(
-        env_file = ".env",
+        env_file = str(ENV_FILE_PATH),
         env_file_encoding="utf-8",
-        extra="ignore" #ignora variáveis extras
-        
+        extra="ignore" # ignora variáveis extras no .env
     )
 
-    #mapeando as variáveis exatas
+    # === Variáveis do PostgreSQL ===
+    PGUSER: str
+    PGPWD: str
+    POSTGREIP: str
+    PGPORT: str
+    PGDATABASENAME: str 
     
-    PGUSER:str
-    PGPWD:str
-    POSTGREIP:str
-    PGPORT:str
-    PGDATABASENASME:str
+    PGDRIVER: str | None = None
+    PGJAR: str | None = None
     
-    PGDRIVER:str | None=None
-    PGJAR:str | None=None
+    # === NOVAS Variáveis do MinIO ===
+    MINIO_ENDPOINT: str
+    MINIO_ACCESS_KEY: str
+    MINIO_SECRET_KEY: str
+    MINIO_SECURE: bool = False # False significa que não vai exigir HTTPS (ideal para local/Docker)
     
-    #montando a url
-    #evita ma formacao de string com python
-    
+    # montando a url do banco
     @computed_field
     @property
     def DATABASE_URL(self) -> str:

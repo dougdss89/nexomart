@@ -7,6 +7,8 @@ venv*/               # Bloqueia venv312, venv310, etc.
 .python-version      # Se você usar o pyenv, mas com UV costuma ser opcional
 .uv/                 # Cache interno do gerenciador UV
 *venv312
+**/.vscode/
+
 
 # =============================================================================
 # Cache e Binários (Python & Compilação)
@@ -62,6 +64,7 @@ Thumbs.db
 /airflow/config/
 /airflow/dags/configconnections_loader.py
 /airflow/dags/iceberg*.py
+*.jar
 
 # Spark & Databricks
 /spark/jobs/notebooks/
@@ -75,3 +78,4 @@ Thumbs.db
 *_dev/
 *_old.py
 *_teste.py
+
