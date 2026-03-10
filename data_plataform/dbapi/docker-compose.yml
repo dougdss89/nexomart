@@ -1,0 +1,19 @@
+services:
+  dbapi:
+    build: .
+    container_name: dbapi
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./api:/app
+      - configurations:/app/configurations
+    networks:
+      - hadoopcluster
+
+networks:
+  hadoopcluster:
+    external: true
+
+volumes:
+  configurations:
+    external: true

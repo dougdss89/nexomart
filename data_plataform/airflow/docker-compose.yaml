@@ -13,11 +13,17 @@ services:
     networks:
       - hadoopcluster
 
+    cpus: "0.5"
+    mem_limit: 1024m
+
   redis:
     image: redis:7.2-bookworm
     container_name: redis
     networks:
       - hadoopcluster
+
+    cpus: "0.5"
+    mem_limit: 1024m
 
   # Serviço para inicializar o banco de dados (roda uma vez e para)
   airflow-init:
@@ -52,6 +58,7 @@ services:
           - dockervol:/dockervol
           - spark-logs:/opt/spark/spark-events
           - spark-ivy-cache:/home/spark/.ivy2
+          - spark-jobs:/usr/local/airflow/spark_jobs
           # Adicione o espaço aqui! E garanta que este caminho aponta para o seu arquivo novo:
           - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
 
@@ -69,6 +76,7 @@ services:
       - dockervol:/dockervol
       - spark-logs:/opt/spark/spark-events
       - spark-ivy-cache:/home/spark/.ivy2
+      - spark-jobs:/usr/local/airflow/spark_jobs
     ports:
       - 8181:8080
     command: airflow webserver
@@ -79,6 +87,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
+    cpus: "1"
+    mem_limit: 1500m
 
   airflow-scheduler:
     build: .
@@ -94,9 +105,14 @@ services:
       - dockervol:/dockervol
       - spark-logs:/opt/spark/spark-events
       - spark-ivy-cache:/home/spark/.ivy2
+      - spark-jobs:/usr/local/airflow/spark_jobs
     command: airflow scheduler
     networks:
       - hadoopcluster
+
+    cpus: "1.5"
+    mem_limit: 2g
+
 
   airflow-worker:
     build: .
@@ -112,6 +128,7 @@ services:
       - dockervol:/dockervol
       - spark-logs:/opt/spark/spark-events
       - spark-ivy-cache:/home/spark/.ivy2
+      - spark-jobs:/usr/local/airflow/spark_jobs
       - /home/doug/project/data_plataform/spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
 
     command: airflow celery worker
@@ -119,6 +136,9 @@ services:
       - hadoopcluster
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+    cpus: "1.5"
+    mem_limit: 4g
 
 volumes:
   dockervol:
@@ -128,6 +148,7 @@ volumes:
   spark-ivy-cache:
     external: true
   spark-jobs:
+    external: true
   configurations:
 
 networks:

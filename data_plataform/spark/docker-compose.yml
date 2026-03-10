@@ -13,10 +13,10 @@ services:
       retries: 3
 
     volumes:
-      - ./jobs:/workspace/jobs
+      - spark-jobs:/workspace/jobs
       - ./devapplication:/opt/spark/development
       - spark-logs:/opt/spark/spark-events
-      - ../configurations:/workspace/configurations
+      - configurations:/dockervol/configurations
       - dockervol:/dockervol
       - spark-ivy-cache:/home/spark/.ivy2
 
@@ -57,10 +57,10 @@ services:
       - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configurations
 
     volumes:
-      - ./jobs:/opt/spark/jobs
+      - spark-jobs:/opt/spark/jobs
       - ./devapplication:/opt/spark/development
       - spark-logs:/opt/spark/spark-events
-      - ../configurations:/dockervol/configurations
+      - configurations:/dockervol/configurations
       - dockervol:/dockervol
       - spark-ivy-cache:/home/spark/.ivy2
 
@@ -88,15 +88,15 @@ services:
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_CORES=6
+      - SPARK_WORKER_CORES=5
       - SPARK_WORKER_MEMORY=10G
       - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configurations
 
-    cpus: "6.0"
+    cpus: "5.0"
     mem_limit: 10g
 
     volumes:
-      - ./jobs:/opt/spark/jobs
+      - spark-jobs:/opt/spark/jobs
       - ./devapplication:/opt/spark/development
       - spark-logs:/opt/spark/spark-events
       - dockervol:/dockervol
@@ -122,5 +122,14 @@ volumes:
   spark-ivy-cache:
     external: true
   spark-jobs:
-  
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./jobs
   configurations:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../configurations

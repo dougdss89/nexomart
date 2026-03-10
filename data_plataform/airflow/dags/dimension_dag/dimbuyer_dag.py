@@ -6,6 +6,7 @@ from airflow.exceptions import AirflowException
 import logging
 import socket
 
+
 # Import do nosso módulo (que agora será encontrado pelo Spark graças ao PYTHONPATH)
 from configconnections_loader import load_config, validate_required_keys
 
