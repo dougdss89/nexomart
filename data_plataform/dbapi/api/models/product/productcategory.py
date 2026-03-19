@@ -4,7 +4,7 @@ from sqlalchemy.sql import func
 from api.models.base import Base
 import uuid
 
-class ProductCategorModel(Base):
+class ProductCategoryModel(Base):
     __tablename__ = "productcategory"
     
     __table_args__ = ({"schema": "product"})

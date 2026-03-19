@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Index, text, Foreign_key, cast
+from sqlalchemy import Column, Integer, String, Index, text, ForeignKey, cast
 from sqlalchemy.dialects.postgresql import JSONB
 from api.models.base import Base
 
@@ -8,7 +8,7 @@ class MarketingAdvertiseModel(Base):
 
     
     advertise_id = Column(Integer, primary_key=True, autoincrement=True)
-    adgroup_id = Column(Integer, Foreign_key('marketing.marketingadgroup.adgroup_id'), nullable=False )
+    adgroup_id = Column(Integer, ForeignKey('marketing.marketingadgroup.adgroup_id'), nullable=False )
     
     advertise_name = Column(String(200), nullable=False)
     external_id = Column(String(200), nullable=False)

@@ -26,6 +26,7 @@ class PurchaseOrderDetailSchema(BaseModel):
     # Recebimentos (Parciais ou Totais)
     received_qty: int = Field(default=0, ge=0, description="Quantidade que já chegou nas docas")
     rejected_qty: int = Field(default=0, ge=0, description="Quantidade devolvida pelo Controle de Qualidade")
+    stocked_qty: int = Field(default=0, ge=0, description="Quantidade que foi para o estoque")
     
     # Flag facilitadora (Opcional na entrada, pois podemos calcular)
     is_fully_received: bool = Field(default=False)
@@ -61,5 +62,19 @@ class PurchaseOrderDetailSchema(BaseModel):
                 f"Item não pode ser marcado como 'is_fully_received=True'. "
                 f"Quantidade aceita ({accepted_qty}) é menor que a pedida ({self.order_qty})."
             )
+
+        # Regra 4: Consistência de Estoque
+        if self.stocked_qty > self.received_qty:
+            raise ValueError(f"A quantidade em estoque ({self.stocked_qty}) não pode ser maior que a recebida ({self.received_qty}).")
+        
+        if self.stocked_qty > self.order_qty:
+            raise ValueError(f"A quantidade em estoque ({self.stocked_qty}) não pode ser maior que a pedida ({self.order_qty}).")
+
+        # Regra 5: Consistência de Estoque
+        if self.stocked_qty + self.rejected_qty > self.received_qty:
+            raise ValueError(f"A quantidade em estoque ({self.stocked_qty}) + a quantidade rejeitada ({self.rejected_qty}) não pode ser maior que a recebida ({self.received_qty}).")
+        
+        if self.stocked_qty + self.rejected_qty > self.order_qty:
+            raise ValueError(f"A quantidade em estoque ({self.stocked_qty}) + a quantidade rejeitada ({self.rejected_qty}) não pode ser maior que a pedida ({self.order_qty}).")
 
         return self

@@ -1,17 +1,17 @@
-from sqlalchemy import Column, Integer, String, Foreign_key
+from sqlalchemy import Column, Integer, String, ForeignKey
 from api.models.base import AuditMixin, Base
 from sqlalchemy.orm import relationship
 
 class HumanResourcesDepartmentModel(Base, AuditMixin):
     
     __tablename__ = "department"
-    __table_args__ = {"schema": "human_resources"}
+    __table_args__ = {"schema": "humanresources"}
     
     department_id = Column(Integer, primary_key= True, autoincrement= True)
     department_name = Column(String(100), nullable= False)
     group_name = Column(String(100), nullable= False)
     
-    parent_department_id = Column(Integer, Foreign_key("human_resources.department.department_id"), nullable=True)
+    parent_department_id = Column(Integer, ForeignKey("human_resources.department.department_id"), nullable=True)
     manager_id = Column(Integer, nullable= True)
     
     subdepartments = relationship(

@@ -1,5 +1,5 @@
 
-from sqlalchemy import Column, Integer, String, DateTime, Index, Foreign_key, Numeric, text, cast
+from sqlalchemy import Column, Integer, String, DateTime, Index, ForeignKey, Numeric, text, cast
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from api.models.base import Base, AuditMixin
@@ -10,12 +10,12 @@ class MarketingCampaignModel(Base, AuditMixin):
 
     
     campaign_id = Column(Integer, primary_key=True, autoincrement=True)
-    channel_id = Column(Integer, Foreign_key('marketing.channel.channel_id'), nullable=False)
+    channel_id = Column(Integer, ForeignKey('marketing.channel.channel_id'), nullable=False)
     
     campaign_name = Column(String(200), nullable=False)
     utm_campaign = Column(String(200), nullable=False)
     
-    budge_type = Column(String(20), nullable=False)
+    budget_type = Column(String(20), nullable=False)
     total_budget = Column(Numeric(19, 4), nullable=False, default= 0.0)
     start_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     end_date = Column(DateTime(timezone=True), nullable=True, default=None)

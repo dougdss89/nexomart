@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, text, Index, Numeric, Foreign_key, Date
+from sqlalchemy import Column, Integer, String, DateTime, text, Index, Numeric, ForeignKey, Date
 from sqlalchemy.dialects.postgresql import JSONB
 from api.models.base import AuditMixin, Base
 
@@ -10,10 +10,10 @@ class SalesOrderModel(Base, AuditMixin):
     salesorder_id = Column(Integer, primary_key=True, autoincrement=True)
     salesordernumber = Column(String(20), nullable=False, Unique = True)
     
-    customer_id = Column(Integer,       Foreign_key("person.customer.customer_id"), nullable=False)
-    saleschannel_id = Column(Integer,   Foreign_key("sales.saleschannel.saleschannel_id"), nullable=False)
-    specialoffer_id = Column(Integer,   Foreign_key("sales.specialoffer.special_offer_id"), nullable=False)
-    store_id = Column(Integer,          Foreign_key("person.seller.seller_id"), nullable=False)
+    customer_id = Column(Integer,       ForeignKey("person.customer.customer_id"), nullable=False)
+    saleschannel_id = Column(Integer,   ForeignKey("sales.saleschannel.saleschannel_id"), nullable=False)
+    specialoffer_id = Column(Integer,   ForeignKey("sales.specialoffer.special_offer_id"), nullable=False)
+    store_id = Column(Integer,          ForeignKey("person.seller.seller_id"), nullable=False)
     
     order_date = Column(DateTime(timezone=True), nullable=False)
     order_status = Column(String(), nullable=False)

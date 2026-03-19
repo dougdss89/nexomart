@@ -21,14 +21,17 @@ class ProductCategory(str, Enum):
     PET_SUPPLIES = "pet_supplies" 
     OFFICE_SUPPLIES = "office_supplies"
     GARDEN_TOOLS = "garden_tools"
+    MUSICAL_INSTRUMENTS = "musical_instruments"
+    JEWELRY_WATCHES = "jewelry_watches"
+    HOME_IMPROVEMENT = "home_improvement"
+    VIDEO_GAMES = "video_games"
     
 class ProductCategorySchema(BaseModel):
     
     category_id: int = Field(gt=0) #garante id > 0
     category_name: ProductCategory
-    created_date: datetime
     created_at: datetime = Field(default_factory=datetime.now)
-    upadated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
     

@@ -67,13 +67,16 @@ class HRDepartment(BaseModel):
     
     department_name: HRDepartmentName
     group_name: Optional[HRGroupName] = None
+
+    manager_id: Optional[int] = Field(None, gt=0)
+    parent_department_id: Optional[int] = Field(None, gt=0)
     
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
     
-    @model_validator(mode="After")
+    @model_validator(mode="after")
     def set_group_based_on_departament(self):
         
         correct_group = DEPARTMENT_TO_GROUP_MAP.get(self.department_name)

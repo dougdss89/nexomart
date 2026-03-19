@@ -1,12 +1,13 @@
 import uuid
 from typing import List, Optional
+from decimal import Decimal
 from pydantic import BaseModel, Field, HttpUrl, EmailStr, ConfigDict, model_validator
 from datetime import datetime
 
 class VendorContact(BaseModel):
     
     name: str = Field(max_length=100)
-    emai: EmailStr
+    email: EmailStr
     phone: str = Field(max_length=20)
     
 class VendorDetails(BaseModel):
@@ -29,10 +30,10 @@ class Vendor(BaseModel):
     account_number: str = Field(max_length=20)
     
     vendor_name: str = Field(max_length=100)
-    credit_rating: int = Field(ge=1, le=5)
+    credit_rating: Decimal = Field(ge=1, le=5)
     
     vendor_details: VendorDetails
-    purchasing_web_service_url: Optional[HttpUrl] = None
+    purchasing_webservice_url: Optional[HttpUrl] = None
     
     # --- SCD TIPO 2 (Histórico) ---
     effective_start_date: datetime

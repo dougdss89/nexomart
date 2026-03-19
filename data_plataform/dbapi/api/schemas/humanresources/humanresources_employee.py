@@ -5,11 +5,17 @@ from pydantic import BaseModel, Field, model_validator, EmailStr, ConfigDict, Op
 from datetime import date, datetime
 
 class SalesRoleAttributes(BaseModel):
-    
     sales_quota_quaterly: Decimal = Field(ge=0.0, decimal_places=2)
     territory_codes: List[str] = Field(default_factory=list, min_length=1)
+    # Comissão dinâmica baseada em Senioridade
     comission_pct: Decimal = Field(ge=0.0, le=100.0, decimal_places=2)
-    portfolio_size_limit: int = Field(gt=0)
+    portfolio_size_limit: Optional[int] = Field(None, gt=0)
+
+class SalesManagerRoleAttributes(BaseModel):
+    # Gerentes operam com bônus anual em vez de comissão direta
+    annual_bonus_target_pct: Decimal = Field(ge=0.0, le=100.0, decimal_places=2)
+    quota_achievement_multiplier: float = Field(ge=0.0)
+    managed_territory_codes: List[str] = Field(default_factory=list, min_length=1)
 
 class BuyerRoleAttributes(BaseModel):
     
@@ -53,9 +59,15 @@ class EmployeeSchema(BaseModel):
     # CORREÇÃO 2: Manager é opcional (CEO não tem chefe)
     manager_id: Optional[int] = Field(None, gt=0)   
     
-    # JSONB Polimórfico
+    # --- GEOGRAFIA E MOEDA (Expansão Internacional) ---
+    country_id: int = Field(gt=0)
+    state_province_id: int = Field(gt=0)
+    local_currency: str = Field(min_length=3, max_length=3)
+    
+    # JSONB Polimórfico Expandido
     role_attributes: Union[
         SalesRoleAttributes, 
+        SalesManagerRoleAttributes,
         BuyerRoleAttributes, 
         FieldMarketingAttributes, 
         Dict[str, Any]

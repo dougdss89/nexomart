@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, text, Index, Foreign_key, Numeric
+from sqlalchemy import Column, Integer, String, DateTime, text, Index, ForeignKey, Numeric
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from api.models.base import AuditMixin, Base
@@ -10,11 +10,11 @@ class SalesReturnOrderModel(Base, AuditMixin):
     return_id = Column(Integer, primary_key=True, autoincrement=True)
     requestorder_code = Column(String(20), nullable = False)
     
-    salesordernumber = Column(String(20), Foreign_key('sales.salesorder.salesordernumber'), nullable=False)
+    salesordernumber = Column(String(20), ForeignKey('sales.salesorder.salesordernumber'), nullable=False)
     
-    customer_id = Column(Integer, Foreign_key( 'person.customer.customer_id'), nullable=False)
-    store_id = Column(Integer,    Foreign_key( 'person.seller.seller_id'),     nullable=False)
-    product_id = Column(Integer,  Foreign_key( 'product.product.product_id'),  nullable=False)
+    customer_id = Column(Integer, ForeignKey( 'person.customer.customer_id'), nullable=False)
+    store_id = Column(Integer,    ForeignKey( 'person.seller.seller_id'),     nullable=False)
+    product_id = Column(Integer,  ForeignKey( 'product.product.product_id'),  nullable=False)
     
     quantity = Column(Integer, nullable=False)
     

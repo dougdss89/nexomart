@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, text, Foreign_Key, Index
+from sqlalchemy import Column, Integer, String, text, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from api.models.base import Base, AuditMixin
 
-class ProductModel(Base, AuditMixin):
+class Product(Base, AuditMixin):
     
     __tablename__ = "product"
     
@@ -10,11 +10,11 @@ class ProductModel(Base, AuditMixin):
     product_name = Column(String(100), nullable=False)
     
     model_id = Column(Integer, 
-                      Foreign_Key("productmodel.productmodel_id"),
+                      ForeignKey("productmodel.productmodel_id"),
                       nullable=False)
     
     category_id = Column(Integer, 
-                         Foreign_Key("productcategory.category_id"),
+                         ForeignKey("productcategory.category_id"),
                          nullable=False)
     
     productdetails = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))

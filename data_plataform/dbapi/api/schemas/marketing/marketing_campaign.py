@@ -26,11 +26,21 @@ class CampaignSettings(BaseModel):
     conversion_goal: Optional[str] = Field(None, max_length=100)
     bidding_strategy: Optional[str] = Field(None, max_length=100)
     target_roas: Optional[Decimal] = Field(None, ge=0.0, decimal_places=2)
+    target_cpa: Optional[Decimal] = Field(None, ge=0.0, decimal_places=2)
     promoted_product_categories: List[str] = Field(default_factory=list)
+    
+    # Advanced Platform Enrichments
+    location_targeting: List[str] = Field(default_factory=list)
+    device_targeting: List[str] = Field(default_factory=list)
+    language_targeting: List[str] = Field(default_factory=list)
+    placement_inclusions: List[str] = Field(default_factory=list)
+    ad_schedule: Optional[str] = Field(None, description="e.g. 'Mon-Fri 09:00-18:00'")
+    is_dynamic_creative: bool = Field(default=False)
     
 class MarketingCampaign(BaseModel):
     
     campaign_id: int = Field(gt=0)
+    channel_id: int = Field(gt=0) # [FIX] Adicionado FK
     campaign_name: str = Field(max_length=100)
     utm_campaign: str = Field(max_length=100)
     
@@ -42,7 +52,7 @@ class MarketingCampaign(BaseModel):
     
     status: CampaignStatus
     
-    settings: CampaignSettings
+    mktsettings: CampaignSettings # [FIX] Alinhamento com Model SQLAlchemy
     
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

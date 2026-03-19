@@ -6,11 +6,13 @@ class PurchaseOrderHeaderModel(Base, AuditMixin):
     
     __tablename__ = "purchaseorderheader"
     
-    purchaseorderheader_id = Column(Integer, primary_key=True, autoincrement=True)
+    purchaseorderheader_id = Column(String(36), primary_key=True, autoincrement=True)
     
+    vendor_id = Column(Integer, nullable=False)
     employee_id = Column(Integer, nullable=False)
-    order_date = Column(Numeric, nullable=False)
-    ship_date = Column(Numeric, nullable=True)
+
+    order_date = Column(DateTime, timezone=True, nullable=False)
+    ship_date = Column( DateTime, timezone=True, nullable=True)
     orderfinished_date = Column(DateTime, timezone=True, nullable=True)
     
     sub_total = Column(Numeric(19,4), nullable=False, default=0.00)
@@ -18,9 +20,10 @@ class PurchaseOrderHeaderModel(Base, AuditMixin):
     freight = Column(Numeric(19,4), nullable=False, default=0.00)
     total_due = Column(Numeric(19,4), nullable=False, default=0.00)
 
-    status = Column(Integer, nullable=False, default=1)  
+    status = Column(String(20), nullable=False, default='Pending')  
 
     audit_trail = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    
     
     __table_args__ = (
         Index('ix_audit_trail_action',    cast(audit_trail[1]['action'].astext)),

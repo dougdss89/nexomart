@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, text, Index, Numeric, cast, date, Foreign_key
+from sqlalchemy import Column, Integer, String, DateTime, text, Index, Numeric, cast, date, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from api.models.base import AuditMixin, Base
@@ -16,7 +16,7 @@ class SellerModel(Base, AuditMixin):
     
     commission_rate = Column(Numeric(19, 4), nullable=False, default=0.0)
         
-    country_id = Column(Integer, Foreign_key("person.countryregion.country_id"), nullable=False )
+    country_id = Column(Integer, ForeignKey("person.countryregion.country_id"), nullable=False )
     
     demographics = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     

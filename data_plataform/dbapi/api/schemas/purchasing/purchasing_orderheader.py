@@ -20,6 +20,7 @@ class AuditAction(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     CLOSED = "closed"
+    CANCELED = "canceled"
     
 class AuditLogEntry(BaseModel):
     
@@ -37,7 +38,7 @@ class PurchaseOrderHeader(BaseModel):
         use_enum_values=True
     )
     
-    purchaseorderheader_id: str = Field(max_length=100)
+    purchaseorderheader_id: str = Field(max_length=36)
     vendor_id: int = Field(gt=0)
     employee_id: int = Field(gt=0)
     
@@ -46,12 +47,13 @@ class PurchaseOrderHeader(BaseModel):
     orderfinished_date: Optional[datetime] = None
     
     # DICA: No PostgreSQL, decimal(19,4) exige 4 casas no Pydantic para evitar truncamento silencioso no banco
-    subtotal: Decimal = Field(ge=0.0, decimal_places=4)
-    tax: Decimal = Field(ge=0.0, decimal_places=4)
+    sub_total: Decimal = Field(ge=0.0, decimal_places=4)
+    tax_amt: Decimal = Field(ge=0.0, decimal_places=4)
     freight: Decimal = Field(ge=0.0, decimal_places=4)
     total_due: Decimal = Field(ge=0.0, decimal_places=4)
     
     status: Status
+    audit_trail: List[AuditLogEntry] = Field(default_factory=list)
     
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -68,9 +70,9 @@ class PurchaseOrderHeader(BaseModel):
             raise ValueError("A data de finalização não pode ser anterior à data do pedido.")
 
         # Validação de Totais
-        calculated_total = self.subtotal + self.tax + self.freight
+        calculated_total = self.sub_total + self.tax_amt + self.freight
         if abs(self.total_due - calculated_total) > Decimal("0.01"):
-            raise ValueError(f"O total_due ({self.total_due}) deve ser a soma de subtotal, tax e freight ({calculated_total}).")
+            raise ValueError(f"O total_due ({self.total_due}) deve ser a soma de sub_total, tax_amt e freight ({calculated_total}).")
 
         # Regra de Negócio: Pedido finalizado deve ter data de finalização
         if self.status == Status.COMPLETED and not self.orderfinished_date:

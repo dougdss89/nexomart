@@ -13,8 +13,6 @@ class CountryRegion(BaseModel):
     
     country_region: str = Field(max_length=100)
     
-    # DICA: Se a gente vai preencher automático, pode ser Opcional na entrada
-    # Mas se for obrigatório enviar, mantemos str sem Optional
     country_name: str = Field(None, max_length=100) 
     
     created_at: datetime = Field(default_factory=datetime.now)

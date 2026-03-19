@@ -21,6 +21,10 @@ class ProductModel(str, Enum):
     DIETARY_SUPPLEMENTS = "dietary_supplements"
     EDUCATIONAL_TOYS = "educational_toys"
     OUTDOOR_EQUIPMENT = "outdoor_equipment"
+    ELECTRIC_GUITAR = "electric_guitar"
+    MENS_WATCHES = "mens_watches"
+    POWER_TOOLS = "power_tools"
+    GAMING_CONSOLES = "gaming_consoles"
     
 class ProductModelSchema(BaseModel):
         

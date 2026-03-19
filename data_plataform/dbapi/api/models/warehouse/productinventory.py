@@ -1,5 +1,5 @@
 from datetime import date
-from sqlalchemy import Column, Integer, String, text, Index, cast, Foreign_key, DateTime
+from sqlalchemy import Column, Integer, String, text, Index, cast, ForeignKey, DateTime
 from sqlalchemy.sql import func
 from api.models.base import Base, AuditMixin
 from sqlalchemy.dialects.postgresql import JSONB
@@ -9,8 +9,8 @@ class WarehouseProductInventotyModel(Base, AuditMixin):
     __tablename__ = "productinventory"
     
     inventory_id = Column(Integer, primary_key=True, autoincrement=True)
-    product_id = Column(Integer, Foreign_key('product.product.product_id'),nullable=False)
-    warehouselocation_id = Column(Integer, Foreign_key('warehouse.warehouselocation.warehouselocation_id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('product.product.product_id'),nullable=False)
+    warehouselocation_id = Column(Integer, ForeignKey('warehouse.warehouselocation.warehouselocation_id'), nullable=False)
     
     quantity = Column(Integer, nullable=False, default=0)
     bin_code = Column(String(50), nullable=False)
