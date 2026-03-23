@@ -1,37 +1,37 @@
 import logging
-from typing import List, Dict, Any
-from sqlalchemy import insert
+from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
 
+from api.repositories.product.product_category_repository import ProductCategoryRepository
 from api.models.product.productcategory import ProductCategoryModel
 
 logger = logging.getLogger(__name__)
 
-async def bulk_insert_product_categories(db: AsyncSession, categories_data: List[Dict[str, Any]]) -> bool:
+class ProductCategoryService:
     """
-    Realiza a inserção em lote (Bulk Insert) de Categorias de Produtos.
-    
-    Abordagem utilizada:
-    - **Guard Clauses**: Retorna imediatamente se a lista for vazia, evitando queries nulas.
-    - **Bulk Insert**: Uso de `insert().values()` que é altamente otimizado no SQLAlchemy 2.0.
-    - **Error Handling**: Captura exceções, executa rollback e emite log de erro crítico para a orquestração (Airflow).
+    Camada de Regras de Negócio e Orquestração (Abstrata).
+    Consome o Repository para acessar os dados.
+    NUNCA deve importar sintaxes SQL como 'select' ou 'insert' e não pode conter manipulação do BD diretamente.
     """
-    if not categories_data:
-        logger.info("Nenhuma categoria fornecida para inserção no lote.")
-        return False
-        
-    try:
-        stmt = insert(ProductCategoryModel).values(categories_data)
-        
-        await db.execute(stmt)
-        await db.commit()
-        
-        logger.info(f"Sucesso ao inserir {len(categories_data)} categorias.")
-        return True
-        
-    except SQLAlchemyError as e:
-        await db.rollback()
-        logger.error(f"Erro ao inserir lote de Categorias. Rollback executado. Detalhes: {e}")
-        # Re-raise da exceção para que o Airflow/Operator saiba que a task falhou
-        raise
+
+    @staticmethod
+    async def process_bulk_insert(db: AsyncSession, categories_data: List[Dict[str, Any]]) -> bool:
+        """
+        Garante as validações lógicas e repassa o bulk para o BD.
+        (Exemplo: Checa permissões, valida anomalias nos dicionários lógicos).
+        """
+        if not categories_data:
+            logger.info("Nenhuma categoria fornecida para inserção no lote.")
+            return False
+            
+        # Orquestration rule: Chamar a classe puramente estruturada de BD 
+        return await ProductCategoryRepository.bulk_insert(db=db, categories_data=categories_data)
+
+    @staticmethod
+    async def verify_category_exists(db: AsyncSession, category_id: int) -> bool:
+        """
+        Regra de Negócio: Verifica se a hierarquia existe no banco de dados.
+        Retorna boolean abstraindo o Modelo, o Router não precisa ler o Modelo SQL, apenas saber se Válido ou não.
+        """
+        category: Optional[ProductCategoryModel] = await ProductCategoryRepository.get_by_id(db, category_id)
+        return category is not None

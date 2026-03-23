@@ -1,0 +1,23 @@
+# 🤖 Antigravity Data Platform Agent Rules
+# Este arquivo rege o comportamento de todos os LLMs e Agentes integrados neste repositório.
+
+## 🏛️ 1. Princípios Arquiteturais (Obrigatórios)
+- **Divisão Estrita de Camadas:** Nunca misture o Modelo de Banco de Dados (`SQLAlchemy`) com a Validação (`Pydantic`).
+- **AuditMixin Global:** Toda nova tabela criada via SQLAlchemy em `api/models/` DEVE obrigatoriamente importar e herdar de `AuditMixin` garantindo `created_at`, `updated_at`, `is_active` e `row_guid`.
+- **Naming Conventions (PostgreSQL):** Sempre use `snake_case` em colunas do banco de dados (ex: `conversion_value`). Nunca use CamelCase/PascalCase para Models.
+- **Tipagem Enums:** Ao usar `Enum`, faça-o herdar de `str` (ex: `class Status(str, Enum):`) para serialização limpa no JSONB/PostgreSQL e ative `use_enum_values = True` no Pydantic `Config`.
+
+## 🛡️ 2. Validação Pydantic (Camada de Aplicação)
+- **Decimais e Precisão:** Para Valores Monetários (`Numeric(19,4)` ou `19,2` no DB), o Pydantic deve usar `Decimal` e forçar limite com `Field(decimal_places=2, ge=0.0)`.
+- **Validação Cruzada:** Utilize `@model_validator(mode='after')` para regras de negócio (ex: Garantir que `end_date` seja SEMPRE maior ou igual ao `start_date`).
+
+## 🌪️ 3. Seeders e Chaos Engineering (Data Engineering)
+- **Realismo Absoluto:** Todo gerador Python em `api/seeder/` deve ser projetado para simular o mundo real imprevisível.
+- **Chaos Injection (Silver/Bronze Layer Test):** Ejete intencionalmente 5% a 10% de dados nulos nas chaves não-primárias (ex: falsificar telefones "0000000", omitir pontuações em CPFs/CNPJs) para testar a resiliência dos dutos de Data Engineering.
+- **Dimensional Truth:** Evite Snowflake Schemas para Atribuições (ex: Canais e Plataformas). Crie Tabelas-Verdade Dimensionais Largas (`Wide Tables`).
+- **Mapeamento Semântico:** Ao gerar eventos analíticos (AdGroups, Sales), aplique Injeção Cruzada lendo Arrays fixos (`person_demographics.py` ou `job_roles.py`) para amarrar interesses e criar cubos autênticos para o Data Warehouse.
+- **Funis Matemáticos:** Os seeders analíticos (Diários/Fato) nunca devem sortear Revenue diretamente. Sorteie de Cima para Baixo: *Impressions -> CTR -> Clicks -> CPC -> Cost -> CVR -> Conversions -> AOV -> Revenue*. 
+
+## ⚙️ 4. Fluxo de Trabalho e Testes (Python)
+- **Uso do UV:** Execute scripts utilizando `uv run python caminho/do/arquivo.py`.
+- Sempre imprima a quantidade de itens gerados (Length do Batch) e faça um `json.dumps()` indentado de uma amostra para auditoria visual.
