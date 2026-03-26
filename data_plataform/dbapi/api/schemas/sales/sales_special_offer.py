@@ -21,8 +21,8 @@ class DiscountType(str, Enum):
 class SpecialOffer(BaseModel):
     
     special_offer_id: int = Field(gt=0)
-    description: str = Field(max_length=100, description="Desconto progressivo, Por Quantidade")
-    discount_percentage: Decimal = Field(ge=0.0, le=100.00, decimal_places=2, description="Porcentagem de desconto")
+    description: str = Field(max_length=100, description="Descrição da oferta")
+    discount_pct: Decimal = Field(ge=0.0, le=100.00, decimal_places=2, description="Porcentagem de desconto")
     category: OfferCategory
     discount_type: DiscountType
     

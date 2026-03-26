@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 from sqlalchemy.sql import func
 
 class SpecialOfferModel(Base, AuditMixin):

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, Boolean, DateTime, String, Numeric
 from sqlalchemy.sql import func
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 
 class HumanResourcesJobRoleModel(Base, AuditMixin):
     

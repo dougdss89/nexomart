@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from api.models.base import Base
+from api.config.base import Base
 import uuid
 
 class ProductCategoryModel(Base):

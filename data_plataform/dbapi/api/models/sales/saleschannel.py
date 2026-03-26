@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB 
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 
 class SalesChannelModel(Base, AuditMixin):
     

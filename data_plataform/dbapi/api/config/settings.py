@@ -5,7 +5,7 @@ from pathlib import Path
 CURRENT_FILE_DIR = Path(__file__).resolve().parent
 
 # Usando barras para compatibilidade de caminhos
-API_ROOT_DIR = CURRENT_FILE_DIR / "data_plataform" / "dbapi"
+API_ROOT_DIR = CURRENT_FILE_DIR.parent # /dbapi/api
 ENV_FILE_PATH = API_ROOT_DIR / ".env"
 
 class Settings(BaseSettings):

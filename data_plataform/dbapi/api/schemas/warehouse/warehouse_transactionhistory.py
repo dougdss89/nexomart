@@ -19,7 +19,7 @@ class TraceabilityInfo(BaseModel):
 class TransactionHistorySchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
-    transaction_id: int = Field(gt=0)
+    transaction_id: str = Field(..., description="Padrão TR-XXXXXXXXX")
     product_id: int = Field(gt=0)
     reference_order_id: Optional[int] = None
     reference_order_line_id: Optional[int] = None

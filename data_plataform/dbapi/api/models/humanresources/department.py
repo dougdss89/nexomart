@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 from sqlalchemy.orm import relationship
 
 class HumanResourcesDepartmentModel(Base, AuditMixin):

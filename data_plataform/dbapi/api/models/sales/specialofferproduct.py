@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, ForeignKey
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 
 class SpecialOfferProductModel(Base, AuditMixin):
     

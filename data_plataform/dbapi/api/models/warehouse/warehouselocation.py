@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Numeric, String, text, Index, cast
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 from sqlalchemy.dialects.postgresql import JSONB
 
 class WarehouseLocationModel(Base, AuditMixin):

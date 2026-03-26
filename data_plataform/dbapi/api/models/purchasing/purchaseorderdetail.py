@@ -1,11 +1,11 @@
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean, Numeric
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 
 class PurchaseOrderDetailModel(Base, AuditMixin):
     
     __tablename__ = "purchaseorderdetail"
     
-    purchaseorderdetail_id = Column(String(36), primary_key=True, autoincrement=True)
+    purchaseorderdetail_id = Column(String(36), primary_key=True)
     purchaseorderheader_id = Column(String(36), ForeignKey('purchase.purchaseorderheader.purchaseorderheader_id'), nullable=False)
     
     product_id = Column(Integer, ForeignKey('production.product.product_id'), nullable=False)

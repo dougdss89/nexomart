@@ -30,9 +30,9 @@ class SalesChannelSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True,
                               use_enum_values = True)
     
-    channel_id: int = Field(gt=0)
-    channel_code: str = Field(max_length=20)
-    channel_name: str = Field(max_length=100)
+    saleschannel_id: int = Field(gt=0)
+    saleschannel_code: str = Field(max_length=20)
+    saleschannel_name: str = Field(max_length=100)
     
     saleschannel_info: SalesSettings
     

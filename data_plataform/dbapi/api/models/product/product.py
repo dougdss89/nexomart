@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, text, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 
 class Product(Base, AuditMixin):
     

@@ -2,12 +2,12 @@
 from sqlalchemy import Column, Integer, DateTime, Numeric, Index, text, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
-from api.models.base import Base
+from api.config.base import Base, AuditMixin
 
-class TransactionHistoryModel(Base):
+class TransactionHistoryModel(Base, AuditMixin):
     __tablename__ = "transactionhistory"
 
-    transaction_id = Column(Integer, primary_key=True, autoincrement=True)
+    transaction_id = Column(String(36), primary_key=True)
     product_id = Column(Integer, ForeignKey('product.product.product_id'), nullable=False)
     
     reference_order_id = Column(Integer, ForeignKey('sales.salesorderheader.salesorder_id'), nullable=False)

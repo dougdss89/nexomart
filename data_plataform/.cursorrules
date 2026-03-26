@@ -3,7 +3,7 @@
 
 ## 🏛️ 1. Princípios Arquiteturais (Obrigatórios)
 - **Divisão Estrita de Camadas:** Nunca misture o Modelo de Banco de Dados (`SQLAlchemy`) com a Validação (`Pydantic`).
-- **AuditMixin Global:** Toda nova tabela criada via SQLAlchemy em `api/models/` DEVE obrigatoriamente importar e herdar de `AuditMixin` garantindo `created_at`, `updated_at`, `is_active` e `row_guid`.
+- **AuditMixin Global:** Toda nova tabela criada via SQLAlchemy em `api/models/` DEVE obrigatoriamente importar e herdar de `AuditMixin` (importado diretamente de `api/config/base.py`) garantindo `created_at`, `updated_at`, `is_active` e `row_guid`.
 - **Naming Conventions (PostgreSQL):** Sempre use `snake_case` em colunas do banco de dados (ex: `conversion_value`). Nunca use CamelCase/PascalCase para Models.
 - **Tipagem Enums:** Ao usar `Enum`, faça-o herdar de `str` (ex: `class Status(str, Enum):`) para serialização limpa no JSONB/PostgreSQL e ative `use_enum_values = True` no Pydantic `Config`.
 
@@ -12,12 +12,36 @@
 - **Validação Cruzada:** Utilize `@model_validator(mode='after')` para regras de negócio (ex: Garantir que `end_date` seja SEMPRE maior ou igual ao `start_date`).
 
 ## 🌪️ 3. Seeders e Chaos Engineering (Data Engineering)
-- **Realismo Absoluto:** Todo gerador Python em `api/seeder/` deve ser projetado para simular o mundo real imprevisível.
+- **Realismo Absoluto:** Todo gerador Python em `api/seeder/` deve ser projetado para simular o mundo real imprevisível. Valores randômicos que não são buscados no banco devem ser contextualmente autênticos (evite "dummy", "test", "foo").
+- **Integridade Dimensional (Mandatório):** Todo seeder deve, obrigatoriamente, utilizar dados que **já existem nas tabelas de referência** (ex: buscar `customer_id` ou `product_id` reais via SQL `select`) em vez de gerar IDs randômicos sem vínculo. Nunca crie dados órfãos ou desconexos.
 - **Chaos Injection (Silver/Bronze Layer Test):** Ejete intencionalmente 5% a 10% de dados nulos nas chaves não-primárias (ex: falsificar telefones "0000000", omitir pontuações em CPFs/CNPJs) para testar a resiliência dos dutos de Data Engineering.
 - **Dimensional Truth:** Evite Snowflake Schemas para Atribuições (ex: Canais e Plataformas). Crie Tabelas-Verdade Dimensionais Largas (`Wide Tables`).
 - **Mapeamento Semântico:** Ao gerar eventos analíticos (AdGroups, Sales), aplique Injeção Cruzada lendo Arrays fixos (`person_demographics.py` ou `job_roles.py`) para amarrar interesses e criar cubos autênticos para o Data Warehouse.
 - **Funis Matemáticos:** Os seeders analíticos (Diários/Fato) nunca devem sortear Revenue diretamente. Sorteie de Cima para Baixo: *Impressions -> CTR -> Clicks -> CPC -> Cost -> CVR -> Conversions -> AOV -> Revenue*. 
 
-## ⚙️ 4. Fluxo de Trabalho e Testes (Python)
-- **Uso do UV:** Execute scripts utilizando `uv run python caminho/do/arquivo.py`.
-- Sempre imprima a quantidade de itens gerados (Length do Batch) e faça um `json.dumps()` indentado de uma amostra para auditoria visual.
+## ⚙️ 4. Fluxo de Trabalho, CLI e Airflow 
+- **Carga via Airflow (CLI):** O banco de dados operará via CLI invocada pelo BashOperator do Apache Airflow. Portanto, **todo Seeder (`api/seeder/`) deve OBRIGATORIAMENTE implementar `argparse`** no escopo `__main__` para receber do terminal a quantidade de itens a gerar (ex: `parser.add_argument("--count", type=int)`).
+- **Proibido For-Loops no Banco:** É estritamente proibido utilizar laços `for x in itens: session.add(x)` nas Camadas de Dados. Como o Airflow pode disparar cargas de 10 milhões+ de linhas, exija sempre a injeção em lote nativa tipo array/numpy dependendo do Repo (`insert(Model).values(matriz)`).
+- **Uso do UV:** Execute scripts utilizando `uv run python caminho/do/arquivo.py --count 10000`.
+- Sempre imprima a quantidade de itens gerados (Length do Batch) e as exceções via Logs, essenciais para debug no Airflow.
+
+## 🏛️ 5. Padronização Obrigatória de APIs (3 Camadas)
+**REGRA DE OURO:** Sempre que o Cientista/Engenheiro (USER) solicitar a criação de um Novo Modelo, Novo Schema ou NOVO SEEDER, você deve obrigatoriamente (automático) gerar toda a malha arquitetural de 3 Camadas Assíncronas para ele:
+- **Bulk Operations**: Proibição total de `for-loop` para inserções em banco. Use sempre SQLAlchemy 2.0 `insert().values()`.
+- **Sample Data Management**: Sempre que precisar de dados de exemplo (samples/mock), adicione-os na pasta `dbapi/api/samples/` com o nome do arquivo relacionado ao schema modelado. Os Seeders devem importar os dados desta pasta.
+
+## Codebase Architecture
+- Standardize on a 3-Layer Architecture:
+  1. **Repositories**: Async data access using SQLAlchemy.
+  2. **Services**: Domain business logic and orchestration.
+  3. **Routers**: FastAPI routes, HTTP validation, and schema mapping.
+
+---
+
+## 🏛️ 6. Padronização Obrigatória de IDs Transactionais
+Todo e qualquer novo seeder ou modelo transactional DEVE seguir rigorosamente os padrões de prefixos alfanuméricos:
+- **Sales (Header and Items)**: `SO-XXXXXXXXX` (Header) e `SO-XXXXXXXXX-XX` (Item).
+- **Purchasing (Header and Details)**: `PO-XXXXXXXXX` (Header) e `PO-XXXXXXXXX-XX` (Detail).
+- **Warehouse (Transactions)**: `TR-XXXXXXXXX` e `TR-XXXXXXXXX-XX`.
+- **Return Orders (Header)**: `RO-XXXXXXXXX`.
+- Os valores binários (X) devem ser baseados em sequências numéricas aleatórias de 9 dígitos para garantir o realismo e a unicidade visual.

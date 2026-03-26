@@ -79,12 +79,13 @@ class EmployeeSchema(BaseModel):
     effective_start_date: datetime
     effective_end_date: Optional[datetime] = None 
     is_current: bool 
-    
-    # Metadados
+
+    # Metadados de Auditoria
     created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = None
     is_active: bool = True
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
+
     
     # --- VALIDADOR 1: Lógica de RH (Datas e Chefia) ---
     @model_validator(mode="after")

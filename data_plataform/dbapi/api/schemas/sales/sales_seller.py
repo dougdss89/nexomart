@@ -52,28 +52,24 @@ class SellerMetrics(BaseModel):
     date_last_sale: date = Field(default_factory=date.today)
 
 class SellerDemographics(BaseModel):
-    
-    seller_type: SellerType
-    seller_bank_account: SellerBankAccount
-    seller_address: SellerAddress
-    seller_metrics: SellerMetrics
+    information: dict = Field(default_factory=dict, description="Ex: {'sellertype': 'business'}")
+    bank_account: SellerBankAccount
+    address: List[SellerAddress] = Field(default_factory=list, description="Lista de endereços (Billing, Shipping, etc)")
+    metrics: SellerMetrics
     
     
 class Seller(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True, populate_by_name=True)
     
-    seller_id:int = Field(gt=0)
-    seller_name: str = Field(max_lenght=100)
-    trading_name: str = Field(max_lenght=100)
-    social_number: str = Field(max_lenght=20)
+    seller_id: int = Field(gt=0)
+    seller_name: str = Field(max_length=100)
+    trading_name: str = Field(max_length=100)
+    social_number: str = Field(max_length=20)
     opened_date: date = Field(default_factory=date.today)
-    comission_rate: Decimal = Field(ge=0.0, decimal_places=2)
+    commission_rate: Decimal = Field(ge=0.0, decimal_places=4)
     country_id: int = Field(gt=0)
     demographics: SellerDemographics
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    is_active:bool = True
-    row_guid:uuid.UUID = Field(default_factory=uuid.uuid4)
-    
-class Config:
-        use_enum_values = True
-        populate_by_name = True
+    is_active: bool = True
+    row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)

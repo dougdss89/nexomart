@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 import uuid
 
 class ProductModel(Base, AuditMixin):

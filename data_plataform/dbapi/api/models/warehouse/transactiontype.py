@@ -1,7 +1,7 @@
 
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 
 
 class WarehouseTransactionType(Base, AuditMixin):

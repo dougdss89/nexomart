@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 
 
 class StateProvinceModel(Base, AuditMixin):

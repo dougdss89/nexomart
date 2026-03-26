@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Index, text,  Numeric, Boolean, cast
 from sqlalchemy.dialects.postgresql import JSONB
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 
 class PurchaseVendorModel(Base, AuditMixin):
     

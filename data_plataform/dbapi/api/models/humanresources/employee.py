@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, DateTime, String, Index, text, ForeignKey, Numeric, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 
 class HumanResourcesEmployeeModel(Base, AuditMixin):
     

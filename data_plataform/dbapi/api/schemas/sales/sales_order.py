@@ -70,6 +70,7 @@ class DeliveryInfo(BaseModel):
     shipping_tier: Optional[ShippingTier] = None
 
 class OrderItem(BaseModel):
+    line_number: str = Field(..., description="Padrão SO-XXXXXXXXX-XX")
     line_id: int = Field(gt=0, description="Sufixo lógico do item, ex: 1, 2, 3")
     sku: str = Field(max_length=50)
     product_id: int = Field(gt=0)
@@ -98,10 +99,10 @@ class SalesOrderSchema(BaseModel):
     salesorder_id: int = Field(gt=0)
     salesordernumber: str = Field(max_length=20)
     customer_id: int = Field(gt=0)
-    specialchannel_id: int
-    specialoffer_id: int
+    saleschannel_id: int = Field(gt=0)
+    specialoffer_id: int = Field(gt=0)
     
-    store_id: int
+    store_id: int = Field(gt=0)
     order_date: datetime = Field(default_factory=datetime.now)
     due_date: datetime = Field(default_factory=datetime.now)
     
@@ -109,8 +110,8 @@ class SalesOrderSchema(BaseModel):
     total_amount: Decimal = Field(ge=0.0, decimal_places=2)
     currency_code: str = Field(default="BRL", max_length=3)
     
-    order_items = List[OrderItem] = Field(..., min_length = 1)
-    payment_info = PaymentInfo = Field(default_factory = PaymentInfo)
+    order_items: List[OrderItem] = Field(..., min_length = 1)
+    payment_info: PaymentInfo = Field(default_factory = PaymentInfo)
     
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

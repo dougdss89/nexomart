@@ -41,3 +41,23 @@ async def create_single_customer(payload: PersonCustomer, db: AsyncSession = Dep
     novo_cliente_criado = await PersonCustomerService.register_new_customer(db=db, validated_payload=dicionario_validado)
     
     return novo_cliente_criado
+
+# --- SELLER ---
+from api.schemas.sales.sales_seller import Seller as SellerSchema
+from api.services.person.seller_service import SellerService
+
+@router.get("/sellers/{seller_id}", response_model=SellerSchema)
+async def get_seller(seller_id: int, db: AsyncSession = Depends(get_db)):
+    """ Recupera o perfil completo de um vendedor """
+    service = SellerService(db)
+    seller = await service.get_seller_profile(seller_id)
+    if not seller:
+        raise HTTPException(status_code=404, detail="Vendedor não encontrado")
+    return seller
+
+@router.post("/sellers/bulk", status_code=status.HTTP_201_CREATED)
+async def register_sellers_bulk(payload: List[SellerSchema], db: AsyncSession = Depends(get_db)):
+    """ Ingestão massiva de vendedores (Parceiros e Lojas) """
+    service = SellerService(db)
+    await service.bulk_register_sellers(payload)
+    return {"status": "success", "count": len(payload)}

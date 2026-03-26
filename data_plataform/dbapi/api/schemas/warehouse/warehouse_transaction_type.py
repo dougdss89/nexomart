@@ -13,7 +13,7 @@ class TransactionTypeSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
     
     transactiontype_id: int = Field(gt=0)
-    transaction_code: str = Field(min_length=1, max_length=1)
+    transaction_code: str = Field(min_length=1, max_length=2)
     transaction_name: str = Field(max_length=50)
     description: Optional[str] = Field(None, max_length=255)
     action_effect: ActionEffect

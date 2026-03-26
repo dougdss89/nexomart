@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 import uuid
 
 class CustomerEmailModel(Base, AuditMixin):

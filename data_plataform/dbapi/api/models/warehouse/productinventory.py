@@ -1,10 +1,10 @@
 from datetime import date
 from sqlalchemy import Column, Integer, String, text, Index, cast, ForeignKey, DateTime
 from sqlalchemy.sql import func
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 from sqlalchemy.dialects.postgresql import JSONB
 
-class WarehouseProductInventotyModel(Base, AuditMixin):
+class WarehouseProductInventoryModel(Base, AuditMixin):
     
     __tablename__ = "productinventory"
     

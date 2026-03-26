@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Index, text, cast, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 
 class MarketingAdGroupModel(Base, AuditMixin):
     

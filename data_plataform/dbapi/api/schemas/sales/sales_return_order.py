@@ -44,10 +44,10 @@ class SalesReturnOrderSchema(BaseModel):
     
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
     
-    return_id: int = Field(gt=0)
+    return_id: str = Field(..., description="Padrão RO-XXXXXXXXX")
     requestorder_code: str = Field(max_length=100)
     
-    order_id: int = Field(gt=0)
+    salesordernumber: str = Field(..., max_length=20)
     customer_id: int = Field(gt=0)
     
     # Opcional, pois uma compra totalmente online pode não ter loja envolvida

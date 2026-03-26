@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 
 class ProductEmbeddingModel(Base, AuditMixin):
     __tablename__ = "productembedding"

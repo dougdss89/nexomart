@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 
 
 class CountryRegionModel(Base, AuditMixin):

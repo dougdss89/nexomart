@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 
 
 class PurchaseOrderAuditModel(Base, AuditMixin):

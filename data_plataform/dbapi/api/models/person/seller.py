@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, text, Index, Numeric, cast, date, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 
 class SellerModel(Base, AuditMixin):
     

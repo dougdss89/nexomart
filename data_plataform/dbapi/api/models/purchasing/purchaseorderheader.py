@@ -1,12 +1,12 @@
 from sqlalchemy import Column, Integer, Index, text,  Numeric, cast, DateTime, Date
 from sqlalchemy.dialects.postgresql import JSONB
-from api.models.base import Base, AuditMixin
+from api.config.base import Base, AuditMixin
 
 class PurchaseOrderHeaderModel(Base, AuditMixin):
     
     __tablename__ = "purchaseorderheader"
     
-    purchaseorderheader_id = Column(String(36), primary_key=True, autoincrement=True)
+    purchaseorderheader_id = Column(String(36), primary_key=True)
     
     vendor_id = Column(Integer, nullable=False)
     employee_id = Column(Integer, nullable=False)

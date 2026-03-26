@@ -41,9 +41,10 @@ class Vendor(BaseModel):
     is_current: bool 
 
     created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = None
     is_active: bool = True
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
+
     
     @model_validator(mode='after')
     def validate_vendor_status(self):

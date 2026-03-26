@@ -1,100 +1,80 @@
 import uuid
 import random
+import asyncio
+import sys
+import os
 from datetime import datetime
 from faker import Faker
-
+from sqlalchemy import select, insert
+from api.database import AsyncSessionLocal
 from api.schemas.marketing.marketing_adgroup import MarketingAdGroup, DeviceType
-from api.seeder.marketing.marketing_campaign import get_marketing_campaign_seeders
+from api.models.marketing.marketing_campaign import MarketingCampaignModel
+from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
 from api.samples.person_demographics import INTERESTS_BANK, OCCUPATIONS
+
+# Ajustar path para importar módulos da API
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 fake = Faker('pt_BR')
 
-def get_marketing_adgroup_seeders() -> list[dict]:
+def generate_adgroup_payloads(campanhas_reais: list[dict]) -> list[dict]:
     """
-    Gera as divisões lógicas das Campanhas: Grupos de Anúncios.
-    Aproveita o mock gerador de Pessoas/Clientes (Person) importando seus perfis comportamentais exatos
-    para simular um AdGroup segmentado com altíssima taxa de match cruzado em Análise de Dados.
+    Gera payloads de AdGroups baseados em campanhas REAIS do banco.
     """
     batch = []
-    adgroup_counter_id = 1
-    
-    campanhas_geradas = get_marketing_campaign_seeders()
-    
-    for campanha in campanhas_geradas:
-        
-        # Sorteia de 1 a 3 AD Groups por Campanha
+    for campanha in campanhas_reais:
         num_adgroups = random.randint(1, 4)
-        
         for i in range(num_adgroups):
+            adgroup_interests = random.sample(INTERESTS_BANK, k=random.randint(1, 3))
+            adgroup_keywords = random.sample(OCCUPATIONS, k=random.randint(2, 4))
+            adgroup_keywords.extend([f"comprar {fake.word()}", "oferta exclusiva"])
             
-            # --- Regras Temporais: Copia da Campanha ---
-            criado_em = campanha["created_at"]
-            is_active = campanha["is_active"]
-            
-            # --- Data Engineering: Cruzamento Semântico com Costumers ---
-            adgroup_interests = random.sample(INTERESTS_BANK, k=random.randint(1, 4))
-            
-            # Usaremos o Keyword Array para caçar as "ocupações/profissões" e comportamentos
-            adgroup_keywords = random.sample(OCCUPATIONS, k=random.randint(2, 5))
-            # Adiciona genéricos
-            adgroup_keywords.extend([f"comprar {fake.word()}", f"promoção {fake.word()}"])
-            
-            device_pool = list(DeviceType)
-            # Regras Pydantic do Schema
-            min_age = random.randint(18, 55)
-            max_age = min_age + random.randint(5, 20)
+            min_age = random.randint(18, 45)
             
             payload = {
-                "ad_group_id": adgroup_counter_id,
+                "ad_group_id": None, # Auto-increment
                 "campaign_id": campanha["campaign_id"],
-                "ad_group_name": f"AdGroup_{i+1}_{campanha['campaign_name']}_{adgroup_interests[0][:5].upper()}",
-                "external_id": f"EXT-ADG-{adgroup_counter_id:06d}",
-                
+                "ad_group_name": f"AG_{i+1}_{campanha['campaign_name']}_{adgroup_interests[0][:5].upper()}",
+                "external_id": f"EXT-ADG-{uuid.uuid4().hex[:8].upper()}",
                 "targeting_criteria": {
-                    "geo_location": {
-                        "include": random.sample(["São Paulo", "Rio de Janeiro", "Minas Gerais", "Paraná", "Brasil Todo"], k=random.randint(1, 2)),
-                        "exclude": ["Acre", "Roraima"] if random.random() > 0.8 else []
-                    },
-                    "age_range": {
-                        "min_age": min_age,
-                        "max_age": max_age
-                    },
+                    "geo_location": {"include": ["Brasil"], "exclude": []},
+                    "age_range": {"min_age": min_age, "max_age": min_age + 20},
                     "interests": adgroup_interests,
                     "keywords": adgroup_keywords,
-                    "device_types": random.sample(device_pool, k=random.randint(1, len(device_pool))),
-                    "remarketing_list_ids": [f"AUD-{random.randint(100, 999)}"] if "Lookalike" in campanha["mktsettings"].get("target_audience", "") else []
+                    "device_types": [random.choice(list(DeviceType))],
                 },
-                
-                "created_at": criado_em,
+                "created_at": datetime.now(),
                 "updated_at": datetime.now(),
-                "is_active": is_active,
-                "row_guid": str(uuid.uuid4())
+                "is_active": True,
+                "row_guid": uuid.uuid4()
             }
-            
-            # Validação Strict via Pydantic
-            adgroup_validado = MarketingAdGroup(**payload).model_dump()
-            batch.append(adgroup_validado)
-            
-            adgroup_counter_id += 1
-            
+            batch.append(MarketingAdGroup(**payload).model_dump())
     return batch
 
+async def seed_marketing_adgroups():
+    """
+    Executa a carga dos AdGroups consumindo Campanhas REAIS do banco.
+    """
+    async with AsyncSessionLocal() as session:
+        # 1. Buscar Campanhas reais (Dimensional Integrity)
+        result = await session.execute(select(MarketingCampaignModel.campaign_id, MarketingCampaignModel.campaign_name))
+        campanhas_reais = [{"campaign_id": row[0], "campaign_name": row[1]} for row in result.all()]
+
+        if not campanhas_reais:
+            print("⚠️ Nenhuma campanha encontrada! Rode o seeder de MarketingCampaign primeiro.")
+            return
+
+        print(f"📣 Semeando AdGroups para {len(campanhas_reais)} campanhas...")
+        adgroups = generate_adgroup_payloads(campanhas_reais)
+        
+        try:
+            stmt = insert(MarketingAdGroupModel).values(adgroups)
+            await session.execute(stmt)
+            await session.commit()
+            print(f"✅ {len(adgroups)} AdGroups semeados com sucesso!")
+        except Exception as e:
+            await session.rollback()
+            print(f"❌ Erro ao semear AdGroups: {e}")
 
 if __name__ == "__main__":
-    import json
-    
-    grupos_anuncios = get_marketing_adgroup_seeders()
-    print(f"Total de AdGroups simulados vinculados às suas Campanhas: {len(grupos_anuncios)}")
-    print("-" * 50)
-    
-    print("\n--- AMOSTRA DO CRUZAMENTO SEMÂNTICO (INTERESSES/MOCK DE CLIENTES) ---")
-    if grupos_anuncios:
-        amostra = random.choice(grupos_anuncios)
-        print(f"Nome AdGroup: {amostra['ad_group_name']}")
-        print(f"Idade Alvo: {amostra['targeting_criteria']['age_range']['min_age']} a {amostra['targeting_criteria']['age_range']['max_age']} anos")
-        print(f"Interesses (Vindos do Customer Demographics): {amostra['targeting_criteria']['interests']}")
-        print(f"Keywords  (Vindos do Customer Demographics): {amostra['targeting_criteria']['keywords']}")
-        print(f"Geo Include: {amostra['targeting_criteria']['geo_location']['include']}")
-        
-        print("\n--- AMOSTRA PAYLOAD COMPLETO (JSONB JSON) ---")
-        print(json.dumps(amostra, indent=2, default=str))
+    asyncio.run(seed_marketing_adgroups())

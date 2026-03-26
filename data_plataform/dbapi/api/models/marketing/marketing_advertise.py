@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Index, text, ForeignKey, cast
 from sqlalchemy.dialects.postgresql import JSONB
-from api.models.base import Base, AuditMixin # [FIX] Adicionado AuditMixin p/ herdar created_at, update_at, etc.
+from api.config.base import Base, AuditMixin # [FIX] Adicionado AuditMixin p/ herdar created_at, update_at, etc.
 
 class MarketingAdvertiseModel(Base, AuditMixin): # [FIX] Herança adicionada
     

@@ -33,7 +33,7 @@ class LocationCapabilities(BaseModel):
     bin:   Optional[str] = Field(None, description="Box", alias= "bin")
     
     
-class GeoLocation():
+class GeoLocation(BaseModel):
     address: str
     address_line: str
     warehouse_number: str
@@ -46,6 +46,7 @@ class GeoLocation():
     city_name: str = Field(max_length=100)
     postal_code: str = Field(max_length=20)
     
+
 class WarehouseLocationSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True, 
                               use_enum_values=True)
@@ -60,8 +61,8 @@ class WarehouseLocationSchema(BaseModel):
     
     capabilities: LocationCapabilities
     geo_location: GeoLocation
-    
+
     created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = None
     is_active: bool = True
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)

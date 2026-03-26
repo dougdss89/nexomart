@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, text, Index, Numeric, cast, Date, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
-from api.models.base import AuditMixin, Base
+from api.config.base import AuditMixin, Base
 
 class CustomerModel(Base, AuditMixin):
     

@@ -53,11 +53,12 @@ class MarketingCampaign(BaseModel):
     status: CampaignStatus
     
     mktsettings: CampaignSettings # [FIX] Alinhamento com Model SQLAlchemy
-    
+
     created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = None
     is_active: bool = True
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
+
     
     #validação temporal de campanha
     @model_validator(mode='after')
