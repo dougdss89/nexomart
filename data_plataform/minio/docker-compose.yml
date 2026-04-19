@@ -10,13 +10,13 @@ services:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
 
-    command: server --console-address ":9001" /data{1...4}
-    
+    command: server --console-address ":9001" /data
+
+    cpus: "2.0"
+    mem_limit: 4g
+
     volumes:
-      - minio_data1:/data1
-      - minio_data2:/data2
-      - minio_data3:/data3
-      - minio_data4:/data4
+      - minio_data:/data
       - dockervol:/dockervol
 
     networks:
@@ -33,10 +33,7 @@ networks:
     external: true
 
 volumes:
-  minio_data1:
-  minio_data2:
-  minio_data3:
-  minio_data4:
+  minio_data:
 
   dockervol:
     external: True

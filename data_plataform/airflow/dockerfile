@@ -1,9 +1,7 @@
-# Utilizando a imagem do Astronomer Runtime 11 (Airflow 2.9+) com Python 3.12
 FROM quay.io/astronomer/astro-runtime:11.4.0-python-3.12
 
 USER root
 
-# 1. Instalação de dependências do sistema e JAVA 17
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       openjdk-17-jre-headless \
@@ -14,30 +12,19 @@ RUN apt-get update && \
     useradd -m -s /bin/bash spark && \
     echo 'spark ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/spark
 
-# 2. Configurações de ambiente para Spark
-# Removidas as variáveis do HADOOP_CONF_DIR para evitar bugs antigos de timeout
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV SPARK_VERSION=3.5.8
 ENV SPARK_HOME=/opt/spark
 ENV PATH=$SPARK_HOME/bin:$SPARK_HOME/sbin:$PATH
 
-# 3. Download do Spark DENTRO do Airflow (Garante que o spark-submit exista nativamente)
-# Usando archive.apache.org para evitar erro 404 no curl
 RUN curl -fSL https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3-scala2.13.tgz -o spark.tgz \
     && mkdir -p /opt/spark \
-    && tar -xvzf spark.tgz -C /opt/spark --strip-components 1 \
+    && tar -xzf spark.tgz -C /opt/spark --strip-components 1 \
     && rm spark.tgz \
-    && chown -R spark:spark /opt/spark \
     && chown -R astro:astro /opt/spark
 
-# 4. Voltar para o usuário astro para operações de Python e arquivos
 USER astro
 
-# Upgrade pip
-RUN python -m pip install --upgrade pip
+RUN pip install --no-cache-dir --upgrade pip -r requirements.txt
 
-COPY ./requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 5. Copiar configurações
 COPY --chown=astro:astro airflow.cfg ${AIRFLOW_HOME}/airflow.cfg

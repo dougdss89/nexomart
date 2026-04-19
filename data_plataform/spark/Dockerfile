@@ -1,17 +1,13 @@
-FROM python:3.12-slim-bullseye as spark-base
+FROM python:3.12-slim-bookworm AS spark-base
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      sudo curl vim unzip rsync \
-      openjdk-17-jdk-headless \
-      build-essential && \
+      curl \
+      openjdk-17-jre-headless && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -s /bin/bash spark && \
-    useradd -m -s /bin/bash airflow && \
-    useradd -m -s /bin/bash astro && \
-    echo 'astro ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/astro && \
     echo 'spark ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/spark
 
 ENV SPARK_VERSION=3.5.8
@@ -21,30 +17,27 @@ ENV PATH=$SPARK_HOME/bin:$SPARK_HOME/sbin:$PATH
 
 WORKDIR /opt/spark
 
-# Usando archive.apache.org para não quebrar o build
-
 RUN curl -fSL https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3-scala2.13.tgz -o spark.tgz \
-    && tar -xvzf spark.tgz --strip-components 1 \
+    && tar -xzf spark.tgz --strip-components 1 \
     && rm spark.tgz \
     && chown -R spark:spark /opt/spark
 
-FROM spark-base as pyspark
+FROM spark-base AS pyspark
 
 COPY ./requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Portas padrão: 7077 (Master), 8080 (UI Master), 18080 (History), 15002 (Connect)
-EXPOSE 7077 8080 18080 15002 2222 2223 2224 2225
+# Portas: 7077 (Master RPC), 8080 (UI Master), 18080 (History), 15002 (Connect)
+EXPOSE 7077 8080 18080 15002
 
 ENV PYSPARK_PYTHON=python3
-# O wildcard do py4j protege contra eventuais mudanças na versão exata do zip do Python
 ENV PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/py4j-*.zip:$PYTHONPATH
 
 COPY conf/spark-defaults.conf "$SPARK_HOME/conf/"
 COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
-
-RUN mkdir -p /opt/spark/spark-events && chown -R spark:spark /opt/spark/spark-events
+RUN chmod +x entrypoint.sh && \
+    mkdir -p /opt/spark/spark-events && \
+    chown -R spark:spark /opt/spark/spark-events
 
 USER spark
 ENTRYPOINT ["/entrypoint.sh"]

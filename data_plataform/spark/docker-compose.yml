@@ -29,7 +29,7 @@ services:
       - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configurations
 
     cpus: "1.0"
-    mem_limit: 1g
+    mem_limit: 2g
 
     ports:
       - "9090:8080"
@@ -64,8 +64,8 @@ services:
       - dockervol:/dockervol
       - spark-ivy-cache:/home/spark/.ivy2
 
-    cpus: "1.0"
-    mem_limit: 1g
+    cpus: "0.5"
+    mem_limit: 512m
 
     ports:
       - "18080:18080"
@@ -88,12 +88,12 @@ services:
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_CORES=5
-      - SPARK_WORKER_MEMORY=10G
+      - SPARK_WORKER_CORES=8
+      - SPARK_WORKER_MEMORY=18G
       - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configurations
 
-    cpus: "5.0"
-    mem_limit: 10g
+    cpus: "8.0"
+    mem_limit: 20g
 
     volumes:
       - spark-jobs:/opt/spark/jobs

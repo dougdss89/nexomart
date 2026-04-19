@@ -5,10 +5,13 @@ services:
     ports:
       - "8001:8000"
     volumes:
-      - ./api:/app
-      - configurations:/app/configurations
+      - .:/workspace
+      - configurations:/workspace/configurations
     networks:
       - hadoopcluster
+
+    cpus: "0.5"
+    mem_limit: 512m
 
 networks:
   hadoopcluster:

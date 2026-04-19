@@ -1,0 +1,12 @@
+data_platform:
+  target: dev
+  outputs:
+    dev:
+      type: trino
+      method: none
+      host: trino-coordinator
+      port: 8080
+      database: nessie
+      schema: gold
+      threads: 4
+      prepared_statements_enabled: true
