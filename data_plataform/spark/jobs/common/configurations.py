@@ -125,18 +125,18 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
         },
         "hadoop_paths": {
             "landing": processed_config.get("HADOOP_CLUSTER_LANDING"),
-            "raw_icebergdb": processed_config.get("ICEBERG_RAW_DB"),
-            "silver_icebergdb": processed_config.get("ICEBERG_SILVER_DB"),
+            "raw_deltadb": processed_config.get("DELTA_RAW_DB"),
+            "silver_deltadb": processed_config.get("DELTA_SILVER_DB"),
             "goldtable": processed_config.get("HADOOP_CLUSTER_GOLD"),
             "spark_warehouse": processed_config.get("HADOOP_WAREHOUSE"),
-            "minio_landing":processed_config.get("MINIO_LANDING"),
-            "iceberg_catalog": processed_config.get("ICEBERG_MAIN_CATALOG"),
+            "minio_landing": processed_config.get("MINIO_LANDING"),
+            "delta_catalog": processed_config.get("DELTA_MAIN_CATALOG"),
         },
-        
-        "delta_path":{
-          "raw_icebergdb": processed_config.get("raw_icebergdb"), 
-          "silver_layer": processed_config.get("SILVER_LAYER"), 
-          "gold_layer": processed_config.get("GOLD_LAYER"),  
+
+        "delta_path": {
+            "raw_layer": processed_config.get("DELTA_RAW_DB"),
+            "silver_layer": processed_config.get("SILVER_LAYER"),
+            "gold_layer": processed_config.get("GOLD_LAYER"),
         },
         
         "spark_jars": {
@@ -197,7 +197,7 @@ if __name__ == "__main__":
         print_pretty_config(config)
 
         # Validações das seções
-        validate_required_keys(config["hadoop_paths"], ["landing", "raw", "iceberg", "gold", "warehouse"], "Hadoop Paths")
+        validate_required_keys(config["hadoop_paths"], ["landing", "raw_deltadb", "silver_deltadb", "goldtable", "spark_warehouse"], "Hadoop Paths")
         validate_required_keys(config["spark_jars"], ["mssql_spark_jars", "postgresql_jar"], "Spark JARs")
 
     except Exception as e:

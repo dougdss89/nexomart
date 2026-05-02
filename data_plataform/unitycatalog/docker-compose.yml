@@ -1,0 +1,43 @@
+services:
+  unitycatalog:
+    image: unitycatalog/unitycatalog:0.3.0
+    container_name: unitycatalog
+    hostname: unitycatalog
+    networks:
+      - hadoopcluster
+    ports:
+      - "8182:8080"   # REST API  →  http://localhost:8182/api/2.1/unity-catalog
+    volumes:
+      - ./conf:/opt/unitycatalog/etc/conf
+      - uc-data:/opt/unitycatalog/etc/db
+      - dockervol:/dockervol
+    environment:
+      # Storage: MinIO as S3-compatible backend
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+      # Override S3 endpoint to point to MinIO
+      - UC_SERVER_S3_AWS_ENDPOINT=http://minio:9000
+      - UC_SERVER_S3_PATH_STYLE_ACCESS=true
+      # JVM flags for S3A + PostgreSQL driver
+      - JAVA_TOOL_OPTIONS=-Daws.java.v1.disableDeprecationAnnouncement=true
+
+    cpus: "1.0"
+    mem_limit: 1536m
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/2.1/unity-catalog/catalogs 2>/dev/null || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  hadoopcluster:
+    external: true
+
+volumes:
+  dockervol:
+    external: true
+  uc-data:
+    driver: local

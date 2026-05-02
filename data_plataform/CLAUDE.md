@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A data platform combining a FastAPI ingestion API (dbapi), Apache Airflow orchestration, Apache Spark distributed compute, Apache Iceberg tables (versioned by Nessie, stored in MinIO), and Trino SQL federation — all connected via a shared Docker network (`hadoopcluster`).
+A data platform combining a FastAPI ingestion API (dbapi), Apache Airflow orchestration, Apache Spark distributed compute, Delta Lake tables (governed by Unity Catalog OSS, stored in MinIO), and Trino SQL federation — all connected via a shared Docker network (`hadoopcluster`).
 
 ## Commands
 
@@ -25,11 +25,38 @@ cd dbapi
 uv run python api/tests/test_product_services.py
 ```
 
-**Start services (per component):**
+**Start services — full stack (recommended):**
 ```bash
-cd <airflow|spark|trino|hive|minio|nessie>
-docker-compose up -d
+make setup        # primeira vez: cria rede/volumes + builda imagens
+make up           # sobe toda a stack em ordem de dependência
+make down         # para tudo (dados preservados)
+make ps           # lista containers rodando
+make logs s=spark-master        # tail de logs de um container
+make restart s=trino-coordinator  # reinicia um container
+make clean        # ⚠️  remove containers + volumes (apaga dados)
 ```
+
+**Start services — individuais:**
+```bash
+make up-postgres
+make up-minio
+make up-hive
+make up-unitycatalog
+make up-spark
+make up-trino
+make up-airflow
+make up-dbapi
+```
+
+**URLs após `make up`:**
+| Serviço | URL | Credenciais |
+|---|---|---|
+| MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
+| Spark UI | http://localhost:9090 | — |
+| Spark History | http://localhost:18080 | — |
+| Trino UI | http://localhost:8070 | — |
+| Airflow UI | http://localhost:8181 | admin / admin |
+| Unity Catalog API | http://localhost:8182/api/2.1/unity-catalog | — |
 
 ## Architecture
 
