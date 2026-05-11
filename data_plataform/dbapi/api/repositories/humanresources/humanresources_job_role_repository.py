@@ -4,7 +4,7 @@ from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
-from api.models.humanresources.humanresources_job_role import HumanResourcesJobRoleModel
+from api.models.humanresources.jobrole import HumanResourcesJobRoleModel
 
 logger = logging.getLogger(__name__)
 

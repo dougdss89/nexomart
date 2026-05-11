@@ -125,3 +125,52 @@ clean: ## ⚠️  Remove containers E volumes — APAGA TODOS OS DADOS (5s para 
 	docker volume rm dockervol spark-logs spark-ivy-cache 2>/dev/null || true
 	docker network rm hadoopcluster 2>/dev/null || true
 	@echo "✅  Ambiente limpo."
+
+# ── CI/CD e Qualidade de Código ──────────────────────────────────────────────
+.PHONY: lint lint-fix lint-python lint-sql test security ci install-dev
+
+install-dev: ## Instala dependências de desenvolvimento
+	pip install ruff black isort flake8 mypy pytest pytest-cov sqlfluff sqlfluff-templater-dbt bandit safety pre-commit
+
+lint: ## Executa todos os linters
+	./scripts/lint.sh
+
+lint-fix: ## Executa linters e corrige automaticamente
+	./scripts/lint.sh --fix
+
+lint-python: ## Executa apenas linters Python
+	ruff check .
+	black --check .
+	isort --check-only .
+
+lint-sql: ## Executa apenas linter SQL
+	sqlfluff lint ../dbt/models/ --dialect postgres || true
+	sqlfluff lint postgres/ --dialect postgres || true
+
+format: ## Formata código Python e SQL
+	ruff check . --fix
+	black .
+	isort .
+	sqlfluff fix ../dbt/models/ --dialect postgres || true
+	sqlfluff fix postgres/ --dialect postgres || true
+
+test: ## Executa testes
+	pytest dbapi/tests/ -v
+
+test-cov: ## Executa testes com coverage
+	pytest dbapi/tests/ --cov=dbapi --cov-report=html --cov-report=term
+
+security: ## Executa varredura de segurança
+	bandit -r . || true
+	safety check || true
+
+ci: lint test security ## Executa pipeline CI completo localmente
+	@echo "✅  Pipeline CI concluído"
+
+clean-cache: ## Remove arquivos de cache Python
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+	@echo "✅  Cache limpo"

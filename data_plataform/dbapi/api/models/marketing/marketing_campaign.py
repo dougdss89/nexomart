@@ -26,8 +26,8 @@ class MarketingCampaignModel(Base, AuditMixin):
     __table_args__ = (
         Index('ix_marketing_settings_gin', 'mktsettings', postgresql_using='gin'),
         
-        Index('ix_marketing_settings_objective', cast(mktsettings['objective'].astext)),
-        Index('ix_marketing_settings_bid_strategies', cast(mktsettings['bidding_strategy'].astext)),
+        Index('ix_marketing_settings_objective', cast(mktsettings['objective'].astext, String)),
+        Index('ix_marketing_settings_bid_strategies', cast(mktsettings['bidding_strategy'].astext, String)),
         
         {"schema": "marketing"}
     )

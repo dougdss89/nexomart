@@ -17,7 +17,7 @@ class SalesOrderEventLogModel(Base, AuditMixin):
     
     __table_args__ = (
             Index('ix_event_data_gin', 'event_data', postgresql_using='gin'),
-            Index('ix_event_data_user_id', event_data['user_id'].astext, Integer),
+            Index('ix_event_data_user_id', event_data['user_id'].astext),
             
             {"schema": "sales"}
     )

@@ -7,7 +7,7 @@ async def get_db():
     yield None
 
 # Suposta importação de um schema Pydantic gerado
-from api.schemas.humanresources.humanresources_employee import HumanResourcesEmployee
+from api.schemas.humanresources.humanresources_employee import EmployeeSchema as HumanResourcesEmployee
 from api.services.humanresources.humanresources_employee_service import HumanResourcesEmployeeService
 
 router = APIRouter(prefix="/humanresources", tags=["Human Resources"])

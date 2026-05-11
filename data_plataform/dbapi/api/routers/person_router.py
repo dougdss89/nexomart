@@ -6,7 +6,7 @@ from typing import List
 async def get_db():
     yield None
 
-from api.schemas.person.customer import PersonCustomer
+from api.schemas.person.person_customer import Customer as PersonCustomer
 from api.services.person.person_customer_service import PersonCustomerService
 
 router = APIRouter(prefix="/customers", tags=["Customers"])

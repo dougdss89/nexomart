@@ -1,8 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, ConfigDict
+from typing import Optional
 import uuid
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 class HRJobRoleHistory(BaseModel):

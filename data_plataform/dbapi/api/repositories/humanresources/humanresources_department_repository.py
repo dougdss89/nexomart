@@ -4,7 +4,7 @@ from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
-from api.models.humanresources.humanresources_department import HumanResourcesDepartmentModel
+from api.models.humanresources.department import HumanResourcesDepartmentModel
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
-from api.models.person.customer import PersonCustomerModel
+from api.models.person.customer import CustomerModel as PersonCustomerModel
 
 logger = logging.getLogger(__name__)
 

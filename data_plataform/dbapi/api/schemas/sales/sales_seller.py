@@ -1,8 +1,8 @@
 import uuid
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, date
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 from decimal import Decimal
 
 class SellerType(str, Enum):

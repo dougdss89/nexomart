@@ -1,4 +1,3 @@
-from datetime import date
 from sqlalchemy import Column, Integer, String, text, Index, cast, ForeignKey, DateTime
 from sqlalchemy.sql import func
 from api.config.base import Base, AuditMixin
@@ -21,8 +20,8 @@ class WarehouseProductInventoryModel(Base, AuditMixin):
     modified_date = Column(DateTime(timezone=True), nullable=True, default=None,server_default=func.now())
     
     __table_args__ = (
-        Index('ix_inventory_attributes_expiration_date', cast(attributes['expiration_date'].astext, date)),
-        Index('ix_inventory_attributes_manufacturing_date', cast(attributes['manufacturing_date'].astext, date)),
+        Index('ix_inventory_attributes_expiration_date', cast(attributes["expiration_date"].astext, String)),
+        Index('ix_inventory_attributes_manufacturing_date', cast(attributes["manufacturing_date"].astext, String)),
         
         {'schema': 'warehouse'}
         

@@ -22,7 +22,7 @@ class MarketingAdvertiseModel(Base, AuditMixin): # [FIX] Herança adicionada
     
     __table_args__ = (
         Index('ix_creative_data', 'creative_data', postgresql_using='gin'),
-        Index('ix_creative_data_media_type', cast(creative_data['media_type'].astext)), # [FIX] mediatype -> media_type
+        Index('ix_creative_data_media_type', cast(creative_data['media_type'].astext, String)), # [FIX] mediatype -> media_type
         
         {"schema": "marketing"}
     )

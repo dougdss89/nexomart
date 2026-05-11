@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Import hipotético para mockar a dependência injetada que o usuário citou "Depends(get_db)"
 # from api.database.session import get_db
 
-from api.schemas.product.product_category import ProductCategorySchema
-from api.schemas.product.product_model import ProductModelSchema
+from api.schemas.product.production_product_category import ProductCategorySchema
+from api.schemas.product.production_product_model import ProductModelSchema
 from api.services.product.product_category_service import ProductCategoryService
 # from api.services.product.product_model_service import ProductModelService
 

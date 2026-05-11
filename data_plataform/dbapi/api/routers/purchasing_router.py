@@ -6,7 +6,7 @@ from typing import List
 async def get_db():
     yield None
 
-from api.schemas.purchasing.vendor import Vendor
+from api.schemas.purchasing.purchasing_vendor import Vendor
 from api.services.purchasing.purchasing_vendor_service import PurchasingVendorService
 
 router = APIRouter(prefix="/purchasing", tags=["Purchasing"])

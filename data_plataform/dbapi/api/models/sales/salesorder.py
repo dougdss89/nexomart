@@ -8,7 +8,7 @@ class SalesOrderModel(Base, AuditMixin):
    
     
     salesorder_id = Column(Integer, primary_key=True, autoincrement=True)
-    salesordernumber = Column(String(20), nullable=False, Unique = True)
+    salesordernumber = Column(String(20), nullable=False, unique=True)
     
     customer_id = Column(Integer,       ForeignKey("person.customer.customer_id"), nullable=False)
     saleschannel_id = Column(Integer,   ForeignKey("sales.saleschannel.saleschannel_id"), nullable=False)

@@ -10,7 +10,7 @@ class SalesChannelModel(Base, AuditMixin):
     
     saleschannel_id = Column(Integer, primary_key=True, autoincrement=True)
     saleschannel_code = Column(String(20), nullable=False)
-    saleschannel_name = Column(String(100), Unique=True, nullable=False)
+    saleschannel_name = Column(String(100), unique=True, nullable=False)
     
     saleschannel_info = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
 

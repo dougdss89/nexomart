@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
-from typing import List, Union, Dict, Any
-from pydantic import BaseModel, Field, model_validator, EmailStr, ConfigDict, Optional
+from typing import List, Union, Dict, Any, Optional
+from pydantic import BaseModel, Field, model_validator, EmailStr, ConfigDict
 from datetime import date, datetime
 
 class SalesRoleAttributes(BaseModel):

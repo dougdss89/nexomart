@@ -1,0 +1,57 @@
+[sqlfluff]
+# Escolher dialeto padrão
+dialect = postgres
+templater = dbt
+max_line_length = 100
+exclude_rules = L003, L016, L031
+
+# Indentação e formatação
+[sqlfluff:indentation]
+indented_joins = false
+indented_using_on = true
+template_blocks_indent = true
+
+# Regras de linting
+[sqlfluff:rules]
+# Capitalização de palavras-chave
+[sqlfluff:rules:L010]
+capitalisation_policy = upper
+
+# Capitalização de nomes (tabelas, colunas)
+[sqlfluff:rules:L014]
+extended_capitalisation_policy = lower
+
+# Capitalização de funções
+[sqlfluff:rules:L030]
+capitalisation_policy = upper
+
+# Alias em colunas
+[sqlfluff:rules:L011]
+aliasing = explicit
+
+# Alias em tabelas
+[sqlfluff:rules:L012]
+aliasing = explicit
+
+# Layout
+[sqlfluff:layout:type:comma]
+spacing_before = touch
+line_position = trailing
+
+# DBT templater config
+[sqlfluff:templater:dbt]
+project_dir = ./dbt
+profiles_dir = ./dbt
+profile = default
+
+# Diretórios a serem ignorados
+[sqlfluff:exclude]
+.git
+.venv
+venv
+__pycache__
+*.egg-info
+dist
+build
+target
+node_modules

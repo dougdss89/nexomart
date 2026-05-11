@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, text, Index, Numeric, cast, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, text, Index, Numeric, cast, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from api.config.base import AuditMixin, Base
 
@@ -30,8 +30,8 @@ class CustomerModel(Base, AuditMixin):
         Index('ix_customer_dem_addr_state', cast(demographics['address']['state_name'].astext, String)),
         Index('ix_customer_dem_addr_country', cast(demographics['address']['country'].astext, String)),
         
-        Index('ix_customer_dem_metrics_first_purchase', cast(demographics['metrics']['date_of_first_purchase'].astext, Date)),
-        Index('ix_customer_dem_metrics_last_purchase', cast(demographics['metrics']['date_last_purchase'].astext, Date)),
+        Index('ix_customer_dem_metrics_first_purchase', cast(demographics['metrics']['date_of_first_purchase'].astext, String)),
+        Index('ix_customer_dem_metrics_last_purchase', cast(demographics['metrics']['date_last_purchase'].astext, String)),
         Index('ix_customer_dem_metrics_total_orders', cast(demographics['metrics']['count_orders'].astext, Integer)),
         
         Index('ix_customer_demographics_gin', demographics, postgresql_using='gin'),

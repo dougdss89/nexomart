@@ -4,7 +4,7 @@ from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
-from api.models.purchasing.purchaseorder import PurchaseOrderModel
+from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel as PurchaseOrderModel
 
 logger = logging.getLogger(__name__)
 

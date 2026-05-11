@@ -3,7 +3,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.repositories.person.person_customer_repository import PersonCustomerRepository
-from api.models.person.customer import PersonCustomerModel
+from api.models.person.customer import CustomerModel as PersonCustomerModel
 
 logger = logging.getLogger(__name__)
 

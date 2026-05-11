@@ -4,7 +4,7 @@ from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
-from api.models.purchasing.vendor import VendorModel
+from api.models.purchasing.vendor import PurchaseVendorModel as VendorModel
 
 logger = logging.getLogger(__name__)
 

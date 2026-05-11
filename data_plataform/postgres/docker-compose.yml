@@ -1,6 +1,6 @@
 services:
   pgprojeto:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: pgprojeto
     environment:
       POSTGRES_USER: admin

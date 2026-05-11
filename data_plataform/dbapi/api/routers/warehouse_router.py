@@ -6,7 +6,13 @@ from typing import List
 from api.database import get_db
 
 from api.schemas.warehouse.warehouse_productinventory import ProductInventorySchema
+from api.schemas.warehouse.warehouse_wrhlocation import WarehouseLocationSchema
+from api.schemas.warehouse.warehouse_transaction_type import TransactionTypeSchema
+from api.schemas.warehouse.warehouse_transactionhistory import TransactionHistorySchema
 from api.services.warehouse.product_inventory_service import ProductInventoryService
+from api.services.warehouse.warehouse_location_service import WarehouseLocationService
+from api.services.warehouse.transaction_type_service import TransactionTypeService
+from api.services.warehouse.transaction_history_service import TransactionHistoryService
 
 router = APIRouter(prefix="/warehouse", tags=["Warehouse"])
 

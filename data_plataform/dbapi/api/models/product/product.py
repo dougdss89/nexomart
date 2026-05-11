@@ -9,12 +9,12 @@ class Product(Base, AuditMixin):
     product_id = Column(Integer, primary_key=True, autoincrement=True)
     product_name = Column(String(100), nullable=False)
     
-    model_id = Column(Integer, 
-                      ForeignKey("productmodel.productmodel_id"),
+    model_id = Column(Integer,
+                      ForeignKey("product.productmodel.productmodel_id"),
                       nullable=False)
-    
-    category_id = Column(Integer, 
-                         ForeignKey("productcategory.category_id"),
+
+    category_id = Column(Integer,
+                         ForeignKey("product.productcategory.category_id"),
                          nullable=False)
     
     productdetails = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
