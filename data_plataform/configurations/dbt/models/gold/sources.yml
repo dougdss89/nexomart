@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: gold_iceberg
+    database: nexo
+    schema: gold
+    tables:
+      - name: gold_dim_buyer
+        description: "Buyer dimension written by Spark gold layer to Unity Catalog Iceberg"
+      - name: gold_dim_productcategory
+        description: "Product category dimension — seeded from nexomarket_db, promoted through all Spark layers to Iceberg"

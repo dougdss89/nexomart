@@ -25,9 +25,10 @@ elif [ "$SPARK_WORKLOAD" == "worker" ]; then
     --webui-port 8081
 
 elif [ "$SPARK_WORKLOAD" == "history" ]; then
-  # Inicia o History Server
-  # Garante que a pasta de logs existe
-  mkdir -p /opt/spark/spark-events
+  # Copia JARs S3A do ivy cache para que o History Server leia de s3a://spark-events/
+  IVY="/home/spark/.ivy2/cache"
+  cp -n "$IVY/org.apache.hadoop/hadoop-aws/jars/hadoop-aws-3.3.4.jar" /opt/spark/jars/ 2>/dev/null || true
+  cp -n "$IVY/com.amazonaws/aws-java-sdk-bundle/jars/aws-java-sdk-bundle-1.12.262.jar" /opt/spark/jars/ 2>/dev/null || true
   /opt/spark/bin/spark-class org.apache.spark.deploy.history.HistoryServer
 
 else

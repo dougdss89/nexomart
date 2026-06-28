@@ -20,21 +20,19 @@ def load_source_configurations(spark_application: str):
     try:
         config = load_config()
         
-        iceberg = config.get("hadoop_paths", {})
-        iceberg_db = config.get("hadoop_paths", {})
-        iceberg_catalog = config.get("hadoop_paths", {})
+        delta_paths = config.get("delta_path", {})
         
         validate_required_keys(
-            config = iceberg,
-            required_keys= ["raw_icebergdb", "silver_icebergdb", "iceberg_catalog"],
-            config_name = "hadoop_paths"
+            config=delta_paths,
+            required_keys=["raw_icebergdb", "silver_layer"],
+            config_name="delta_path"
         )
         
         spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        return spark, iceberg.get("raw_icebergdb", ""), iceberg_db.get("silver_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "")
+        return spark, delta_paths.get("raw_icebergdb", ""), delta_paths.get("silver_layer", "")
 
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {str(e)}")
@@ -59,13 +57,13 @@ def load_source_configurations(spark_application: str):
     logger.info(f"Spark Session created: {spark}")
     
 #surrogate key
-def getCreateSurrogateKey(spark, catalog:str, iceberg:str, table_name:str) -> DataFrame:
+def getCreateSurrogateKey(spark, bronze_base: str, table_name: str) -> DataFrame:
 
     
     try:
-        raw_lakehouse = f"{catalog}.{iceberg}.{table_name}"
+        path = f"{bronze_base}/advworks_rawdb/{table_name}"
 
-        dataframe = spark.read.format("iceberg").load(raw_lakehouse)
+        dataframe = spark.read.format("delta").load(path)
         
         dataframe.createTempView("temp_fact_production")
         
@@ -184,19 +182,20 @@ def cleanerfactDataFrame(dataframe:DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writeProductionFact(dataframe:DataFrame, catalog:str, silver_icebergdb:str, fact_name:str) -> DataFrame:
+def writeProductionFact(dataframe: DataFrame, silver_base: str, fact_name: str) -> DataFrame:
     
     try:
-        lakehouse = f"{catalog}.{silver_icebergdb}.{fact_name}"
+        path = f"{silver_base}/advworks_db/{fact_name}"
         (
             dataframe
                 .write
-                .mode("append")
-                .format("iceberg")
-                .saveAsTable(f"{lakehouse}")
+                .mode("overwrite")
+                .format("delta")
+                .option("mergeSchema", "true")
+                .save(path)
         )
         
-        logger.info(f"Dimension {fact_name} was written successfully to Iceberg {silver_icebergdb}")
+        logger.info(f"Dimension {fact_name} was written successfully to Delta at {path}")
         
         return f"Dimension writing successfully completed to Iceberg: {fact_name}"
 
@@ -228,9 +227,9 @@ def main():
     application_name = "fact_production_table"
     
     try:
-        spark, iceberg, iceberg_db, iceberg_catalog = load_source_configurations(application_name)
+        spark, bronze_base, silver_base = load_source_configurations(application_name)
         
-        dataframe = getCreateSurrogateKey(spark, iceberg_catalog, iceberg, table_name)
+        dataframe = getCreateSurrogateKey(spark, bronze_base, table_name)
         logger.info(f"Surrogate Key created: {dataframe.schema}")
     
         dataframe = fillNullValues(dataframe)
@@ -239,7 +238,7 @@ def main():
         dataframe = cleanerfactDataFrame(dataframe)
         logger.info(f"cleanerfactDataFrame schema: {dataframe}")
                
-        writeProductionFact(dataframe, catalog=iceberg_catalog, silver_icebergdb=iceberg_db, fact_name=fact_name)
+        writeProductionFact(dataframe, silver_base=silver_base, fact_name=fact_name)
         logger.info(f"writeProductionFact schema: {dataframe.printSchema()}")
         
         sparkStop(spark)

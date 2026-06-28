@@ -1,122 +1,99 @@
 from pyspark.sql import SparkSession
 from configconnections_loader import load_config, validate_required_keys
-import sys
-import traceback
+from sys import exit
+from traceback import print_exc
+
 
 def load_source_connections():
-    
-    """ load source connections from .env file"""
-    
+    """ Load source connections from .env file """
     try:
-        print('Trying to load configuration')
         config = load_config()
-        print(f"Configuration loaded: {config}")
-        
-    except FileNotFoundError as e:
-        print(f'File .env not founded: {str(e)}')
-        traceback.print_exc()
-        
-        return None, None, None, None
-    
-    except KeyError as e:
-        print(f"Missing some key configs: {str(e)}")
-        traceback.print_exc()
-        
-        return None, None, None, None
-    
+
+        mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
+        mssql_properties = mssql_adventureworks.get("properties", {})
+        hadoop_config = config.get("hadoop_paths", {})
+
+        validate_required_keys(mssql_adventureworks, ["url", "database"], "mssql_adventureworks")
+        validate_required_keys(hadoop_config, ["minio_landing"], "hadoop_paths")
+
+        spark = (
+            SparkSession.builder
+            .appName('extract_country_region_raw')
+            .enableHiveSupport()
+            .getOrCreate()
+        )
+
+        return spark, mssql_properties, mssql_adventureworks, hadoop_config.get("minio_landing")
+
     except Exception as e:
-        print(f"unexpected error while load configuration: {str(e)}")
-        traceback.print_exc()
-        
+        print(f"Failed to create Spark Session: {str(e)}")
+        print_exc()
         return None, None, None, None
-    
-    #load properties, configurations and jars file
+
+
+def extract_raw_countryregion(spark, mssql_adventureworks, mssql_properties):
+    """ Extract country region data from SQL Server """
     try:
-        spark_jars = config["spark_jars"]
-        mssql_adventureworks = config["mssql_sources"]["adventureworks"]
-        mssql_properties = mssql_adventureworks["properties"]
-        minio_landing = config.get("hadoop_paths", {})
-    
-        #check if variable was loaded
-        if not spark_jars or 'mssql_spark_jars' not in spark_jars:
-            print("Missing spark jars configuration file and path")
-            return None, None, None, None
-        
-        if not mssql_adventureworks:
-            print(f"Adventureworks sources and properties wasn't loaded. Missing properties {mssql_adventureworks}")
-            return None, None, None, None
-        
-        if not mssql_properties:
-            print(f"We detected certain dependencies on {mssql_properties} that was not loaded. Reload {mssql_adventureworks} and retry it")
-            return None, None, None, None
-    #create spark session
-        spark = (SparkSession
-                    .builder
-                    .appName('extract_country_region_raw')
-                        .config('spark.jars', f"{spark_jars.get('mssql_spark_jars', '')}")
-                        .config('spark.driver.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')}")
-                        .config('spark.executor.extraClassPath', f"{spark_jars.get('mssql_spark_jars', '')}")
-                    .enableHiveSupport()
-                    .getOrCreate()
-                )
-        return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
-
+        df = (
+            spark.read
+            .format('jdbc')
+            .option('url', mssql_adventureworks['url'])
+            .option('driver', mssql_properties['driver'])
+            .option('user', mssql_properties['user'])
+            .option('password', mssql_properties['password'])
+            .option('query', """
+                select distinct
+                    sst.territoryid,
+                    sst.[name],
+                    sst.[group],
+                    sst.countryregioncode,
+                    getdate() as inserted_date,
+                    '9999-31-12 00:00:00.000' as modified_date,
+                    '1' as eltversion
+                from sales.salesterritory as sst
+                inner join person.countryregion as pcr
+                    on pcr.countryregioncode = sst.countryregioncode
+                left join person.stateprovince as psp
+                    on psp.countryregioncode = pcr.countryregioncode
+            """)
+            .load()
+        )
+        return df
     except Exception as e:
-        print(f"Fail to create SparkSession {spark}")
-        traceback.print_exc()
-        return None, None, None, None
-    
-spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
+        print(f"Error extracting country region data: {str(e)}")
+        print_exc()
+        return None
 
-def extract_raw_countryregion():
-    
-    df_countryregion = (spark.read
-                            .format('jdbc')
-                            .option('url', mssql_adventureworks['url'])
-                            .option('driver', mssql_properties['driver'])
-                            .option('user', mssql_properties['user'])
-                            .option('password', mssql_properties['password'])
-                            .option('query', 
-                                    
-                                    """
-                                        select distinct
-
-                                            sst.territoryid,
-                                            sst.[name],
-                                            sst.[group],
-                                            sst.countryregioncode,
-                                            getdate() as inserted_date,
-											'9999-31-12 00:00:00.000' as modified_date,
-											'1' as eltversion
-
-                                        from sales.salesterritory as sst
-
-                                        inner join
-                                            person.countryregion as pcr
-
-                                        on pcr.countryregioncode = sst.countryregioncode
-
-                                        left join
-                                            person.stateprovince as psp
-
-                                        on psp.countryregioncode = pcr.countryregioncode
-                                    """
-                                    )).load()
-    
-    return df_countryregion
-
-write_country_region = extract_raw_countryregion()
-
-write_country_region.write.mode('overwrite').parquet(f"{minio_landing}/countryregion")
 
 def spark_stop(spark):
-    
-    if spark:
-        spark.stop()
-            
-    
+    try:
+        if spark:
+            spark.stop()
+    except Exception as e:
+        print(f"Error stopping Spark session: {str(e)}")
+
+
 if __name__ == '__main__':
-    
-    load_source_connections()
-    extract_raw_countryregion()
-    spark_stop(spark)
+    spark = None
+    try:
+        spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
+
+        if not all([spark, mssql_properties, mssql_adventureworks, minio_landing]):
+            raise RuntimeError("Failed to load required connections")
+
+        df = extract_raw_countryregion(spark, mssql_adventureworks, mssql_properties)
+
+        if df is None:
+            raise RuntimeError("Failed to extract country region data")
+
+        df.repartition(1).write.mode('overwrite').parquet(f"{minio_landing}/countryregion")
+
+        print("Job completed successfully")
+
+    except Exception as e:
+        print(f"Job failed: {str(e)}")
+        print_exc()
+        exit(1)
+
+    finally:
+        spark_stop(spark)

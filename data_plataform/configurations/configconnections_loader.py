@@ -146,8 +146,8 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
         "job_dag_folder": {
             "airflow_landing_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_LANDING_SCRIPT"),
             "airflow_rawlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_RAW_SCRIPT"),
-            # ADICIONE A LINHA ABAIXO:
             "airflow_silverlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_SILVER_SCRIPT"),
+            "airflow_goldlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_GOLD_SCRIPT"),
             "spark_landing_folder": processed_config.get("SPARK_LANDING_FOLDER"),
             "spark_rawlayer_folder": processed_config.get("SPARK_RAW_LAYER_SCRIPT"),
             "airflow_dag_folder": processed_config.get("DAGSFOLDER")

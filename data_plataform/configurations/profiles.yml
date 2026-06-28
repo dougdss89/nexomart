@@ -6,7 +6,8 @@ data_platform:
       method: none
       host: trino-coordinator
       port: 8080
-      database: nessie
+      user: airflow
+      database: nexo
       schema: gold
       threads: 4
-      prepared_statements_enabled: true
+      prepared_statements_enabled: false

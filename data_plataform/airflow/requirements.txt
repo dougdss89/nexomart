@@ -8,3 +8,5 @@ apache-airflow-providers-docker
 apache-airflow-providers-microsoft-mssql
 python-dotenv
 statsd
+trino==0.330.0
+dbt-trino
