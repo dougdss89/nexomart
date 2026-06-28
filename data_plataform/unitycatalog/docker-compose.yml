@@ -1,6 +1,6 @@
 services:
   unitycatalog:
-    image: unitycatalog/unitycatalog:0.4.0
+    image: unitycatalog/unitycatalog:latest
     container_name: unitycatalog
     hostname: unitycatalog
     networks:
