@@ -1,5 +1,5 @@
 apache-airflow-providers-amazon 
-apache-airflow-providers-apache-spark[cncf,common.compat]==4.9.0
+apache-airflow-providers-apache-spark==4.9.0
 apache-airflow-providers-celery 
 apache-airflow-providers-databricks 
 apache-airflow-providers-microsoft-mssql 
