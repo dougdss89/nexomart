@@ -83,9 +83,31 @@ spark.sql.sources.commitProtocolClass org.apache.spark.internal.io.cloud.PathOut
 spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version 2
 spark.hadoop.mapreduce.fileoutputcommitter.cleanup-failures.ignored true
 
+# --- DataFlint Spark UI (JAR baked into image via Dockerfile) ---
+# UI disponível em: http://localhost:9090/dataflint  (master) e http://localhost:18080/dataflint (history)
+spark.plugins                                          io.dataflint.spark.SparkDataflintPlugin
+spark.sql.maxMetadataStringLength                      1000
+
+# Iceberg: descobre todos os catálogos automaticamente (nexo)
+spark.dataflint.iceberg.autoCatalogDiscovery           true
+
+# Delta Lake: coleta metadados e detecta Z-Order
+spark.dataflint.instrument.deltalake.enabled           true
+spark.dataflint.instrument.deltalake.collectZindexFields true
+
+# Spark operations instrumentation (window functions, pandas UDFs)
+spark.dataflint.instrument.spark.enabled               true
+spark.dataflint.instrument.spark.window.enabled        true
+spark.dataflint.instrument.spark.mapInPandas.enabled   true
+
+# Telemetria anônima desabilitada para ambiente local
+spark.dataflint.telemetry.enabled                      false
+
 # --- Packages (Spark 3.5 / Scala 2.13) ---
 # delta-spark       : Delta Lake core
 # hadoop-aws        : S3A FileSystem
 # unitycatalog-spark: Unity Catalog OSS Spark connector
+# iceberg           : Iceberg REST catalog (nexo)
 # postgresql        : JDBC driver
+# dataflint         : JAR já em $SPARK_HOME/jars/ via Dockerfile — não listar aqui
 spark.jars.packages  io.delta:delta-spark_2.13:3.2.1,org.apache.hadoop:hadoop-aws:3.3.4,io.unitycatalog:unitycatalog-spark-3.5_2.13:0.3.0,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.7.1,org.postgresql:postgresql:42.7.5,com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11

@@ -39,7 +39,7 @@ generate-confs: ## Gera arquivos de config com credenciais a partir dos template
 
 # ── Stack completa ───────────────────────────────────────────────────────────────
 .PHONY: up
-up: init generate-confs ## Sobe toda a stack em ordem de dependência
+up: init generate-confs build ## Sobe toda a stack em ordem de dependência (generate-confs antes do build)
 	@echo "▶  [1/8] PostgreSQL..."
 	$(COMPOSE) -f postgres/docker-compose.yml up -d --wait
 

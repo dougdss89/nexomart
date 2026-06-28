@@ -3,6 +3,7 @@ FROM python:3.12-slim-bookworm AS spark-base
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       curl \
+      sudo \
       openjdk-17-jre-headless && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -35,8 +36,14 @@ ENV PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/py4j-*.zip:$PYTHONPATH
 
 COPY conf/spark-defaults.conf "$SPARK_HOME/conf/"
 COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh && \
+
+# DataFlint JAR in $SPARK_HOME/jars/ so it loads for Spark sessions AND History Server.
+# Scala 2.13 artifact: spark_2.13 (matches spark-*-bin-hadoop3-scala2.13.tgz).
+RUN curl -fSL https://repo1.maven.org/maven2/io/dataflint/spark_2.13/0.9.9/spark_2.13-0.9.9.jar \
+        -o "$SPARK_HOME/jars/spark_2.13-0.9.9.jar" && \
+    chmod +x entrypoint.sh && \
     mkdir -p /opt/spark/spark-events && \
+    chown spark:spark "$SPARK_HOME/jars/spark_2.13-0.9.9.jar" && \
     chown -R spark:spark /opt/spark/spark-events
 
 USER spark
