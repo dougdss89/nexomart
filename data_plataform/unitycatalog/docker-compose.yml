@@ -34,6 +34,23 @@ services:
       retries: 5
       start_period: 30s
 
+  unitycatalog-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    image: unitycatalog-ui:local
+    container_name: unitycatalog-ui
+    hostname: unitycatalog-ui
+    ports:
+      - "3000:3000"   # UI  →  http://localhost:3000
+    networks:
+      - hadoopcluster
+    depends_on:
+      unitycatalog:
+        condition: service_healthy
+    cpus: "0.5"
+    mem_limit: 256m
+
 networks:
   hadoopcluster:
     external: true

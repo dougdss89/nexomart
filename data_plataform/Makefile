@@ -20,10 +20,11 @@ init: ## Cria a rede e os volumes Docker compartilhados
 
 .PHONY: build
 build: ## Builda as imagens customizadas (Hive · Spark · Airflow · dbapi)
-	$(COMPOSE) -f hive/docker-compose.yml     build
-	$(COMPOSE) -f spark/docker-compose.yml    build
-	$(COMPOSE) -f airflow/docker-compose.yaml build
-	$(COMPOSE) -f dbapi/docker-compose.yml    build
+	$(COMPOSE) -f hive/docker-compose.yml          build
+	$(COMPOSE) -f unitycatalog/docker-compose.yml  build
+	$(COMPOSE) -f spark/docker-compose.yml         build
+	$(COMPOSE) -f airflow/docker-compose.yaml      build
+	$(COMPOSE) -f dbapi/docker-compose.yml         build
 	@echo "✅  Imagens prontas."
 
 .PHONY: setup
