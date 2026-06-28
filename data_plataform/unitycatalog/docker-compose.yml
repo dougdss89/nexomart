@@ -1,6 +1,6 @@
 services:
   unitycatalog:
-    image: unitycatalog/unitycatalog:0.3.0
+    image: unitycatalog/unitycatalog:0.4.0
     container_name: unitycatalog
     hostname: unitycatalog
     networks:
@@ -11,10 +11,12 @@ services:
       - ./conf:/opt/unitycatalog/etc/conf
       - uc-data:/opt/unitycatalog/etc/db
       - dockervol:/dockervol
+    env_file:
+      - ../configurations/secrets.env
     environment:
       # Storage: MinIO as S3-compatible backend
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY}
       - AWS_REGION=us-east-1
       # Override S3 endpoint to point to MinIO
       - UC_SERVER_S3_AWS_ENDPOINT=http://minio:9000

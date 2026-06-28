@@ -1,5 +1,6 @@
 .DEFAULT_GOAL := help
-COMPOSE       := docker compose
+SECRETS       := configurations/secrets.env
+COMPOSE       := docker compose --env-file $(SECRETS)
 
 # ── Help ────────────────────────────────────────────────────────────────────────
 .PHONY: help
@@ -26,9 +27,18 @@ build: ## Builda as imagens customizadas (Spark · Airflow · dbapi)
 .PHONY: setup
 setup: init build ## Init + Build (first-time setup)
 
+# ── Geração de configs a partir de templates ────────────────────────────────────
+.PHONY: generate-confs
+generate-confs: ## Gera arquivos de config com credenciais a partir dos templates
+	@test -f $(SECRETS) || (echo "❌  $(SECRETS) não encontrado. Copie secrets.env.example e preencha." && exit 1)
+	@export $$(grep -v '^#' $(SECRETS) | xargs) && \
+		envsubst < spark/conf/spark-defaults.conf.template > spark/conf/spark-defaults.conf && \
+		envsubst < unitycatalog/conf/hibernate.properties.template > unitycatalog/conf/hibernate.properties
+	@echo "✅  Configs geradas: spark-defaults.conf, hibernate.properties"
+
 # ── Stack completa ───────────────────────────────────────────────────────────────
 .PHONY: up
-up: init ## Sobe toda a stack em ordem de dependência
+up: init generate-confs ## Sobe toda a stack em ordem de dependência
 	@echo "▶  [1/8] PostgreSQL..."
 	$(COMPOSE) -f postgres/docker-compose.yml up -d --wait
 

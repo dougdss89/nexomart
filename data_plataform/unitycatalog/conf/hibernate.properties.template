@@ -2,8 +2,8 @@
 # UC creates its own schema inside unitycatalogdb on first startup.
 javax.persistence.jdbc.driver=org.postgresql.Driver
 javax.persistence.jdbc.url=jdbc:postgresql://pgprojeto:5432/unitycatalogdb
-javax.persistence.jdbc.user=admin
-javax.persistence.jdbc.password=admin
+javax.persistence.jdbc.user=${POSTGRES_USER}
+javax.persistence.jdbc.password=${POSTGRES_PASSWORD}
 hibernate.hbm2ddl.auto=update
 hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 hibernate.connection.pool_size=10

@@ -1,28 +1,22 @@
 from pyspark.sql import SparkSession
 
-# Inicia uma SparkSession com configurações para Iceberg
-spark = (SparkSession.builder
-         .appName("IcebergDataFrame")
-         .getOrCreate())
+spark = SparkSession.builder.appName("nexo-iceberg-sample").getOrCreate()
 
-# Cria um DataFrame com 4 colunas e 7 milhões de linhas
-data = [(i, f"col2_{i}", f"col3_{i}", f"col4_{i}") for i in range(1000)]
-df = spark.createDataFrame(data, ["col1", "col2", "col3", "col4"])
+spark.sql("CREATE SCHEMA IF NOT EXISTS nexo.landing")
 
-# Escreve o DataFrame em um diretório HDFS como parquet (ou outro formato)
-hdfs_path = "hdfs://ha-cluster/landing/airflowteste"
-df.write.mode("append").parquet(hdfs_path)
-print("DataFrame escrito em formato parquet no HDFS com sucesso!")
+spark.sql("""
+  CREATE TABLE IF NOT EXISTS nexo.landing.sample (
+    id     BIGINT,
+    name   STRING,
+    value  DOUBLE
+  ) USING iceberg
+  TBLPROPERTIES ('format-version' = '3')
+""")
 
-# Lê o mesmo DataFrame a partir do diretório HDFS
-df_hdfs = spark.read.parquet(hdfs_path)
+data = [(1, "Alice", 10.5), (2, "Bob", 20.0), (3, "Charlie", 15.75)]
+df = spark.createDataFrame(data, ["id", "name", "value"])
+df.writeTo("nexo.landing.sample").append()
 
-# Escreve o DataFrame lido no formato Iceberg
-(df_hdfs.write
-    .format("iceberg")
-    .mode("overwrite")
-    .saveAsTable("hadoop_prod.db.airflowteste"))
-print("DataFrame escrito em formato Iceberg com sucesso!")
+spark.sql("SELECT * FROM nexo.landing.sample").show()
 
-# Encerra a sessão Spark após a execução
 spark.stop()

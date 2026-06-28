@@ -27,13 +27,13 @@ spark.driver.extraJavaOptions    -XX:+UseG1GC -XX:+UseStringDeduplication -XX:In
 # --- MinIO (S3A) ---
 spark.hadoop.fs.s3a.impl         org.apache.hadoop.fs.s3a.S3AFileSystem
 spark.hadoop.fs.s3a.endpoint     http://minio:9000
-spark.hadoop.fs.s3a.access.key   minioadmin
-spark.hadoop.fs.s3a.secret.key   minioadmin
+spark.hadoop.fs.s3a.access.key   ${MINIO_ACCESS_KEY}
+spark.hadoop.fs.s3a.secret.key   ${MINIO_SECRET_KEY}
 spark.hadoop.fs.s3a.path.style.access true
 spark.hadoop.fs.s3a.connection.ssl.enabled false
 
 # --- Extensões SQL ---
-spark.sql.extensions             io.delta.sql.DeltaSparkSessionExtension
+spark.sql.extensions             io.delta.sql.DeltaSparkSessionExtension,org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
 
 # --- DELTA (default catalog) ---
 # spark_catalog is the default catalog used by unqualified table references.
@@ -47,6 +47,17 @@ spark.sql.catalog.spark_catalog.warehouse s3a://deltadw/
 spark.sql.catalog.unity                   io.unitycatalog.connectors.spark.UCSingleCatalog
 spark.sql.catalog.unity.uri               http://unitycatalog:8080
 spark.sql.catalog.unity.token             not-used
+
+# --- NEXO (Iceberg REST Catalog via Unity Catalog OSS) ---
+# Catálogo Iceberg nativo gerenciado pelo Unity Catalog OSS.
+# Use: spark.table("nexo.<schema>.<table>") ou USE CATALOG nexo.
+# Format v3 habilitado por padrão (deletion vectors, row lineage).
+spark.sql.catalog.nexo                    org.apache.iceberg.spark.SparkCatalog
+spark.sql.catalog.nexo.catalog-impl       org.apache.iceberg.rest.RESTCatalog
+spark.sql.catalog.nexo.uri                http://unitycatalog:8080/api/2.1/unity-catalog/iceberg
+spark.sql.catalog.nexo.token              not-used
+spark.sql.catalog.nexo.warehouse          main
+spark.sql.catalog.nexo.format-version     3
 
 # --- Adaptive Query Execution ---
 spark.sql.adaptive.enabled true
@@ -77,4 +88,4 @@ spark.hadoop.mapreduce.fileoutputcommitter.cleanup-failures.ignored true
 # hadoop-aws        : S3A FileSystem
 # unitycatalog-spark: Unity Catalog OSS Spark connector
 # postgresql        : JDBC driver
-spark.jars.packages  io.delta:delta-spark_2.13:3.2.1,org.apache.hadoop:hadoop-aws:3.3.4,io.unitycatalog:unitycatalog-spark-3.5_2.13:0.3.0,org.postgresql:postgresql:42.7.5,com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11
+spark.jars.packages  io.delta:delta-spark_2.13:3.2.1,org.apache.hadoop:hadoop-aws:3.3.4,io.unitycatalog:unitycatalog-spark-3.5_2.13:0.3.0,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.7.1,org.postgresql:postgresql:42.7.5,com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11

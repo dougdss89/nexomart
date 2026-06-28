@@ -13,11 +13,13 @@ services:
     build: .
     depends_on:
       - redis
+    env_file:
+      - ../configurations/secrets.env
     environment: &airflow_env
       - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://admin:admin@pgprojeto:5432/airflowdb
-      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://admin:admin@pgprojeto:5432/airflowdb
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgprojeto:5432/airflowdb
+      - AIRFLOW__CELERY__BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgprojeto:5432/airflowdb
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
       - PYTHONPATH=/usr/local/airflow/dags:/dockervol/configurations
@@ -33,7 +35,7 @@ services:
           sleep 5
         done
         airflow sync-perm
-        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com
+        airflow users create --username admin --password "${AIRFLOW_ADMIN_PASSWORD}" --firstname Admin --lastname User --role Admin --email admin@example.com
     volumes:
       - ./dags:/usr/local/airflow/dags
       - ../configurations:/dockervol/configurations

@@ -84,8 +84,15 @@ data_plataform/
 ### Primeira vez
 
 ```bash
-make setup       # cria rede, volumes e builda as imagens
-make up          # sobe toda a stack em ordem de dependência
+# 1. Configure as credenciais (nunca commitadas)
+cp configurations/secrets.env.example configurations/secrets.env
+# edite secrets.env com os valores reais antes de continuar
+
+# 2. Cria rede, volumes e builda as imagens
+make setup
+
+# 3. Sobe toda a stack (gera configs e inicia serviços)
+make up
 ```
 
 ### Dia a dia
@@ -118,11 +125,11 @@ make up-dbapi
 
 | Serviço | URL | Credenciais |
 |---|---|---|
-| MinIO Console | http://localhost:9001 | `minioadmin` / `minioadmin` |
+| MinIO Console | http://localhost:9001 | conforme `secrets.env` |
 | Spark UI | http://localhost:9090 | — |
 | Spark History | http://localhost:18080 | — |
 | Trino UI | http://localhost:8070 | — |
-| Airflow UI | http://localhost:8181 | `admin` / `admin` |
+| Airflow UI | http://localhost:8181 | conforme `secrets.env` |
 | Unity Catalog API | http://localhost:8182/api/2.1/unity-catalog | — |
 | dbapi (FastAPI) | http://localhost:8001 | — |
 | dbapi Docs | http://localhost:8001/docs | — |

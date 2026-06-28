@@ -11,36 +11,35 @@ default_args = {
 dag = DAG(
     'iceberg_dag',
     default_args=default_args,
-    description='Um exemplo de DAG para rodar jobs Spark',
+    description='Pipeline Iceberg v3 via Unity Catalog OSS (catálogo nexo)',
     schedule='@daily',
     catchup=False
 )
 
-# Início do pipeline
-start_load = EmptyOperator(
-    task_id='start_teste'
-)
+start_load = EmptyOperator(task_id='start')
 
 spark_submit_task = SparkSubmitOperator(
     task_id='submit_iceberg_dag',
     application='/opt/airflow/dags/iceberg.py',
-    name='arrow-spark',
+    name='nexo-iceberg-pipeline',
     conn_id='sparkconn',
+    packages='org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.7.1',
     conf={
-        'spark.sql.extensions': 'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions',
-        'spark.sql.catalog.spark_catalog': 'org.apache.iceberg.spark.SparkSessionCatalog',
-        'spark.sql.catalog.spark_catalog.type': 'hive',
-        'spark.executor.extraClassPath': '/opt/spark/jars/*',
-        'spark.driver.extraClassPath': '/opt/spark/jars/*'
+        'spark.sql.extensions': (
+            'io.delta.sql.DeltaSparkSessionExtension,'
+            'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions'
+        ),
+        'spark.sql.catalog.nexo': 'org.apache.iceberg.spark.SparkCatalog',
+        'spark.sql.catalog.nexo.catalog-impl': 'org.apache.iceberg.rest.RESTCatalog',
+        'spark.sql.catalog.nexo.uri': 'http://unitycatalog:8080/api/2.1/unity-catalog/iceberg',
+        'spark.sql.catalog.nexo.token': 'not-used',
+        'spark.sql.catalog.nexo.warehouse': 'main',
+        'spark.sql.catalog.nexo.format-version': '3',
     },
-    packages='org.apache.iceberg:iceberg-spark-runtime-3.4_2.13:1.5.1',
     verbose=True,
     dag=dag
 )
 
-# Fim do pipeline
-end_load = EmptyOperator(
-    task_id='end_teste'
-)
+end_load = EmptyOperator(task_id='end')
 
 start_load >> spark_submit_task >> end_load
