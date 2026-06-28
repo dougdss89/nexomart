@@ -41,13 +41,6 @@ spark.sql.extensions             io.delta.sql.DeltaSparkSessionExtension,org.apa
 spark.sql.catalog.spark_catalog           org.apache.spark.sql.delta.catalog.DeltaCatalog
 spark.sql.catalog.spark_catalog.warehouse s3a://deltadw/
 
-# --- UNITY CATALOG OSS ---
-# "unity" catalog: governed namespace for Delta tables with ACL, lineage and discovery.
-# Use: spark.table("unity.<schema>.<table>") or USE CATALOG unity.
-spark.sql.catalog.unity                   io.unitycatalog.connectors.spark.UCSingleCatalog
-spark.sql.catalog.unity.uri               http://unitycatalog:8080
-spark.sql.catalog.unity.token             not-used
-
 # --- NEXO (Iceberg REST Catalog via Unity Catalog OSS) ---
 # Catálogo Iceberg nativo gerenciado pelo Unity Catalog OSS.
 # Use: spark.table("nexo.<schema>.<table>") ou USE CATALOG nexo.
@@ -110,4 +103,4 @@ spark.dataflint.telemetry.enabled                      false
 # iceberg           : Iceberg REST catalog (nexo)
 # postgresql        : JDBC driver
 # dataflint         : JAR já em $SPARK_HOME/jars/ via Dockerfile — não listar aqui
-spark.jars.packages  io.delta:delta-spark_2.13:3.2.1,org.apache.hadoop:hadoop-aws:3.3.4,io.unitycatalog:unitycatalog-spark-3.5_2.13:0.3.0,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.7.1,org.postgresql:postgresql:42.7.5,com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11
+spark.jars.packages  io.delta:delta-spark_2.13:3.2.1,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.7.1,org.postgresql:postgresql:42.7.5,com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11
