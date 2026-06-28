@@ -23,6 +23,9 @@ services:
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
       - PYTHONPATH=/usr/local/airflow/dags:/dockervol/configurations
+      - AIRFLOW__LOGGING__BASE_LOG_FOLDER=/dockervol/airflow-logs
+      - AIRFLOW__LOGGING__REMOTE_LOGGING=False
+      - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8181
     networks:
       - hadoopcluster
     entrypoint: /bin/bash
