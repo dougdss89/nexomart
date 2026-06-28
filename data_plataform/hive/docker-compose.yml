@@ -9,6 +9,8 @@ services:
       - ../configurations/secrets.env
     environment:
       SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      IS_RESUME: "true"
     volumes:
       - ./conf/hive-site.xml:/opt/hive/conf/hive-site.xml
     ports:
