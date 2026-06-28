@@ -22,7 +22,7 @@ services:
     mem_limit: 1g
 
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 9083 || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9083' 2>/dev/null || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 5
