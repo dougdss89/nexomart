@@ -1,15 +1,10 @@
-apache-airflow-providers-amazon
+# Providers essenciais para o data platform.
+# Outros providers (amazon, kafka, iceberg, openlineage) devem ser adicionados
+# individualmente quando houver DAGs que os utilizem, para evitar conflitos de deps.
 apache-airflow-providers-apache-spark==4.9.0
-apache-airflow-providers-celery
-apache-airflow-providers-databricks
-apache-airflow-providers-microsoft-mssql
-apache-airflow-providers-common-sql
-apache-airflow-providers-jdbc
-apache-airflow-providers-docker
 apache-airflow-providers-postgres
-apache-airflow-providers-apache-kafka
-apache-airflow-providers-apache-iceberg
-apache-airflow-providers-pgvector
-apache-airflow-providers-openlineage
+apache-airflow-providers-common-sql
+apache-airflow-providers-docker
+apache-airflow-providers-microsoft-mssql
 python-dotenv
 statsd
