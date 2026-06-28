@@ -100,6 +100,7 @@ services:
   airflow-worker:
     build: .
     container_name: airflow_worker
+    hostname: airflow-worker
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -113,6 +114,8 @@ services:
       - spark-jobs:/usr/local/airflow/spark_jobs
       - /home/doug/project/data_plataform/spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
     command: airflow celery worker
+    ports:
+      - "8793:8793"
     networks:
       - hadoopcluster
     extra_hosts:
