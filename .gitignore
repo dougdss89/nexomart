@@ -74,7 +74,7 @@ Thumbs.db
 **/spark/jobs/notebooks/
 
 # Pastas de Infra/Dados que não devem subir
-data_plataform/hive/
+data_plataform/hive/data*/
 data_plataform/lakehouse/
 data_plataform/fastapi/
 data_plataform/spark/devapplication/

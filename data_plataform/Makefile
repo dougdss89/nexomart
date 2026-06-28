@@ -18,7 +18,8 @@ init: ## Cria a rede e os volumes Docker compartilhados
 	@echo "✅  Rede hadoopcluster e volumes criados."
 
 .PHONY: build
-build: ## Builda as imagens customizadas (Spark · Airflow · dbapi)
+build: ## Builda as imagens customizadas (Hive · Spark · Airflow · dbapi)
+	$(COMPOSE) -f hive/docker-compose.yml     build
 	$(COMPOSE) -f spark/docker-compose.yml    build
 	$(COMPOSE) -f airflow/docker-compose.yaml build
 	$(COMPOSE) -f dbapi/docker-compose.yml    build
@@ -107,7 +108,8 @@ up-postgres: init ## Sobe apenas PostgreSQL
 up-minio: init ## Sobe apenas MinIO
 	$(COMPOSE) -f minio/docker-compose.yml up -d --wait
 
-up-hive: init ## Sobe apenas Hive Metastore
+up-hive: init ## Builda e sobe apenas o Hive Metastore
+	$(COMPOSE) -f hive/docker-compose.yml build
 	$(COMPOSE) -f hive/docker-compose.yml up -d
 
 up-unitycatalog: init ## Sobe apenas Unity Catalog OSS

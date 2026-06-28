@@ -1,0 +1,31 @@
+services:
+  hive-metastore:
+    build:
+      context: .
+    image: hive-metastore:local
+    container_name: hive-metastore
+    hostname: hive-metastore
+    env_file:
+      - ../configurations/secrets.env
+    environment:
+      SERVICE_NAME: metastore
+    volumes:
+      - ./conf/hive-site.xml:/opt/hive/conf/hive-site.xml
+    ports:
+      - "9083:9083"
+    networks:
+      - hadoopcluster
+
+    cpus: "1.0"
+    mem_limit: 1g
+
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9083 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  hadoopcluster:
+    external: true
