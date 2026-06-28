@@ -4,8 +4,8 @@ pyarrow>=14.0.0
 pandas>=2.2.0
 numpy>=1.26.0
 
-# --- Iceberg & Nessie & Cloud Storage ---
-pynessie>=0.67.0
+# --- Iceberg & Cloud Storage ---
+# pynessie removido: projeto usa Unity Catalog OSS (catálogo nexo via REST), não Nessie
 pyiceberg[s3fs,pyarrow]>=0.6.0
 boto3>=1.34.0
 
