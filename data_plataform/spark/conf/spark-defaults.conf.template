@@ -103,4 +103,4 @@ spark.dataflint.telemetry.enabled                      false
 # iceberg           : Iceberg REST catalog (nexo)
 # postgresql        : JDBC driver
 # dataflint         : JAR já em $SPARK_HOME/jars/ via Dockerfile — não listar aqui
-spark.jars.packages  io.delta:delta-spark_2.13:3.2.1,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.7.1,org.postgresql:postgresql:42.7.5,com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11
+spark.jars.packages  io.delta:delta-spark_2.13:3.2.1,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.7.1,org.postgresql:postgresql:42.7.5,com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11,io.dataflint:spark_2.13:0.9.9

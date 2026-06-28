@@ -10,7 +10,7 @@ def load_source_connections():
         config = load_config()
     except(FileNotFoundError, KeyError) as e:
         print(f"Could not load connections from source: {str(e)}")
-        return None, None, None, None, None
+        return None, None, None, None
     
     try:
         # Obter as configurações
@@ -34,7 +34,7 @@ def load_source_connections():
     except Exception as e:
         print(f"Failed to create Spark Session: {str(e)}")
         print_exc()
-        return None, None, None, None, None
+        return None, None, None, None
 
 def extract_raw_buyer(spark, mssql_adventureworks, mssql_properties):
     """Extract buyer data from source"""
@@ -96,6 +96,7 @@ def spark_stop(spark):
         print(f'Error stopping Spark session: {str(e)}')
 
 if __name__ == '__main__':
+    spark = None
     try:
         # Carregar conexões
         spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
