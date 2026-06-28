@@ -6,7 +6,7 @@ services:
       - "8001:8000"
     volumes:
       - .:/workspace
-      - configurations:/workspace/configurations
+      - ../configurations:/workspace/configurations
     networks:
       - hadoopcluster
 
@@ -17,6 +17,3 @@ networks:
   hadoopcluster:
     external: true
 
-volumes:
-  configurations:
-    external: true

@@ -15,6 +15,7 @@ init: ## Cria a rede e os volumes Docker compartilhados
 	docker volume  create dockervol      2>/dev/null || true
 	docker volume  create spark-logs     2>/dev/null || true
 	docker volume  create spark-ivy-cache 2>/dev/null || true
+	docker volume  create spark-jobs     2>/dev/null || true
 	@echo "✅  Rede hadoopcluster e volumes criados."
 
 .PHONY: build
