@@ -1,6 +1,9 @@
 """
 Gold: s3a://silver/advworks_db/dim_productcategory (Delta)
-    → Unity Catalog Iceberg nexo.main.gold_dim_productcategory
+    → Delta Lake spark_catalog.gold.gold_dim_productcategory (s3a://deltadw/)
+
+Note: Unity Catalog Iceberg REST is read-only (no CREATE TABLE support).
+Gold layer uses spark_catalog (DeltaCatalog + Hive metastore) instead.
 """
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import current_timestamp
@@ -34,15 +37,17 @@ def read_silver_dimension(spark, silver_base: str, table_name: str):
     return spark.read.format("delta").load(path)
 
 
-def write_gold_iceberg(spark, dataframe, catalog: str, schema: str, table_name: str):
-    full_table = f"{catalog}.{schema}.{table_name}"
-    spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {catalog}.{schema}")
+def write_gold_delta(spark, dataframe, schema: str, table_name: str):
+    spark.sql(f"CREATE DATABASE IF NOT EXISTS spark_catalog.{schema}")
+    full_table = f"spark_catalog.{schema}.{table_name}"
     (
-        dataframe.writeTo(full_table)
-        .tableProperty("format-version", "2")
-        .createOrReplace()
+        dataframe.write
+        .format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", "true")
+        .saveAsTable(full_table)
     )
-    print(f"Gold: wrote to {full_table}")
+    print(f"Gold: wrote Delta table {full_table}")
 
 
 def spark_stop(spark):
@@ -64,7 +69,7 @@ if __name__ == "__main__":
         df = read_silver_dimension(spark, silver_base, "dim_productcategory")
         df = df.withColumn("gold_load_date", current_timestamp())
 
-        write_gold_iceberg(spark, df, "nexo", "gold", "gold_dim_productcategory")
+        write_gold_delta(spark, df, "gold", "gold_dim_productcategory")
         print(f"Gold job completed — {df.count()} rows")
 
     except Exception as e:

@@ -26,5 +26,6 @@ RUN curl -fSL https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPAR
 USER astro
 
 RUN pip install --no-cache-dir --upgrade pip -r requirements.txt
+RUN pip install --no-cache-dir "trino>=0.321.0" "dbt-core>=1.9.0" "dbt-trino>=1.9.0"
 
 COPY --chown=astro:astro airflow.cfg ${AIRFLOW_HOME}/airflow.cfg

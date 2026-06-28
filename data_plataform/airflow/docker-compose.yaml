@@ -29,6 +29,7 @@ services:
       - AIRFLOW__LOGGING__BASE_LOG_FOLDER=/dockervol/airflow-logs
       - AIRFLOW__LOGGING__REMOTE_LOGGING=False
       - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8181
+      - AIRFLOW__CELERY__WORKER_HOSTNAME=airflow-worker@airflow-worker
     networks:
       - hadoopcluster
     entrypoint: /bin/bash
@@ -116,7 +117,7 @@ services:
       - spark-ivy-cache:/home/spark/.ivy2
       - spark-jobs:/usr/local/airflow/spark_jobs
       - /home/doug/project/data_plataform/spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
-    command: airflow celery worker
+    command: airflow celery worker -H airflow-worker@airflow-worker
     ports:
       - "8793:8793"
     networks:

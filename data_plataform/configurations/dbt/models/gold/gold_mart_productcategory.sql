@@ -9,4 +9,4 @@ SELECT
     extracted_date,
     dw_load_date,
     gold_load_date
-FROM {{ source('gold_iceberg', 'gold_dim_productcategory') }}
+FROM {{ source('gold_delta', 'gold_dim_productcategory') }}

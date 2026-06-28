@@ -62,7 +62,7 @@ def validate_trino_gold(**context):
         host="trino-coordinator",
         port=8080,
         user="airflow",
-        catalog="nexo",
+        catalog="delta",
         schema="gold",
     )
     cur = conn.cursor()
@@ -73,7 +73,7 @@ def validate_trino_gold(**context):
     if count == 0:
         raise AirflowException("gold_dim_productcategory is empty — pipeline may have failed silently")
 
-    print(f"Trino validation passed: {count} rows in nexo.main.gold_dim_productcategory")
+    print(f"Trino validation passed: {count} rows in delta.gold.gold_dim_productcategory")
 
 
 @dag(
