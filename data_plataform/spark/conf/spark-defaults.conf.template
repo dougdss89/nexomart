@@ -9,6 +9,8 @@ spark.jars.ivy /home/spark/.ivy2
 # --- SQL e Warehouse ---
 spark.sql.parquet.compression.codec snappy
 spark.sql.execution.arrow.pyspark.enabled true
+spark.sql.catalogImplementation      hive
+spark.sql.warehouse.dir              s3a://deltadw/warehouse/
 
 # --- Recursos ---
 spark.sql.shuffle.partitions     32
@@ -40,6 +42,7 @@ spark.sql.extensions             io.delta.sql.DeltaSparkSessionExtension,org.apa
 # DeltaCatalog wraps the built-in Hive catalog, adding Delta Lake support.
 spark.sql.catalog.spark_catalog           org.apache.spark.sql.delta.catalog.DeltaCatalog
 spark.sql.catalog.spark_catalog.warehouse s3a://deltadw/
+spark.hadoop.hive.metastore.uris          thrift://hive-metastore:9083
 
 # --- NEXO (Iceberg REST Catalog via Unity Catalog OSS) ---
 # Catálogo Iceberg nativo gerenciado pelo Unity Catalog OSS.

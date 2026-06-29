@@ -61,4 +61,18 @@
     <value>false</value>
   </property>
 
+  <!-- Thrift server thread pool and connection timeouts -->
+  <property>
+    <name>hive.metastore.server.max.threads</name>
+    <value>200</value>
+  </property>
+  <property>
+    <name>hive.metastore.server.min.threads</name>
+    <value>10</value>
+  </property>
+  <property>
+    <name>hive.metastore.client.socket.timeout</name>
+    <value>120</value>
+  </property>
+
 </configuration>

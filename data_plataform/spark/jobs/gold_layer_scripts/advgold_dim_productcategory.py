@@ -38,16 +38,30 @@ def read_silver_dimension(spark, silver_base: str, table_name: str):
 
 
 def write_gold_delta(spark, dataframe, schema: str, table_name: str):
-    spark.sql(f"CREATE DATABASE IF NOT EXISTS spark_catalog.{schema}")
+    gold_bucket = "s3a://deltadw/gold.db"
+    spark.sql(
+        f"CREATE DATABASE IF NOT EXISTS spark_catalog.{schema} "
+        f"LOCATION '{gold_bucket}/'"
+    )
+    table_path = f"{gold_bucket}/{table_name}"
     full_table = f"spark_catalog.{schema}.{table_name}"
+
+    # Overwrite creates a new Delta version (instead of delete+recreate at version 0),
+    # which ensures Trino reads fresh file references rather than stale cache from v0.
     (
         dataframe.write
         .format("delta")
-        .mode("overwrite")
+        .option("path", table_path)
         .option("overwriteSchema", "true")
-        .saveAsTable(full_table)
+        .mode("overwrite")
+        .save()
     )
-    print(f"Gold: wrote Delta table {full_table}")
+
+    # Register in Hive catalog if not yet present
+    if not spark.catalog.tableExists(full_table):
+        spark.sql(f"CREATE TABLE {full_table} USING delta LOCATION '{table_path}'")
+
+    print(f"Gold: wrote Delta table {full_table} → {table_path}")
 
 
 def spark_stop(spark):

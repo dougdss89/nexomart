@@ -1,4 +1,4 @@
-{{ config(materialized='table', properties={"format": "'PARQUET'"}) }}
+{{ config(materialized='view') }}
 
 SELECT
     category_sk,

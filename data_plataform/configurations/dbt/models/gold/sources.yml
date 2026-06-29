@@ -7,3 +7,10 @@ sources:
     tables:
       - name: gold_dim_productcategory
         description: "Product category dimension — seeded from nexomarket_db, promoted through all Spark layers to Delta Lake"
+
+  - name: gold_iceberg
+    database: delta
+    schema: gold
+    tables:
+      - name: gold_dim_buyer
+        description: "Buyer dimension — Delta Lake gold table (aliased as gold_iceberg for compatibility)"
