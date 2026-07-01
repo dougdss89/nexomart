@@ -41,6 +41,7 @@ bandit-report.json
 *.pub
 /secrets/
 .netrc
+.prettierrc.json
 
 # =============================================================================
 # Configurações de IDE e SO

@@ -20,6 +20,11 @@ RUN printf 'server {\n\
     listen 3000;\n\
     root /usr/share/nginx/html;\n\
     index index.html;\n\
+    location /api {\n\
+        proxy_pass http://unitycatalog:8080;\n\
+        proxy_set_header Host $host;\n\
+        proxy_set_header X-Real-IP $remote_addr;\n\
+    }\n\
     location / { try_files $uri /index.html; }\n\
 }\n' > /etc/nginx/conf.d/default.conf
 

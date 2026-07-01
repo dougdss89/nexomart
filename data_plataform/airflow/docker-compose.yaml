@@ -120,6 +120,7 @@ services:
     command: airflow celery worker -H airflow-worker@airflow-worker
     ports:
       - "8793:8793"
+      - "4040:4040"
     networks:
       - hadoopcluster
     extra_hosts:

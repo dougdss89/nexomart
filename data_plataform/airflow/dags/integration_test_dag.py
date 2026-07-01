@@ -1,14 +1,14 @@
 """
-integration_test_dag — Teste de fogo end-to-end (PostgreSQL → full Spark pipeline → Iceberg → Trino → dbt)
+integration_test_dag — Teste de fogo end-to-end (PostgreSQL → full Spark pipeline → Iceberg/UC → Trino → dbt)
 
 Flow:
   seed_postgres
-      → pg_landing (nexomarket_db → s3a://landing Parquet)
-      → pg_bronze  (landing → s3a://bronze Delta)
-      → pg_silver  (bronze → s3a://silver Delta)
-      → pg_gold    (silver → Unity Catalog Iceberg nexo.main.gold_dim_productcategory)
-      → trino_validate
-      → dbt_run
+      → pg_landing  (PostgreSQL → s3a://landing Parquet)
+      → pg_bronze   (Parquet landing → Delta @ s3a://bronze)
+      → pg_silver   (Delta bronze → Delta @ s3a://silver)
+      → pg_gold     (Delta silver → Iceberg @ s3a://deltadw/iceberglake + registro no UC)
+      → trino_validate  (SELECT COUNT(*) FROM nexo.gold.gold_dim_productcategory)
+      → dbt_run     (cria view nexo.gold.gold_mart_productcategory sobre a tabela Iceberg)
       → dbt_test
       → end
 """
@@ -62,18 +62,18 @@ def validate_trino_gold(**context):
         host="trino-coordinator",
         port=8080,
         user="airflow",
-        catalog="delta",
+        catalog="iceberglake",
         schema="gold",
     )
     cur = conn.cursor()
     cur.execute("SELECT count(*) AS cnt FROM gold_dim_productcategory")
     count = cur.fetchall()[0][0]
-    logger.info("gold_dim_productcategory row count via Trino: %s", count)
+    logger.info("gold_dim_productcategory row count via Trino (iceberglake): %s", count)
 
     if count == 0:
         raise AirflowException("gold_dim_productcategory is empty — pipeline may have failed silently")
 
-    print(f"Trino validation passed: {count} rows in delta.gold.gold_dim_productcategory")
+    print(f"Trino validation passed: {count} rows in iceberglake.gold.gold_dim_productcategory")
 
 
 @dag(
@@ -139,10 +139,10 @@ def integration_e2e_test():
         conf=spark_conf,
     )
 
-    # ── Step 4: Gold (Silver Delta → Iceberg Unity Catalog nexo.main) ─────────
+    # ── Step 4: Gold (Silver Delta → Iceberg HadoopCatalog + registro UC → nexo.gold) ──
     pg_gold = SparkSubmitOperator(
         task_id="pg_gold",
-        application=f"{gold_folder}/advgold_dim_productcategory.py",
+        application=f"{gold_folder}/advgold_dim_productcategory_iceberg.py",
         conn_id="sparkconn",
         verbose=True,
         env_vars=spark_env,

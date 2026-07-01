@@ -1,16 +1,28 @@
 version: 2
 
 sources:
-  - name: gold_delta
-    database: delta
+  - name: gold
+    database: iceberglake
     schema: gold
+    description: "Gold layer — Iceberg tables via HadoopCatalog (iceberglake catalog no Trino)"
     tables:
       - name: gold_dim_productcategory
-        description: "Product category dimension — seeded from nexomarket_db, promoted through all Spark layers to Delta Lake"
+        description: "Product category dimension — Iceberg, escrita pelo Spark, lida pelo Trino via iceberglake"
 
   - name: gold_iceberg
-    database: delta
+    database: iceberglake
     schema: gold
+    description: "Gold layer — alias usado por models do domínio buyer (gold_dim_buyer futuro)"
     tables:
       - name: gold_dim_buyer
-        description: "Buyer dimension — Delta Lake gold table (aliased as gold_iceberg for compatibility)"
+        description: "Buyer dimension — tabela futura, ainda não populada pelo pipeline"
+
+  - name: bronze
+    database: iceberglake
+    schema: bronze
+    description: "Bronze layer — Iceberg tables (futuros jobs)"
+
+  - name: silver
+    database: iceberglake
+    schema: silver
+    description: "Silver layer — Iceberg tables (futuros jobs)"
