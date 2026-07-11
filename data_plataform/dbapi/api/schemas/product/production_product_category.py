@@ -30,6 +30,7 @@ class ProductCategorySchema(BaseModel):
     
     category_id: int = Field(gt=0) #garante id > 0
     category_name: ProductCategory
+    parent_category_id: Optional[int] = Field(None, description="NULL = categoria raiz")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True

@@ -29,12 +29,12 @@ class HumanResourcesEmployeeModel(Base, AuditMixin):
     local_currency = Column(String(3), nullable=False, default="BRL")
     
     hire_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    enddate = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    
+    enddate = Column(DateTime(timezone=True), nullable=True, default=None)
+
     role_attributes = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
-    
+
     current_salary = Column(Numeric(19,4), nullable=False, default=0.0)
     effective_startdate = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    effective_enddate = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    effective_enddate = Column(DateTime(timezone=True), nullable=True, default=None)
     is_current = Column(Boolean, nullable=False, default=True)
     

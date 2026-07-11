@@ -28,7 +28,7 @@ spark.driver.extraJavaOptions    -XX:+UseG1GC -XX:+UseStringDeduplication -XX:In
 
 # --- MinIO (S3A) ---
 spark.hadoop.fs.s3a.impl         org.apache.hadoop.fs.s3a.S3AFileSystem
-spark.hadoop.fs.s3a.endpoint     http://minio:9000
+spark.hadoop.fs.s3a.endpoint     ${MINIO_ENDPOINT}
 spark.hadoop.fs.s3a.access.key   ${MINIO_ACCESS_KEY}
 spark.hadoop.fs.s3a.secret.key   ${MINIO_SECRET_KEY}
 spark.hadoop.fs.s3a.path.style.access true
@@ -42,7 +42,7 @@ spark.sql.extensions             io.delta.sql.DeltaSparkSessionExtension,org.apa
 # DeltaCatalog wraps the built-in Hive catalog, adding Delta Lake support.
 spark.sql.catalog.spark_catalog           org.apache.spark.sql.delta.catalog.DeltaCatalog
 spark.sql.catalog.spark_catalog.warehouse s3a://deltadw/
-spark.hadoop.hive.metastore.uris          thrift://hive-metastore:9083
+spark.hadoop.hive.metastore.uris          ${HIVE_METASTORE_URI}
 
 # --- NEXO (Iceberg REST Catalog via Unity Catalog OSS) ---
 # Catálogo oficial da plataforma — gerenciado pelo Unity Catalog OSS.
@@ -51,7 +51,7 @@ spark.hadoop.hive.metastore.uris          thrift://hive-metastore:9083
 # Schemas disponíveis: bronze | silver | gold | product | sales | purchasing | ...
 spark.sql.catalog.nexo                    org.apache.iceberg.spark.SparkCatalog
 spark.sql.catalog.nexo.catalog-impl       org.apache.iceberg.rest.RESTCatalog
-spark.sql.catalog.nexo.uri                http://unitycatalog:8080/api/2.1/unity-catalog/iceberg
+spark.sql.catalog.nexo.uri                ${UNITYCATALOG_REST_URI}
 spark.sql.catalog.nexo.token              not-used
 spark.sql.catalog.nexo.warehouse          unity
 spark.sql.catalog.nexo.format-version     3
@@ -64,7 +64,7 @@ spark.sql.catalog.nexo.io-impl            org.apache.iceberg.hadoop.HadoopFileIO
 # Coexiste com spark_catalog (Delta) porque usa databases distintos no Hive Metastore.
 spark.sql.catalog.iceberglake                            org.apache.iceberg.spark.SparkCatalog
 spark.sql.catalog.iceberglake.catalog-impl               org.apache.iceberg.hive.HiveCatalog
-spark.sql.catalog.iceberglake.uri                        thrift://hive-metastore:9083
+spark.sql.catalog.iceberglake.uri                        ${HIVE_METASTORE_URI}
 spark.sql.catalog.iceberglake.warehouse                  s3a://deltadw/iceberglake
 spark.sql.catalog.iceberglake.io-impl                    org.apache.iceberg.hadoop.HadoopFileIO
 # HMS standalone não tem tabelas ACID (TXN_COMPONENTS etc.) — locking via Thrift falha.

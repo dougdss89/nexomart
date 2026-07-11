@@ -46,5 +46,15 @@ RUN curl -fSL https://repo1.maven.org/maven2/io/dataflint/spark_2.13/0.9.9/spark
     chown spark:spark "$SPARK_HOME/jars/spark_2.13-0.9.9.jar" && \
     chown -R spark:spark /opt/spark/spark-events
 
+# hadoop-aws + aws-java-sdk-bundle baked into the image so the History Server can read
+# s3a://spark-events/apps on first boot, without depending on a prior spark-submit job
+# having populated the shared Ivy cache (spark.jars.packages only resolves via SparkSubmit,
+# which Master/Worker/HistoryServer daemons bypass).
+RUN curl -fSL https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar \
+        -o "$SPARK_HOME/jars/hadoop-aws-3.3.4.jar" && \
+    curl -fSL https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar \
+        -o "$SPARK_HOME/jars/aws-java-sdk-bundle-1.12.262.jar" && \
+    chown spark:spark "$SPARK_HOME/jars/hadoop-aws-3.3.4.jar" "$SPARK_HOME/jars/aws-java-sdk-bundle-1.12.262.jar"
+
 USER spark
 ENTRYPOINT ["/entrypoint.sh"]

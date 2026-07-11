@@ -2,6 +2,7 @@ import uuid
 import hashlib
 import random
 from datetime import datetime
+from api.seeder.chaos import apply_embedding_chaos
 
 def get_product_embedding_seeders(products: list[dict]) -> list[dict]:
     """
@@ -35,13 +36,7 @@ def get_product_embedding_seeders(products: list[dict]) -> list[dict]:
             "generation_method": "mock_seeder_batch"
         }
         
-        # 4. Injetar ocasionalmente anomalias de AI Engineering
-        # Ex: Falha na extração de imagem (Vetor None)
-        if random.random() < 0.05:
-            img_vector = None
-            ai_metadata["image_model"] = "failed_extraction"
-            
-        # 5. Montagem do payload 
+        # 4. Montagem do payload
         # O sqlalchemy pgvector e o jsonb lidarão com as conversões internamente na camada service
         batch.append({
             "product_id": product_id,
@@ -54,8 +49,8 @@ def get_product_embedding_seeders(products: list[dict]) -> list[dict]:
             "is_active": True,
             "row_guid": str(uuid.uuid4())
         })
-        
-    return batch
+
+    return apply_embedding_chaos(batch)
 
 # --- TESTANDO NO TERMINAL ---
 if __name__ == "__main__":

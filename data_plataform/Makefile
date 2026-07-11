@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 SECRETS       := configurations/secrets.env
 COMPOSE       := docker compose --env-file $(SECRETS)
+WORKERS       ?= 1
 
 # ── Help ────────────────────────────────────────────────────────────────────────
 .PHONY: help
@@ -16,6 +17,16 @@ init: ## Cria a rede e os volumes Docker compartilhados
 	docker volume  create spark-logs     2>/dev/null || true
 	docker volume  create spark-ivy-cache 2>/dev/null || true
 	docker volume  create spark-jobs     2>/dev/null || true
+	@# astro (uid 50000, gid 50000) precisa escrever em /dockervol/airflow-logs
+	@# (AIRFLOW__LOGGING__BASE_LOG_FOLDER); o volume nasce root:root 755, então
+	@# criamos a pasta com o dono certo e liberamos escrita de grupo p/ futuras subpastas.
+	docker run --rm -v dockervol:/dockervol busybox sh -c \
+		"mkdir -p /dockervol/airflow-logs && chown -R 50000:50000 /dockervol/airflow-logs && chmod 775 /dockervol"
+	@# spark-ivy-cache também nasce root:root 755. Tanto o processo spark (uid 1000,
+	@# em spark-master/worker) quanto astro (uid 50000, quando o SparkSubmitOperator do
+	@# Airflow roda spark-submit como driver a partir do airflow-worker) precisam escrever
+	@# ali para resolver spark.jars.packages via Ivy — sem grupo em comum, liberamos 777.
+	docker run --rm -v spark-ivy-cache:/ivy busybox chmod 777 /ivy
 	@echo "✅  Rede hadoopcluster e volumes criados."
 
 .PHONY: build
@@ -45,8 +56,14 @@ up: init generate-confs build ## Sobe toda a stack em ordem de dependência (gen
 	@echo "▶  [1/8] PostgreSQL..."
 	$(COMPOSE) -f postgres/docker-compose.yml up -d --wait
 
-	@echo "▶  [2/8] MinIO..."
-	$(COMPOSE) -f minio/docker-compose.yml up -d --wait
+	@echo "▶  [2/8] MinIO (+ provisionamento de buckets via minio-init)..."
+	@# `--wait` no arquivo inteiro quebraria aqui: minio-init é um job one-shot que
+	@# termina (exit 0) de propósito, e o `--wait` do Compose trata qualquer container
+	@# parado como falha, mesmo com exit code 0. Por isso esperamos só o "minio" (via
+	@# --wait com o nome do serviço) e depois rodamos o "minio-init" em foreground —
+	@# sem -d, `up` bloqueia até o container terminar e propaga o exit code real dele.
+	$(COMPOSE) -f minio/docker-compose.yml up -d --wait minio
+	$(COMPOSE) -f minio/docker-compose.yml up minio-init
 
 	@echo "▶  [3/8] Hive Metastore..."
 	$(COMPOSE) -f hive/docker-compose.yml up -d
@@ -76,8 +93,8 @@ up: init generate-confs build ## Sobe toda a stack em ordem de dependência (gen
 	@echo "   Unity Catalog API  →  http://localhost:8182/api/2.1/unity-catalog"
 
 .PHONY: down
-down: ## Para toda a stack (dados preservados nos volumes)
-	@echo "⏹  Parando serviços..."
+down: ## Para e REMOVE os containers de toda a stack (dados preservados nos volumes nomeados)
+	@echo "⏹  Parando e removendo containers..."
 	-$(COMPOSE) -f dbapi/docker-compose.yml         down
 	-$(COMPOSE) -f airflow/docker-compose.yaml      down
 	-$(COMPOSE) -f trino/docker-compose.yml         down
@@ -86,7 +103,43 @@ down: ## Para toda a stack (dados preservados nos volumes)
 	-$(COMPOSE) -f hive/docker-compose.yml          down
 	-$(COMPOSE) -f minio/docker-compose.yml         down
 	-$(COMPOSE) -f postgres/docker-compose.yml      down
-	@echo "✅  Todos os serviços parados."
+	@echo "✅  Todos os containers removidos (volumes intactos — use \`make up\` para recriar)."
+
+.PHONY: stop
+stop: ## Só PARA os containers (sem remover) — mais rápido pra retomar depois com `make start`
+	@echo "⏸  Parando containers (sem remover)..."
+	-$(COMPOSE) -f dbapi/docker-compose.yml         stop
+	-$(COMPOSE) -f airflow/docker-compose.yaml      stop
+	-$(COMPOSE) -f trino/docker-compose.yml         stop
+	-$(COMPOSE) -f spark/docker-compose.yml         stop
+	-$(COMPOSE) -f unitycatalog/docker-compose.yml  stop
+	-$(COMPOSE) -f hive/docker-compose.yml          stop
+	-$(COMPOSE) -f minio/docker-compose.yml         stop
+	-$(COMPOSE) -f postgres/docker-compose.yml      stop
+	@echo "✅  Containers parados (preservados — use \`make start\` pra retomar)."
+
+.PHONY: start
+start: ## Reinicia os containers parados com `make stop` (sem recriar) — uso: make start WORKERS=3
+	@echo "▶  Reiniciando containers..."
+	$(COMPOSE) -f postgres/docker-compose.yml      start
+	$(COMPOSE) -f minio/docker-compose.yml         start
+	$(COMPOSE) -f hive/docker-compose.yml          start
+	$(COMPOSE) -f unitycatalog/docker-compose.yml  start
+	@# `start` só reinicia containers que já existem — não cria réplicas novas. Pra
+	@# poder pedir WORKERS=N aqui (inclusive N > quantos existiam quando parou), usamos
+	@# `up -d --scale` em vez de `start`: se nada mudou de config, ele só inicia os
+	@# containers parados (mesmo efeito de `start`); se WORKERS mudou, ele cria/remove
+	@# réplicas pra bater com o número pedido.
+	$(COMPOSE) -f spark/docker-compose.yml up -d --scale spark-worker=$(WORKERS)
+	$(COMPOSE) -f trino/docker-compose.yml         start
+	$(COMPOSE) -f airflow/docker-compose.yaml      start
+	$(COMPOSE) -f dbapi/docker-compose.yml         start
+	@echo "✅  Stack reiniciada (spark-worker: $(WORKERS) réplica(s))."
+
+.PHONY: scale-spark
+scale-spark: ## Escala spark-worker sem mexer no resto da stack — uso: make scale-spark WORKERS=3
+	$(COMPOSE) -f spark/docker-compose.yml up -d --scale spark-worker=$(WORKERS)
+	@echo "✅  spark-worker escalado para $(WORKERS) réplica(s)."
 
 # ── Operações do dia a dia ───────────────────────────────────────────────────────
 .PHONY: ps
@@ -107,8 +160,9 @@ restart: ## Reinicia um container — uso: make restart s=spark-master
 up-postgres: init ## Sobe apenas PostgreSQL
 	$(COMPOSE) -f postgres/docker-compose.yml up -d --wait
 
-up-minio: init ## Sobe apenas MinIO
-	$(COMPOSE) -f minio/docker-compose.yml up -d --wait
+up-minio: init ## Sobe apenas MinIO (+ provisionamento de buckets via minio-init)
+	$(COMPOSE) -f minio/docker-compose.yml up -d --wait minio
+	$(COMPOSE) -f minio/docker-compose.yml up minio-init
 
 up-hive: init ## Builda e sobe apenas o Hive Metastore
 	$(COMPOSE) -f hive/docker-compose.yml build
@@ -158,14 +212,14 @@ lint-python: ## Executa apenas linters Python
 	isort --check-only .
 
 lint-sql: ## Executa apenas linter SQL
-	sqlfluff lint ../dbt/models/ --dialect postgres || true
+	sqlfluff lint dbt/models/ --dialect postgres || true
 	sqlfluff lint postgres/ --dialect postgres || true
 
 format: ## Formata código Python e SQL
 	ruff check . --fix
 	black .
 	isort .
-	sqlfluff fix ../dbt/models/ --dialect postgres || true
+	sqlfluff fix dbt/models/ --dialect postgres || true
 	sqlfluff fix postgres/ --dialect postgres || true
 
 test: ## Executa testes

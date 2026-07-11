@@ -18,19 +18,12 @@ def load_source_configurations(spark_application: str):
     try:
         config = load_config()
         
-        delta_paths = config.get("delta_path", {})
-        
-        validate_required_keys(
-            config=delta_paths,
-            required_keys=["raw_icebergdb", "silver_layer"],
-            config_name="delta_path"
-        )
-        
+
         spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        return spark, delta_paths.get("raw_icebergdb", ""), delta_paths.get("silver_layer", "")
+        return spark
 
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {str(e)}")
@@ -56,13 +49,11 @@ def load_source_configurations(spark_application: str):
         
 # starting dimension transformation
 
-def getCreateSurrogateKey(spark, bronze_base: str, table_name: str) -> DataFrame:
+def getCreateSurrogateKey(spark, table_name: str) -> DataFrame:
     
     try:
         
-        path = f"{bronze_base}/advworks_rawdb/{table_name}"
-        
-        dataframe = spark.read.format("delta").load(path)
+        dataframe = spark.table(f"iceberglake.bronze.{table_name}")
                 
         return dataframe
     
@@ -171,17 +162,16 @@ def transformBuyerDimension(dataframe: DataFrame, spark) -> DataFrame:
         exit(1)
         
         
-def writeBuyerDimension(dataframe: DataFrame, silver_base: str, table_name: str) -> DataFrame:
+def writeBuyerDimension(spark, dataframe: DataFrame, table_name: str) -> DataFrame:
     
     try:
-        path = f"{silver_base}/advworks_db/{table_name}"
+        spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberglake.silver")
         (
             dataframe
-                .write
-                .mode("overwrite")
-                .format("delta")
-                .option("mergeSchema", "true")
-                .save(path)
+            .writeTo(f"iceberglake.silver.{table_name}")
+            .tableProperty("format-version", "2")
+            .tableProperty("write.format.default", "parquet")
+            .createOrReplace()
         )
         
         return logger.info(f"Table writing successfully completed to iceberg: {table_name}")
@@ -216,16 +206,16 @@ def main():
     
     try:
         
-        spark, bronze_base, silver_base = load_source_configurations(application_name)
+        spark = load_source_configurations(application_name)
         
-        dataframe = getCreateSurrogateKey(spark, bronze_base, table_name)
+        dataframe = getCreateSurrogateKey(spark, table_name)
         
         dataframe = transformBuyerDimension(dataframe, spark)
         
-        writeBuyerDimension(dataframe=dataframe, silver_base=silver_base, table_name=dimension_table)
+        writeBuyerDimension(spark, dataframe, table_name=dimension_table)
         
         logger.info(f"""dataframe has been writted successfully: {dataframe.schema} 
-                        on path: {silver_base}.{dimension_table}""")
+                        on path: iceberglake.silver.{dimension_table}""")
         
         logger.info("All functions have been executed successfully ")
         

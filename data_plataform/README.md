@@ -1,46 +1,46 @@
 # Data Platform — NexoMart
 
-Plataforma de dados open-source construída do zero para o case **NexoMart** — um marketplace brasileiro multi-canal que processa entre 100 mil e 50 milhões de pedidos por ciclo. O objetivo é separar a camada transacional (OLTP) da analítica (OLAP), sem depender de nenhuma cloud proprietária.
+Open-source data platform built from scratch for the **NexoMart** case study — a multi-channel Brazilian marketplace processing between 100 thousand and 50 million orders per cycle. The goal is to separate the transactional layer (OLTP) from the analytical layer (OLAP) without depending on any proprietary cloud.
 
 ---
 
-## Arquitetura
+## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      INGESTÃO & API                          │
+│                      INGESTION & API                         │
 │    FastAPI (async) + SQLAlchemy 2.0 + asyncpg + Pydantic     │
 ├──────────────────────────────────────────────────────────────┤
-│                       BANCO OLTP                             │
-│     PostgreSQL 16 + pgvector + JSONB + Particionamento       │
+│                       OLTP DATABASE                          │
+│     PostgreSQL 16 + pgvector + JSONB + Partitioning          │
 ├──────────────────────────────────────────────────────────────┤
-│                      ORQUESTRAÇÃO                            │
+│                      ORCHESTRATION                           │
 │           Apache Airflow 2.9 (CeleryExecutor + Redis)        │
 ├──────────────────────────────────────────────────────────────┤
-│              PROCESSAMENTO DISTRIBUÍDO (Spark 3.5.8)         │
+│              DISTRIBUTED PROCESSING (Spark 3.5.8)            │
 │  Landing → Bronze → Silver (Delta Lake) → Gold (Iceberg)     │
 ├──────────────────────────────────────────────────────────────┤
-│                  ARMAZENAMENTO ANALÍTICO                      │
+│                   ANALYTICAL STORAGE                         │
 │       Delta Lake + Apache Iceberg + MinIO (S3-compatible)    │
 ├──────────────────────────────────────────────────────────────┤
-│                  CATÁLOGO & METASTORE                         │
+│                  CATALOG & METASTORE                         │
 │    Hive Metastore 4.0 (PostgreSQL) + Unity Catalog OSS       │
 ├──────────────────────────────────────────────────────────────┤
-│                   FEDERAÇÃO DE CONSULTAS                      │
+│                   QUERY FEDERATION                           │
 │    Apache Trino 482 (delta_lake + iceberg + nexo catalogs)   │
 ├──────────────────────────────────────────────────────────────┤
-│                  TRANSFORMAÇÕES ANALÍTICAS                    │
-│                  dbt-trino 1.10 / dbt-core 1.11              │
+│                 ANALYTICAL TRANSFORMATIONS                   │
+│                  dbt-trino 1.10 / dbt-core 1.11               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### Pipeline de Dados (Medallion Architecture)
+### Data Pipeline (Medallion Architecture)
 
 ```
 PostgreSQL (OLTP)
       │
       ▼
- Landing  (Parquet bruto,  s3a://landing/)
+ Landing  (raw Parquet,   s3a://landing/)
       │  spark/jobs/landing_layer_scripts/
       ▼
  Bronze   (Delta Lake,     s3a://bronze/)
@@ -51,165 +51,173 @@ PostgreSQL (OLTP)
       ▼
  Gold     (Apache Iceberg, s3a://deltadw/iceberglake/)
       │  spark/jobs/gold_layer_scripts/
-      │  catálogo: iceberglake (HiveCatalog → HMS)
+      │  catalog: iceberglake (HiveCatalog → HMS)
       ▼
- Trino ──► dbt (views/marts analíticos no catálogo iceberglake.gold)
+ Trino ──► dbt (analytical views/marts in the iceberglake.gold catalog)
 ```
 
-**Formatos por camada:**
+**Format per layer:**
 
-| Camada | Formato | Catálogo Spark | Catálogo Trino |
-|--------|---------|---------------|----------------|
-| Landing | Parquet bruto | — | `minio` |
+| Layer | Format | Spark Catalog | Trino Catalog |
+|-------|--------|----------------|----------------|
+| Landing | Raw Parquet | — | `minio` |
 | Bronze | Delta Lake | `spark_catalog` | `delta` |
 | Silver | Delta Lake | `spark_catalog` | `delta` |
 | Gold | Apache Iceberg | `iceberglake` | `iceberglake` |
-| Marts dbt | Views Trino | — | `iceberglake` |
+| dbt marts | Trino views | — | `iceberglake` |
 
 ---
 
-## Catálogos
+## Catalogs
 
-### Spark — 3 catálogos simultâneos
+### Spark — 3 simultaneous catalogs
 
-| Catálogo | Implementação | Uso |
-|----------|--------------|-----|
-| `spark_catalog` | DeltaCatalog (padrão) | Landing, Bronze, Silver em Delta Lake |
-| `iceberglake` | IcebergHiveCatalog (HMS) | Escrita Gold em Iceberg |
-| `nexo` | IcebergRESTCatalog (UC OSS) | Leitura via Unity Catalog |
+| Catalog | Implementation | Use |
+|---------|-----------------|-----|
+| `spark_catalog` | DeltaCatalog (default) | Landing, Bronze, Silver in Delta Lake |
+| `iceberglake` | IcebergHiveCatalog (HMS) | Gold writes in Iceberg |
+| `nexo` | IcebergRESTCatalog (UC OSS) | Reads via Unity Catalog |
 
 ```python
-# Gold — escrita Iceberg via HiveCatalog
+# Gold — Iceberg write via HiveCatalog
 df.writeTo("iceberglake.gold.gold_dim_productcategory").createOrReplace()
 
-# Leitura via Unity Catalog REST
+# Read via Unity Catalog REST
 spark.sql("SELECT * FROM nexo.gold.gold_dim_productcategory")
 ```
 
-### Trino — 4 catálogos
+### Trino — 4 catalogs
 
-| Catálogo | Connector | Uso |
-|----------|-----------|-----|
-| `delta` | `delta_lake` + HMS | Bronze e Silver |
-| `iceberglake` | `iceberg` + HMS | Gold (leitura e dbt) |
+| Catalog | Connector | Use |
+|---------|-----------|-----|
+| `delta` | `delta_lake` + HMS | Bronze and Silver |
+| `iceberglake` | `iceberg` + HMS | Gold (reads and dbt) |
 | `nexo` | `iceberg` + UC REST | Unity Catalog OSS |
-| `minio` | `delta_lake` + HMS | Landing / exploração bruta |
+| `minio` | `delta_lake` + HMS | Landing / raw exploration |
 
 ```sql
--- Consultar Gold via Trino
+-- Query Gold via Trino
 SELECT * FROM iceberglake.gold.gold_dim_productcategory LIMIT 10;
 SHOW TABLES IN iceberglake.gold;
 ```
 
 ### Unity Catalog OSS — via REST API
 
-A GUI do UC OSS v0.4.0 requer OAuth (Google/OIDC) e não funciona sem um provider configurado. Use a REST API ou o catálogo `nexo` no Spark/Trino:
+The UC OSS v0.4.0 GUI requires OAuth (Google/OIDC) and doesn't work without a configured provider. Use the REST API or the `nexo` catalog in Spark/Trino instead:
 
 ```bash
-# Catálogos
+# Catalogs
 curl -s http://localhost:8182/api/2.1/unity-catalog/catalogs | python3 -m json.tool
 
 # Schemas
 curl -s "http://localhost:8182/api/2.1/unity-catalog/schemas?catalog_name=unity" | python3 -m json.tool
 
-# Tabelas
+# Tables
 curl -s "http://localhost:8182/api/2.1/unity-catalog/tables?catalog_name=unity&schema_name=gold" | python3 -m json.tool
 ```
 
 ---
 
-## Domínios de Negócio
+## Business Domains
 
-| Schema | Domínio | Descrição |
-|--------|---------|-----------|
-| `product` | Produto | Catálogo, modelos, categorias, busca semântica via pgvector |
-| `person` | Pessoa | Clientes, vendedores, endereços, contatos |
-| `sales` | Vendas | Pedidos, itens (JSONB multi-seller), devoluções, pagamentos |
-| `marketing` | Marketing | Campanhas, anúncios, performance por canal (4 níveis) |
-| `humanresources` | RH | Funcionários, departamentos, histórico de cargos (SCD Type 2) |
-| `purchasing` | Compras | Ordens de compra, fornecedores, recebimento |
-| `warehouse` | Estoque | Inventário, transferências, histórico de movimentações |
+| Schema | Domain | Description |
+|--------|--------|-------------|
+| `product` | Product | Catalog, models, categories, semantic search via pgvector |
+| `person` | Person | Customers, sellers, addresses, contacts |
+| `sales` | Sales | Orders, line items (multi-seller JSONB), returns, payments |
+| `marketing` | Marketing | Campaigns, ads, per-channel performance (4 levels) |
+| `humanresources` | HR | Employees, departments, job history (SCD Type 2) |
+| `purchasing` | Purchasing | Purchase orders, vendors, receiving |
+| `warehouse` | Warehouse | Inventory, transfers, movement history |
 
 ---
 
-## Estrutura do Repositório
+## Repository Structure
 
 ```
 data_plataform/
-├── dbapi/                  # API de ingestão (FastAPI)
+├── dbapi/                  # Ingestion API (FastAPI)
 │   └── api/
-│       ├── models/         # SQLAlchemy models por domínio
+│       ├── models/         # SQLAlchemy models per domain
 │       ├── schemas/        # Pydantic schemas
-│       ├── repositories/   # Camada de acesso a dados (bulk insert)
-│       ├── services/       # Lógica de negócio
-│       ├── routers/        # Endpoints FastAPI
-│       ├── seeder/         # Geradores de dados com chaos engineering
-│       └── samples/        # Dados de referência por domínio
+│       ├── repositories/   # Data access layer (bulk insert)
+│       ├── services/       # Business logic
+│       ├── routers/        # FastAPI endpoints
+│       ├── seeder/         # Data generators with chaos engineering
+│       └── samples/        # Reference data per domain
 ├── postgres/               # PostgreSQL 16 + init scripts
-├── minio/                  # Object storage S3-compatible
+├── minio/                  # S3-compatible object storage
 ├── airflow/
-│   ├── dags/               # DAGs do Airflow
-│   └── dockerfile          # Astro Runtime 11.4 com Spark 3.5.8 embutido
+│   ├── dags/               # Airflow DAGs
+│   └── dockerfile          # Astro Runtime 11.4 with Spark 3.5.8 embedded
 ├── spark/
-│   ├── jobs/               # Scripts PySpark por camada
+│   ├── jobs/               # PySpark scripts per layer
 │   │   ├── landing_layer_scripts/
 │   │   ├── raw_layer_extract_scripts/    # bronze
 │   │   ├── silver_layer_advworks_scripts/
 │   │   └── gold_layer_scripts/           # Iceberg via iceberglake
 │   └── conf/
-│       └── spark-defaults.conf.template  # gerado via envsubst
+│       └── spark-defaults.conf.template  # generated via envsubst
 ├── hive/                   # Hive Metastore 4.0 (PostgreSQL backend)
 ├── trino/
-│   └── catalog/            # delta.properties, iceberglake.properties, nexo.properties, minio.properties
+│   └── catalog/             # delta.properties, iceberglake.properties, nexo.properties, minio.properties
 ├── unitycatalog/           # Unity Catalog OSS (REST API + Iceberg REST catalog)
 ├── configurations/
-│   ├── .env                # Paths de jobs, buckets MinIO, conexões
-│   ├── secrets.env         # Credenciais (não commitado)
+│   ├── .env                # Job paths, MinIO buckets, connections
+│   ├── secrets.env         # Credentials (not committed)
 │   ├── profiles.yml        # dbt target: iceberglake.gold via Trino
-│   ├── dbt/                # Projeto dbt-trino (modelos gold)
+│   ├── dbt/                # dbt-trino project (gold models)
 │   └── configconnections_loader.py
-└── Makefile                # Comandos de operação da stack
+└── Makefile                # Stack operation commands
 ```
 
 ---
 
-## Pré-requisitos
+## Prerequisites
 
-- Docker Desktop (WSL2 no Windows)
+- Docker Desktop (WSL2 on Windows)
 - Docker Compose v2
 - Make
-- Python 3.12+ com [uv](https://github.com/astral-sh/uv)
+- Python 3.12+ with [uv](https://github.com/astral-sh/uv)
 
 ---
 
-## Início Rápido
+## Quick Start
 
-### Primeira vez
+### First time
 
 ```bash
-# 1. Configure as credenciais (nunca commitadas)
+# 1. Set up credentials (never committed)
 cp configurations/secrets.env.example configurations/secrets.env
-# edite secrets.env com os valores reais
+# edit secrets.env with real values
 
-# 2. Cria rede, volumes e builda as imagens
+# 2. Create network, volumes, and build images
 make setup
 
-# 3. Sobe toda a stack (gera configs e inicia serviços em ordem)
+# 3. Bring up the whole stack (generates configs and starts services in order)
 make up
 ```
 
-### Dia a dia
+### Day to day
 
 ```bash
-make up          # sobe tudo
-make down        # para tudo (dados preservados)
-make ps          # lista containers com status e portas
-make logs s=trino-coordinator   # tail de logs de um container
-make restart s=spark-master     # reinicia um container
-make clean       # ⚠️  remove containers e volumes (apaga dados)
+make up          # brings everything up (creates containers)
+make down        # stops AND REMOVES all containers in the stack
+make stop        # just STOPS containers (no removal) — faster to resume
+make start       # restarts containers stopped with `make stop` (no recreation)
+make start WORKERS=3   # same, but scales spark-worker to 3 replicas as it restarts
+make scale-spark WORKERS=3   # scale spark-worker up/down without touching anything else
+make ps          # lists running containers with status and ports
+make logs s=trino-coordinator   # tail logs for one container
+make restart s=spark-master     # restart one container
+make clean       # ⚠️  removes containers AND volumes (destroys data)
 ```
 
-### Serviços individuais
+`make down` removes containers, but it **does not** delete data — everything that matters (Postgres, MinIO, `dockervol`, Spark caches) lives in named Docker volumes (`postgres_pgprojeto_data`, `minio_minio_data`, etc.), which are only removed with an explicit `-v`/`--volumes` flag — something no target other than `clean` (⚠️ intentionally destructive) does. Use `make down`/`make up` when you edit a `docker-compose.yml` (the container needs to be recreated to pick up the change); use `make stop`/`make start` for day-to-day work (e.g. pausing before shutting down your machine) — faster to resume, same data-preservation guarantee.
+
+`spark-worker` (`spark/docker-compose.yml`) is sized at 4 cores / 8GB per replica (`SPARK_WORKER_CORES`/`SPARK_WORKER_MEMORY`/`SPARK_WORKER_MEM_LIMIT` in `configurations/secrets.env`) specifically so it can scale to 3 replicas — 12 cores / 24GB total — without starving the rest of the stack. `WORKERS` defaults to `1` for normal day-to-day use; pass `WORKERS=N` to `make start` or `make scale-spark` to scale out for heavier jobs, then scale back down (`make scale-spark WORKERS=1`) when done. `docker compose start` can't create new replicas (it only restarts containers that already exist), so both targets use `up -d --scale` under the hood instead — which also means they're safe to call any time, not just after a `make stop`.
+
+### Individual services
 
 ```bash
 make up-postgres
@@ -224,110 +232,130 @@ make up-dbapi
 
 ---
 
-## URLs dos Serviços
+## MinIO Buckets
 
-| Serviço | URL | Credenciais |
-|---------|-----|-------------|
-| MinIO Console | http://localhost:9001 | conforme `secrets.env` |
+Buckets are provisioned automatically by the `minio-init` service (`minio/docker-compose.yml`) every time MinIO comes up (`make up` or `make up-minio`) — there's no need to create them manually. It's a one-shot container that runs `mc mb --ignore-existing` for each bucket and exits (same pattern as `airflow-init`); idempotent, so running it again against buckets that already exist doesn't error.
+
+- **`spark-events`** is mandatory and hardcoded in `minio-init` (it does not live in the list below): the Spark History Server reads `spark.eventLog.dir=s3a://spark-events/apps` (`spark/conf/spark-defaults.conf.template`) and fails on boot if the bucket/prefix doesn't exist.
+- **Everything else comes from `MINIO_EXTRA_BUCKETS`** in `configurations/secrets.env` — a comma-separated list, no spaces. Currently:
+
+  ```bash
+  MINIO_EXTRA_BUCKETS=landing,bronze,silver,iceberg,deltadw
+  ```
+
+  When adding a new pipeline or layer that writes to a bucket that isn't provisioned yet (e.g. `s3a://a-new-bucket/...` in a new Spark job), just append the name to this variable in `secrets.env` **and** in `secrets.env.example` — no code or compose file needs to change. The bucket is created automatically on the next `make up`/`make up-minio`.
+
+```bash
+# Re-provision buckets without touching the rest of the stack (e.g. after editing MINIO_EXTRA_BUCKETS)
+make up-minio
+```
+
+---
+
+## Service URLs
+
+| Service | URL | Credentials |
+|---------|-----|--------------|
+| MinIO Console | http://localhost:9001 | per `secrets.env` |
 | Spark Master UI | http://localhost:9090 | — |
 | Spark History Server | http://localhost:18080 | — |
-| DataFlint (live, durante job) | http://localhost:4040/dataflint | — |
+| DataFlint (live, during a job) | http://localhost:4040/dataflint | — |
 | Trino UI | http://localhost:8070 | — |
-| Airflow UI | http://localhost:8181 | conforme `secrets.env` |
+| Airflow UI | http://localhost:8181 | per `secrets.env` |
 | Unity Catalog REST API | http://localhost:8182/api/2.1/unity-catalog | — |
 | dbapi (FastAPI) | http://localhost:8001 | — |
 | dbapi Docs | http://localhost:8001/docs | — |
 
 ---
 
-## DAG de Integração End-to-End
+## End-to-End Integration DAG
 
-`integration_e2e_test` — sequência completa do pipeline:
+`integration_e2e_test` — full pipeline sequence:
 
 ```
 start → seed_postgres → pg_landing → pg_bronze → pg_silver
       → pg_gold → trino_validate → dbt_run → dbt_test → end
 ```
 
-`pg_gold` usa `SparkSubmitOperator` em **client mode** (driver no `airflow_worker`). O job escreve em `iceberglake.gold.gold_dim_productcategory` via Iceberg + HiveCatalog.
+`pg_gold` uses `SparkSubmitOperator` in **client mode** (driver on `airflow_worker`). The job writes to `iceberglake.gold.gold_dim_productcategory` via Iceberg + HiveCatalog.
 
 ```bash
-# Disparar via CLI
+# Trigger via CLI
 docker exec airflow_scheduler airflow dags trigger integration_e2e_test
 
-# Monitorar
+# Monitor
 docker exec airflow_scheduler airflow tasks states-for-dag-run \
   integration_e2e_test <run_id>
 ```
 
 ---
 
-## Monitoramento de Queries Spark
+## Spark Query Monitoring
 
-### DataFlint — planos de execução enriquecidos
+### DataFlint — enriched execution plans
 
-O DataFlint (JAR baked nas imagens Spark) adiciona análise visual de query plans.
+DataFlint (JAR baked into the Spark images) adds visual query-plan analysis.
 
-**Live view** (durante um job em execução):
+**Live view** (while a job is running):
 ```
 http://localhost:4040/dataflint
 ```
-A porta 4040 fica ativa enquanto o driver do job estiver rodando no `airflow_worker`.
+Port 4040 stays active while the job's driver is running on `airflow_worker`.
 
-**History view** (jobs concluídos):
+**History view** (completed jobs):
 ```
-http://localhost:18080  → clique em uma app → aba "DataFlint"
-                        → aba "SQL / DataFrame" (view padrão do Spark)
+http://localhost:18080  → click an app → "DataFlint" tab
+                        → "SQL / DataFrame" tab (Spark's default view)
 ```
 
-**PySpark interativo** (driver permanente para exploração):
+**Interactive PySpark** (a standing driver for exploration):
 ```bash
 docker exec -it airflow_worker /opt/spark/bin/pyspark \
   --master spark://spark-master:7077 \
   --conf spark.driver.host=172.18.0.12 \
   --conf spark.driver.bindAddress=0.0.0.0
 ```
-Enquanto o shell estiver aberto, `localhost:4040/dataflint` permanece acessível.
+While the shell is open, `localhost:4040/dataflint` stays reachable.
 
 ---
 
-## Configurações Críticas da Stack
+## Critical Stack Configuration
 
 ### spark-defaults.conf
 
-Gerado pelo `make up` via `envsubst` a partir do template. **Nunca edite o `.conf` diretamente** — edite o `.template` e regenere:
+Generated by `make up` via `envsubst` from the template. **Never edit the `.conf` directly** — edit the `.template` and regenerate:
 
 ```bash
 export $(grep -v '^#' configurations/secrets.env | xargs)
 envsubst < spark/conf/spark-defaults.conf.template > spark/conf/spark-defaults.conf
 ```
 
-Chaves obrigatórias:
+Required keys:
 
 ```properties
-# Metastore externo (sem isso Spark usa Derby local)
+# External metastore (without this, Spark falls back to local Derby)
 spark.sql.catalogImplementation      hive
 spark.sql.warehouse.dir              s3a://deltadw/warehouse/
 spark.hadoop.hive.metastore.uris     thrift://hive-metastore:9083
 
-# Catálogo Iceberg via HMS (escrita Gold)
+# Iceberg catalog via HMS (Gold writes)
 spark.sql.catalog.iceberglake                   org.apache.iceberg.spark.SparkCatalog
 spark.sql.catalog.iceberglake.catalog-impl      org.apache.iceberg.hive.HiveCatalog
 spark.sql.catalog.iceberglake.uri               thrift://hive-metastore:9083
 spark.sql.catalog.iceberglake.hive.lock-enabled false
 
-# Catálogo Iceberg via Unity Catalog REST (leitura nexo)
+# Iceberg catalog via Unity Catalog REST (nexo reads)
 spark.sql.catalog.nexo                   org.apache.iceberg.spark.SparkCatalog
 spark.sql.catalog.nexo.catalog-impl      org.apache.iceberg.rest.RESTCatalog
 spark.sql.catalog.nexo.uri               http://unitycatalog:8080/api/2.1/unity-catalog/iceberg
 
-# Credenciais MinIO
+# MinIO credentials
 spark.hadoop.fs.s3a.access.key       minioadmin
 spark.hadoop.fs.s3a.secret.key       minioadmin
 spark.hadoop.fs.s3a.endpoint         http://minio:9000
 ```
 
-### dbt — Modelos Gold
+### dbt — Gold Models
 
 Target: `iceberglake.gold` via Trino (`configurations/profiles.yml`).
 
@@ -341,163 +369,201 @@ data_platform:
       schema: gold
 ```
 
-Use `materialized='view'` para marts que são projeções diretas — sem escrita no S3, sem resíduos `__dbt_tmp` / `__dbt_backup`.
+Use `materialized='view'` for marts that are direct projections — no S3 writes, no `__dbt_tmp` / `__dbt_backup` leftovers.
 
-Sources declaradas em `configurations/dbt/models/gold/sources.yml`:
-- `gold` → `iceberglake.gold` (tabelas Iceberg escritas pelo Spark)
-- `gold_iceberg` → alias para domínios futuros (buyer)
-
----
-
-## Problemas Conhecidos e Correções
-
-### 1. Iceberg HiveCatalog: `LockException` no HMS
-
-**Sintoma:** `LockException: Failed to find lock for table gold.gold_dim_productcategory`, precedido por `Internal error processing show_locks`.
-
-**Causa:** O `MetastoreLock` do Iceberg chama `show_locks` via Thrift, que exige as tabelas ACID no PostgreSQL do metastore (`TXNS`, `HIVE_LOCKS`, `TXN_COMPONENTS`, `NEXT_LOCK_ID`, etc.). Em uma instalação standalone do HMS sem inicialização ACID, essas tabelas não existem.
-
-**Correção aplicada:**
-1. `spark.sql.catalog.iceberglake.hive.lock-enabled = false` no `spark-defaults.conf` (o bind mount no `airflow_worker` precisa ser forçado — veja item 4 abaixo).
-2. Tabelas ACID criadas no PostgreSQL do metastore a partir do schema em `/opt/hive/scripts/metastore/upgrade/postgres/hive-schema-4.0.0-alpha-1.postgres.sql` (linhas 1710–2100).
+Sources declared in `configurations/dbt/models/gold/sources.yml`:
+- `gold` → `iceberglake.gold` (Iceberg tables written by Spark)
+- `gold_iceberg` → alias for future domains (buyer)
 
 ---
 
-### 2. Trino: `HIVE_CANNOT_OPEN_SPLIT` após recriar tabela Gold (Delta)
+## Known Issues and Fixes
 
-**Sintoma:** `SELECT *` na tabela Gold Delta falha com `Error opening Hive split`. `SELECT count(*)` passa.
+### 1. Hive Metastore schema incomplete: Iceberg commit locking fails with `Internal error processing lock`
 
-**Causa:** o Trino cacheia o `_delta_log/00000000000000000000.json` em memória. Se a tabela é apagada e recriada na mesma path, o Delta Log reinicia no version 0 (mesmo nome de arquivo) mas o Trino serve o conteúdo antigo.
+**Symptom:** Spark writes to Iceberg tables (`iceberglake.*`) commit successfully but then hang or fail during the post-commit lock check, with `org.apache.thrift.TApplicationException: Internal error processing lock` on the Airflow/Spark side, and `relation "HIVE_LOCKS" does not exist` (`BadSqlGrammarException`) in the Hive Metastore's own log (`/tmp/hive/hive.log` inside the `hive-metastore` container).
 
-**Nota:** A camada Gold migrou para Iceberg (`iceberglake`), eliminando este problema para tabelas Gold. Ainda relevante para Bronze/Silver.
+**Root cause:** `hive/docker-compose.yml` had `IS_RESUME: "true"` hardcoded, which makes the base image's entrypoint skip `schematool` entirely on every boot — for Hive 4.x this should instead run `schematool -initOrUpgradeSchema`, which is idempotent (version-checks and only initializes/upgrades what's missing) and safe to run on every start. Combined with `datanucleus.schema.autoCreateAll=true` in `hive/conf/hive-site.xml`, the Metastore silently self-provisioned only the tables mapped through its ORM layer on first use, but never the raw-SQL-only tables (`TXNS`, `HIVE_LOCKS`, `WM_*`, etc.) that Iceberg's `HiveCatalog`/`MetastoreLock` needs for commit locking. The `VERSION` table stayed empty — confirming schema init had, in fact, never properly run, even though the Metastore appeared to work fine for plain catalog reads/writes.
 
-**Correção emergencial:**
+Note that `spark.sql.catalog.iceberglake.hive.lock-enabled=false` is already set in `spark-defaults.conf.template` — but it wasn't sufficient on its own to avoid the failure; Iceberg's lock manager still attempted a `showLocks` call that failed against the incomplete schema.
+
+**Fix:**
+1. `hive/docker-compose.yml` — `IS_RESUME` set to `"false"` so `schematool -initOrUpgradeSchema` runs on every boot.
+2. One-time: drop and recreate the `metastore` Postgres database, then let the container run a full `schematool -initSchema` against the clean database, producing a complete schema (confirm with `SELECT * FROM "VERSION"` returning one row, and `\dt` showing `TXNS`/`HIVE_LOCKS`/`WM_*`).
+
+```bash
+docker stop hive-metastore
+docker exec pgprojeto psql -U admin -d postgres -c \
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='metastore' AND pid <> pg_backend_pid();"
+docker exec pgprojeto psql -U admin -d postgres -c "DROP DATABASE metastore;"
+docker exec pgprojeto psql -U admin -d postgres -c "CREATE DATABASE metastore;"
+docker compose --env-file configurations/secrets.env -f hive/docker-compose.yml up -d --force-recreate
+```
+
+With this fix in place, a fresh environment (new `metastore` DB) will self-initialize correctly on first `make up` — this was previously a silent trap that only surfaced the first time an Iceberg write actually attempted a commit lock.
+
+---
+
+### 2. Trino: `HIVE_CANNOT_OPEN_SPLIT` after recreating a Gold table (Delta)
+
+**Symptom:** `SELECT *` on the Gold Delta table fails with `Error opening Hive split`. `SELECT count(*)` succeeds.
+
+**Cause:** Trino caches `_delta_log/00000000000000000000.json` in memory. If the table is dropped and recreated at the same path, the Delta Log restarts at version 0 (same file name) but Trino still serves the old cached content.
+
+**Note:** The Gold layer has since migrated to Iceberg (`iceberglake`), eliminating this problem for Gold tables. Still relevant for Bronze/Silver.
+
+**Emergency fix:**
 ```bash
 docker restart trino-coordinator trino-trino-worker-1
 
-# Ou via procedure (sem restart):
+# Or via procedure (no restart):
 docker exec trino-coordinator trino \
-  --execute "CALL delta.system.flush_metadata_cache(schema_name => 'gold', table_name => '<tabela>')" \
+  --execute "CALL delta.system.flush_metadata_cache(schema_name => 'gold', table_name => '<table>')" \
   --server http://localhost:8080 --user admin
 ```
 
 ---
 
-### 3. Hive Metastore 4.0: Thrift timeout em `createTable`
+### 3. Hive Metastore 4.0: Thrift timeout on `createTable`
 
-**Sintoma:** `RetryingMetaStoreClient: MetaStoreClient lost connection. createTable` com `TTransportException: Read timed out`. Jobs da camada Gold falham após ~1 min.
+**Symptom:** `RetryingMetaStoreClient: MetaStoreClient lost connection. createTable` with `TTransportException: Read timed out`. Gold-layer jobs fail after ~1 min.
 
-**Causa:** transações PostgreSQL em estado `idle in transaction` bloqueiam DDL no metastore.
+**Cause:** PostgreSQL transactions stuck `idle in transaction` block DDL on the metastore.
 
-**Correção aplicada:**
-1. `hive/conf/hive-site.xml` — pool de threads ampliado:
+**Fix:**
+1. `hive/conf/hive-site.xml` — widened thread pool:
 ```xml
 <property><name>hive.metastore.server.max.threads</name><value>200</value></property>
 <property><name>hive.metastore.client.socket.timeout</name><value>120</value></property>
 ```
-2. PostgreSQL — auto-kill de sessões travadas:
+2. PostgreSQL — auto-kill stuck sessions:
 ```sql
 ALTER DATABASE metastore SET idle_in_transaction_session_timeout = '2min';
 ```
 
-**Diagnóstico:**
+**Diagnosis:**
 ```bash
 docker exec pgprojeto psql -U admin -d metastore -c "
-SELECT pid, state, now() - query_start AS duracao, query
+SELECT pid, state, now() - query_start AS duration, query
 FROM pg_stat_activity
 WHERE datname = 'metastore' AND state = 'idle in transaction'
-ORDER BY duracao DESC;"
+ORDER BY duration DESC;"
 ```
 
 ---
 
-### 4. WSL2: bind mount stale após `docker restart`
+### 4. WSL2: stale bind mount after `docker restart`
 
-**Sintoma:** `docker restart <container>` falha com `OCI runtime create failed: unable to start container process: error mounting "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/..."`.
+**Symptom:** `docker restart <container>` fails with `OCI runtime create failed: unable to start container process: error mounting "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/..."`.
 
-**Causa:** Docker Desktop no WSL2 usa hashes para bind mounts; um `restart` tenta reusar o hash antigo.
+**Cause:** Docker Desktop on WSL2 uses hashes for bind mounts; a `restart` tries to reuse the old (now-stale) hash. This isn't limited to `docker restart` — it can also surface as `error mounting ... flags: 0x1000: no such file or directory` on a fresh `up` after a Docker Desktop/WSL2 restart, for any volume using a `local` driver with `type: none, o: bind` (e.g. `spark-jobs`, `spark-configurations`).
 
-**Correção:**
+**Fix:**
 ```bash
-# Nunca use docker restart para containers com bind mounts WSL2
+# Never use `docker restart` on containers with WSL2 bind mounts
 docker rm -f <container>
 docker compose --env-file configurations/secrets.env -f <service>/docker-compose.yml up -d <service>
 
-# Exemplo para o airflow_worker (crítico: carrega spark-defaults.conf via bind mount)
+# Example for airflow_worker (critical: loads spark-defaults.conf via bind mount)
 docker rm -f airflow_worker
 docker compose --env-file configurations/secrets.env -f airflow/docker-compose.yaml up -d --force-recreate airflow-worker
+```
+
+If the stale-mount error happens on a bind-mounted named volume (not a live container) instead, remove and let Compose recreate the volume itself:
+```bash
+docker rm -f <containers using the volume>
+docker volume rm <volume-name>
+docker compose --env-file configurations/secrets.env -f <service>/docker-compose.yml up -d
 ```
 
 ---
 
 ### 5. dbt: `Model depends on source which was not found`
 
-**Sintoma:** `dbt run` falha com `Model 'gold_mart_buyer' depends on source 'gold_iceberg.gold_dim_buyer' which was not found`.
+**Symptom:** `dbt run` fails with `Model 'gold_mart_buyer' depends on source 'gold_iceberg.gold_dim_buyer' which was not found`.
 
-**Causa:** dbt compila todos os models antes de executar — qualquer source não declarado em `sources.yml` quebra mesmo com `--select` apontando para outro model.
+**Cause:** dbt compiles all models before running any of them — any source not declared in `sources.yml` breaks the run even when `--select` points at a different model.
 
-**Correção aplicada:** `gold_iceberg` declarado como source em `configurations/dbt/models/gold/sources.yml`.
+**Fix:** `gold_iceberg` declared as a source in `configurations/dbt/models/gold/sources.yml`.
 
 ---
 
-### 6. dbt: resíduos `__dbt_tmp` e `__dbt_backup` no MinIO
+### 6. dbt: `__dbt_tmp` and `__dbt_backup` leftovers in MinIO
 
-**Causa:** `materialized='table'` com dbt-trino usa rename atômico; falhas intermediárias deixam paths órfãos no S3.
+**Cause:** `materialized='table'` with dbt-trino uses an atomic rename; intermediate failures leave orphaned paths in S3.
 
-**Limpeza:**
+**Cleanup:**
 ```bash
 docker exec trino-coordinator trino --server http://localhost:8080 --user admin \
   --execute "DROP TABLE IF EXISTS iceberglake.gold.gold_mart_productcategory__dbt_backup"
 ```
 
-**Prevenção:** usar `materialized='view'` para marts que são projeções diretas.
+**Prevention:** use `materialized='view'` for marts that are direct projections.
 
 ---
 
-### 7. Airflow worker com `SQL_ALCHEMY_CONN` vazio
+### 7. Airflow worker with an empty `SQL_ALCHEMY_CONN`
 
-**Sintoma:** `airflow_worker` crasha com `FATAL: role "astro" does not exist`. Variáveis `${POSTGRES_USER}` não expandidas.
+**Symptom:** `airflow_worker` crashes with `FATAL: role "astro" does not exist`. `${POSTGRES_USER}`-style variables not expanded.
 
-**Correção:** sempre usar o Makefile:
+**Fix:** always use the Makefile:
 ```bash
-make up-airflow   # usa: docker compose --env-file configurations/secrets.env
+make up-airflow   # uses: docker compose --env-file configurations/secrets.env
 ```
 
 ---
 
-## Pontos de Atenção Operacional
+### 8. MinIO unreachable on `localhost:9000`/`:9001` despite the container being healthy
 
-### `make clean` — o que é destruído e o que sobrevive
+**Symptom:** `docker ps` shows `minio-minio-1` as `Up (healthy)`, but `curl localhost:9000`/`:9001` times out or refuses. `docker inspect minio-minio-1 --format '{{json .NetworkSettings.Ports}}'` shows empty arrays even though `HostConfig.PortBindings` correctly lists the ports.
 
-| Recurso | `make down` | `make clean` |
-|---------|-------------|--------------|
-| Containers | ✓ removidos | ✓ removidos |
-| Volume `dockervol` | preservado | **destruído** |
-| Volume `spark-logs` | preservado | **destruído** |
-| Volume `spark-ivy-cache` | preservado | **destruído** |
-| Dados MinIO (Delta + Iceberg) | preservado | preservado |
-| Dados PostgreSQL | preservado | preservado |
-| Rede `hadoopcluster` | preservado | **destruída** |
+**Cause:** this can be a genuine Docker port-publish failure after a Docker Desktop/WSL2 network hiccup (container has been running since before the hiccup and its port forwarding never got reconciled) — but check for a mundane host-level port collision first: `ss -tlnp | grep -E ':9000|:9001'` to see if something else on the host (a local dev server, another container, a Jupyter kernel, etc.) already owns those ports, which silently blocks Docker's publish without raising an error at container start.
 
-### Ordem de dependência dos serviços
+**Fix:**
+```bash
+# If something else on the host owns the port, free it, then:
+docker compose --env-file configurations/secrets.env -f minio/docker-compose.yml up -d --force-recreate minio
+```
+
+---
+
+## Operational Notes
+
+### `make clean` — what's destroyed and what survives
+
+| Resource | `make down` | `make clean` |
+|----------|-------------|--------------|
+| Containers | ✓ removed | ✓ removed |
+| `dockervol` volume | preserved | **destroyed** |
+| `spark-logs` volume | preserved | **destroyed** |
+| `spark-ivy-cache` volume | preserved | **destroyed** |
+| MinIO data (Delta + Iceberg) | preserved | preserved |
+| PostgreSQL data | preserved | preserved |
+| `hadoopcluster` network | preserved | **destroyed** |
+
+### Service dependency order
 
 ```
 postgres → minio → hive-metastore → unitycatalog → spark → trino → airflow → dbapi
 ```
 
-### Verificar saúde do Hive Metastore
+### Checking Hive Metastore health
 
 ```bash
-# Sessões PostgreSQL do metastore
+# Metastore's PostgreSQL sessions
 docker exec pgprojeto psql -U admin -d metastore -c \
   "SELECT state, count(*) FROM pg_stat_activity WHERE datname='metastore' GROUP BY state;"
 
-# Tabelas registradas no Hive
+# Tables registered in Hive
 docker exec -i pgprojeto psql -U admin -d metastore -c \
   'SELECT "TBL_NAME", "TBL_TYPE" FROM "TBLS" ORDER BY "TBL_NAME";'
+
+# Full schema sanity check — should return one row and list TXNS/HIVE_LOCKS (see Known Issue #1)
+docker exec pgprojeto psql -U admin -d metastore -c 'SELECT * FROM "VERSION";'
+docker exec pgprojeto psql -U admin -d metastore -c '\dt' | grep -iE "lock|txn"
 ```
 
-### Verificar tabelas no Trino
+### Checking tables in Trino
 
 ```bash
 # Gold (Iceberg)
@@ -515,35 +581,35 @@ docker exec trino-coordinator trino \
   --server http://localhost:8080 --user admin
 ```
 
-### Regenerar spark-defaults.conf
+### Regenerating spark-defaults.conf
 
 ```bash
 export $(grep -v '^#' configurations/secrets.env | xargs)
 envsubst < spark/conf/spark-defaults.conf.template > spark/conf/spark-defaults.conf
 ```
 
-O `make up` chama `generate-confs` automaticamente.
+`make up` calls `generate-confs` automatically.
 
 ---
 
-## API de Ingestão (dbapi)
+## Ingestion API (dbapi)
 
-Arquitetura 3 camadas obrigatória em todos os domínios:
+Mandatory 3-layer architecture for every domain:
 
 ```
-Router (FastAPI) → Service (regras de negócio) → Repository (bulk insert SQLAlchemy)
+Router (FastAPI) → Service (business rules) → Repository (SQLAlchemy bulk insert)
 ```
 
 ```bash
-# Executar localmente
+# Run locally
 cd dbapi && uv run python api/app/main.py
 
-# Rodar um seeder
-uv run python dbapi/api/seeder/<dominio>/<arquivo>.py \
+# Run a seeder
+uv run python dbapi/api/seeder/<domain>/<file>.py \
   --min-count 100000 --max-count 500000 \
   --min-chaos 0.01   --max-chaos 0.10
 
-# Rodar os testes
+# Run tests
 cd dbapi && uv run python api/tests/test_product_services.py
 ```
 
@@ -551,25 +617,25 @@ cd dbapi && uv run python api/tests/test_product_services.py
 
 ## Chaos Engineering
 
-Os seeders injetam entre **1% e 10%** de anomalias controladas por execução:
+Seeders inject between **1% and 10%** of controlled anomalies per run:
 
-| Tipo | Exemplos |
-|------|---------|
-| Duplicidade | Mesmo registro com variações de formatação |
-| Dados sujos | CPF inválido, email sem TLD, telefone `0000000` |
-| Fraudes | Compras geograficamente impossíveis, CPF falso com endereço real |
-| Processos incompletos | Pedidos pagos mas nunca enviados, disputas de chargeback |
-| Anomalias de estoque | Quantidades negativas, produtos vencidos em estoque ativo |
+| Type | Examples |
+|------|----------|
+| Duplicates | Same record with formatting variations |
+| Dirty data | Invalid CPF, email without TLD, `0000000` phone numbers |
+| Fraud | Geographically impossible purchases, fake CPF with a real address |
+| Incomplete processes | Orders paid but never shipped, open chargeback disputes |
+| Inventory anomalies | Negative quantities, expired products in active stock |
 
-Documentação completa: [`dbapi/api/seeder/CHAOS_DOCUMENTATION.md`](dbapi/api/seeder/CHAOS_DOCUMENTATION.md)
+Full documentation: [`dbapi/api/seeder/CHAOS_DOCUMENTATION.md`](dbapi/api/seeder/CHAOS_DOCUMENTATION.md)
 
 ---
 
-## Modelo Dimensional
+## Dimensional Model
 
 ### Bus Matrix
 
-| Fato | date | customer | product | seller | channel | warehouse | employee | vendor | special_offer |
+| Fact | date | customer | product | seller | channel | warehouse | employee | vendor | special_offer |
 |------|:----:|:--------:|:-------:|:------:|:-------:|:---------:|:--------:|:------:|:-------------:|
 | `fact_sales_order_item` | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — | ✓ |
 | `fact_inventory_snapshot` | ✓ | — | ✓ | — | — | ✓ | — | — | — |
@@ -579,44 +645,44 @@ Documentação completa: [`dbapi/api/seeder/CHAOS_DOCUMENTATION.md`](dbapi/api/s
 
 ---
 
-## Prefixos de IDs Transacionais
+## Transactional ID Prefixes
 
-| Domínio | Header | Linha |
-|---------|--------|-------|
-| Vendas | `SO-XXXXXXXXX` | `SO-XXXXXXXXX-XX` |
-| Compras | `PO-XXXXXXXXX` | `PO-XXXXXXXXX-XX` |
-| Estoque | `TR-XXXXXXXXX` | `TR-XXXXXXXXX-XX` |
-| Devoluções | `RO-XXXXXXXXX` | — |
+| Domain | Header | Line |
+|--------|--------|------|
+| Sales | `SO-XXXXXXXXX` | `SO-XXXXXXXXX-XX` |
+| Purchasing | `PO-XXXXXXXXX` | `PO-XXXXXXXXX-XX` |
+| Warehouse | `TR-XXXXXXXXX` | `TR-XXXXXXXXX-XX` |
+| Returns | `RO-XXXXXXXXX` | — |
 
 ---
 
-## Stack Completa
+## Full Stack
 
-| Componente | Tecnologia | Versão |
-|------------|-----------|--------|
-| API de Ingestão | FastAPI + asyncpg | — |
+| Component | Technology | Version |
+|-----------|------------|---------|
+| Ingestion API | FastAPI + asyncpg | — |
 | ORM | SQLAlchemy | 2.0 |
-| Validação | Pydantic | 2.x |
-| Banco OLTP | PostgreSQL | 16 |
-| Busca Semântica | pgvector | — |
+| Validation | Pydantic | 2.x |
+| OLTP Database | PostgreSQL | 16 |
+| Semantic Search | pgvector | — |
 | Object Storage | MinIO | latest |
-| Orquestração | Apache Airflow (Astro Runtime) | 2.9 |
-| Processamento | Apache Spark | 3.5.8 |
-| Formato Landing/Bronze/Silver | Delta Lake | 3.2.1 |
-| Formato Gold | Apache Iceberg | 1.7.1 |
+| Orchestration | Apache Airflow (Astro Runtime) | 2.9 |
+| Processing | Apache Spark | 3.5.8 |
+| Landing/Bronze/Silver Format | Delta Lake | 3.2.1 |
+| Gold Format | Apache Iceberg | 1.7.1 |
 | Metastore | Hive Metastore | 4.0.0 |
-| Federação SQL | Apache Trino | 482 |
-| Transformações | dbt-core / dbt-trino | 1.11 / 1.10 |
-| Governança | Unity Catalog OSS | 0.4.0 |
-| Observabilidade Spark | DataFlint | 0.9.9 |
+| SQL Federation | Apache Trino | 482 |
+| Transformations | dbt-core / dbt-trino | 1.11 / 1.10 |
+| Governance | Unity Catalog OSS | 0.4.0 |
+| Spark Observability | DataFlint | 0.9.9 |
 
 ---
 
-## Documentação
+## Documentation
 
-| Arquivo | Descrição |
-|---------|-----------|
-| [`docs/nexomart_requisitos.md`](docs/nexomart_requisitos.md) | Requisitos funcionais e não-funcionais do NexoMart |
-| [`docs/CICLO_01_CRONOGRAMA.md`](docs/CICLO_01_CRONOGRAMA.md) | Cronograma de vídeos do Ciclo 1 e roteiros |
-| [`docs/ENGINEERING_DEBATE_AND_ROADMAP.md`](docs/ENGINEERING_DEBATE_AND_ROADMAP.md) | Decisões de engenharia e roadmap técnico |
-| [`dbapi/walkthrough.md`](dbapi/walkthrough.md) | Walkthrough de implementação do domínio product |
+| File | Description |
+|------|--------------|
+| [`docs/nexomart_requisitos.md`](docs/nexomart_requisitos.md) | NexoMart functional and non-functional requirements |
+| [`docs/CICLO_01_CRONOGRAMA.md`](docs/CICLO_01_CRONOGRAMA.md) | Cycle 1 video schedule and scripts |
+| [`docs/ENGINEERING_DEBATE_AND_ROADMAP.md`](docs/ENGINEERING_DEBATE_AND_ROADMAP.md) | Engineering decisions and technical roadmap |
+| [`dbapi/walkthrough.md`](dbapi/walkthrough.md) | Implementation walkthrough for the product domain |

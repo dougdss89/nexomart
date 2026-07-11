@@ -24,11 +24,11 @@ class MarketingAdGroupRepository:
             raise
             
     @staticmethod
-    async def get_by_id(db: AsyncSession, adgroup_id: int) -> Optional[MarketingAdGroupModel]:
+    async def get_by_id(db: AsyncSession, ad_group_id: int) -> Optional[MarketingAdGroupModel]:
         try:
-            stmt = select(MarketingAdGroupModel).where(MarketingAdGroupModel.adgroup_id == adgroup_id)
+            stmt = select(MarketingAdGroupModel).where(MarketingAdGroupModel.ad_group_id == ad_group_id)
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro ao buscar MarketingAdGroup ID={adgroup_id}: {e}")
+            logger.error(f"Erro ao buscar MarketingAdGroup ID={ad_group_id}: {e}")
             raise

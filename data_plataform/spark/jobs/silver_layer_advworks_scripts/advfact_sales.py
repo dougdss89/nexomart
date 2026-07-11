@@ -20,19 +20,12 @@ def load_source_configurations(spark_application: str):
     try:
         config = load_config()
         
-        delta_paths = config.get("delta_path", {})
-        
-        validate_required_keys(
-            config=delta_paths,
-            required_keys=["raw_icebergdb", "silver_layer"],
-            config_name="delta_path"
-        )
-        
+
         spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        return spark, delta_paths.get("raw_icebergdb", ""), delta_paths.get("silver_layer", "")
+        return spark
 
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {str(e)}")
@@ -58,13 +51,11 @@ def load_source_configurations(spark_application: str):
     
 #creating surrogate fact_sales key
 
-def getCreateSurrogateKey(spark, bronze_base: str, table_name: str) -> DataFrame:
+def getCreateSurrogateKey(spark, table_name: str) -> DataFrame:
     
     try:
         
-        path = f"{bronze_base}/advworks_rawdb/{table_name}"
-        
-        dataframe = spark.read.format("delta").load(path)
+        dataframe = spark.table(f"iceberglake.bronze.{table_name}")
         
         dataframe.createTempView("temp_fact_sales")
         
@@ -179,18 +170,17 @@ def cleanerFactDataframe(dataframe: DataFrame) -> DataFrame:
         print_exc(e)
         exit(1)
         
-def writeSalesFact(dataframe: DataFrame, silver_base: str, fact_name: str) -> DataFrame:
+def writeSalesFact(spark, dataframe: DataFrame, fact_name: str) -> DataFrame:
     
     try:
         
-        path = f"{silver_base}/advworks_db/{fact_name}"
+        spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberglake.silver")
         (
             dataframe
-                .write
-                .format("delta")
-                .mode("overwrite")
-                .option("mergeSchema", "true")
-                .save(path)
+            .writeTo(f"iceberglake.silver.{fact_name}")
+            .tableProperty("format-version", "2")
+            .tableProperty("write.format.default", "parquet")
+            .createOrReplace()
         )
         logger.info(f"Fact table {fact_name} was written successfully to iceberg {path}")
         
@@ -224,9 +214,9 @@ def main() -> str:
         fact_name = "fact_sales"
         application_name = "fact_sales_table"
 
-        spark, bronze_base, silver_base = load_source_configurations(application_name)
+        spark = load_source_configurations(application_name)
         
-        dataframe = getCreateSurrogateKey(spark, bronze_base, table_name)
+        dataframe = getCreateSurrogateKey(spark, table_name)
         logger.info(f"getSurrogateKey schema: {dataframe.schema}")
         
         dataframe = fillNullValues(dataframe)
@@ -235,9 +225,9 @@ def main() -> str:
         dataframe = cleanerFactDataframe(dataframe)
         logger.info(f"Cleaner table successfully completed: {dataframe.schema}")
         
-        writeSalesFact(dataframe, silver_base=silver_base, fact_name=fact_name)
+        writeSalesFact(spark, dataframe, fact_name=fact_name)
         logger.info(f"""dataframe has been writted successfully: {dataframe.printSchema()}. 
-                        Storage path: {silver_base}.{fact_name}""")
+                        Storage path: iceberglake.silver.{fact_name}""")
         
         sparkStop(spark)
         logger.info("Spark Session stopped")

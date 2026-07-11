@@ -20,6 +20,7 @@ from api.schemas.warehouse.warehouse_wrhlocation import (
 from api.services.warehouse.warehouse_location_service import WarehouseLocationService
 
 from api.samples.warehouse_location import WAREHOUSE_LOCATION_SAMPLES
+from api.seeder.chaos import apply_warehouse_location_chaos
 
 logger = logging.getLogger(__name__)
 
@@ -76,15 +77,10 @@ class WarehouseLocationSeeder:
                 geo_location=geo
             )
             
-            # Chaos Engineering: 5% chance of corrupting a non-critical field
             data_dict = schema_data.model_dump()
-            if random.random() < 0.05:
-                data_dict["geo_location"]["postal_code"] = "INVALID_ZIP"
-                data_dict["name"] = None # Oops, missing name
-                
             batch.append(data_dict)
-            
-        return batch
+
+        return apply_warehouse_location_chaos(batch)
 
 async def run_seeder(count: int):
     print(f"🚀 Iniciando Seeder de Warehouse Location: {count} registros...")

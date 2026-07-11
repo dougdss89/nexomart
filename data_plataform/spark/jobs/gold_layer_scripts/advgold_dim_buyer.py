@@ -7,17 +7,13 @@ from traceback import print_exc
 def load_source_configurations(application_name: str):
     try:
         config = load_config()
-        delta_paths = config.get("delta_path", {})
-        validate_required_keys(delta_paths, ["silver_layer"], "delta_path")
-
         spark = (
             SparkSession.builder
             .appName(application_name)
             .getOrCreate()
         )
 
-        silver_base = delta_paths.get("silver_layer")   # s3a://silver
-        return spark, silver_base
+        return spark
 
     except Exception as e:
         print(f"Failed to load configurations: {str(e)}")
@@ -25,11 +21,10 @@ def load_source_configurations(application_name: str):
         return None, None
 
 
-def read_silver_dimension(spark, silver_base: str, table_name: str):
+def read_silver_dimension(spark, table_name: str):
     try:
-        path = f"{silver_base}/advworks_db/{table_name}"
-        print(f"Reading silver Delta from: {path}")
-        return spark.read.format("delta").load(path)
+        print(f"Reading silver Iceberg: iceberglake.silver.{table_name}")
+        return spark.table(f"iceberglake.silver.{table_name}")
     except Exception as e:
         print(f"Failed to read silver table {table_name}: {str(e)}")
         print_exc()
@@ -69,12 +64,12 @@ def spark_stop(spark):
 if __name__ == '__main__':
     spark = None
     try:
-        spark, silver_base = load_source_configurations("gold_dim_buyer")
+        spark = load_source_configurations("gold_dim_buyer")
 
-        if not all([spark, silver_base]):
+        if not spark:
             raise RuntimeError("Failed to load configurations")
 
-        df = read_silver_dimension(spark, silver_base, "dim_buyer")
+        df = read_silver_dimension(spark, "dim_buyer")
 
         if df is None:
             raise RuntimeError("Failed to read silver dim_buyer")

@@ -19,7 +19,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY}
       - AWS_REGION=us-east-1
       # Override S3 endpoint to point to MinIO
-      - UC_SERVER_S3_AWS_ENDPOINT=http://minio:9000
+      - UC_SERVER_S3_AWS_ENDPOINT=${MINIO_ENDPOINT}
       - UC_SERVER_S3_PATH_STYLE_ACCESS=true
       # JVM flags for S3A + PostgreSQL driver
       - JAVA_TOOL_OPTIONS=-Daws.java.v1.disableDeprecationAnnouncement=true

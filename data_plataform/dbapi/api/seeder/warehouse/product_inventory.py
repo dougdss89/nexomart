@@ -2,6 +2,7 @@ import asyncio
 import argparse
 import sys
 import os
+import random
 from datetime import date, datetime, timedelta
 from sqlalchemy import select
 
@@ -11,8 +12,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 from api.database import AsyncSessionLocal
 from api.services.warehouse.product_inventory_service import ProductInventoryService
 from api.schemas.warehouse.warehouse_productinventory import ProductInventorySchema, InventoryAttributes
-from api.models.product.product import ProductModel
+from api.models.product.product import Product
 from api.models.warehouse.warehouselocation import WarehouseLocationModel
+from api.seeder.chaos import apply_inventory_chaos
 
 async def seed_product_inventory(count: int):
     """
@@ -21,7 +23,7 @@ async def seed_product_inventory(count: int):
     """
     async with AsyncSessionLocal() as session:
         # 1. Buscar IDs válidos
-        product_ids = (await session.execute(select(ProductModel.product_id))).scalars().all()
+        product_ids = (await session.execute(select(Product.product_id))).scalars().all()
         location_ids = (await session.execute(select(WarehouseLocationModel.warehouselocation_id))).scalars().all()
 
         if not product_ids or not location_ids:
@@ -50,7 +52,9 @@ async def seed_product_inventory(count: int):
                 )
             )
             batch_data.append(inv)
-            
+
+        batch_data = apply_inventory_chaos(batch_data)
+
         print(f"📦 Injetando {len(batch_data)} registros de saldo de estoque (Integridade OK)...")
         
         try:

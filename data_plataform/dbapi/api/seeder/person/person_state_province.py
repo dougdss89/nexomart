@@ -9,6 +9,7 @@ from api.database import AsyncSessionLocal
 from api.samples.state_province import ESTADOS_OPERACAO
 from api.models.person.country_region import CountryRegionModel
 from api.models.person.state_province import StateProvinceModel
+from api.seeder.chaos import apply_geography_code_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -32,7 +33,7 @@ def generate_state_payloads(country_map: Dict[str, int]) -> List[Dict[str, Any]]
                 "is_active": True,
                 "row_guid": uuid.uuid4()
             })
-    return batch
+    return apply_geography_code_chaos(batch, code_field="state_province_code")
 
 async def seed_person_states():
     """Executa a carga de estados vinculados aos países REAIS do banco."""

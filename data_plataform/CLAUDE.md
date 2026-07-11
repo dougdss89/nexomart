@@ -325,6 +325,20 @@ Ao receber solicitação de criação de um novo pipeline (ex: Vendas, Logístic
 
 ---
 
+## Configuração de Infraestrutura — Zero Hardcode
+
+**Regra de ouro**: nenhuma string de conexão (host, porta, nome de banco, credencial, endpoint de serviço) deve ser escrita literal em `docker-compose.yml`/config de serviço. Tudo vem de `configurations/secrets.env` (única fonte de verdade — nunca commitado, mas com `secrets.env.example` espelhando as chaves). Para adicionar um valor novo: declare a variável em `secrets.env` **e** em `secrets.env.example`, nunca hardcode um literal novo em nenhum arquivo de config.
+
+Três mecanismos de substituição, dependendo do tipo de arquivo — usar o certo para cada um:
+
+1. **Docker Compose** (`*/docker-compose.yml`): sintaxe nativa `${VAR}`. O `Makefile` já exporta `secrets.env` pro shell antes de qualquer `docker compose up` (target `up`/`up-*`), então `${VAR}` dentro do YAML resolve sozinho. Se o *container* também precisa enxergar a variável em runtime (não só na hora de montar o compose), adicione `env_file: ../configurations/secrets.env` ao serviço.
+2. **Catálogos do Trino** (`trino/catalog/*.properties`): sintaxe própria do Trino `${ENV:VAR}` (não é `${VAR}` puro). Os serviços `trino-coordinator`/`trino-worker` já carregam `secrets.env` via `env_file`.
+3. **Arquivos de config sem suporte nativo a variável** (Java `.properties` do Unity Catalog, `spark-defaults.conf`, XML do Hive): **nunca edite o arquivo final diretamente** — edite o `<arquivo>.template` correspondente (usa `${VAR}` estilo shell) e rode `make generate-confs` (ou já incluso em `make up`), que roda `envsubst` e gera o arquivo real. Editar o arquivo gerado é perdido no próximo `generate-confs`.
+
+Arquivos de config sem template e sem variável (`hive/conf/hive-site.xml`, `nessie/application.properties` — este último nem está montado em nenhum container, é código morto) ficam de fora deste padrão por ora; não hardcode neles sem necessidade, mas também não presuma que aceitam `${VAR}` sem testar.
+
+---
+
 ## Key Files
 
 - `dbapi/api/config/base.py` — `AuditMixin` and `Base` declarative base

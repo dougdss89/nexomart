@@ -3,6 +3,7 @@ import random
 from datetime import datetime
 from typing import List, Dict, Any
 from faker import Faker
+from api.seeder.chaos import apply_customer_email_chaos
 
 fake = Faker('pt_BR')
 
@@ -86,8 +87,8 @@ def get_customer_email_seeders(customers: List[Dict[str, Any]]) -> List[Dict[str
             
             batch.extend(emails_do_cliente)
 
-        return batch
-        
+        return apply_customer_email_chaos(batch)
+
     except Exception as e:
         print(f"Erro ao gerar seeders de email: {e}")
         return []

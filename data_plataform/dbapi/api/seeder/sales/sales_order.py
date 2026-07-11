@@ -15,7 +15,8 @@ from api.models.sales.saleschannel import SalesChannelModel
 from api.models.sales.specialoffer import SpecialOfferModel
 from api.models.person.customer import CustomerModel
 from api.models.person.seller import SellerModel
-from api.models.product.productmodel import ProductModel
+from api.models.product.product import Product
+from api.seeder.chaos import apply_sales_order_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -59,7 +60,11 @@ def generate_sales_order_payloads(
         total_amount = sum(item["unit_price"] * item["quantity"] for item in items)
         
         order_date = datetime.now() - timedelta(days=random.randint(1, 30))
-        
+        order_status = random.choices(
+            ["open", "finalized", "partial_shipped", "partial_payment", "canceled"],
+            weights=[40, 35, 10, 10, 5],
+        )[0]
+
         batch.append({
             "salesorder_id": None, # Auto-increment
             "salesordernumber": order_num,
@@ -68,7 +73,7 @@ def generate_sales_order_payloads(
             "specialoffer_id": random.choice(offer_ids),
             "store_id": random.choice(seller_ids),
             "order_date": order_date,
-            "order_status": "open",
+            "order_status": order_status,
             "total_amount": Decimal(total_amount).quantize(Decimal("0.01")),
             "currency_code": "BRL",
             "order_items": items,
@@ -88,7 +93,7 @@ def generate_sales_order_payloads(
             "is_active": True,
             "row_guid": uuid.uuid4()
         })
-    return batch
+    return apply_sales_order_chaos(batch)
 
 async def seed_sales_orders(count: int = 50):
     """Executa a carga de pedidos de venda com integridade dimensional total."""
@@ -98,7 +103,7 @@ async def seed_sales_orders(count: int = 50):
         channel_ids = (await session.execute(select(SalesChannelModel.saleschannel_id))).scalars().all()
         offer_ids = (await session.execute(select(SpecialOfferModel.special_offer_id))).scalars().all()
         seller_ids = (await session.execute(select(SellerModel.seller_id))).scalars().all()
-        product_ids = (await session.execute(select(ProductModel.product_id))).scalars().all()
+        product_ids = (await session.execute(select(Product.product_id))).scalars().all()
 
         if not all([customer_ids, channel_ids, offer_ids, seller_ids, product_ids]):
             print("⚠️ Tabelas base (Customers, Channels, Offers, Sellers, Products) vazias!")

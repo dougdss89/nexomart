@@ -38,9 +38,6 @@ class TransactionHistorySchema(BaseModel):
     
     @model_validator(mode="after")
     def validate_transaction_logic(self):
-        if self.quantity < 0:
-            raise ValueError("A quantidade da transação não pode ser negativa.")
-            
         if self.quantity == 0:
             raise ValueError("A quantidade da transação não pode ser zero.")
             

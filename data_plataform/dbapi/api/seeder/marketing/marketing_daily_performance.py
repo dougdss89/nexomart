@@ -8,15 +8,21 @@ from decimal import Decimal
 from sqlalchemy import select, insert
 from api.database import AsyncSessionLocal
 from api.schemas.marketing.marketing_daily_performance import MarketingDailyPerformance, MarketingMetrics
-from api.models.marketing.marketing_advertise import MarketingAdsModel
+from api.models.marketing.marketing_advertise import MarketingAdvertiseModel
 from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
 from api.models.marketing.marketing_campaign import MarketingCampaignModel
+from api.models.marketing.marketing_channel import MarketingChannelModel
 from api.models.marketing.marketing_dailyperformance import MarketingDailyPerformanceModel
+from api.seeder.chaos import apply_daily_performance_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-def generate_performance_payloads(ads_reais: list[dict]) -> list[dict]:
+def generate_performance_payloads(
+    ads_reais: list[dict],
+    platform_by_campaign: dict[int, str] | None = None,
+    budget_by_campaign: dict[int, Decimal] | None = None,
+) -> list[dict]:
     """
     Gera a Tabela Fato de Performance Diária com funil matemático.
     """
@@ -75,8 +81,12 @@ def generate_performance_payloads(ads_reais: list[dict]) -> list[dict]:
                 "row_guid": uuid.uuid4()
             }
             batch.append(MarketingDailyPerformance(**payload).model_dump())
-            
-    return batch
+
+    return apply_daily_performance_chaos(
+        batch,
+        platform_by_campaign=platform_by_campaign,
+        budget_by_campaign=budget_by_campaign,
+    )
 
 async def seed_marketing_performance():
     """
@@ -86,13 +96,13 @@ async def seed_marketing_performance():
         # 1. Buscar a malha de anúncios -> adgroups -> campaigns
         query = (
             select(
-                MarketingAdsModel.ad_id,
-                MarketingAdsModel.ad_name,
-                MarketingAdsModel.creative_data,
-                MarketingAdsModel.ad_group_id,
+                MarketingAdvertiseModel.ad_id,
+                MarketingAdvertiseModel.ad_name,
+                MarketingAdvertiseModel.creative_data,
+                MarketingAdvertiseModel.ad_group_id,
                 MarketingAdGroupModel.campaign_id
             )
-            .join(MarketingAdGroupModel, MarketingAdsModel.ad_group_id == MarketingAdGroupModel.ad_group_id)
+            .join(MarketingAdGroupModel, MarketingAdvertiseModel.ad_group_id == MarketingAdGroupModel.ad_group_id)
         )
         result = await session.execute(query)
         ads_reais = [
@@ -110,8 +120,29 @@ async def seed_marketing_performance():
             print("⚠️ Nenhum Anúncio encontrado! Rode os seeders de marketing anteriores primeiro.")
             return
 
+        # 2. Buscar plataforma e budget por campanha (necessário para o chaos de
+        # vazamento de campo entre plataformas e de estouro de orçamento)
+        campaign_query = (
+            select(
+                MarketingCampaignModel.campaign_id,
+                MarketingCampaignModel.total_budget,
+                MarketingChannelModel.platform_name,
+            )
+            .join(MarketingChannelModel, MarketingCampaignModel.channel_id == MarketingChannelModel.channel_id)
+        )
+        campaign_result = await session.execute(campaign_query)
+        budget_by_campaign = {}
+        platform_by_campaign = {}
+        for row in campaign_result.all():
+            budget_by_campaign[row[0]] = row[1]
+            platform_by_campaign[row[0]] = row[2]
+
         print(f"📣 Semeando performance diária para {len(ads_reais)} anúncios...")
-        performances = generate_performance_payloads(ads_reais)
+        performances = generate_performance_payloads(
+            ads_reais,
+            platform_by_campaign=platform_by_campaign,
+            budget_by_campaign=budget_by_campaign,
+        )
         
         # Inserção em lotes de 1000 para evitar timeout ou estouro de buffer
         batch_size = 1000

@@ -14,6 +14,7 @@ from api.services.sales.sales_event_log_service import SalesEventLogService
 from api.schemas.sales.sales_eventlog import SalesOrderEventLogSchema, SalesEventContext, GPSLocation
 from api.samples.sales_eventlog import SALES_EVENT_LOG_TEMPLATES
 from api.models.sales.salesorder import SalesOrderModel
+from api.seeder.chaos import apply_eventlog_chaos
 
 async def seed_sales_eventlogs(count_orders: int):
     """
@@ -64,7 +65,9 @@ async def seed_sales_eventlogs(count_orders: int):
                     )
                 )
                 all_events.append(event)
-        
+
+        all_events = apply_eventlog_chaos(all_events)
+
         print(f"📈 Gerando trilhas de {len(all_events)} eventos para {len(selected_orders)} pedidos reais...")
         
         try:

@@ -10,13 +10,14 @@ from api.database import AsyncSessionLocal
 
 # Modelos
 from api.models.person.seller import SellerModel
-from api.models.person.countryregion import CountryRegionModel
+from api.models.person.country_region import CountryRegionModel
 
 # Amostras
 from api.samples.sales_seller import (
-    SELLER_NAMES, TRADING_NAMES, BANK_CODES, BANK_NAMES, 
+    SELLER_NAMES, TRADING_NAMES, BANK_CODES, BANK_NAMES,
     SELLER_TYPES, ADDRESS_STREETS, CITIES, STATES
 )
+from api.seeder.chaos import apply_seller_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -81,14 +82,19 @@ async def seed_sellers(count: int = 30):
                         }
                     ],
                     "metrics": {
+                        "average_rating": round(random.uniform(3.5, 5.0), 1),
+                        "total_gross_revenue": round(random.uniform(10000.0, 500000.0), 2),
                         "total_items_sold": random.randint(100, 10000),
                         "count_orders": random.randint(50, 5000),
+                        "chargeback_rate": round(random.uniform(0.0, 0.05), 4),
                         "date_first_sale": (opened_date + timedelta(days=30)).date().isoformat(),
                         "date_last_sale": date.today().isoformat()
                     }
                 }
             })
-            
+
+        sellers = apply_seller_chaos(sellers)
+
         try:
             stmt = insert(SellerModel).values(sellers)
             await session.execute(stmt)

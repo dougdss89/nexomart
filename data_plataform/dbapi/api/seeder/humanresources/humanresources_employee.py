@@ -67,6 +67,7 @@ async def seed_humanresources_employees():
                 "last_name": last,
                 "nationalidnumber": str(random.randint(100000000, 999999999)),
                 "loginid": f"{first.lower()}.{last.lower()}",
+                "email": f"{first.lower()}.{last.lower()}@empresa.com",
                 "birthdate": date(1980, 1, 1),
                 "hire_date": date(2022, 1, 1),
                 "jobrole_id": jobs.get(title, random.choice(list(jobs.values()))),

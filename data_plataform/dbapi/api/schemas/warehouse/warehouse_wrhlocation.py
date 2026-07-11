@@ -24,7 +24,7 @@ class TemperatureRange(BaseModel):
         return self
 
 class LocationCapabilities(BaseModel):
-    warehouse_type: str = WarehouseType
+    warehouse_type: WarehouseType = Field(default=WarehouseType.DRY)
     temperature_range: Optional[TemperatureRange] = None
     is_secure_area: bool = False
     

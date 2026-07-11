@@ -1,14 +1,15 @@
-from sqlalchemy import Column, Integer, String, text, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, DateTime, text, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
 from api.config.base import Base, AuditMixin
 
 class Product(Base, AuditMixin):
-    
+
     __tablename__ = "product"
-    
+
     product_id = Column(Integer, primary_key=True, autoincrement=True)
     product_name = Column(String(100), nullable=False)
-    
+
     model_id = Column(Integer,
                       ForeignKey("product.productmodel.productmodel_id"),
                       nullable=False)
@@ -16,7 +17,10 @@ class Product(Base, AuditMixin):
     category_id = Column(Integer,
                          ForeignKey("product.productcategory.category_id"),
                          nullable=False)
-    
+
+    sell_start_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    sell_end_date = Column(DateTime(timezone=True), nullable=True, default=None)
+
     productdetails = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     
     

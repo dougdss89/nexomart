@@ -1,3 +1,5 @@
+# NOTE: Este script é mantido como referência do padrão Delta Lake.
+# O pipeline principal usa Iceberg via advgold_dim_productcategory_iceberg.py
 """
 Gold: s3a://silver/advworks_db/dim_productcategory (Delta)
     → Delta Lake spark_catalog.gold.gold_dim_productcategory (s3a://deltadw/)

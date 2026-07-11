@@ -6,6 +6,7 @@ from faker import Faker
 # Import do Schema Pydantic para validação on-the-fly
 from api.schemas.purchasing.purchasing_vendor import Vendor
 import api.samples.purchase_payment_certs as purchase_payment_certs
+from api.seeder.chaos import apply_vendor_chaos
 
 fake = Faker('pt_BR')
 
@@ -133,7 +134,7 @@ def get_vendor_details(num_vendors: int) -> list[dict]:
 
         vendor_counter_id += 1
 
-    return batch
+    return apply_vendor_chaos(batch)
 
 if __name__ == "__main__":
     import json

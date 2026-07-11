@@ -18,7 +18,7 @@ class InventoryAttributes(BaseModel):
 class ProductInventorySchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
-    inventory_id: int = Field(gt=0)
+    inventory_id: Optional[int] = Field(None, gt=0, description="None = auto-increment no banco")
     product_id: int = Field(gt=0)
     warehouselocation_id: int = Field(gt=0)
     

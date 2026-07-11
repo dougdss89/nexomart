@@ -1,15 +1,15 @@
-from sqlalchemy import Column, Integer, String, Index, text, Numeric, cast, DateTime
+from sqlalchemy import Column, Integer, String, Index, text, Numeric, cast, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from api.config.base import Base, AuditMixin
 
 class PurchaseOrderHeaderModel(Base, AuditMixin):
-    
+
     __tablename__ = "purchaseorderheader"
-    
+
     purchaseorderheader_id = Column(String(36), primary_key=True)
-    
-    vendor_id = Column(Integer, nullable=False)
-    employee_id = Column(Integer, nullable=False)
+
+    vendor_id = Column(Integer, ForeignKey('purchasing.vendor.vendor_id'), nullable=False)
+    employee_id = Column(Integer, ForeignKey('humanresources.employee.employee_id'), nullable=False)
 
     order_date = Column(DateTime(timezone=True), nullable=False)
     ship_date = Column(DateTime(timezone=True), nullable=True)

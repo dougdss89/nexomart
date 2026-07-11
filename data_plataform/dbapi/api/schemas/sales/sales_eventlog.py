@@ -30,7 +30,7 @@ class SalesOrderEventLogSchema(BaseModel):
     
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
     
-    event_id: int = Field(gt=0)
+    event_id: Optional[int] = Field(None, gt=0, description="None = auto-increment no banco")
     order_id: int = Field(gt=0)
 
     # CONTRAPONTO: De volta ao Topo da Tabela!

@@ -8,7 +8,7 @@ class MarketingAdvertiseModel(Base, AuditMixin): # [FIX] Herança adicionada
     
     # [FIX] Nomenclaturas alinhadas 1:1 com o Schema Pydantic
     ad_id = Column(Integer, primary_key=True, autoincrement=True)
-    ad_group_id = Column(Integer, ForeignKey('marketing.marketingadgroup.adgroup_id'), nullable=False )
+    ad_group_id = Column(Integer, ForeignKey('marketing.marketingadgroup.ad_group_id'), nullable=False )
     
     ad_name = Column(String(200), nullable=False)
     external_id = Column(String(200), nullable=False)

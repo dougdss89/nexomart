@@ -20,19 +20,12 @@ def load_source_configurations(spark_application: str):
     try:
         config = load_config()
         
-        delta_paths = config.get("delta_path", {})
-        
-        validate_required_keys(
-            config=delta_paths,
-            required_keys=["raw_icebergdb", "silver_layer"],
-            config_name="delta_path"
-        )
-        
+
         spark_manager = SparkSessionManager(spark_application)
         
         spark = spark_manager.create_session()
         
-        return spark, delta_paths.get("raw_icebergdb", ""), delta_paths.get("silver_layer", "")
+        return spark
 
     except FileNotFoundError as e:
         logger.error(f"Could not load connections from source: {str(e)}")
@@ -57,14 +50,12 @@ def load_source_configurations(spark_application: str):
     logger.info(f"Spark Session created: {spark}")
         
         
-def getCreateSurrogateKey(spark, bronze_base: str, table_name: str) -> DataFrame:
+def getCreateSurrogateKey(spark, table_name: str) -> DataFrame:
 
     
     try:
         
-        path = f"{bronze_base}/advworks_rawdb/{table_name}"
-
-        dataframe = spark.read.format("delta").load(path)
+        dataframe = spark.table(f"iceberglake.bronze.{table_name}")
         
         dataframe.createTempView("temp_currency")
         
@@ -96,17 +87,16 @@ def getCreateSurrogateKey(spark, bronze_base: str, table_name: str) -> DataFrame
         print_exc(e)
         exit(1)
         
-def writeCurrencyRateDimension(dataframe: DataFrame, silver_base: str, table_name: str) -> DataFrame:
+def writeCurrencyRateDimension(spark, dataframe: DataFrame, table_name: str) -> DataFrame:
     
     try:
-        path = f"{silver_base}/advworks_db/{table_name}"
+        spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberglake.silver")
         (
             dataframe
-                .write
-                .mode("overwrite")
-                .format("delta")
-                .option("mergeSchema", "true")
-                .save(path)
+            .writeTo(f"iceberglake.silver.{table_name}")
+            .tableProperty("format-version", "2")
+            .tableProperty("write.format.default", "parquet")
+            .createOrReplace()
         )
         
         logger.info(f"Dimension {table_name} was written successfully to iceberg {path}")
@@ -144,11 +134,11 @@ def main():
         dimension_table = "dim_currencyrate"
         
         
-        spark, bronze_base, silver_base = load_source_configurations(application_name)
+        spark = load_source_configurations(application_name)
         
-        dataframe = getCreateSurrogateKey(spark, bronze_base, table_name)
+        dataframe = getCreateSurrogateKey(spark, table_name)
         
-        writeCurrencyRateDimension(dataframe, silver_base=silver_base, table_name=dimension_table)
+        writeCurrencyRateDimension(spark, dataframe, table_name=dimension_table)
         
         logger.info("All functions have been executed successfully")
         

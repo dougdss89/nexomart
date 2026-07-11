@@ -8,9 +8,11 @@ from decimal import Decimal
 from typing import List, Dict, Any
 from sqlalchemy import select, insert
 from api.database import AsyncSessionLocal
-from api.models.purchasing.orderheader import PurchaseOrderHeaderModel
-from api.models.purchasing.orderdetail import PurchaseOrderDetailModel
-from api.models.product.productmodel import ProductModel
+from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
+from api.models.purchasing.purchaseorderdetail import PurchaseOrderDetailModel
+from api.models.product.product import Product
+from api.schemas.purchasing.purchasing_orderheader import Status
+from api.seeder.chaos import apply_purchaseorderdetail_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -47,16 +49,16 @@ def generate_po_detail_payloads(headers_reais: List[dict], product_ids: List[int
                 "due_date": due_date,
                 "order_qty": order_qty,
                 "unit_price": unit_price,
-                "received_qty": order_qty if h["status"] == 4 else 0, # Ex: 4 = COMPLETED
+                "received_qty": order_qty if h["status"] == Status.COMPLETED.value else 0,
                 "rejected_qty": 0,
-                "stocked_qty": order_qty if h["status"] == 4 else 0,
-                "is_fully_received": h["status"] == 4,
+                "stocked_qty": order_qty if h["status"] == Status.COMPLETED.value else 0,
+                "is_fully_received": h["status"] == Status.COMPLETED.value,
                 "created_at": datetime.now(),
                 "updated_at": datetime.now(),
                 "is_active": True,
                 "row_guid": uuid.uuid4()
             })
-    return batch
+    return apply_purchaseorderdetail_chaos(batch)
 
 async def seed_purchase_details():
     """Executa a carga de detalhes de pedido consumindo headers e produtos REAIS."""
@@ -65,7 +67,7 @@ async def seed_purchase_details():
         result = await session.execute(select(PurchaseOrderHeaderModel.purchaseorderheader_id, PurchaseOrderHeaderModel.sub_total, PurchaseOrderHeaderModel.ship_date, PurchaseOrderHeaderModel.status))
         headers = [{"purchaseorderheader_id": r[0], "sub_total": r[1], "ship_date": r[2], "status": r[3]} for r in result.all()]
         
-        product_ids = (await session.execute(select(ProductModel.product_id))).scalars().all()
+        product_ids = (await session.execute(select(Product.product_id))).scalars().all()
 
         if not headers or not product_ids:
             print("⚠️ Headers ou Produtos vazios! Rode os seeders base primeiro.")

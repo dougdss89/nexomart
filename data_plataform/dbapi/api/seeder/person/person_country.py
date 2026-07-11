@@ -9,6 +9,7 @@ from sqlalchemy import insert
 from api.database import AsyncSessionLocal
 from api.samples.country import PAISES_OPERACAO
 from api.models.person.country_region import CountryRegionModel
+from api.seeder.chaos import apply_geography_code_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -29,7 +30,7 @@ def get_country_seeders() -> List[Dict[str, Any]]:
             "is_active": True,
             "row_guid": uuid.uuid4()
         })
-    return batch
+    return apply_geography_code_chaos(batch, code_field="country_code")
 
 async def seed_person_countries():
     """Executa a carga de países no banco."""

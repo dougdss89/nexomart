@@ -12,7 +12,7 @@ class HumanResourcesDepartmentModel(Base, AuditMixin):
     group_name = Column(String(100), nullable= False)
     
     parent_department_id = Column(Integer, ForeignKey("humanresources.department.department_id"), nullable=True)
-    manager_id = Column(Integer, nullable= True)
+    manager_id = Column(Integer, ForeignKey("humanresources.employee.employee_id"), nullable=True)
     
     subdepartments = relationship(
         "HumanResourcesDepartmentModel", 

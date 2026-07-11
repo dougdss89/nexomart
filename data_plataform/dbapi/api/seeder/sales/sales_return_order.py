@@ -11,6 +11,7 @@ from api.database import AsyncSessionLocal
 # Modelos
 from api.models.sales.salesorder import SalesOrderModel
 from api.models.sales.returnorder import SalesReturnOrderModel
+from api.seeder.chaos import apply_return_order_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -81,6 +82,8 @@ async def seed_return_orders(count: int = 20):
                 }
             })
         
+        returns = apply_return_order_chaos(returns)
+
         try:
             stmt = insert(SalesReturnOrderModel).values(returns)
             await session.execute(stmt)

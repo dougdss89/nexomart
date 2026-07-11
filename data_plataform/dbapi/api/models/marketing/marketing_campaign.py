@@ -19,7 +19,9 @@ class MarketingCampaignModel(Base, AuditMixin):
     total_budget = Column(Numeric(19, 4), nullable=False, default= 0.0)
     start_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     end_date = Column(DateTime(timezone=True), nullable=True, default=None)
-    
+
+    status = Column(String(20), nullable=False, default='planned')
+
     mktsettings = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     
     

@@ -1,10 +1,10 @@
 """
 Gold Iceberg — dim_productcategory
-Lê da camada Silver (Delta), escreve Iceberg via IcebergHiveCatalog (iceberglake).
+Lê da camada Silver (Iceberg), escreve Iceberg via IcebergHiveCatalog (iceberglake).
 Trino lê via catálogo iceberglake (iceberg connector + hive metastore).
 
 Arquitetura:
-  Silver Delta  →  iceberglake.gold.gold_dim_productcategory
+  Silver Iceberg →  iceberglake.gold.gold_dim_productcategory
                         ↑ Iceberg (HiveCatalog → Hive Metastore)
                         ↑ Trino lê via trino/catalog/iceberglake.properties
 """
@@ -19,12 +19,8 @@ GOLD_TABLE   = "gold_dim_productcategory"
 SCHEMA       = "gold"
 
 
-def create_spark(silver_base_ref: list):
+def create_spark():
     try:
-        config = load_config()
-        delta_paths = config.get("delta_path", {})
-        validate_required_keys(delta_paths, ["silver_layer"], "delta_path")
-        silver_base_ref.append(delta_paths["silver_layer"])
         spark = SparkSession.builder.appName("gold_iceberg_dim_productcategory").getOrCreate()
         return spark
     except Exception as e:
@@ -43,23 +39,15 @@ def spark_stop(spark):
 
 if __name__ == "__main__":
     spark = None
-    silver_base_ref = []
     try:
-        spark = create_spark(silver_base_ref)
-        if not spark or not silver_base_ref:
+        spark = create_spark()
+        if not spark:
             raise RuntimeError("Failed to initialize")
 
-        silver_base = silver_base_ref[0]
-
         df = (
-            spark.read.format("delta")
-            .load(f"{silver_base}/advworks_db/{SILVER_TABLE}")
+            spark.table(f"iceberglake.silver.{SILVER_TABLE}")
             .withColumn("gold_load_date", current_timestamp())
         )
-
-        # Remove entrada Delta do Hive Metastore (se existir da iteração anterior)
-        # para que iceberglake possa registrar como Iceberg sem conflito de formato
-        spark.sql(f"DROP TABLE IF EXISTS spark_catalog.{SCHEMA}.{GOLD_TABLE}")
 
         # Cria namespace Iceberg no Hive Metastore (idempotente)
         spark.sql(f"CREATE NAMESPACE IF NOT EXISTS iceberglake.{SCHEMA}")

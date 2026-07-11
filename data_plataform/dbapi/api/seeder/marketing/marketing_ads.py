@@ -9,7 +9,8 @@ from sqlalchemy import select, insert
 from api.database import AsyncSessionLocal
 from api.schemas.marketing.marketing_ads import MarketingAd, MarketingStatus, MarketingMediaType
 from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
-from api.models.marketing.marketing_ads import MarketingAdsModel
+from api.models.marketing.marketing_advertise import MarketingAdvertiseModel
+from api.seeder.chaos import apply_ads_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -64,7 +65,8 @@ def generate_ad_payloads(adgroups_reais: list[dict]) -> list[dict]:
                 "row_guid": uuid.uuid4()
             }
             batch.append(MarketingAd(**payload).model_dump())
-    return batch
+
+    return apply_ads_chaos(batch)
 
 async def seed_marketing_ads():
     """
@@ -83,7 +85,7 @@ async def seed_marketing_ads():
         ads = generate_ad_payloads(adgroups_reais)
         
         try:
-            stmt = insert(MarketingAdsModel).values(ads)
+            stmt = insert(MarketingAdvertiseModel).values(ads)
             await session.execute(stmt)
             await session.commit()
             print(f"✅ {len(ads)} Anúncios semeados com sucesso!")

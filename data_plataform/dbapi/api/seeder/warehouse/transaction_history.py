@@ -13,10 +13,11 @@ from sqlalchemy import select
 from api.database import AsyncSessionLocal
 from api.services.warehouse.transaction_history_service import TransactionHistoryService
 from api.schemas.warehouse.warehouse_transactionhistory import TransactionHistorySchema, TraceabilityInfo, IoTSensorData
-from api.models.product.product import ProductModel
+from api.models.product.product import Product
 from api.models.warehouse.warehouselocation import WarehouseLocationModel
-from api.models.warehouse.transactiontype import TransactionTypeModel
+from api.models.warehouse.transactiontype import WarehouseTransactionType
 from api.models.sales.salesorder import SalesOrderModel
+from api.seeder.chaos import apply_transaction_history_chaos
 
 async def seed_transaction_history(count: int):
     """
@@ -25,14 +26,26 @@ async def seed_transaction_history(count: int):
     """
     async with AsyncSessionLocal() as session:
         # 1. Buscar IDs válidos para garantir integridade referencial
-        product_ids = (await session.execute(select(ProductModel.product_id))).scalars().all()
+        product_ids = (await session.execute(select(Product.product_id))).scalars().all()
         location_ids = (await session.execute(select(WarehouseLocationModel.warehouselocation_id))).scalars().all()
-        txn_type_ids = (await session.execute(select(TransactionTypeModel.transactiontype_id))).scalars().all()
+        txn_type_ids = (await session.execute(select(WarehouseTransactionType.transactiontype_id))).scalars().all()
         order_ids = (await session.execute(select(SalesOrderModel.salesorder_id))).scalars().all()
 
         if not product_ids or not location_ids or not txn_type_ids:
             print("⚠️ Tabelas base vazias! Certifique-se de rodar os seeders de Product, Location e TransactionType primeiro.")
             return
+
+        # Locations de Cold Storage (para o chaos de quebra de cadeia de frio)
+        location_types = (await session.execute(
+            select(WarehouseLocationModel.warehouselocation_id, WarehouseLocationModel.capabilities["warehouse_type"].astext)
+        )).all()
+        cold_storage_location_ids = {loc_id for loc_id, wtype in location_types if wtype == "cold_storage"}
+
+        # Tipos de transação com efeito 'neutral' (transferências, para o chaos de buraco negro logístico)
+        type_effects = (await session.execute(
+            select(WarehouseTransactionType.transactiontype_id, WarehouseTransactionType.action_effect)
+        )).all()
+        neutral_type_ids = {type_id for type_id, effect in type_effects if effect == "neutral"}
 
         service = TransactionHistoryService(session)
         
@@ -71,9 +84,11 @@ async def seed_transaction_history(count: int):
                     )
                 )
                 batch_data.append(txn)
-            
+
+            batch_data = apply_transaction_history_chaos(batch_data, cold_storage_location_ids, neutral_type_ids)
+
             print(f"📦 Injetando batch de {current_batch_size} transações (Integridade Dimensional OK)...")
-            
+
             try:
                 await service.process_bulk_transactions(batch_data)
                 total_created += current_batch_size

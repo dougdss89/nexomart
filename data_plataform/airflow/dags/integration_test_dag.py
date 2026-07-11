@@ -33,9 +33,8 @@ default_args = {
     "retries": 0,
 }
 
-SEEDER_SCRIPT    = "/dockervol/configurations/seeders/seed_product_category.py"
-DBT_PROJECT_DIR  = "/dockervol/configurations/dbt"
-DBT_PROFILES_DIR = "/dockervol/configurations"
+DBT_PROJECT_DIR  = "/dockervol/dbt"
+DBT_PROFILES_DIR = "/dockervol/dbt"
 
 
 def load_folders():
@@ -106,7 +105,10 @@ def integration_e2e_test():
     # ── Step 0: Seed PostgreSQL ───────────────────────────────────────────────
     seed_postgres = BashOperator(
         task_id="seed_postgres",
-        bash_command=f"python {SEEDER_SCRIPT}",
+        bash_command=(
+            "uv run python /dockervol/dbapi/api/seeder/product/product_category.py "
+            "--min-count 500 --max-count 1500"
+        ),
     )
 
     # ── Step 1: Landing (PostgreSQL → Parquet @ s3a://landing) ───────────────

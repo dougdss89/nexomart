@@ -6,10 +6,10 @@ class MarketingAdGroupModel(Base, AuditMixin):
     
     __tablename__ = "marketingadgroup"
 
-    adgroup_id = Column(Integer, primary_key=True, autoincrement=True)
-    campaign_id = Column(Integer, ForeignKey('marketing.marketingcampaign.campaign_id'), nullable=False) 
+    ad_group_id = Column(Integer, primary_key=True, autoincrement=True)
+    campaign_id = Column(Integer, ForeignKey('marketing.marketingcampaign.campaign_id'), nullable=False)
     external_id = Column(String(200), nullable=False)
-    adgroup_name = Column(String(200), nullable=False)
+    ad_group_name = Column(String(200), nullable=False)
     targeting_criteria = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     
     __table_args__ = (

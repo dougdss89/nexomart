@@ -9,7 +9,7 @@ class MarketingDailyPerformanceModel(Base, AuditMixin): # [FIX] Inheritance
     # [FIX] Nomenclaturas alinhadas com Schema e adição do nível Group
     performance_id = Column(Integer, primary_key=True, autoincrement=True)
     campaign_id = Column(Integer, ForeignKey('marketing.marketingcampaign.campaign_id'), nullable=False)  
-    ad_group_id = Column(Integer, ForeignKey('marketing.marketingadgroup.adgroup_id'), nullable=False) # [FIX] Falta
+    ad_group_id = Column(Integer, ForeignKey('marketing.marketingadgroup.ad_group_id'), nullable=False) # [FIX] Falta
     ad_id = Column(Integer, ForeignKey('marketing.advertise.ad_id'), nullable=False) # [FIX] advertise_id -> ad_id
     
     # [CRITICAL FIX] Adicionado marcador de tempo diário ausente (Time-Series DW Requirement)

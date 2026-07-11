@@ -25,10 +25,7 @@ spark_submit_task = SparkSubmitOperator(
     conn_id='sparkconn',
     packages='org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.7.1',
     conf={
-        'spark.sql.extensions': (
-            'io.delta.sql.DeltaSparkSessionExtension,'
-            'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions'
-        ),
+        'spark.sql.extensions': 'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions',
         'spark.sql.catalog.nexo': 'org.apache.iceberg.spark.SparkCatalog',
         'spark.sql.catalog.nexo.catalog-impl': 'org.apache.iceberg.rest.RESTCatalog',
         'spark.sql.catalog.nexo.uri': 'http://unitycatalog:8080/api/2.1/unity-catalog/iceberg',

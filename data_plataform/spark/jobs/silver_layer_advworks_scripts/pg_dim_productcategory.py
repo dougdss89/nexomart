@@ -1,6 +1,6 @@
 """
-Silver: s3a://bronze/advworks_rawdb/raw_dim_productcategory (Delta)
-      → s3a://silver/advworks_db/dim_productcategory (Delta)
+Silver: iceberglake.bronze.raw_dim_productcategory (Iceberg)
+      → iceberglake.silver.dim_productcategory (Iceberg)
 """
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, monotonically_increasing_id, current_timestamp
@@ -12,16 +12,13 @@ from traceback import print_exc
 def load_source_configurations(application_name: str):
     try:
         config = load_config()
-        delta_paths = config.get("delta_path", {})
-        validate_required_keys(delta_paths, ["raw_icebergdb", "silver_layer"], "delta_path")
-
         spark = (
             SparkSession.builder
             .appName(application_name)
             .getOrCreate()
         )
 
-        return spark, delta_paths.get("raw_icebergdb"), delta_paths.get("silver_layer")
+        return spark
 
     except Exception as e:
         print(f"Failed to load configurations: {str(e)}")
@@ -29,10 +26,9 @@ def load_source_configurations(application_name: str):
         return None, None, None
 
 
-def build_dimension(spark, bronze_base: str, table_name: str):
+def build_dimension(spark, table_name: str):
     try:
-        path = f"{bronze_base}/advworks_rawdb/{table_name}"
-        df = spark.read.format("delta").load(path)
+        df = spark.table(f"iceberglake.bronze.{table_name}")
 
         dim = df.select(
             (monotonically_increasing_id() + 1).cast("long").alias("category_sk"),
@@ -52,15 +48,15 @@ def build_dimension(spark, bronze_base: str, table_name: str):
         return None
 
 
-def write_silver_dimension(dataframe, silver_base: str, table_name: str):
+def write_silver_dimension(spark, dataframe, table_name: str):
     try:
-        path = f"{silver_base}/advworks_db/{table_name}"
+        spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberglake.silver")
         (
-            dataframe.write
-            .format("delta")
-            .mode("overwrite")
-            .option("mergeSchema", "true")
-            .save(path)
+            dataframe
+            .writeTo(f"iceberglake.silver.{table_name}")
+            .tableProperty("format-version", "2")
+            .tableProperty("write.format.default", "parquet")
+            .createOrReplace()
         )
         print(f"Silver: wrote to {path}")
     except Exception as e:
@@ -80,18 +76,18 @@ def spark_stop(spark):
 if __name__ == "__main__":
     spark = None
     try:
-        spark, bronze_base, silver_base = load_source_configurations("silver_dim_productcategory")
+        spark = load_source_configurations("silver_dim_productcategory")
 
-        if not all([spark, bronze_base, silver_base]):
+        if not spark:
             raise RuntimeError("Failed to load configurations")
 
-        dim = build_dimension(spark, bronze_base, "raw_dim_productcategory")
+        dim = build_dimension(spark, "raw_dim_productcategory")
 
         if dim is None:
             raise RuntimeError("Failed to build dimension")
 
         dim.show(5)
-        write_silver_dimension(dim, silver_base, "dim_productcategory")
+        write_silver_dimension(spark, dim, "dim_productcategory")
         print(f"Silver job completed — {dim.count()} rows")
 
     except Exception as e:

@@ -16,17 +16,11 @@ def load_source_connections():
 
         # Validating imported keys
         hadoop_paths = config.get("hadoop_paths", {})
-        delta_paths = config.get("delta_path", {})
 
         validate_required_keys(
             config=hadoop_paths,
             required_keys=["minio_landing"],
             config_name="hadoop_paths"
-        )
-        validate_required_keys(
-            config=delta_paths,
-            required_keys=["raw_icebergdb"],
-            config_name="delta_path"
         )
         #create spark session
         
@@ -38,7 +32,7 @@ def load_source_connections():
                 .getOrCreate()
         )
         logger.info("Spark Session created")
-        return spark, hadoop_paths.get("minio_landing", ""), delta_paths.get("raw_icebergdb", "")
+        return spark, hadoop_paths.get("minio_landing", "")
     
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {str(e)}")
@@ -107,24 +101,23 @@ def convert_currencycode_schema(dataframe):
 #         print_exc()
 #         exit(1)
         
-def write_to_delta(dataframe, bronze_base: str, table_name: str):
-    """ Write DataFrame to Delta Lake at the bronze S3A path. """
+def write_to_iceberg(spark, dataframe, table_name: str):
+    """ Write DataFrame to Iceberg at iceberglake.bronze.<table_name>. """
     try:
-        path = f"{bronze_base}/advworks_rawdb/{table_name}"
+        spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberglake.bronze")
         (
             dataframe
-            .write.format("delta")
-            .mode("overwrite")
-            .option("mergeSchema", "true")
-            .save(path)
+            .writeTo(f"iceberglake.bronze.{table_name}")
+            .tableProperty("format-version", "2")
+            .tableProperty("write.format.default", "parquet")
+            .createOrReplace()
         )
-        print(f"Table {table_name} written to Delta at {path}")
-        logger.info(f"Table {table_name} written to Delta at {path}")
+        print(f"Table {table_name} written to Iceberg at iceberglake.bronze.{table_name}")
+        logger.info(f"Table {table_name} written to Iceberg at iceberglake.bronze.{table_name}")
     except Exception as e:
-        print(f"Failed to write table {table_name} to Delta: {str(e)}")
+        print(f"Failed to write table {table_name} to Iceberg: {str(e)}")
         print_exc()
         exit(1)
-
 
 def spark_stop(spark):
     try:
@@ -139,14 +132,14 @@ def spark_stop(spark):
         
 def main():
     
-    spark, minio_landing, bronze_base = load_source_connections()
+    spark, minio_landing = load_source_connections()
     raw_table = "raw_dimcurrencycode"
         
     dataframe = extract_landing_data(spark, minio_landing, "currencycode")
     
     dataframe = convert_currencycode_schema(dataframe)
         
-    write_to_delta(dataframe=dataframe, bronze_base=bronze_base, table_name=raw_table)
+    write_to_iceberg(spark=spark, dataframe=dataframe, table_name=raw_table)
     
     spark_stop(spark)
     

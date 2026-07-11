@@ -10,7 +10,13 @@ services:
     environment:
       SERVICE_NAME: metastore
       DB_DRIVER: postgres
-      IS_RESUME: "true"
+      # IS_RESUME=false (default) faz o entrypoint rodar `schematool -initOrUpgradeSchema`
+      # a cada boot — para Hive 4.x isso é idempotente (verifica a versão e só inicializa/
+      # atualiza o que faltar), diferente de IS_RESUME=true, que pula o schematool por
+      # completo e deixa o datanucleus.schema.autoCreateAll criar só as tabelas mapeadas
+      # via ORM sob demanda, nunca as tabelas só-SQL (TXNS, HIVE_LOCKS, WM_*) que o
+      # Iceberg precisa para commit locking.
+      IS_RESUME: "false"
     volumes:
       - ./conf/hive-site.xml:/opt/hive/conf/hive-site.xml
     ports:

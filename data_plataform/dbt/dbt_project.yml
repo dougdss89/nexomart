@@ -1,0 +1,27 @@
+name: 'data_platform'
+version: '1.0.0'
+config-version: 2
+
+# Precisa bater com o profile em configurations/profiles.yml
+profile: 'data_platform'
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Materialização padrão: tabelas do Gold ficam no catálogo Iceberg (iceberglake.gold),
+# que é a "database"/"schema" default do profile. Modelos que precisam servir o Power BI
+# via Postgres sobrescrevem individualmente `database: postgres` (+ schema) no seu
+# próprio config() — Trino enxerga os dois catálogos na mesma conexão, então o CTAS
+# cross-catalog (Iceberg -> Postgres) funciona sem adapter extra.
+models:
+  data_platform:
+    gold:
+      +materialized: table
+      +schema: gold

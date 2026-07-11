@@ -16,6 +16,9 @@ __pycache__/
 dbapi/api/.env
 airflow/dags/.env
 
+# Symlink for local dev (Docker uses volume mount instead)
+dbapi/configurations
+
 # IDEs
 .idea/
 .vscode/

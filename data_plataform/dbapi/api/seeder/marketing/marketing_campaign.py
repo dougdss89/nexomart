@@ -10,6 +10,7 @@ from api.database import AsyncSessionLocal
 from api.schemas.marketing.marketing_campaign import MarketingCampaign, MarketingBudgeType, CampaignStatus
 from api.models.marketing.marketing_channel import MarketingChannelModel
 from api.models.marketing.marketing_campaign import MarketingCampaignModel
+from api.seeder.chaos import apply_campaign_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -80,7 +81,8 @@ def generate_campaign_payloads(canais_ativos: list[dict]) -> list[dict]:
                 "row_guid": uuid.uuid4()
             }
             batch.append(MarketingCampaign(**payload).model_dump())
-    return batch
+
+    return apply_campaign_chaos(batch)
 
 async def seed_marketing_campaigns(count: int = 20):
     """

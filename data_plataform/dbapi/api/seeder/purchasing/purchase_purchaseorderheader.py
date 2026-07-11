@@ -11,7 +11,8 @@ from api.database import AsyncSessionLocal
 from api.schemas.purchasing.purchasing_orderheader import Status, AuditAction, PurchaseOrderHeader
 from api.models.purchasing.vendor import PurchaseVendorModel
 from api.models.humanresources.employee import HumanResourcesEmployeeModel
-from api.models.purchasing.orderheader import PurchaseOrderHeaderModel
+from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
+from api.seeder.chaos import apply_purchaseorderheader_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -45,7 +46,7 @@ def generate_po_header_payloads(vendor_ids: List[int], employee_ids: List[int], 
             "is_active": True,
             "row_guid": uuid.uuid4()
         })
-    return batch
+    return apply_purchaseorderheader_chaos(batch)
 
 async def seed_purchase_orders(count: int = 50):
     """Executa a carga de pedidos de compra consumindo fornecedores e funcionários REAIS."""

@@ -11,6 +11,7 @@ from api.schemas.marketing.marketing_adgroup import MarketingAdGroup, DeviceType
 from api.models.marketing.marketing_campaign import MarketingCampaignModel
 from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
 from api.samples.person_demographics import INTERESTS_BANK, OCCUPATIONS
+from api.seeder.chaos import apply_adgroup_chaos
 
 # Ajustar path para importar módulos da API
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -49,7 +50,8 @@ def generate_adgroup_payloads(campanhas_reais: list[dict]) -> list[dict]:
                 "row_guid": uuid.uuid4()
             }
             batch.append(MarketingAdGroup(**payload).model_dump())
-    return batch
+
+    return apply_adgroup_chaos(batch)
 
 async def seed_marketing_adgroups():
     """

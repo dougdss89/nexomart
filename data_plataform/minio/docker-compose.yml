@@ -30,6 +30,42 @@ services:
       timeout: 20s
       retries: 3
 
+  # Provisiona os buckets assim que o MinIO fica saudável. Roda uma vez e finaliza
+  # (mesmo padrão do airflow-init em airflow/docker-compose.yaml) — idempotente via
+  # `mc mb --ignore-existing`, então é seguro rodar em todo `make up`/`make up-minio`.
+  #
+  # - "spark-events" é OBRIGATÓRIO e fixo aqui: o Spark History Server lê
+  #   spark.eventLog.dir=s3a://spark-events/apps (spark/conf/spark-defaults.conf.template)
+  #   e crasha no boot se o bucket/prefixo não existir. Não mover para a lista abaixo.
+  # - Todo o resto vem de MINIO_EXTRA_BUCKETS em configurations/secrets.env — uma lista
+  #   separada por vírgula. Ao adicionar um pipeline/camada nova que grava em um bucket
+  #   novo, basta acrescentar o nome nessa variável; nenhum arquivo de código muda.
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - ../configurations/secrets.env
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY" >/dev/null
+
+        mc mb --ignore-existing local/spark-events >/dev/null
+        mc mb --ignore-existing local/spark-events/apps >/dev/null
+        echo "✅  Bucket obrigatório pronto: spark-events (com prefixo apps/)"
+
+        for bucket in $$(echo "$${MINIO_EXTRA_BUCKETS:-}" | tr ',' ' '); do
+          mc mb --ignore-existing "local/$$bucket" >/dev/null
+          echo "✅  Bucket pronto: $$bucket"
+        done
+    networks:
+      - hadoopcluster
+
 networks:
   hadoopcluster:
     external: true

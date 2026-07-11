@@ -31,29 +31,43 @@ class HRGroupName(str, Enum):
     RESEARCH_AND_DEVELOPMENT = "research and development"
     SALES_AND_MARKETING = "sales and marketing"
     
-# Mapeamento estático baseado na imagem enviada
-DEPARTMENT_TO_GROUP_MAP = {
-    HRDepartmentName.ENGINEERING: HRGroupName.RESEARCH_AND_DEVELOPMENT,
-    HRDepartmentName.TOOL_DESIGN: HRGroupName.RESEARCH_AND_DEVELOPMENT,
-    HRDepartmentName.RESEARCH_AND_DEVELOPMENT: HRGroupName.RESEARCH_AND_DEVELOPMENT,
-    
-    HRDepartmentName.SALES: HRGroupName.SALES_AND_MARKETING,
-    HRDepartmentName.MARKETING: HRGroupName.SALES_AND_MARKETING,
-    
-    HRDepartmentName.PURCHASING: HRGroupName.INVENTORY_MANAGEMENT,
-    HRDepartmentName.SHIPPING_AND_RECEIVING: HRGroupName.INVENTORY_MANAGEMENT,
-    
-    HRDepartmentName.PRODUCTION: HRGroupName.MANUFACTURING,
-    HRDepartmentName.PRODUCTION_CONTROL: HRGroupName.MANUFACTURING,
-    
-    HRDepartmentName.HUMAN_RESOURCES: HRGroupName.EXECUTIVE_GENERAL_AND_ADMINISTRATION,
-    HRDepartmentName.FINANCE: HRGroupName.EXECUTIVE_GENERAL_AND_ADMINISTRATION,
-    HRDepartmentName.INFORMATION_SERVICES: HRGroupName.EXECUTIVE_GENERAL_AND_ADMINISTRATION,
-    HRDepartmentName.FACILITIES_AND_MAINTENANCE: HRGroupName.EXECUTIVE_GENERAL_AND_ADMINISTRATION,
-    HRDepartmentName.EXECUTIVE: HRGroupName.EXECUTIVE_GENERAL_AND_ADMINISTRATION,
-    
-    HRDepartmentName.DOCUMENT_CONTROL: HRGroupName.QUALITY_ASSURANCE,
-    HRDepartmentName.QUALITY_ASSURANCE: HRGroupName.QUALITY_ASSURANCE,
+# Estrutura organizacional: cada grupo lista os departamentos que o compõem.
+# DEPARTMENT_TO_GROUP_MAP é derivado daqui para garantir 1 fonte da verdade.
+GROUP_TO_DEPARTMENTS: dict[HRGroupName, list[HRDepartmentName]] = {
+    HRGroupName.RESEARCH_AND_DEVELOPMENT: [
+        HRDepartmentName.ENGINEERING,
+        HRDepartmentName.TOOL_DESIGN,
+        HRDepartmentName.RESEARCH_AND_DEVELOPMENT,
+    ],
+    HRGroupName.SALES_AND_MARKETING: [
+        HRDepartmentName.SALES,
+        HRDepartmentName.MARKETING,
+    ],
+    HRGroupName.INVENTORY_MANAGEMENT: [
+        HRDepartmentName.PURCHASING,
+        HRDepartmentName.SHIPPING_AND_RECEIVING,
+    ],
+    HRGroupName.MANUFACTURING: [
+        HRDepartmentName.PRODUCTION,
+        HRDepartmentName.PRODUCTION_CONTROL,
+    ],
+    HRGroupName.EXECUTIVE_GENERAL_AND_ADMINISTRATION: [
+        HRDepartmentName.HUMAN_RESOURCES,
+        HRDepartmentName.FINANCE,
+        HRDepartmentName.INFORMATION_SERVICES,
+        HRDepartmentName.FACILITIES_AND_MAINTENANCE,
+        HRDepartmentName.EXECUTIVE,
+    ],
+    HRGroupName.QUALITY_ASSURANCE: [
+        HRDepartmentName.DOCUMENT_CONTROL,
+        HRDepartmentName.QUALITY_ASSURANCE,
+    ],
+}
+
+DEPARTMENT_TO_GROUP_MAP: dict[HRDepartmentName, HRGroupName] = {
+    department: group
+    for group, departments in GROUP_TO_DEPARTMENTS.items()
+    for department in departments
 }
 
 class HRDepartment(BaseModel):
@@ -78,11 +92,15 @@ class HRDepartment(BaseModel):
     
     @model_validator(mode="after")
     def set_group_based_on_departament(self):
-        
+
         correct_group = DEPARTMENT_TO_GROUP_MAP.get(self.department_name)
-        
-        if correct_group:
-            self.group_name = correct_group
-            
+
+        if correct_group is None:
+            raise ValueError(
+                f"Departamento '{self.department_name}' sem grupo mapeado em GROUP_TO_DEPARTMENTS."
+            )
+
+        self.group_name = correct_group
+
         return self
     
