@@ -152,11 +152,13 @@ def writePurchaseFact(spark, dataframe: DataFrame, fact_name: str) -> DataFrame:
         
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error while writing table {fact_name} to iceberg: {str(e)}")
-        return "Py4JJavaError"
+        print_exc()
+        exit(1)
 
     except Exception as e:
         logger.error(f"Unexpected error while writing table {fact_name} to iceberg: {str(e)}")
-        return "UnexpectedError"
+        print_exc()
+        exit(1)
     
 #stop spark session
 def sparkStop(spark) -> str:
@@ -215,5 +217,7 @@ def main():
             
 if __name__ == "__main__":
     
-    main()
-    logger.info("Sparkjob completed successfully") 
+    result = main()
+    if result != "Success":
+        exit(1)
+    logger.info("Sparkjob completed successfully")

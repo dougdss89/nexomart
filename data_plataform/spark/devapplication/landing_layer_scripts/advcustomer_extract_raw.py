@@ -31,11 +31,6 @@ def load_source_connections():
     spark = (SparkSession
                 .builder
                 .appName("extract_customer_raw")
-                .config("spark.driver.memory", "12g") 
-                .config("spark.executor.memory", "12g") 
-                .config("spark.executor.memoryOverhead", "2g")
-                .config("spark.executor.cores", "4")    
-                .config("spark.executor.instances", "4")
                 .enableHiveSupport()
                 .getOrCreate()
             )

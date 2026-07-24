@@ -105,11 +105,13 @@ def writeProductCategoryDataframe(spark, dataframe: DataFrame, table_name: str) 
         
     except Py4JJavaError as e:
         logger.error(f"Java/Scala error while writing table {table_name} to iceberg: {str(e)}")
-        return "Py4JJavaError"
+        print_exc()
+        exit(1)
 
     except Exception as e:
         logger.error(f"Unexpected error while writing table {table_name} to iceberg: {str(e)}")
-        return "UnexpectedError"
+        print_exc()
+        exit(1)
     
 #closing spark session
 def sparkStop(spark) -> str:
@@ -170,6 +172,8 @@ def main():
             
 if __name__ == "__main__":
     
-    main()
+    result = main()
+    if result != "Success":
+        exit(1)
     logger.info("Sparkjob completed successfully")
     

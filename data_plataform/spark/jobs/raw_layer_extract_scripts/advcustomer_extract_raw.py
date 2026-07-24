@@ -135,6 +135,11 @@ def write_to_iceberg(spark, dataframe, table_name: str):
             .writeTo(f"iceberglake.bronze.{table_name}")
             .tableProperty("format-version", "2")
             .tableProperty("write.format.default", "parquet")
+            # O leitor vetorizado Arrow do Iceberg (1.7.1) crasha a JVM (SIGSEGV em
+            # SymbolTable::do_lookup) lendo colunas dictionary-encoded desta tabela
+            # (endereco/cidade/estado). Ver hs_err_pid*.log em spark-worker. Desligado
+            # aqui para sobreviver ao createOrReplace() em toda execução da DAG.
+            .tableProperty("read.parquet.vectorization.enabled", "false")
             .createOrReplace()
         )
         print(f"Table {table_name} written to Iceberg at iceberglake.bronze.{table_name}")

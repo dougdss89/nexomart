@@ -685,4 +685,6 @@ Full documentation: [`dbapi/api/seeder/CHAOS_DOCUMENTATION.md`](dbapi/api/seeder
 | [`docs/nexomart_requisitos.md`](docs/nexomart_requisitos.md) | NexoMart functional and non-functional requirements |
 | [`docs/CICLO_01_CRONOGRAMA.md`](docs/CICLO_01_CRONOGRAMA.md) | Cycle 1 video schedule and scripts |
 | [`docs/ENGINEERING_DEBATE_AND_ROADMAP.md`](docs/ENGINEERING_DEBATE_AND_ROADMAP.md) | Engineering decisions and technical roadmap |
+| [`docs/AI_ML_ROADMAP.md`](docs/AI_ML_ROADMAP.md) | AI/ML use-case roadmap (demand forecasting, semantic search) |
+| [`docs/INCIDENTS.md`](docs/INCIDENTS.md) | Postmortems for bugs found in production-ish operation |
 | [`dbapi/walkthrough.md`](dbapi/walkthrough.md) | Implementation walkthrough for the product domain |

@@ -321,6 +321,22 @@ O Associate valida que você conhece a plataforma e consegue construir pipelines
 | uv + ruff | Gerenciamento de ambiente e linting moderno | Já usa no projeto |
 | Logging estruturado | structlog vs logging — JSON logs para CloudWatch | Todos os jobs Spark |
 
+**OOP Fundamentos: Lutz → Fluent Python (leitura pareada)**
+
+Mesma lógica do Clube T3 (Evans → Khononov): livro de fundamentos primeiro, tratamento
+idiomático/avançado depois. Ler em blocos temáticos, não em paralelo capítulo a capítulo.
+
+| Bloco | Learning Python — Lutz (fundamentos) | Fluent Python — Ramalho (idiomático) |
+|-------|--------------------------------------|----------------------------------------|
+| 1. OOP básico | Cap. 26–28 — OOP: The Big Picture, Class Coding Basics/Details | Cap. 11 — A Pythonic Object |
+| 2. Sobrecarga de operadores | Cap. 29 — Operator Overloading | Cap. 12 + 16 — Special Methods for Sequences, Operator Overloading |
+| 3. Design com classes | Cap. 30 — Designing with Classes (herança, composição) | Cap. 14 — Inheritance: For Better or Worse |
+| 4. Tópicos avançados | Cap. 31 — Advanced Class Topics (slots, properties, descriptors, metaclasses) | Cap. 13 — Interfaces, Protocols, and ABCs |
+
+> Confirme os números de capítulo contra o sumário da sua edição do Lutz (variam um
+> pouco entre a 4ª e a 5ª). O Bloco 4 fecha direto no Fluent Python cap. 13, que já
+> está mapeado abaixo nos Recursos e no Clube T6.
+
 **PySpark (Python + Spark — cobre os dois pilares)**
 
 | Subtópico | Foco |
@@ -370,6 +386,7 @@ O Associate valida que você conhece a plataforma e consegue construir pipelines
 | Recurso | Tipo | Custo | Prioridade |
 |---------|------|-------|-----------|
 | Fluent Python — Ramalho (caps 13, 17, 21) | Livro | Pago | Alta |
+| Learning Python — Mark Lutz (Parte VI, caps 26–31) | Livro | Pago | Alta — fundamentos OOP antes do Fluent Python |
 | Python Docs — asyncio | Documentação | Gratuito | Alta |
 | Mode Analytics SQL Tutorial | Plataforma online | Gratuito | Alta — SQL analítico |
 | dbt Learn (courses.getdbt.com) | Plataforma oficial | Gratuito | Alta |
@@ -388,8 +405,8 @@ Os livros não são um pilar isolado — eles fundamentam e enriquecem os outros
 | Kimball — Data Warehouse Toolkit | Python + SQL (modelagem) | Databricks/Spark (Gold Layer) | Clube T0 |
 | Fundamentos de Engenharia de Dados | Databricks/Spark (ciclo de vida) | AWS (mapa de serviços) | Clube T1 |
 | DDIA — Kleppmann | AWS (distribuídos) | Databricks/Spark (storage) | Clube T2 |
-| DDD Evans | Python + SQL (domínios) | — | base T3 |
-| Learning DDD — Khononov | Python + SQL (Outbox, CQRS) | AWS (EventBridge, SQS) | Clube T3 |
+| DDD Evans | Python + SQL (domínios) | — | base T3.1–T3.4 |
+| Learning DDD — Khononov | Python + SQL (Outbox, CQRS) | AWS (EventBridge, SQS) | Clube T3.1–T3.4 |
 | Hard Parts — Ford & Richards | AWS (decomposição) | Databricks/Spark (CQRS) | Clube T4 |
 | GoF — Design Patterns | Python + SQL (padrões de código) | — | Clube T5 |
 | Fluent Python — Ramalho | Python + SQL (Python profundo) | Databricks/Spark (PySpark) | Clube T6 |
@@ -407,6 +424,9 @@ BLOCO 2 — Sistemas Distribuídos
 BLOCO 3 — Design de Domínio
   4. DDD Evans (Pts I + II + IV)     → teoria — leia devagar
   5. Khononov (Caps 1–6 + 10)        → prática — Outbox, eventos
+     → Clube T3 expandido em 4 sub-episódios (T3.1–T3.4), pareando
+       Evans + Khononov por tema em vez de um único episódio.
+       Detalhamento completo: ESTRATEGIA_CONSOLIDADA_CONTEUDO.md
 
 BLOCO 4 — Arquitetura e Padrões
   6. Hard Parts (Caps 1–4 + 6 + 9)   → CQRS, trade-offs
@@ -512,6 +532,8 @@ Quando uma leitura fundamenta diretamente um dos outros pilares (ex: DDIA cap 3 
 | ADR-008 | Deploy AWS com IaC (Terraform) | AWS | DEA-C01 + Cantrill SAA-C03 |
 
 ---
+
+![alt text]({88FAC256-41ED-41E3-95B1-500C83FA2C3D}.png)
 
 ## Regras para Não Abandonar
 
