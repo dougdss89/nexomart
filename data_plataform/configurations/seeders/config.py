@@ -134,6 +134,18 @@ TABLE_RANGES: Dict[str, SchemaRanges] = {
         min_count=10_000, max_count=500_000, min_chaos=0.01, max_chaos=0.05,
         description="Daily ad performance time-series",
     ),
+    "purchasing.vendor": SchemaRanges(
+        min_count=20, max_count=300, min_chaos=0.02, max_chaos=0.05,
+        description="Vendor master data — small, not a fact table",
+    ),
+    "warehouse.warehouselocation": SchemaRanges(
+        min_count=10, max_count=200, min_chaos=0.01, max_chaos=0.05,
+        description="Physical warehouse locations — small, not a fact table",
+    ),
+    "sales.seller": SchemaRanges(
+        min_count=10, max_count=300, min_chaos=0.01, max_chaos=0.05,
+        description="Marketplace sellers/stores — small, not a fact table",
+    ),
 }
 
 # ── Recommended chaos types per schema ───────────────────────────────────────

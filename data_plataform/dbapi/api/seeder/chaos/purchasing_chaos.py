@@ -1,6 +1,6 @@
 """
-Chaos engineering para os seeders de purchasing (header, detail, vendor, audit).
-Ver dbapi/api/seeder/CHAOS_DOCUMENTATION.md secao 3.9 para o catalogo completo.
+Chaos engineering for the purchasing seeders (header, detail, vendor, audit).
+See dbapi/api/seeder/CHAOS_DOCUMENTATION.md section 3.9 for the full catalog.
 """
 
 import random
@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 
 def apply_purchaseorderheader_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Matematica financeira que nao bate, ship_date antes de order_date e pedido fantasma."""
+    """Financial math that doesn't add up, ship_date before order_date, and a phantom order."""
     if not batch:
         return batch
 
@@ -22,7 +22,7 @@ def apply_purchaseorderheader_chaos(batch: list[dict[str, Any]], chaos_rate: flo
         chaos_type = random.choice(["financial_mismatch", "reversed_ship_date", "phantom_order"])
 
         if chaos_type == "financial_mismatch":
-            # Desconto manual aplicado direto no total, sem recalcular sub_total/tax_amt
+            # Manual discount applied directly to the total, without recalculating sub_total/tax_amt
             discount = (row["sub_total"] * Decimal(str(random.uniform(0.05, 0.20)))).quantize(Decimal("0.0001"))
             row["total_due"] = row["total_due"] - discount
 
@@ -40,7 +40,7 @@ def apply_purchaseorderheader_chaos(batch: list[dict[str, Any]], chaos_rate: flo
 
 
 def apply_purchaseorderdetail_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Over-shipment (recebido+rejeitado > pedido) e pedidos zumbis (pendentes ha anos)."""
+    """Over-shipment (received+rejected > ordered) and zombie orders (pending for years)."""
     if not batch:
         return batch
 
@@ -68,12 +68,12 @@ def apply_purchaseorderdetail_chaos(batch: list[dict[str, Any]], chaos_rate: flo
 
 def apply_vendor_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.03) -> list[dict[str, Any]]:
     """
-    Fornecedor 'caloteiro ativo' e colisao de master data (mesmo tax_id, nomes diferentes).
+    'Active deadbeat' vendor and master data collision (same tax_id, different names).
 
-    Espera batch ja validado/model_dump() pelo schema Vendor. O caso 'active_deadbeat'
-    muta o dict serializado DEPOIS da validacao, contornando de proposito o model_validator
-    que bloqueia credit_rating baixo + is_active=True (simula alguem forcando a ativacao
-    fora da API, direto no banco).
+    Expects a batch already validated/model_dump()'d by the Vendor schema. The 'active_deadbeat'
+    case mutates the serialized dict AFTER validation, deliberately bypassing the model_validator
+    that blocks low credit_rating + is_active=True (simulates someone forcing activation
+    outside the API, straight into the database).
     """
     if len(batch) < 2:
         return batch
@@ -102,7 +102,7 @@ def apply_purchase_audit_chaos(
     manager_employee_ids: Optional[list[int]] = None,
     chaos_rate: float = 0.05,
 ) -> list[dict[str, Any]]:
-    """Processo pulado (remove etapas intermediarias) e aprovador fantasma."""
+    """Skipped process (removes intermediate steps) and ghost approver."""
     if not batch:
         return batch
 
@@ -115,7 +115,6 @@ def apply_purchase_audit_chaos(
     chosen_headers = random.sample(header_ids, min(num_chaos, len(header_ids)))
 
     remove_indices: set[int] = set()
-    max_valid_id = max(valid_employee_ids) if valid_employee_ids else 0
     non_managers = [e for e in valid_employee_ids if not manager_employee_ids or e not in manager_employee_ids]
 
     for header_id in chosen_headers:
@@ -123,18 +122,20 @@ def apply_purchase_audit_chaos(
         chaos_type = random.choice(["skipped_step", "ghost_approver"])
 
         if chaos_type == "skipped_step" and len(indices) >= 3:
-            # Mantem só o primeiro evento (CREATED) e o ultimo, removendo as etapas do meio
+            # Keeps only the first event (CREATED) and the last, removing the middle steps
             for i in indices[1:-1]:
                 remove_indices.add(i)
 
         elif chaos_type == "ghost_approver":
+            # employee_id has a NOT NULL FK to humanresources.employee — the "approver without
+            # authorization" anomaly needs to keep pointing to a real employee
+            # (never a made-up id, which would break the constraint), so the fraud
+            # signal is flagged in the obs text instead of a phantom employee_id.
             approval_indices = [i for i in indices if batch[i]["action"] in ("approved", "closed")]
             if not approval_indices:
                 continue
             target = random.choice(approval_indices)
-            if non_managers and random.random() < 0.5:
-                batch[target]["employee_id"] = random.choice(non_managers)
-            else:
-                batch[target]["employee_id"] = max_valid_id + random.randint(100, 999)
+            batch[target]["employee_id"] = random.choice(non_managers or valid_employee_ids)
+            batch[target]["obs"] = "[ALERTA] Aprovador sem autorização no sistema"
 
     return [row for i, row in enumerate(batch) if i not in remove_indices]

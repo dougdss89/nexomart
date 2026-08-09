@@ -1,9 +1,9 @@
 """
-Amostra estática de Estados e Províncias.
-Mapeado pelo código Alpha-2 do país para facilitar o vínculo das chaves estrangeiras.
+Static sample of states and provinces.
+Mapped by the country's Alpha-2 code to make foreign key linking easier.
 """
 
-ESTADOS_OPERACAO = {
+STATES_BY_COUNTRY = {
     "BR": [
         ("SP", "São Paulo"),
         ("RJ", "Rio de Janeiro"),
@@ -23,9 +23,9 @@ ESTADOS_OPERACAO = {
         ("QC", "Quebec")
     ],
     "PT": [
-        ("11", "Lisboa"), # Em Portugal, distritos usam números no ISO 3166-2
+        ("11", "Lisboa"), # In Portugal, districts use numbers in ISO 3166-2
         ("13", "Porto"),
         ("03", "Braga")
     ]
-    # Você pode expandir para os outros países depois...
+    # You can expand to other countries later...
 }

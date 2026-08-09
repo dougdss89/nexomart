@@ -15,19 +15,19 @@ class TransactionTypeService:
         return await self.repository.get_by_id(type_id)
 
     async def create_transaction_type(self, schema: TransactionTypeSchema) -> WarehouseTransactionType:
-        # Utilizamos o utilitário from_pydantic da Base aprimorada para conversão limpa
+        # We use the enhanced Base's from_pydantic utility for clean conversion
         transaction_type = WarehouseTransactionType.from_pydantic(schema)
-        
-        # Verificamos se já existe o código
+
+        # We check whether the code already exists
         existing = await self.repository.get_by_code(transaction_type.transaction_code)
         if existing:
-            raise ValueError(f"Transaction code '{transaction_type.transaction_code}' já existe.")
+            raise ValueError(f"Transaction code '{transaction_type.transaction_code}' already exists.")
             
         return await self.repository.create(transaction_type.to_dict(exclude={"transactiontype_id"}))
 
     async def seed_initial_data(self, data_list: List[TransactionTypeSchema]):
         """
-        Carga inicial em lote.
+        Initial batch load.
         """
         plain_data = [item.model_dump(exclude={"transactiontype_id"}) for item in data_list]
         await self.repository.bulk_upsert(plain_data)

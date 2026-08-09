@@ -6,7 +6,7 @@ from api.repositories.humanresources.humanresources_job_role_repository import H
 logger = logging.getLogger(__name__)
 
 class HumanResourcesJobRoleService:
-    """ Orquestração dos Cargos (Histórico Salarial e Títulos) """
+    """ Orchestration of Job Roles (Salary History and Titles) """
     
     @staticmethod
     async def process_bulk_integration(db: AsyncSession, roles_data: List[Dict[str, Any]]) -> bool:

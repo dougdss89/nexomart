@@ -19,7 +19,7 @@ spark = SparkSession.builder \
   
 sc = spark.sparkContext
 
-# Definir schemas das tabelas TPC-H
+# Define schemas for the TPC-H tables
 schemas = {
     "nation": StructType([
         StructField("nationkey", IntegerType(), False),
@@ -101,17 +101,17 @@ schemas = {
 }
 
 
-# Função para gerar dados de exemplo
+# Function to generate sample data
 def generate_random_string(length):
-    """Gera uma string aleatória com letras maiúsculas"""
+    """Generates a random string with uppercase letters"""
     return ''.join(random.choices(string.ascii_uppercase, k=length))
 
 def generate_random_phone():
-    """Gera um número de telefone aleatório"""
+    """Generates a random phone number"""
     return f"{random.randint(100, 999)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}"
 
 def generate_random_date(start_date="2000-01-01", end_date="2025-12-31"):
-    """Gera uma data aleatória entre o intervalo especificado"""
+    """Generates a random date within the specified range"""
     start = datetime.strptime(start_date, "%Y-%m-%d")
     end = datetime.strptime(end_date, "%Y-%m-%d")
     delta = end - start
@@ -119,27 +119,27 @@ def generate_random_date(start_date="2000-01-01", end_date="2025-12-31"):
     return (start + timedelta(days=random_days)).strftime("%Y-%m-%d")
 
 def round_float(value, decimals=2):
-    """Função auxiliar para arredondar valores float sem conflito com PySpark"""
+    """Helper function to round float values without conflicting with PySpark"""
     return float(f"{value:.{decimals}f}")
 
 def get_max_iceberg_id(catalog_name, table_name, id_column):
-    """Obtém o máximo ID atual da tabela Iceberg"""
+    """Gets the current max ID from the Iceberg table"""
     catalog_name = "icebergdw"
-    
+
     try:
         full_table_name = f"{catalog_name}.iceberglab.{table_name}"
-        
+
         df = spark.sql(f"SELECT MAX({id_column}) AS max_id FROM {full_table_name}")
         max_id = df.collect()[0]["max_id"]
         return max_id if max_id is not None else 0
     except Exception as e:
-        print(f"Erro ao obter max ID da tabela {table_name}: {str(e)}")
+        print(f"Error getting max ID from table {table_name}: {str(e)}")
         return 0
 
 def generate_sample_data(table_name, num_rows, catalog_name="my_catalog"):
     random.seed(datetime.now().timestamp())
     
-    # Mapeamento de tabelas para suas colunas de ID
+    # Mapping of tables to their ID columns
     id_columns = {
         "nation": "nationkey",
         "region": "regionkey",
@@ -148,13 +148,13 @@ def generate_sample_data(table_name, num_rows, catalog_name="my_catalog"):
         "customer": "custkey",
         "orders": "orderkey"
     }
-    
-    # Para tabelas com IDs próprios
+
+    # For tables with their own IDs
     if table_name in id_columns:
         id_column = id_columns[table_name]
         start_id = get_max_iceberg_id(catalog_name, table_name, id_column) + 1
     else:
-        start_id = 0  # Para tabelas de relacionamento
+        start_id = 0  # For relationship tables
     
     if table_name == "nation":
         data = [
@@ -235,11 +235,11 @@ def generate_sample_data(table_name, num_rows, catalog_name="my_catalog"):
             for i in range(num_rows)
         ]
     else:
-        raise ValueError(f"Tabela desconhecida: {table_name}")
-    
+        raise ValueError(f"Unknown table: {table_name}")
+
     df = spark.createDataFrame(data, schema=schemas[table_name])
-    
-    # Escreve os dados na tabela Iceberg
+
+    # Writes the data to the Iceberg table
     return spark.createDataFrame(data, schema=schemas[table_name])
 
 def main():

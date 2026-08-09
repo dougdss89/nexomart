@@ -92,12 +92,12 @@ services:
       - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}
       - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configurations
 
-    # Dimensionado para caber 3 réplicas (docker compose up -d --scale spark-worker=3)
-    # dentro de um budget de 24 cores / 54GB Docker, sobrando espaço para o resto da
-    # stack (Postgres, MinIO, Hive Metastore, Trino, Airflow, dbapi). Workers menores
-    # e em maior número também são melhores para exercícios de tuning: forçam shuffle/
-    # spill real em vez de um único worker gigante resolvendo tudo em memória local.
-    # Ajuste SPARK_WORKER_CORES/MEMORY em configurations/secrets.env, não aqui.
+    # Sized to fit 3 replicas (docker compose up -d --scale spark-worker=3) within a
+    # 24-core / 54GB Docker budget, leaving room for the rest of the stack (Postgres,
+    # MinIO, Hive Metastore, Trino, Airflow, dbapi). Smaller, more numerous workers are
+    # also better for tuning exercises: they force real shuffle/spill instead of a
+    # single giant worker solving everything in local memory.
+    # Adjust SPARK_WORKER_CORES/MEMORY in configurations/secrets.env, not here.
     cpus: "${SPARK_WORKER_CORES}"
     mem_limit: ${SPARK_WORKER_MEM_LIMIT}
 

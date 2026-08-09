@@ -46,7 +46,7 @@ class PurchaseOrderHeader(BaseModel):
     ship_date: datetime
     orderfinished_date: Optional[datetime] = None
     
-    # DICA: No PostgreSQL, decimal(19,4) exige 4 casas no Pydantic para evitar truncamento silencioso no banco
+    # TIP: In PostgreSQL, decimal(19,4) requires 4 decimal places in Pydantic to avoid silent truncation in the database
     sub_total: Decimal = Field(ge=0.0, decimal_places=4)
     tax_amt: Decimal = Field(ge=0.0, decimal_places=4)
     freight: Decimal = Field(ge=0.0, decimal_places=4)
@@ -62,20 +62,20 @@ class PurchaseOrderHeader(BaseModel):
     
     @model_validator(mode="after")
     def validate_purchase_order(self):
-        # Validação de Datas
+        # Date Validation
         if self.ship_date < self.order_date:
-            raise ValueError("A data de envio (ship_date) não pode ser anterior à data do pedido (order_date).")
-        
-        if self.orderfinished_date and self.orderfinished_date < self.order_date:
-            raise ValueError("A data de finalização não pode ser anterior à data do pedido.")
+            raise ValueError("The ship date (ship_date) cannot be earlier than the order date (order_date).")
 
-        # Validação de Totais
+        if self.orderfinished_date and self.orderfinished_date < self.order_date:
+            raise ValueError("The finish date cannot be earlier than the order date.")
+
+        # Totals Validation
         calculated_total = self.sub_total + self.tax_amt + self.freight
         if abs(self.total_due - calculated_total) > Decimal("0.01"):
-            raise ValueError(f"O total_due ({self.total_due}) deve ser a soma de sub_total, tax_amt e freight ({calculated_total}).")
+            raise ValueError(f"total_due ({self.total_due}) must be the sum of sub_total, tax_amt and freight ({calculated_total}).")
 
-        # Regra de Negócio: Pedido finalizado deve ter data de finalização
+        # Business Rule: A finished order must have a finish date
         if self.status == Status.COMPLETED and not self.orderfinished_date:
-            raise ValueError("Pedidos com status 'completed' devem ter uma data de finalização (orderfinished_date).")
+            raise ValueError("Orders with status 'completed' must have a finish date (orderfinished_date).")
 
         return self

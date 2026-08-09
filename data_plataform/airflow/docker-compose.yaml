@@ -11,7 +11,7 @@ services:
     cpus: "0.5"
     mem_limit: 512m
 
-  # Inicializa o banco de dados do Airflow (roda uma vez e para)
+  # Initializes the Airflow database (runs once and stops)
   airflow-init:
     build: .
     depends_on:
@@ -36,9 +36,9 @@ services:
     command:
       - -c
       - |
-        # Aguarda o pgprojeto estar pronto antes de migrar
+        # Waits for pgprojeto to be ready before migrating
         until airflow db migrate; do
-          echo "Aguardando pgprojeto... tentando novamente em 5s"
+          echo "Waiting for pgprojeto... retrying in 5s"
           sleep 5
         done
         airflow sync-perm
@@ -121,6 +121,12 @@ services:
       - spark-ivy-cache:/home/spark/.ivy2
       - ../spark/jobs:/usr/local/airflow/spark_jobs
       - /home/doug/project/data_plataform/spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+      # dbapi seeders run here via `uv run --project /dockervol` in an isolated venv
+      # (see airflow/dockerfile) — same lockfile already validated on the host, without
+      # conflicting with Airflow's own deps.
+      - ../pyproject.toml:/dockervol/pyproject.toml:ro
+      - ../uv.lock:/dockervol/uv.lock:ro
+      - ../dbapi:/dockervol/dbapi:ro
     command: airflow celery worker -H airflow-worker@airflow-worker
     ports:
       - "8793:8793"

@@ -4,11 +4,11 @@ from dotenv import dotenv_values
 
 def find_env_file(start_path: str = None) -> str:
     """
-    Procura pelo arquivo .env considerando variáveis de ambiente e volumes Docker.
+    Looks for the .env file considering environment variables and Docker volumes.
 
-    :param start_path: Caminho inicial opcional para procurar o arquivo .env
-    :return: Caminho completo para o arquivo .env
-    :raises FileNotFoundError: Se o arquivo .env não for encontrado
+    :param start_path: Optional starting path to look for the .env file
+    :return: Full path to the .env file
+    :raises FileNotFoundError: If the .env file is not found
     """
     base_dir = os.getenv('PROJECT_BASE_DIR')
     module_dir = os.getenv('MODULE_DIR')
@@ -22,70 +22,70 @@ def find_env_file(start_path: str = None) -> str:
     if base_dir:
         search_paths.append(base_dir)
     
-    # Adiciona o diretório do módulo atual
+    # Adds the current module's directory
     current_module_dir = os.path.dirname(os.path.abspath(__file__))
     search_paths.append(current_module_dir)
-    
-    # Adiciona o diretório atual de trabalho
+
+    # Adds the current working directory
     search_paths.append(os.getcwd())
-    
-    # === O CAMINHO DO VOLUME OFICIAL (Adicionado uma única vez) ===
+
+    # === THE OFFICIAL VOLUME PATH (Added only once) ===
     search_paths.append('/dockervol/configurations')
-    
-    print(f"Diretório atual: {os.getcwd()}")
-    print(f"Diretório do módulo: {current_module_dir}")
-    print("Caminhos de busca configurados:")
-    
+
+    print(f"Current directory: {os.getcwd()}")
+    print(f"Module directory: {current_module_dir}")
+    print("Configured search paths:")
+
     for path in search_paths:
         print(f"- {path}")
 
-    # Procura o .env em cada caminho e seus diretórios superiores
+    # Looks for the .env file in each path and its parent directories
     for base_path in search_paths:
         current_dir = base_path
-        while current_dir != os.path.dirname(current_dir):  # Enquanto não chegar na raiz
+        while current_dir != os.path.dirname(current_dir):  # While it hasn't reached the root
             potential_path = os.path.join(current_dir, '.env')
-            print(f"Verificando: {potential_path}")
-            
+            print(f"Checking: {potential_path}")
+
             if os.path.exists(potential_path):
-                print(f"Arquivo .env encontrado em: {potential_path}")
+                print(f"Found .env file at: {potential_path}")
                 return potential_path
-                
+
             current_dir = os.path.dirname(current_dir)
 
-    raise FileNotFoundError("Arquivo .env não encontrado em nenhum dos caminhos de busca.")
+    raise FileNotFoundError("The .env file was not found in any of the search paths.")
 
 def load_config(env_path: str = None) -> Dict[str, Any]:
     """
-    Carrega e prepara as configurações do arquivo .env, substituindo placeholders dinâmicos.
+    Loads and prepares the configuration from the .env file, substituting dynamic placeholders.
 
-    :param env_path: Caminho para o arquivo .env. Se None, o arquivo será buscado automaticamente.
-    :return: Um dicionário contendo as configurações processadas
-    :raises FileNotFoundError: Se o arquivo .env não for encontrado ou vazio
+    :param env_path: Path to the .env file. If None, the file will be looked up automatically.
+    :return: A dictionary containing the processed configuration
+    :raises FileNotFoundError: If the .env file is not found or is empty
     """
-    # Caso o caminho não seja passado, procura pelo arquivo .env no diretório atual ou superior
+    # If the path isn't provided, look for the .env file in the current or parent directory
     if not env_path:
         env_path = find_env_file()
 
-    # Carrega as variáveis do arquivo .env
+    # Loads the variables from the .env file
     config = dotenv_values(env_path)
     if not config:
-        raise FileNotFoundError(f"Erro ao carregar o arquivo .env de {env_path}. Verifique o caminho e o formato.")
+        raise FileNotFoundError(f"Error loading the .env file from {env_path}. Check the path and format.")
 
     def replace_env_vars(value: str) -> str:
         """
-        Substitui variáveis no formato $VAR ou ${VAR} com seus valores correspondentes.
-        Prioriza variáveis carregadas do .env sobre variáveis de ambiente do sistema.
+        Replaces variables in the $VAR or ${VAR} format with their corresponding values.
+        Prioritizes variables loaded from .env over system environment variables.
         """
         if not isinstance(value, str):
             return value
 
         for var_name, var_value in config.items():
-            if var_value:  # Evita substituir com valores nulos
+            if var_value:  # Avoids replacing with null values
                 value = value.replace(f"${{{var_name}}}", var_value)
                 value = value.replace(f"${var_name}", var_value)
         return value
 
-    # Processa todas as variáveis do .env
+    # Processes all the .env variables
     processed_config = {
         key: replace_env_vars(value)
         for key, value in config.items()
@@ -146,7 +146,7 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
         "job_dag_folder": {
             "airflow_landing_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_LANDING_SCRIPT"),
             "airflow_rawlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_RAW_SCRIPT"),
-            # ADICIONE A LINHA ABAIXO:
+            # ADD THE LINE BELOW:
             "airflow_silverlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_SILVER_SCRIPT"),
             "spark_landing_folder": processed_config.get("SPARK_LANDING_FOLDER"),
             "spark_rawlayer_folder": processed_config.get("SPARK_RAW_LAYER_SCRIPT"),
@@ -167,12 +167,12 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
 
 def validate_required_keys(config: Dict[str, str], required_keys: list, config_name: str):
     """
-    Valida se as chaves obrigatórias estão presentes no dicionário de configuração.
+    Validates that the required keys are present in the configuration dictionary.
 
-    :param config: Dicionário de configuração
-    :param required_keys: Lista de chaves obrigatórias
-    :param config_name: Nome do componente que está sendo validado
-    :raises RuntimeError: Se alguma chave estiver ausente
+    :param config: Configuration dictionary
+    :param required_keys: List of required keys
+    :param config_name: Name of the component being validated
+    :raises RuntimeError: If any key is missing
     """
     if not config or not all(key in config and config[key] for key in required_keys):
         missing_keys = [key for key in required_keys if not config.get(key)]
@@ -181,9 +181,9 @@ def validate_required_keys(config: Dict[str, str], required_keys: list, config_n
 
 def print_pretty_config(config: Dict[str, Any]) -> None:
     """
-    Imprime as configurações de forma legível.
-    
-    :param config: Dicionário de configurações retornado por load_config
+    Prints the configuration in a readable way.
+
+    :param config: Configuration dictionary returned by load_config
     """
     import json
     print(json.dumps(config, indent=2))
@@ -192,16 +192,16 @@ def print_pretty_config(config: Dict[str, Any]) -> None:
 if __name__ == "__main__":
     try:
         config = load_config()
-        print("Configurações carregadas com sucesso:")
-        print("Fim da importação")
+        print("Configuration loaded successfully:")
+        print("End of import")
         print_pretty_config(config)
 
-        # Validações das seções
+        # Section validations
         validate_required_keys(config["hadoop_paths"], ["landing", "raw_deltadb", "silver_deltadb", "goldtable", "spark_warehouse"], "Hadoop Paths")
         validate_required_keys(config["spark_jars"], ["mssql_spark_jars", "postgresql_jar"], "Spark JARs")
 
     except Exception as e:
-        print(f"Erro ao carregar configurações: {str(e)}")
+        print(f"Error loading configuration: {str(e)}")
         import traceback
         traceback.print_exc()
 

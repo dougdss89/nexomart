@@ -29,5 +29,5 @@ class TransactionTypeSchema(BaseModel):
     @model_validator(mode="after")
     def validate_scd(self):
         if self.valid_to and self.valid_to < self.valid_from:
-            raise ValueError("A data valid_to não pode ser anterior à valid_from.")
+            raise ValueError("The valid_to date cannot be earlier than valid_from.")
         return self

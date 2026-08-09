@@ -15,7 +15,7 @@ def load_source_connections():
         print(f"Could not load source connections from file: {str(e)}")
         return None, None, None, None
 
-    # Validar chaves necessárias
+    # Validate required keys
     try:
         spark_jars = config["spark_jars"]
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]

@@ -19,11 +19,11 @@ router = APIRouter(prefix="/warehouse", tags=["Warehouse"])
 # --- WAREHOUSE LOCATIONS ---
 @router.post("/locations/bulk", status_code=status.HTTP_201_CREATED)
 async def create_locations_bulk(payload: List[WarehouseLocationSchema], db: AsyncSession = Depends(get_db)):
-    """ Ingestão Massiva de Localizações de Armazém """
+    """ Bulk ingestion of Warehouse Locations """
     dict_payload = [item.model_dump(exclude_unset=True) for item in payload]
     success = await WarehouseLocationService.process_bulk_integration(db=db, locations_data=dict_payload)
     if not success:
-        raise HTTPException(status_code=400, detail="Erro ao processar integração")
+        raise HTTPException(status_code=400, detail="Error processing integration")
     return {"status": "success", "count": len(dict_payload)}
 
 @router.get("/locations", response_model=List[WarehouseLocationSchema])
@@ -57,13 +57,13 @@ async def create_transactions_bulk(payload: List[TransactionHistorySchema], db: 
 # --- PRODUCT INVENTORY ---
 @router.get("/inventory", response_model=List[ProductInventorySchema])
 async def list_inventory(limit: int = 100, db: AsyncSession = Depends(get_db)):
-    """ Consulta o saldo atual de estoque """
+    """ Queries the current inventory balance """
     service = ProductInventoryService(db)
     return await service.list_inventory(limit=limit)
 
 @router.post("/inventory/restock", status_code=status.HTTP_201_CREATED)
 async def restock_inventory(payload: List[ProductInventorySchema], db: AsyncSession = Depends(get_db)):
-    """ Carga inicial ou reposição de saldo de estoque """
+    """ Initial load or restock of inventory balance """
     service = ProductInventoryService(db)
     await service.restock_inventory(payload)
     return {"status": "success", "count": len(payload)}

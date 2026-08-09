@@ -9,7 +9,7 @@ from api.models.marketing.marketing_advertise import MarketingAdvertiseModel
 logger = logging.getLogger(__name__)
 
 class MarketingAdsRepository:
-    """ Exclusivo para operações de banco de dados de Anúncios e Criativos """
+    """ Exclusively for database operations on Ads and Creatives """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, ads_data: List[Dict[str, Any]]) -> bool:
@@ -20,7 +20,7 @@ class MarketingAdsRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL Bulk Insert Marketing Ads: {e}")
+            logger.error(f"SQL Error Bulk Insert Marketing Ads: {e}")
             raise
             
     @staticmethod
@@ -30,5 +30,5 @@ class MarketingAdsRepository:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro ao buscar MarketingAd ID={ad_id}: {e}")
+            logger.error(f"Error fetching MarketingAd ID={ad_id}: {e}")
             raise

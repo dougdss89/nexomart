@@ -6,13 +6,13 @@ class MarketingDailyPerformanceModel(Base, AuditMixin): # [FIX] Inheritance
     
     __tablename__ = "dailyperformance"
     
-    # [FIX] Nomenclaturas alinhadas com Schema e adição do nível Group
+    # [FIX] Naming aligned with Schema and addition of the Group level
     performance_id = Column(Integer, primary_key=True, autoincrement=True)
-    campaign_id = Column(Integer, ForeignKey('marketing.marketingcampaign.campaign_id'), nullable=False)  
-    ad_group_id = Column(Integer, ForeignKey('marketing.marketingadgroup.ad_group_id'), nullable=False) # [FIX] Falta
+    campaign_id = Column(Integer, ForeignKey('marketing.marketingcampaign.campaign_id'), nullable=False)
+    ad_group_id = Column(Integer, ForeignKey('marketing.marketingadgroup.ad_group_id'), nullable=False) # [FIX] Was missing
     ad_id = Column(Integer, ForeignKey('marketing.advertise.ad_id'), nullable=False) # [FIX] advertise_id -> ad_id
-    
-    # [CRITICAL FIX] Adicionado marcador de tempo diário ausente (Time-Series DW Requirement)
+
+    # [CRITICAL FIX] Added missing daily timestamp marker (Time-Series DW Requirement)
     date_ref = Column(Date, nullable=False)
     
     cost = Column(Numeric(19,4), nullable=False, default= 0.0)
@@ -23,11 +23,11 @@ class MarketingDailyPerformanceModel(Base, AuditMixin): # [FIX] Inheritance
     
     metrics = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb")) # [FIX] platform_metrics -> metrics
     
-    # [FIX] Cópia dos Índices usando chaves reais do Pydantic JSON
+    # [FIX] Copy of the Indexes using real keys from the Pydantic JSON
     __table_args__ = (
             Index('ix_performance_metrics_quality_score', cast(metrics['quality_score'].astext, Integer)),
             Index('ix_performance_metrics_likes', cast(metrics['likes'].astext, Integer)),
-            Index('ix_performance_metrics_shares', cast(metrics['shares'].astext, Integer)), # Antes batia errado no quality_share
+            Index('ix_performance_metrics_shares', cast(metrics['shares'].astext, Integer)), # Previously matched incorrectly on quality_share
             
             {"schema": "marketing"}
     )

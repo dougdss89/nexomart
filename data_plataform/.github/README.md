@@ -1,51 +1,51 @@
 # CI/CD Pipeline Documentation
 
-Este projeto possui uma esteira completa de CI/CD configurada com GitHub Actions.
+This project has a full CI/CD pipeline set up with GitHub Actions.
 
-## 📋 Workflows Disponíveis
+## 📋 Available Workflows
 
 ### 1. CI Pipeline ([ci.yml](workflows/ci.yml))
 
-Executado em: `push` e `pull_request` para branches `main` e `devbranch`
+Runs on: `push` and `pull_request` to the `main` and `devbranch` branches
 
 #### Jobs:
 
-- **lint-python**: Validação de código Python
-  - Ruff (linter rápido)
-  - Black (formatação de código)
-  - isort (ordenação de imports)
-  - Flake8 (guia de estilo)
+- **lint-python**: Python code validation
+  - Ruff (fast linter)
+  - Black (code formatting)
+  - isort (import sorting)
+  - Flake8 (style guide)
 
-- **lint-sql**: Validação de código SQL
-  - SQLFluff para modelos dbt
-  - SQLFluff para scripts SQL
+- **lint-sql**: SQL code validation
+  - SQLFluff for dbt models
+  - SQLFluff for SQL scripts
 
-- **test-python**: Testes Python
-  - pytest com coverage
-  - Upload para Codecov
+- **test-python**: Python tests
+  - pytest with coverage
+  - Upload to Codecov
 
-- **dbt-check**: Validação de modelos dbt
+- **dbt-check**: dbt model validation
   - dbt parse
 
-- **security-scan**: Varredura de segurança
-  - Bandit (vulnerabilidades Python)
-  - Safety (dependências vulneráveis)
+- **security-scan**: Security scan
+  - Bandit (Python vulnerabilities)
+  - Safety (vulnerable dependencies)
 
 ### 2. CD Pipeline ([cd.yml](workflows/cd.yml))
 
-Executado em: `push` para `main` ou tags `v*`
+Runs on: `push` to `main` or `v*` tags
 
 #### Jobs:
 
-- **build-and-push-docker**: Build de imagens Docker
-- **deploy-staging**: Deploy para staging (main branch)
-- **deploy-production**: Deploy para produção (tags)
-- **dbt-deploy**: Deploy de modelos dbt
-- **notification**: Notificações de deploy
+- **build-and-push-docker**: Build Docker images
+- **deploy-staging**: Deploy to staging (main branch)
+- **deploy-production**: Deploy to production (tags)
+- **dbt-deploy**: Deploy dbt models
+- **notification**: Deploy notifications
 
-## 🚀 Como Usar
+## 🚀 How to Use
 
-### Executar linters localmente
+### Running linters locally
 
 ```bash
 # Python linting
@@ -66,35 +66,35 @@ bandit -r .
 safety check
 ```
 
-### Configurar secrets no GitHub
+### Configuring GitHub secrets
 
-Para o workflow de CD funcionar, configure os seguintes secrets em:
+For the CD workflow to work, configure the following secrets under:
 `Settings > Secrets and variables > Actions`
 
 ```
-DOCKER_USERNAME       # Usuário Docker Hub
-DOCKER_PASSWORD       # Senha/Token Docker Hub
-SLACK_WEBHOOK         # Webhook do Slack (opcional)
+DOCKER_USERNAME       # Docker Hub username
+DOCKER_PASSWORD       # Docker Hub password/token
+SLACK_WEBHOOK         # Slack webhook (optional)
 ```
 
-### Ambientes de Deploy
+### Deploy Environments
 
-Configure os ambientes em: `Settings > Environments`
+Configure environments under: `Settings > Environments`
 
-- **staging**: Ambiente de homologação
-- **production**: Ambiente de produção
+- **staging**: Staging environment
+- **production**: Production environment
 
-## 📝 Arquivos de Configuração
+## 📝 Configuration Files
 
-- [pyproject.toml](../pyproject.toml): Configurações de linters Python (ruff, black, isort, mypy, pytest)
-- [.flake8](../.flake8): Configurações do Flake8
-- [.sqlfluff](../.sqlfluff): Configurações do SQLFluff
+- [pyproject.toml](../pyproject.toml): Python linter configs (ruff, black, isort, mypy, pytest)
+- [.flake8](../.flake8): Flake8 config
+- [.sqlfluff](../.sqlfluff): SQLFluff config
 
-## 🔧 Customização
+## 🔧 Customization
 
-### Adicionar novos jobs ao CI
+### Adding new jobs to CI
 
-Edite [.github/workflows/ci.yml](workflows/ci.yml):
+Edit [.github/workflows/ci.yml](workflows/ci.yml):
 
 ```yaml
 jobs:
@@ -107,51 +107,51 @@ jobs:
         run: echo "Hello"
 ```
 
-### Modificar regras de lint
+### Changing lint rules
 
-**Python (Ruff)**: Edite `[tool.ruff.lint]` em `pyproject.toml`
+**Python (Ruff)**: Edit `[tool.ruff.lint]` in `pyproject.toml`
 
-**SQL (SQLFluff)**: Edite `[sqlfluff:rules]` em `.sqlfluff`
+**SQL (SQLFluff)**: Edit `[sqlfluff:rules]` in `.sqlfluff`
 
-### Habilitar/Desabilitar jobs específicos
+### Enabling/disabling specific jobs
 
-Comente o job no workflow ou adicione condição:
+Comment out the job in the workflow, or add a condition:
 
 ```yaml
-if: false  # Desabilita o job
+if: false  # Disables the job
 ```
 
-## 📊 Badges de Status
+## 📊 Status Badges
 
-Adicione ao seu README principal:
+Add to your main README:
 
 ```markdown
-![CI Pipeline](https://github.com/seu-usuario/seu-repo/actions/workflows/ci.yml/badge.svg)
-![CD Pipeline](https://github.com/seu-usuario/seu-repo/actions/workflows/cd.yml/badge.svg)
-[![codecov](https://codecov.io/gh/seu-usuario/seu-repo/branch/main/graph/badge.svg)](https://codecov.io/gh/seu-usuario/seu-repo)
+![CI Pipeline](https://github.com/your-user/your-repo/actions/workflows/ci.yml/badge.svg)
+![CD Pipeline](https://github.com/your-user/your-repo/actions/workflows/cd.yml/badge.svg)
+[![codecov](https://codecov.io/gh/your-user/your-repo/branch/main/graph/badge.svg)](https://codecov.io/gh/your-user/your-repo)
 ```
 
 ## 🐛 Troubleshooting
 
-### Workflow não está executando
+### Workflow isn't running
 
-1. Verifique se os arquivos estão em `.github/workflows/`
-2. Verifique a sintaxe YAML
-3. Veja os logs em `Actions` no GitHub
+1. Check that the files are under `.github/workflows/`
+2. Check the YAML syntax
+3. Check the logs under `Actions` on GitHub
 
-### SQLFluff falhando em modelos dbt
+### SQLFluff failing on dbt models
 
-1. Configure `profiles_dir` corretamente em `.sqlfluff`
-2. Certifique-se que o dbt está instalado
-3. Use `sqlfluff lint --verbose` para debug
+1. Configure `profiles_dir` correctly in `.sqlfluff`
+2. Make sure dbt is installed
+3. Use `sqlfluff lint --verbose` to debug
 
-### Testes falhando
+### Tests failing
 
-1. Verifique se as dependências estão corretas
-2. Execute localmente: `pytest -v`
-3. Verifique variáveis de ambiente necessárias
+1. Check that dependencies are correct
+2. Run locally: `pytest -v`
+3. Check required environment variables
 
-## 📚 Referências
+## 📚 References
 
 - [GitHub Actions Docs](https://docs.github.com/en/actions)
 - [Ruff Docs](https://docs.astral.sh/ruff/)

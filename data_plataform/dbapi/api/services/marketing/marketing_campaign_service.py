@@ -6,7 +6,7 @@ from api.repositories.marketing.marketing_campaign_repository import MarketingCa
 logger = logging.getLogger(__name__)
 
 class MarketingCampaignService:
-    """ Controla o mapeamento e regras das Campanhas de Mídia """
+    """ Controls the mapping and rules of Media Campaigns """
     
     @staticmethod
     async def process_bulk_integration(db: AsyncSession, campaigns_data: List[Dict[str, Any]]) -> bool:

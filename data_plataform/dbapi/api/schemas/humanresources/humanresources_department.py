@@ -31,8 +31,8 @@ class HRGroupName(str, Enum):
     RESEARCH_AND_DEVELOPMENT = "research and development"
     SALES_AND_MARKETING = "sales and marketing"
     
-# Estrutura organizacional: cada grupo lista os departamentos que o compõem.
-# DEPARTMENT_TO_GROUP_MAP é derivado daqui para garantir 1 fonte da verdade.
+# Organizational structure: each group lists the departments that make it up.
+# DEPARTMENT_TO_GROUP_MAP is derived from here to guarantee a single source of truth.
 GROUP_TO_DEPARTMENTS: dict[HRGroupName, list[HRDepartmentName]] = {
     HRGroupName.RESEARCH_AND_DEVELOPMENT: [
         HRDepartmentName.ENGINEERING,
@@ -97,7 +97,7 @@ class HRDepartment(BaseModel):
 
         if correct_group is None:
             raise ValueError(
-                f"Departamento '{self.department_name}' sem grupo mapeado em GROUP_TO_DEPARTMENTS."
+                f"Department '{self.department_name}' has no group mapped in GROUP_TO_DEPARTMENTS."
             )
 
         self.group_name = correct_group

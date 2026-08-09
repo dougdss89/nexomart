@@ -57,7 +57,7 @@ class PaymentStatus(str, Enum):
     
 class TaxItem(BaseModel):
     name: TaxName
-    rate: Decimal = Field(ge=0.0, decimal_places=4, description="Ex: 0.18 para 18%")
+    rate: Decimal = Field(ge=0.0, decimal_places=4, description="E.g.: 0.18 for 18%")
     amount: Decimal = Field(ge=0.0, decimal_places=4)
 
 class DeliveryInfo(BaseModel):
@@ -70,13 +70,13 @@ class DeliveryInfo(BaseModel):
     shipping_tier: Optional[ShippingTier] = None
 
 class OrderItem(BaseModel):
-    line_number: str = Field(..., description="Padrão SO-XXXXXXXXX-XX")
-    line_id: int = Field(gt=0, description="Sufixo lógico do item, ex: 1, 2, 3")
+    line_number: str = Field(..., description="Pattern SO-XXXXXXXXX-XX")
+    line_id: int = Field(gt=0, description="Logical suffix of the item, e.g.: 1, 2, 3")
     sku: str = Field(max_length=50)
     product_id: int = Field(gt=0)
     quantity: int = Field(gt=0)
     unit_price: Decimal = Field(ge=0.0, decimal_places=4)
-    seller_id: int = Field(gt=0, description="Quem entrega (Marketplace Partner ou Loja Própria)")
+    seller_id: int = Field(gt=0, description="Who delivers (Marketplace Partner or Own Store)")
     
     # Sub-structs
     delivery_info: DeliveryInfo = Field(default_factory=DeliveryInfo)
@@ -119,21 +119,21 @@ class SalesOrderSchema(BaseModel):
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
     
     
-# --- VALIDAÇÕES GLOBAIS DE ENGENHARIA ---
+# --- GLOBAL ENGINEERING VALIDATIONS ---
     @model_validator(mode="after")
     def validate_order_consistency(self):
-        
-        # 1. Validação Financeira: A soma dos itens bate com o total do pedido?
-        # (Somamos unit_price * quantity de cada item)
+
+        # 1. Financial Validation: Does the sum of the items match the order total?
+        # (We sum unit_price * quantity for each item)
         items_total = sum(item.unit_price * item.quantity for item in self.order_items)
         if abs(self.total_amount - items_total) > Decimal("0.01"):
-            pass 
-            # Dica: Em prod, libere isso apenas se tiver certeza de como descontos de cabeçalho funcionam.
-            # raise ValueError(f"Soma dos itens ({items_total}) difere do total_amount ({self.total_amount})")
-        
-        # 2. Validação Lógica de Split Payment
-        # Se is_split for False, não deveria haver mais de 1 transação
+            pass
+            # Tip: In prod, only enable this if you're sure how header discounts work.
+            # raise ValueError(f"Sum of items ({items_total}) differs from total_amount ({self.total_amount})")
+
+        # 2. Split Payment Logic Validation
+        # If is_split is False, there shouldn't be more than 1 transaction
         if not self.payment_info.is_split and len(self.payment_info.transactions) > 1:
-            raise ValueError("Pagamento contém múltiplas transações mas 'is_split' está falso.")
+            raise ValueError("Payment contains multiple transactions but 'is_split' is false.")
             
         return self

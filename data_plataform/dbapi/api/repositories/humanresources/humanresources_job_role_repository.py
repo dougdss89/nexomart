@@ -9,7 +9,7 @@ from api.models.humanresources.jobrole import HumanResourcesJobRoleModel
 logger = logging.getLogger(__name__)
 
 class HumanResourcesJobRoleRepository:
-    """ Operador de Dados da tabela Polimórfica SCD-2 de Cargos e Salários Históricos """
+    """ Data operator for the polymorphic SCD-2 table of Historical Job Roles and Salaries """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, roles_data: List[Dict[str, Any]]) -> bool:
@@ -20,7 +20,7 @@ class HumanResourcesJobRoleRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL Bulk Insert JobRoles: {e}")
+            logger.error(f"SQL Error Bulk Insert JobRoles: {e}")
             raise
             
     @staticmethod
@@ -30,5 +30,5 @@ class HumanResourcesJobRoleRepository:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro ao buscar JobRole ID={job_role_id}: {e}")
+            logger.error(f"Error fetching JobRole ID={job_role_id}: {e}")
             raise

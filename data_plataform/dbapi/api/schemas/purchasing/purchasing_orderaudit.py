@@ -17,15 +17,15 @@ class PurchaseOrderAudit(BaseModel):
     
     audit_id: int = Field(gt=0)
     
-    # A Chave Estrangeira (FK)
+    # The Foreign Key (FK)
     purchaseorderheader_id: str = Field(max_length=100)
-    
+
     action: AuditAction
-    
-    # Mudamos user para user_id (int) para vincular ao funcionário do RH corretamente
-    employee_id: int = Field(gt=0, description="ID do funcionário que executou a ação")
-    
-    obs: Optional[str] = Field(None, description="Motivo da rejeição ou aprovação")
+
+    # We changed user to user_id (int) to correctly link to the HR employee
+    employee_id: int = Field(gt=0, description="ID of the employee who performed the action")
+
+    obs: Optional[str] = Field(None, description="Reason for rejection or approval")
     
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

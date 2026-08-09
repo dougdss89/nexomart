@@ -7,16 +7,16 @@ from faker import Faker
 fake = Faker('pt_BR')
 
 class BaseProductSample:
-    """Classe base para padrões de geração de produtos pseudo-reais."""
+    """Base class for pseudo-realistic product generation patterns."""
     category: ProductCategory
     model: ProductModel
-    
-    # Atributos de variação para explodir as combinações
+
+    # Variation attributes to explode the combinations
     base_names: List[str] = []
     brands: List[str] = []
     colors: List[str] = []
     materials: List[str] = []
-    sizes: List[str] = [None] # Default, sobrescrito onde aplicável
+    sizes: List[str] = [None] # Default, overridden where applicable
     
     list_price_range: tuple = (10.0, 100.0)
     markup_range: tuple = (1.5, 3.0)
@@ -26,29 +26,29 @@ class BaseProductSample:
 
     @classmethod
     def generate_random_product(cls) -> Dict[str, Any]:
-        """Gera um produto aleatório baseado nas características da classe."""
-        
+        """Generates a random product based on the class's characteristics."""
+
         base_name = random.choice(cls.base_names)
         brand = random.choice(cls.brands)
         color = random.choice(cls.colors)
         material = random.choice(cls.materials)
         size = random.choice(cls.sizes)
-        
-        # Nome único combinando características comerciais
+
+        # Unique name combining commercial characteristics
         product_name = f"{base_name} {brand} - {color}"
         if size:
             product_name += f" Tam {size}"
-            
-        # Financeiro
+
+        # Financials
         list_price = round(random.uniform(*cls.list_price_range), 2)
         price = round(list_price * random.uniform(*cls.markup_range), 2)
         tax = round(price * random.choice([0.12, 0.18, 0.25]), 2)
-        
-        # Logística
+
+        # Logistics
         weight = round(random.uniform(*cls.weight_range), 3)
         dimensions = {k: round(v * random.uniform(0.9, 1.1), 1) for k, v in cls.base_dimensions.items()}
-        
-        # SKU Pseudo-real (Brand-Modelo-Cor-Random)
+
+        # Pseudo-real SKU (Brand-Model-Color-Random)
         brand_prefix = brand[:3].upper().replace(" ", "")
         model_prefix = cls.model.value[:4].upper().replace("_", "")
         color_prefix = color[:3].upper()
@@ -69,26 +69,26 @@ class BaseProductSample:
         if size:
             details["size"] = size
             
-        # --- DATA ENGINEERING CHALLENGES (ANOMALIAS INTENCIONAIS) ---
-        # 1. Peso negativo ou zerado (2% de chance)
+        # --- DATA ENGINEERING CHALLENGES (INTENTIONAL ANOMALIES) ---
+        # 1. Negative or zeroed-out weight (2% chance)
         if random.random() < 0.02:
             details["weight"] = -abs(details["weight"])
-            
-        # 2. Imposto ausente ou zerado incorretamente (3% de chance)
+
+        # 2. Missing or incorrectly zeroed-out tax (3% chance)
         if random.random() < 0.03:
             details["tax"] = 0.0
-            
-        # 3. Ruído de string / padronização incorreta de MAIUSCULAS (5% de chance)
+
+        # 3. String noise / incorrect UPPERCASE standardization (5% chance)
         if random.random() < 0.05:
             details["brand"] = str(details["brand"]).upper()
             details["color"] = str(details["color"]).lower()
             product_name = product_name.upper()
-            
-        # 4. Missing Dimension (Buraco no payload JSON)
+
+        # 4. Missing Dimension (hole in the JSON payload)
         if random.random() < 0.04:
             details["dimensions"].pop("depth", None)
-            
-        # 5. Schema Evolution Silenciosa: Injetar chaves extras no JSONB
+
+        # 5. Silent Schema Evolution: inject extra keys into the JSONB
         if random.random() < 0.15:
             details["is_refurbished"] = random.choice([True, False])
         if random.random() < 0.10:
@@ -187,7 +187,7 @@ class MensApparelSamples(BaseProductSample):
     list_price_range = (20.0, 250.0)
     markup_range = (2.0, 4.0)
     weight_range = (0.150, 0.800)
-    base_dimensions = {"height": 3.0, "width": 25.0, "depth": 30.0} # Dobrado na embalagem
+    base_dimensions = {"height": 3.0, "width": 25.0, "depth": 30.0} # Folded in packaging
 
 class WomensApparelSamples(BaseProductSample):
     category = ProductCategory.CLOTHING
@@ -222,7 +222,7 @@ class AthleticFootwearSamples(BaseProductSample):
     list_price_range = (100.0, 600.0)
     markup_range = (1.5, 3.0)
     weight_range = (0.400, 0.900)
-    base_dimensions = {"height": 12.0, "width": 20.0, "depth": 35.0} # Caixa de tênis
+    base_dimensions = {"height": 12.0, "width": 20.0, "depth": 35.0} # Shoe box
 
 class DietarySupplementsSamples(BaseProductSample):
     category = ProductCategory.HEALTH_WELLNESS
@@ -289,22 +289,22 @@ class GamingConsoleSamples(BaseProductSample):
     materials = ["Plástico ABS", "Silicone", "Alumínio"]
     
     list_price_range = (1500.0, 4000.0)
-    markup_range = (1.1, 1.3) # Baixa margem típica de consoles
+    markup_range = (1.1, 1.3) # Typical low margin for consoles
     weight_range = (0.400, 4.500)
     base_dimensions = {"height": 40.0, "width": 10.0, "depth": 26.0}
 
 def generate_randomized_catalog(quantity: int) -> List[Dict[str, Any]]:
-    """Gera um catálogo unificado sorteando aleatoriamente entre todas as subclasses de BaseProductSample."""
+    """Generates a unified catalog by randomly drawing from all BaseProductSample subclasses."""
     all_products = []
-    
-    # Lista de todas as fábricas
+
+    # List of all factories
     factories = BaseProductSample.__subclasses__()
-    
+
     for _ in range(quantity):
-        # Sorteia uma categoria aleatória
+        # Pick a random category
         factory = random.choice(factories)
-        
-        # Gera 1 produto aleatório dessa categoria
+
+        # Generate 1 random product from that category
         all_products.append(factory.generate_random_product())
-        
+
     return all_products

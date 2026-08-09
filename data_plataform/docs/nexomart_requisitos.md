@@ -1,117 +1,117 @@
-# NexoMart — Requisitos Funcionais e Não-Funcionais
+# NexoMart — Functional and Non-Functional Requirements
 
-## Contexto da Empresa
+## Company Context
 
-**NexoMart** é um marketplace brasileiro de médio porte com operação multi-canal (web, app, marketplace partners) que processa entre **100 mil e 50 milhões de pedidos por ciclo de dados** dependendo da sazonalidade (Black Friday, Natal, Dia das Mães).
+**NexoMart** is a mid-size Brazilian marketplace with multi-channel operations (web, app, marketplace partners) that processes between **100 thousand and 50 million orders per data cycle** depending on seasonality (Black Friday, Christmas, Mother's Day).
 
-A empresa opera com um banco OLTP PostgreSQL maduro, mas enfrenta um problema clássico: **o banco transacional não consegue responder às perguntas analíticas do negócio em tempo razoável** sem afetar a operação.
+The company runs on a mature PostgreSQL OLTP database, but faces a classic problem: **the transactional database can't answer the business's analytical questions in reasonable time** without impacting operations.
 
 ---
 
-## Domínios de Negócio
+## Business Domains
 
-| Domínio | Schema | Descrição |
+| Domain | Schema | Description |
 |---|---|---|
-| Produto | `product` | Catálogo de produtos, modelos, categorias, descrições em vetores |
-| Pessoa | `person` | Clientes, vendedores, endereços, contatos |
-| Vendas | `sales` | Pedidos, itens (JSONB), devoluções, pagamentos |
-| Marketing | `marketing` | Campanhas, anúncios, performance por canal |
-| RH | `humanresources` | Funcionários, departamentos, histórico de cargos (SCD Type 2) |
-| Compras | `purchasing` | Ordens de compra, fornecedores, recebimento |
-| Estoque | `warehouse` | Inventário, transferências, histórico de movimentações |
+| Product | `product` | Product catalog, models, categories, vector descriptions |
+| Person | `person` | Customers, sellers, addresses, contacts |
+| Sales | `sales` | Orders, items (JSONB), returns, payments |
+| Marketing | `marketing` | Campaigns, ads, performance by channel |
+| HR | `humanresources` | Employees, departments, job role history (SCD Type 2) |
+| Purchasing | `purchasing` | Purchase orders, suppliers, receiving |
+| Warehouse | `warehouse` | Inventory, transfers, movement history |
 
 ---
 
-## Requisitos Funcionais
+## Functional Requirements
 
-### RF-01 — Ingestão de Dados Operacionais
+### FR-01 — Operational Data Ingestion
 
-- O sistema deve ingerir dados transacionais de todos os 7 domínios via API REST assíncrona (FastAPI + asyncpg)
-- A ingestão deve suportar bulk insert para volumes de até 50M registros por execução
-- A API deve implementar arquitetura 3-layer: Repository → Service → Router
-- Todos os modelos devem implementar auditoria automática (`created_at`, `updated_at`, `is_active`, `row_guid`)
+- The system must ingest transactional data from all 7 domains via an async REST API (FastAPI + asyncpg)
+- Ingestion must support bulk insert for volumes of up to 50M records per run
+- The API must implement a 3-layer architecture: Repository → Service → Router
+- All models must implement automatic audit fields (`created_at`, `updated_at`, `is_active`, `row_guid`)
 
-### RF-02 — Orquestração de Pipelines
+### FR-02 — Pipeline Orchestration
 
-- O sistema deve orquestrar todos os pipelines via Apache Airflow com DAGs declarativas
-- Os seeders devem ser acionados via `BashOperator` como scripts CLI com `argparse`
-- Volumes de dados devem ser dinâmicos por execução (range `min/max` sorteado aleatoriamente)
-- A taxa de chaos engineering deve variar entre 1% e 10% por execução
+- The system must orchestrate all pipelines via Apache Airflow with declarative DAGs
+- Seeders must be triggered via `BashOperator` as CLI scripts with `argparse`
+- Data volumes must be dynamic per run (`min/max` range randomly drawn)
+- The chaos engineering rate must vary between 1% and 10% per run
 
-### RF-03 — Armazenamento Distribuído e Versionado
+### FR-03 — Distributed, Versioned Storage
 
-- Dados processados devem ser armazenados em tabelas Apache Iceberg no MinIO (object storage S3-compatible)
-- O versionamento das tabelas deve ser gerenciado pelo Nessie (controle de branches de dados)
-- O formato de armazenamento deve suportar time-travel queries e rollback de dados
+- Processed data must be stored in Apache Iceberg tables on MinIO (S3-compatible object storage)
+- Table versioning must be managed by Nessie (data branch control)
+- The storage format must support time-travel queries and data rollback
 
-### RF-04 — Processamento Distribuído
+### FR-04 — Distributed Processing
 
-- Transformações analíticas devem ser executadas via Apache Spark
-- O Spark deve ler do PostgreSQL (OLTP) e escrever em Iceberg (OLAP) via camadas Bronze / Silver / Gold
-- O processamento deve suportar Structured Streaming para cenários near-real-time
+- Analytical transformations must run via Apache Spark
+- Spark must read from PostgreSQL (OLTP) and write to Iceberg (OLAP) through Bronze / Silver / Gold layers
+- Processing must support Structured Streaming for near-real-time scenarios
 
-### RF-05 — Federação de Consultas
+### FR-05 — Query Federation
 
-- Analistas devem consultar dados via SQL padrão usando Apache Trino
-- O Trino deve federar dados do Iceberg (MinIO/Nessie), PostgreSQL e futuras fontes
-- Queries analíticas devem retornar resultados em menos de 10s para volumes de 50M registros
+- Analysts must be able to query data via standard SQL using Apache Trino
+- Trino must federate data across Iceberg (MinIO/Nessie), PostgreSQL, and future sources
+- Analytical queries must return results in under 10s for volumes of 50M records
 
-### RF-06 — Qualidade de Dados e Chaos Engineering
+### FR-06 — Data Quality and Chaos Engineering
 
-- O sistema deve injetar anomalias controladas (duplicatas, dados sujos, fraudes simuladas) para testar pipelines de qualidade
-- As anomalias devem ser documentadas em metadados para uso em testes de ML e auditoria
-- O sistema deve suportar cenários de detecção de fraude, chargeback e dados incompletos
+- The system must inject controlled anomalies (duplicates, dirty data, simulated fraud) to test quality pipelines
+- Anomalies must be documented in metadata for use in ML testing and auditing
+- The system must support fraud detection, chargeback, and incomplete-data scenarios
 
-### RF-07 — Capacidades AI-Ready
+### FR-07 — AI-Ready Capabilities
 
-- O domínio `product` deve suportar busca semântica via pgvector (embeddings de descrições)
-- O sistema deve estar preparado para integração com modelos de linguagem para geração de insights
-- A modelagem deve suportar futuras features de recomendação de produtos
+- The `product` domain must support semantic search via pgvector (description embeddings)
+- The system must be prepared for integration with language models for insight generation
+- The data model must support future product-recommendation features
 
 ---
 
-## Requisitos Não-Funcionais
+## Non-Functional Requirements
 
-| Requisito | Meta |
+| Requirement | Target |
 |---|---|
-| Throughput de ingestão | 50M registros/execução |
-| Latência analítica | < 10s para queries sobre 50M registros |
-| Disponibilidade OLTP | 99.9% |
-| Retenção de dados | Indefinida (Iceberg + MinIO com versionamento) |
-| Rastreabilidade | 100% das operações com audit trail |
-| Portabilidade | 100% open-source, zero custo de cloud proprietária |
+| Ingestion throughput | 50M records/run |
+| Analytical latency | < 10s for queries over 50M records |
+| OLTP availability | 99.9% |
+| Data retention | Indefinite (Iceberg + MinIO with versioning) |
+| Traceability | 100% of operations with audit trail |
+| Portability | 100% open-source, zero proprietary cloud cost |
 
 ---
 
-## Stack Tecnológica
+## Technology Stack
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                     INGESTÃO & API                        │
+│                   INGESTION & API                         │
 │  FastAPI (async) + SQLAlchemy 2.0 + asyncpg + Pydantic   │
 ├──────────────────────────────────────────────────────────┤
-│                    BANCO OLTP                             │
-│  PostgreSQL 16 + pgvector + JSONB + Particionamento       │
+│                   OLTP DATABASE                            │
+│  PostgreSQL 16 + pgvector + JSONB + Partitioning           │
 ├──────────────────────────────────────────────────────────┤
-│                   ORQUESTRAÇÃO                            │
+│                   ORCHESTRATION                            │
 │           Apache Airflow 2.x (DAGs + BashOperator)        │
 ├──────────────────────────────────────────────────────────┤
-│              PROCESSAMENTO DISTRIBUÍDO                    │
+│              DISTRIBUTED PROCESSING                        │
 │         Apache Spark 3.x + Structured Streaming           │
 ├──────────────────────────────────────────────────────────┤
-│              ARMAZENAMENTO ANALÍTICO                      │
-│    Apache Iceberg + Nessie (versionamento) + MinIO (S3)   │
+│              ANALYTICAL STORAGE                            │
+│    Apache Iceberg + Nessie (versioning) + MinIO (S3)      │
 ├──────────────────────────────────────────────────────────┤
-│               FEDERAÇÃO DE CONSULTAS                      │
-│                     Apache Trino                          │
+│                  QUERY FEDERATION                          │
+│                     Apache Trino                           │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Modelo Dimensional — Bus Matrix
+## Dimensional Model — Bus Matrix
 
-| Fato | date | customer | product | seller | channel | warehouse | employee | vendor | special_offer |
+| Fact | date | customer | product | seller | channel | warehouse | employee | vendor | special_offer |
 |------|:----:|:--------:|:-------:|:------:|:-------:|:---------:|:--------:|:------:|:-------------:|
 | `fact_sales_order_item` | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — | ✓ |
 | `fact_inventory_snapshot` | ✓ | — | ✓ | — | — | ✓ | — | — | — |
@@ -119,16 +119,16 @@ A empresa opera com um banco OLTP PostgreSQL maduro, mas enfrenta um problema cl
 | `fact_purchase_order_line` | ✓ | — | ✓ | — | — | — | ✓ | ✓ | — |
 | `fact_order_lifecycle` | ✓ | ✓ | — | ✓ | ✓ | — | — | — | — |
 
-### Grain de Cada Fato
+### Grain of Each Fact
 
-| Fato | Grain (1 linha = 1 ...) | Fonte OLTP |
+| Fact | Grain (1 row = 1 ...) | OLTP Source |
 |------|------------------------|------------|
-| `fact_sales_order_item` | Item dentro de um pedido (unnest do JSONB) | `sales.salesorder.order_items` |
-| `fact_inventory_snapshot` | Produto × Warehouse × Dia | `warehouse.productinventory` |
-| `fact_marketing_performance` | Anúncio × Dia | `marketing.dailyperformance` |
-| `fact_purchase_order_line` | Linha de ordem de compra | `purchasing.purchaseorderdetail` |
-| `fact_order_lifecycle` | Pedido × Evento de status | `sales.ordereventlog` |
+| `fact_sales_order_item` | Item within an order (unnest of JSONB) | `sales.salesorder.order_items` |
+| `fact_inventory_snapshot` | Product × Warehouse × Day | `warehouse.productinventory` |
+| `fact_marketing_performance` | Ad × Day | `marketing.dailyperformance` |
+| `fact_purchase_order_line` | Purchase order line | `purchasing.purchaseorderdetail` |
+| `fact_order_lifecycle` | Order × Status event | `sales.ordereventlog` |
 
 ---
 
-*Documento de referência para o case NexoMart — Data Platform do Zero*
+*Reference document for the NexoMart case — Data Platform from Scratch*

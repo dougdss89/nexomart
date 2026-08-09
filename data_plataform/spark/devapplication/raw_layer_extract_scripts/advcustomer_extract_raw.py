@@ -80,7 +80,7 @@ def extract_landing_data(spark, minio_landing, raw_table):
 def convert_customer_schema(dataframe):
     
     try:
-        # Aplica as transformações utilizando select
+        # Applies the transformations using select
         dataframe = dataframe.select(
             F.col("businessentityid").cast("int").alias("business_id"),
             F.col("customerid").cast("int").alias("customer_id"),
@@ -100,16 +100,16 @@ def convert_customer_schema(dataframe):
             F.col("stateprovincecode").cast("string").alias("stateprovincecode"),
             F.col("statename").cast("string").alias("statename"),
             F.col("YearlyIncome").cast("string").alias("YearlyIncome"),
-            F.col("city").cast("string").alias("city"),  # Corrigido o alias
+            F.col("city").cast("string").alias("city"),  # Fixed the alias
             F.col("addressline1").cast("string").alias("addressline1"),
             F.col("addressline2").cast("string").alias("addressline2"),
             F.col("TotalPurchaseYTD").cast("float").alias("totalpurchase_ytd"),
             F.col("DateFirstPurchase").cast("date").alias("datefirstpurchase"),
             F.col("BirthDate").cast("date").alias("birthdate"),
-            F.col("MaritalStatus").cast("string").alias("maritalstatus"),  # Corrigido para string
+            F.col("MaritalStatus").cast("string").alias("maritalstatus"),  # Fixed to string
             F.col("Gender").cast("string").alias("gender"),
             F.col("TotalChildren").cast("int").alias("totalchildren"),
-            F.col("NumberChildrenAtHome").cast("int").alias("numberchildrenathome"),  # Corrigido o alias
+            F.col("NumberChildrenAtHome").cast("int").alias("numberchildrenathome"),  # Fixed the alias
             F.col("Education").cast("string").alias("education"),
             F.col("Occupation").cast("string").alias("occupation"),
             F.col("HomeOwnerFlag").cast("string").alias("homeownerflag"),

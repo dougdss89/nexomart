@@ -1,171 +1,171 @@
 # Chaos Engineering Documentation — Data Quality Anomalies
 
-Este documento descreve todas as anomalias intencionalmente injetadas nos dados pelos seeders para simular cenários reais de engenharia de dados.
+This document describes every anomaly intentionally injected into the data by the seeders to simulate real-world data engineering scenarios.
 
-## Objetivo
+## Goal
 
-Criar um ambiente de testes realista que permite:
-1. Desenvolver e testar pipelines de limpeza de dados
-2. Treinar modelos de detecção de fraudes
-3. Validar regras de qualidade de dados
-4. Preparar analistas para cenários reais de produção
+Create a realistic test environment that enables:
+1. Developing and testing data cleaning pipelines
+2. Training fraud detection models
+3. Validating data quality rules
+4. Preparing analysts for real production scenarios
 
-## Taxa de Anomalias
+## Anomaly Rate
 
-Todos os seeders dos schemas `sales`, `purchasing`, `warehouse`, `person`, `humanresources`, `marketing` injetam **entre 1% e 10%** de anomalias, distribuídas conforme especificado abaixo.
+All seeders in the `sales`, `purchasing`, `warehouse`, `person`, `humanresources`, `marketing` schemas inject **between 1% and 10%** anomalies, distributed as specified below.
 
 ---
 
-## 1. Anomalias de Qualidade de Dados
+## 1. Data Quality Anomalies
 
-### 1.1 Duplicidade (1-5%)
+### 1.1 Duplication (1-5%)
 
-**Descrição**: Registros duplicados com pequenas variações que dificultam a detecção automática.
+**Description**: Duplicate records with small variations that make automatic detection harder.
 
-**Tabelas Afetadas**: `person.customer`, `sales.salesorder`, `purchasing.purchaseorderheader`
+**Affected Tables**: `person.customer`, `sales.salesorder`, `purchasing.purchaseorderheader`
 
-**Tipos de Duplicação**:
+**Duplication Types**:
 
-| Tipo | Exemplo Original | Exemplo Duplicado | Técnica |
+| Type | Original Example | Duplicated Example | Technique |
 |------|------------------|-------------------|---------|
 | Case sensitivity | `"João Silva"` | `"JOÃO SILVA"` | Upper/lowercase |
-| Espaçamento | `"Maria Santos"` | `"Maria  Santos "` | Espaços extras, leading/trailing |
-| Formatação de CPF | `"123.456.789-00"` | `"12345678900"` | Com/sem formatação |
-| Caracteres especiais | `"José"` | `"Jose"` | Acentuação removida |
-| Ordem de nomes | `"Silva, João"` | `"João Silva"` | Inversão de ordem |
+| Spacing | `"Maria Santos"` | `"Maria  Santos "` | Extra spaces, leading/trailing |
+| CPF formatting | `"123.456.789-00"` | `"12345678900"` | With/without formatting |
+| Special characters | `"José"` | `"Jose"` | Accent removed |
+| Name order | `"Silva, João"` | `"João Silva"` | Order reversed |
 
-**Cenários de Teste**:
-- Fuzzy matching com Levenshtein distance
-- Normalização de strings (unaccent, trim, lowercase)
-- Detecção de duplicatas via embeddings
-- Merge de registros duplicados com escolha de golden record
-
----
-
-### 1.2 Dados Sujos (2-10%)
-
-**Descrição**: Campos com valores malformados que precisam de regex, normalização ou enriquecimento.
-
-#### 1.2.1 Telefones Inválidos
-
-**Tabelas**: `person.customer`, `person.customer_email`, `purchasing.vendor`
-
-| Padrão Inválido | Tipo de Erro | Tratamento Esperado |
-|-----------------|--------------|---------------------|
-| `"0000000"` | Placeholder | Marcar como inválido, solicitar redigitação |
-| `"11111111111"` | Sequência | Validar dígitos únicos |
-| `"(00) 0000-0000"` | Formato sem número real | Validar contra lista de códigos de área válidos |
-| `"99 99999-9999"` | DDD inexistente | Validar DDD contra tabela ANATEL |
-| `"+55 11 91234-567"` | Dígitos faltando | Validar comprimento (fixo: 10, celular: 11) |
-
-#### 1.2.2 CEPs Inválidos
-
-**Tabelas**: `person.address`, `warehouse.warehouselocation`
-
-| Padrão Inválido | Tipo de Erro | Tratamento Esperado |
-|-----------------|--------------|---------------------|
-| `"00000-000"` | Placeholder | Enriquecer via API ViaCEP ou similar |
-| `"XXXXX-XXX"` | Não numérico | Validar formato e existência |
-| `"01310-100"` (SP) + `state: "RJ"` | Inconsistência geográfica | Cruzar CEP com UF esperada |
-| `"12345-678"` | CEP inexistente | Validar contra base dos Correios |
-
-#### 1.2.3 CPF/CNPJ Inválidos
-
-**Tabelas**: `person.customer`, `purchasing.vendor`, `humanresources.employee`
-
-| Padrão Inválido | Tipo de Erro | Tratamento Esperado |
-|-----------------|--------------|---------------------|
-| `"000.000.000-00"` | Placeholder | Marcar como inválido |
-| `"111.111.111-11"` | Sequência | Bloquear sequências repetidas |
-| `"123.456.789-09"` | Dígito verificador errado | Recalcular e corrigir ou invalidar |
-| `"12345678901234"` (14 dígitos sem formatação) | Confusão CPF/CNPJ | Detectar tamanho e formatar corretamente |
-| CPF válido matematicamente mas não cadastrado na Receita | CPF sintético | Enriquecer com base da Receita (se disponível) |
-
-#### 1.2.4 Emails Inválidos
-
-**Tabelas**: `person.customer_email`, `humanresources.employee`
-
-| Padrão Inválido | Tipo de Erro | Tratamento Esperado |
-|-----------------|--------------|---------------------|
-| `"email@dominio"` | TLD faltando | Validar formato RFC 5322 |
-| `"@dominio.com"` | Usuário faltando | Rejeitar ou solicitar correção |
-| `"email@@dominio.com"` | Caracteres duplicados | Normalizar antes de validar |
-| `"email@dominio .com"` | Espaços inválidos | Trim e validar |
-| `"test@test.test"` | Email de teste | Marcar como suspeito (possível fraude) |
-
-#### 1.2.5 Nomes Inválidos
-
-**Tabelas**: `person.customer`, `humanresources.employee`
-
-| Padrão Inválido | Tipo de Erro | Tratamento Esperado |
-|-----------------|--------------|---------------------|
-| `"João123"` | Números no nome | Validar alfabético + espaços |
-| `"Maria###"` | Caracteres especiais | Normalizar ou rejeitar |
-| `"Cliente Teste"` | Nome genérico | Detectar padrões de teste (regex) |
-| `"XXXX"` | Placeholder | Marcar como inválido |
-| `"   "` (apenas espaços) | String vazia disfarçada | Trim e validar não-vazio |
-| `"A"` (1 caractere) | Nome muito curto | Validar comprimento mínimo |
+**Test Scenarios**:
+- Fuzzy matching with Levenshtein distance
+- String normalization (unaccent, trim, lowercase)
+- Duplicate detection via embeddings
+- Merging duplicate records by choosing a golden record
 
 ---
 
-### 1.3 Valores Acima do Normal (1-3%)
+### 1.2 Dirty Data (2-10%)
 
-**Descrição**: Outliers estatísticos legítimos (não fraudes) para testar detecção de anomalias.
+**Description**: Fields with malformed values that require regex, normalization, or enrichment.
 
-**Tabelas**: `sales.salesorder`, `purchasing.purchaseorderheader`, `warehouse.transaction_history`
+#### 1.2.1 Invalid Phone Numbers
 
-| Tipo | Exemplo | Característica | Tratamento Esperado |
+**Tables**: `person.customer`, `person.customer_email`, `purchasing.vendor`
+
+| Invalid Pattern | Error Type | Expected Handling |
+|-----------------|--------------|---------------------|
+| `"0000000"` | Placeholder | Flag as invalid, request re-entry |
+| `"11111111111"` | Sequence | Validate for unique digits |
+| `"(00) 0000-0000"` | Format with no real number | Validate against a list of valid area codes |
+| `"99 99999-9999"` | Non-existent area code | Validate area code against the ANATEL table |
+| `"+55 11 91234-567"` | Missing digits | Validate length (landline: 10, mobile: 11) |
+
+#### 1.2.2 Invalid Postal Codes (CEP)
+
+**Tables**: `person.address`, `warehouse.warehouselocation`
+
+| Invalid Pattern | Error Type | Expected Handling |
+|-----------------|--------------|---------------------|
+| `"00000-000"` | Placeholder | Enrich via ViaCEP API or similar |
+| `"XXXXX-XXX"` | Non-numeric | Validate format and existence |
+| `"01310-100"` (SP) + `state: "RJ"` | Geographic inconsistency | Cross-check CEP against expected state |
+| `"12345-678"` | Non-existent CEP | Validate against the postal service database |
+
+#### 1.2.3 Invalid CPF/CNPJ
+
+**Tables**: `person.customer`, `purchasing.vendor`, `humanresources.employee`
+
+| Invalid Pattern | Error Type | Expected Handling |
+|-----------------|--------------|---------------------|
+| `"000.000.000-00"` | Placeholder | Flag as invalid |
+| `"111.111.111-11"` | Sequence | Block repeated sequences |
+| `"123.456.789-09"` | Wrong check digit | Recompute and correct, or invalidate |
+| `"12345678901234"` (14 digits, no formatting) | CPF/CNPJ confusion | Detect length and format correctly |
+| Mathematically valid CPF but not registered with the tax authority | Synthetic CPF | Enrich against the tax authority database (if available) |
+
+#### 1.2.4 Invalid Emails
+
+**Tables**: `person.customer_email`, `humanresources.employee`
+
+| Invalid Pattern | Error Type | Expected Handling |
+|-----------------|--------------|---------------------|
+| `"email@domain"` | Missing TLD | Validate RFC 5322 format |
+| `"@domain.com"` | Missing user | Reject or request correction |
+| `"email@@domain.com"` | Duplicated characters | Normalize before validating |
+| `"email@domain .com"` | Invalid spaces | Trim and validate |
+| `"test@test.test"` | Test email | Flag as suspicious (possible fraud) |
+
+#### 1.2.5 Invalid Names
+
+**Tables**: `person.customer`, `humanresources.employee`
+
+| Invalid Pattern | Error Type | Expected Handling |
+|-----------------|--------------|---------------------|
+| `"João123"` | Numbers in the name | Validate alphabetic + spaces |
+| `"Maria###"` | Special characters | Normalize or reject |
+| `"Cliente Teste"` (`"Test Customer"`) | Generic name | Detect test patterns (regex) |
+| `"XXXX"` | Placeholder | Flag as invalid |
+| `"   "` (spaces only) | Disguised empty string | Trim and validate non-empty |
+| `"A"` (1 character) | Name too short | Validate minimum length |
+
+---
+
+### 1.3 Above-Normal Values (1-3%)
+
+**Description**: Legitimate statistical outliers (not fraud), used to test anomaly detection.
+
+**Tables**: `sales.salesorder`, `purchasing.purchaseorderheader`, `warehouse.transaction_history`
+
+| Type | Example | Characteristic | Expected Handling |
 |------|---------|----------------|---------------------|
-| Pedido de luxo | Pedido de R$ 150.000 (média: R$ 300) | Valor 500x acima da média | Alertar para revisão manual, não bloquear automaticamente |
-| Compra empresarial | 10.000 unidades de canetas (média: 5 unidades) | Quantidade muito alta | Validar com histórico do cliente (B2B vs B2C) |
-| Importação | Prazo de entrega de 120 dias (média: 7 dias) | Lead time extremo | Verificar se produto é importado |
-| Frete internacional | Frete de R$ 5.000 para produto de R$ 200 | Frete > valor do produto | Validar modalidade de envio (aéreo express) |
+| Luxury order | R$ 150,000 order (average: R$ 300) | Value 500x above average | Flag for manual review, don't auto-block |
+| Business purchase | 10,000 pen units (average: 5 units) | Very high quantity | Validate against customer history (B2B vs B2C) |
+| Import | 120-day delivery lead time (average: 7 days) | Extreme lead time | Check whether the product is imported |
+| International freight | R$ 5,000 freight on a R$ 200 product | Freight > product value | Validate shipping method (express air) |
 
-**Cenários de Teste**:
-- Detecção de outliers com Z-score ou IQR
-- Análise contextual (cliente B2B vs B2C)
-- Alertas de revisão manual sem bloqueio automático
-- Modelos de ML para separar outliers legítimos de fraudes
+**Test Scenarios**:
+- Outlier detection with Z-score or IQR
+- Contextual analysis (B2B vs B2C customer)
+- Manual review alerts without automatic blocking
+- ML models to separate legitimate outliers from fraud
 
 ---
 
-## 2. Fraudes e Atividades Suspeitas
+## 2. Fraud and Suspicious Activity
 
-### 2.1 Fraudes em Compras (1-2%)
+### 2.1 Purchase Fraud (1-2%)
 
-#### 2.1.1 Nome Real + CPF Falso
+#### 2.1.1 Real Name + Fake CPF
 
-**Tabela**: `person.customer`, `sales.salesorder`
+**Table**: `person.customer`, `sales.salesorder`
 
-**Padrão**:
-- Nome aparentemente legítimo: `"João da Silva"`
-- CPF obviamente falso: `"000.000.000-00"`, `"123.456.789-00"`, `"111.111.111-11"`
-- Endereço pode ser válido ou não
+**Pattern**:
+- Apparently legitimate name: `"João da Silva"`
+- Obviously fake CPF: `"000.000.000-00"`, `"123.456.789-00"`, `"111.111.111-11"`
+- Address may or may not be valid
 
-**Detecção**:
-- Validar dígito verificador do CPF
-- Bloquear sequências e padrões conhecidos
-- Cruzar com base da Receita Federal (se disponível)
+**Detection**:
+- Validate the CPF check digit
+- Block known sequences and patterns
+- Cross-check against the tax authority database (if available)
 
-#### 2.1.2 Nome Falso + Endereço Real
+#### 2.1.2 Fake Name + Real Address
 
-**Tabela**: `person.customer`, `sales.salesorder`
+**Table**: `person.customer`, `sales.salesorder`
 
-**Padrão**:
-- Nome genérico/falso: `"Cliente Teste"`, `"Fulano de Tal"`, `"João Silva"` (muito comum)
-- Endereço real e conhecido (ex: shopping, condomínio)
-- Entrega em locais com alto tráfego (dificulta rastreamento)
+**Pattern**:
+- Generic/fake name: `"Cliente Teste"` ("Test Customer"), `"Fulano de Tal"` ("John Doe"), `"João Silva"` (very common)
+- Real, well-known address (e.g., mall, condominium)
+- Delivery to high-traffic locations (harder to trace)
 
-**Detecção**:
-- Detectar nomes muito comuns ou genéricos (frequência na base)
-- Cruzar endereço com bases de locais comerciais
-- Alertar entregas em endereços com múltiplos destinatários diferentes
+**Detection**:
+- Detect very common or generic names (frequency in the base)
+- Cross-check the address against commercial-location databases
+- Flag deliveries to addresses with multiple different recipients
 
-#### 2.1.3 Cartões Clonados (Compras Geograficamente Impossíveis)
+#### 2.1.3 Cloned Cards (Geographically Impossible Purchases)
 
-**Tabela**: `sales.salesorder`, `sales.salesorder.payment_info`
+**Table**: `sales.salesorder`, `sales.salesorder.payment_info`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "order_1": {
@@ -176,72 +176,72 @@ Todos os seeders dos schemas `sales`, `purchasing`, `warehouse`, `person`, `huma
   },
   "order_2": {
     "customer_id": 12345,
-    "order_date": "2024-01-15T10:05:00",  // 5 minutos depois
+    "order_date": "2024-01-15T10:05:00",  // 5 minutes later
     "shipping_city": "Rio de Janeiro",
     "shipping_state": "RJ"
   }
 }
 ```
 
-**Detecção**:
-- Calcular distância geográfica entre compras consecutivas
-- Verificar tempo entre transações vs tempo de deslocamento físico
-- Alertar compras em cidades diferentes no mesmo dia (mesmo customer_id)
+**Detection**:
+- Calculate geographic distance between consecutive purchases
+- Compare time between transactions vs physical travel time
+- Flag purchases in different cities on the same day (same customer_id)
 
-#### 2.1.4 Múltiplas Compras com Cartões Diferentes no Mesmo Endereço
+#### 2.1.4 Multiple Purchases with Different Cards at the Same Address
 
-**Tabela**: `sales.salesorder`
+**Table**: `sales.salesorder`
 
-**Padrão**:
-- Endereço de entrega: `"Rua X, 123, Apto 45"`
-- Customer 1: Cartão terminado em `1234`, data: `2024-01-10`
-- Customer 2: Cartão terminado em `5678`, data: `2024-01-11`
-- Customer 3: Cartão terminado em `9012`, data: `2024-01-12`
+**Pattern**:
+- Delivery address: `"Rua X, 123, Apto 45"`
+- Customer 1: Card ending in `1234`, date: `2024-01-10`
+- Customer 2: Card ending in `5678`, date: `2024-01-11`
+- Customer 3: Card ending in `9012`, date: `2024-01-12`
 
-**Detecção**:
-- Agrupar pedidos por endereço de entrega
-- Contar customer_ids únicos no mesmo endereço em curto período (7 dias)
-- Alertar quando > 3 clientes diferentes entregam no mesmo local
+**Detection**:
+- Group orders by delivery address
+- Count unique customer_ids at the same address within a short period (7 days)
+- Flag when > 3 different customers deliver to the same location
 
-#### 2.1.5 Alto Valor + Dados Cadastrais Inconsistentes
+#### 2.1.5 High Value + Inconsistent Registration Data
 
-**Tabela**: `sales.salesorder`, `person.customer`
+**Table**: `sales.salesorder`, `person.customer`
 
-**Padrão**:
-- Pedido de R$ 10.000+
-- Email gratuito: `joao123@gmail.com`
-- Endereço de luxo: `"Av. Brigadeiro Faria Lima, 3000"` (região nobre)
-- Cadastro recém-criado (< 24h)
-- Sem histórico de compras
+**Pattern**:
+- Order of R$ 10,000+
+- Free email provider: `joao123@gmail.com`
+- Luxury address: `"Av. Brigadeiro Faria Lima, 3000"` (upscale area)
+- Recently created account (< 24h)
+- No purchase history
 
-**Detecção**:
-- Cruzar valor do pedido com "idade" da conta
-- Detectar emails de provedores gratuitos em compras de alto valor
-- Verificar consistência entre CEP (região nobre) e comportamento de compra
+**Detection**:
+- Cross-check order value against account "age"
+- Detect free email providers on high-value purchases
+- Check consistency between CEP (upscale area) and purchasing behavior
 
 ---
 
-### 2.2 Cadastros Fraudulentos (1-3%)
+### 2.2 Fraudulent Registrations (1-3%)
 
-#### 2.2.1 CPFs Sintéticos (Válidos Matematicamente, Inexistentes)
+#### 2.2.1 Synthetic CPFs (Mathematically Valid, Non-Existent)
 
-**Tabela**: `person.customer`
+**Table**: `person.customer`
 
-**Padrão**:
-- CPF passa na validação de dígito verificador
-- Mas não existe na base da Receita Federal
-- Gerado por algoritmos públicos de geração de CPF
+**Pattern**:
+- CPF passes check-digit validation
+- But doesn't exist in the tax authority database
+- Generated by public CPF-generation algorithms
 
-**Detecção**:
-- Integrar com API da Receita Federal (quando disponível)
-- Detectar padrões de CPFs gerados por ferramentas conhecidas
-- Monitorar CPFs com data de criação recente e sem histórico
+**Detection**:
+- Integrate with the tax authority API (when available)
+- Detect patterns from known CPF-generation tools
+- Monitor CPFs with recent creation dates and no history
 
-#### 2.2.2 Múltiplos Cadastros com Mesmo Telefone/Email
+#### 2.2.2 Multiple Registrations with the Same Phone/Email
 
-**Tabela**: `person.customer`, `person.customer_email`
+**Table**: `person.customer`, `person.customer_email`
 
-**Padrão**:
+**Pattern**:
 ```json
 [
   {"customer_id": 1001, "cpf": "123.456.789-00", "email": "teste@email.com"},
@@ -250,48 +250,48 @@ Todos os seeders dos schemas `sales`, `purchasing`, `warehouse`, `person`, `huma
 ]
 ```
 
-**Detecção**:
-- GROUP BY email ou telefone, contar CPFs distintos
-- Alertar quando 1 email tem > 2 CPFs diferentes
-- Permitir exceções (email corporativo compartilhado)
+**Detection**:
+- GROUP BY email or phone, count distinct CPFs
+- Flag when 1 email has > 2 different CPFs
+- Allow exceptions (shared corporate email)
 
-#### 2.2.3 Endereços Falsos/Inexistentes
+#### 2.2.3 Fake/Non-Existent Addresses
 
-**Tabela**: `person.address`
+**Table**: `person.address`
 
-**Padrão**:
-- `"Rua X, número 99999"` (número improvável)
-- CEP válido mas rua inexistente naquele CEP
-- Complemento genérico: `"Casa"`, `"Apto 1"`
+**Pattern**:
+- `"Rua X, número 99999"` (implausible number)
+- Valid CEP but the street doesn't exist for that CEP
+- Generic complement: `"Casa"` ("House"), `"Apto 1"`
 
-**Detecção**:
-- Validar CEP contra API dos Correios
-- Verificar se logradouro corresponde ao CEP
-- Alertar números de endereço > 9999 (improváveis)
+**Detection**:
+- Validate CEP against the postal service API
+- Check whether the street matches the CEP
+- Flag address numbers > 9999 (implausible)
 
-#### 2.2.4 Combinações Impossíveis
+#### 2.2.4 Impossible Combinations
 
-**Tabela**: `person.customer`
+**Table**: `person.customer`
 
-**Padrão**:
-- Nome brasileiro: `"José da Silva"`
-- Telefone internacional sem explicação: `"+1 555-1234"` (EUA)
-- CPF brasileiro mas endereço no exterior
+**Pattern**:
+- Brazilian name: `"José da Silva"`
+- Unexplained international phone: `"+1 555-1234"` (US)
+- Brazilian CPF but address abroad
 
-**Detecção**:
-- Cruzar país do telefone com país do CPF
-- Validar consistência entre nacionalidade dos documentos
-- Permitir exceções para expatriados (validar com histórico)
+**Detection**:
+- Cross-check phone country against CPF country
+- Validate consistency between document nationalities
+- Allow exceptions for expatriates (validate against history)
 
 ---
 
-### 2.3 Processos de Compra Incompletos/Fantasmas (2-5%)
+### 2.3 Incomplete/Phantom Purchase Processes (2-5%)
 
-#### 2.3.1 Pedidos Criados mas Nunca Pagos
+#### 2.3.1 Orders Created but Never Paid
 
-**Tabela**: `sales.salesorder`
+**Table**: `sales.salesorder`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "salesordernumber": "SO-123456789",
@@ -302,80 +302,80 @@ Todos os seeders dos schemas `sales`, `purchasing`, `warehouse`, `person`, `huma
       {"status": "pending", "method": "credit_card"}
     ]
   },
-  "days_since_creation": 45  // > 30 dias
+  "days_since_creation": 45  // > 30 days
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE order_status = 'pending' AND DATEDIFF(NOW(), order_date) > 30`
-- Alertar para limpeza ou cancelamento automático
-- Análise de taxa de conversão (carrinho abandonado)
+- Flag for cleanup or automatic cancellation
+- Conversion-rate analysis (abandoned cart)
 
-#### 2.3.2 Pedidos Pagos mas Nunca Enviados
+#### 2.3.2 Orders Paid but Never Shipped
 
-**Tabela**: `sales.salesorder`
+**Table**: `sales.salesorder`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "salesordernumber": "SO-987654321",
   "order_status": "paid",
   "payment_info": {"transactions": [{"status": "paid"}]},
-  "shipping_status": null,  // ou "pending" há > 15 dias
+  "shipping_status": null,  // or "pending" for > 15 days
   "days_since_payment": 20
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE payment_status = 'paid' AND (shipping_status IS NULL OR shipping_status = 'pending') AND days_since_payment > 15`
-- Alertar operações para investigação
-- Indicador de problema no warehouse ou integração
+- Flag operations for investigation
+- Indicator of a warehouse or integration problem
 
-#### 2.3.3 Pedidos Enviados mas Nunca Entregues
+#### 2.3.3 Orders Shipped but Never Delivered
 
-**Tabela**: `sales.salesorder`, `warehouse.transaction_history`
+**Table**: `sales.salesorder`, `warehouse.transaction_history`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "salesordernumber": "SO-555555555",
   "shipping_status": "in_transit",
   "tracking_code": "BR123456789",
   "shipping_date": "2024-01-01",
-  "days_in_transit": 120,  // > 90 dias
-  "last_tracking_update": "2024-01-15"  // parado há meses
+  "days_in_transit": 120,  // > 90 days
+  "last_tracking_update": "2024-01-15"  // stalled for months
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE shipping_status = 'in_transit' AND DATEDIFF(NOW(), shipping_date) > 90`
-- Integrar com API de rastreamento (Correios, transportadoras)
-- Alertar cliente e processar reembolso/reenvio
+- Integrate with a tracking API (postal service, carriers)
+- Notify the customer and process a refund/reshipment
 
-#### 2.3.4 Pedidos com Produtos Inexistentes
+#### 2.3.4 Orders with Non-Existent Products
 
-**Tabela**: `sales.salesorder.order_items`
+**Table**: `sales.salesorder.order_items`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "line_number": "SO-123456789-01",
-  "product_id": 99999,  // ID que não existe em product.product
-  "sku": "SKU-INEXISTENTE",
+  "product_id": 99999,  // ID that doesn't exist in product.product
+  "sku": "SKU-NONEXISTENT",
   "quantity": 1
 }
 ```
 
-**Detecção**:
-- LEFT JOIN com `product.product` e verificar NULL
-- Indicador de erro de sistema ou produto deletado após venda
-- Alertar para correção de dados ou cancelamento da linha
+**Detection**:
+- LEFT JOIN with `product.product` and check for NULL
+- Indicator of a system error or a product deleted after the sale
+- Flag for data correction or line cancellation
 
-#### 2.3.5 Disputas de Chargeback
+#### 2.3.5 Chargeback Disputes
 
-**Tabela**: `sales.salesorder.payment_info`
+**Table**: `sales.salesorder.payment_info`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "transactions": [
@@ -389,20 +389,20 @@ Todos os seeders dos schemas `sales`, `purchasing`, `warehouse`, `person`, `huma
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE payment_info->'transactions'->0->>'dispute_status' = 'open'`
-- Alertar financeiro e operações
-- Bloquear novos pedidos do cliente até resolução
+- Notify finance and operations
+- Block new orders from the customer until resolved
 
 ---
 
-### 2.4 Fraudes em Purchasing (1-2%)
+### 2.4 Purchasing Fraud (1-2%)
 
-#### 2.4.1 Ordens de Compra Duplicadas
+#### 2.4.1 Duplicate Purchase Orders
 
-**Tabela**: `purchasing.purchaseorderheader`
+**Table**: `purchasing.purchaseorderheader`
 
-**Padrão**:
+**Pattern**:
 ```json
 [
   {
@@ -414,118 +414,118 @@ Todos os seeders dos schemas `sales`, `purchasing`, `warehouse`, `person`, `huma
   {
     "purchaseorderheader_id": "PO-222222222",
     "vendor_id": 5,
-    "order_date": "2024-01-11",  // 1 dia depois
-    "total_due": 50000.00  // mesmo valor
+    "order_date": "2024-01-11",  // 1 day later
+    "total_due": 50000.00  // same amount
   }
 ]
 ```
 
-**Detecção**:
-- GROUP BY vendor_id, total_due com diferença de datas < 7 dias
-- Alertar para revisão (pode ser erro ou suborno)
-- Verificar se itens comprados são os mesmos
+**Detection**:
+- GROUP BY vendor_id, total_due with date difference < 7 days
+- Flag for review (could be an error or a bribe)
+- Check whether the purchased items are the same
 
-#### 2.4.2 Fornecedores Fantasmas
+#### 2.4.2 Phantom Vendors
 
-**Tabela**: `purchasing.vendor`
+**Table**: `purchasing.vendor`
 
-**Padrão**:
-- CNPJ válido matematicamente
-- Empresa sem atividade econômica (consultoria Receita Federal)
-- Endereço genérico ou inexistente
-- Sem notas fiscais emitidas nos últimos 12 meses
+**Pattern**:
+- Mathematically valid CNPJ
+- Company with no economic activity (per tax-authority lookup)
+- Generic or non-existent address
+- No invoices issued in the last 12 months
 
-**Detecção**:
-- Integrar com API Receita Federal (situação cadastral)
-- Verificar emissão de NF-e (SEFAZ)
-- Auditar fornecedores sem histórico de entregas
+**Detection**:
+- Integrate with the tax-authority API (registration status)
+- Check invoice issuance (SEFAZ)
+- Audit vendors with no delivery history
 
-#### 2.4.3 Preços Superfaturados
+#### 2.4.3 Overpriced Purchases
 
-**Tabela**: `purchasing.purchaseorderdetail`
+**Table**: `purchasing.purchaseorderdetail`
 
-**Padrão**:
-- Produto X: preço médio histórico R$ 100
-- Nova ordem: preço R$ 500 (5x acima)
-- Fornecedor novo ou sem histórico
+**Pattern**:
+- Product X: historical average price R$ 100
+- New order: price R$ 500 (5x above)
+- New vendor or one with no history
 
-**Detecção**:
-- Calcular média e desvio padrão por produto
-- Alertar preços > 3 desvios padrão acima da média
-- Exigir aprovação de nível superior (workflow)
+**Detection**:
+- Compute average and standard deviation per product
+- Flag prices > 3 standard deviations above the average
+- Require higher-level approval (workflow)
 
-#### 2.4.4 Aprovações Sem Autorização
+#### 2.4.4 Unauthorized Approvals
 
-**Tabela**: `purchasing.purchaseorderheader`
+**Table**: `purchasing.purchaseorderheader`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "purchaseorderheader_id": "PO-123456789",
-  "employee_id": 99,  // Funcionário sem permissão de aprovar
-  "total_due": 100000.00,  // Valor acima do limite do funcionário
+  "employee_id": 99,  // Employee without approval permission
+  "total_due": 100000.00,  // Value above the employee's limit
   "status": "approved"
 }
 ```
 
-**Detecção**:
-- Cruzar employee_id com tabela de permissões/alçadas
-- Validar valor do pedido vs limite de aprovação do funcionário
-- Bloquear aprovações automáticas fora da alçada
+**Detection**:
+- Cross-check employee_id against the permissions/authority-levels table
+- Validate order value vs the employee's approval limit
+- Block automatic approvals outside the employee's authority
 
-#### 2.4.5 Entregas em Endereços Pessoais
+#### 2.4.5 Deliveries to Personal Addresses
 
-**Tabela**: `purchasing.purchaseorderheader`, `warehouse.warehouselocation`
+**Table**: `purchasing.purchaseorderheader`, `warehouse.warehouselocation`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "purchaseorderheader_id": "PO-987654321",
-  "shipping_address": "Rua Residencial, 123, Casa",  // Não é warehouse
-  "employee_id": 50  // Funcionário que aprovou o pedido
+  "shipping_address": "Rua Residencial, 123, Casa",  // Not a warehouse
+  "employee_id": 50  // Employee who approved the order
 }
 ```
 
-**Detecção**:
-- Validar se endereço de entrega está em `warehouse.warehouselocation`
-- Alertar entregas em endereços não cadastrados como warehouses
-- Cruzar endereço de entrega com endereço do funcionário aprovador
+**Detection**:
+- Validate whether the delivery address is registered in `warehouse.warehouselocation`
+- Flag deliveries to addresses not registered as warehouses
+- Cross-check the delivery address against the approving employee's address
 
 ---
 
-## 3. Anomalias em Warehouse (Logística e Estoque)
+## 3. Warehouse Anomalies (Logistics and Inventory)
 
-### 3.1 Transferências Perdidas/Fantasmas (2-5%)
+### 3.1 Lost/Phantom Transfers (2-5%)
 
-#### 3.1.1 Transferências Nunca Concluídas
+#### 3.1.1 Transfers Never Completed
 
-**Tabela**: `warehouse.transaction_history`
+**Table**: `warehouse.transaction_history`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "transaction_id": "TR-123456789",
-  "transactiontype_id": 3,  // Transferência
+  "transactiontype_id": 3,  // Transfer
   "traceability_info": {
     "source_warehouselocation_id": 10,
     "target_warehouselocation_id": 20,
     "status": "in_transit"
   },
   "transaction_date": "2024-01-01",
-  "days_in_transit": 95  // > 90 dias
+  "days_in_transit": 95  // > 90 days
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE status = 'in_transit' AND DATEDIFF(NOW(), transaction_date) > 90`
-- Alertar para investigação (perda, roubo, erro de sistema)
-- Ajustar inventário se confirmada perda
+- Flag for investigation (loss, theft, system error)
+- Adjust inventory if the loss is confirmed
 
-#### 3.1.2 Quantidade Recebida ≠ Quantidade Enviada
+#### 3.1.2 Received Quantity ≠ Sent Quantity
 
-**Tabela**: `warehouse.transaction_history`
+**Table**: `warehouse.transaction_history`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "transaction_send": {
@@ -535,253 +535,253 @@ Todos os seeders dos schemas `sales`, `purchasing`, `warehouse`, `person`, `huma
   },
   "transaction_receive": {
     "transaction_id": "TR-111111111-RCV",
-    "quantity": 95,  // Faltam 5 unidades
+    "quantity": 95,  // 5 units missing
     "target_warehouselocation_id": 20,
     "traceability_info": {
       "quality_check_status": "pass",
-      "notes": "5 unidades danificadas no transporte"
+      "notes": "5 units damaged in transit"
     }
   }
 }
 ```
 
-**Detecção**:
-- Cruzar transações de envio com recebimento (mesmo reference_order_id)
-- Calcular divergência: `(received - sent) / sent * 100`
-- Alertar se divergência > 5%
+**Detection**:
+- Cross-check outbound transactions with inbound ones (same reference_order_id)
+- Compute divergence: `(received - sent) / sent * 100`
+- Flag if the divergence > 5%
 
-#### 3.1.3 Transferências para o Mesmo Local
+#### 3.1.3 Transfers to the Same Location
 
-**Tabela**: `warehouse.transaction_history`
+**Table**: `warehouse.transaction_history`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "transaction_id": "TR-999999999",
   "transactiontype_id": 3,
   "traceability_info": {
     "source_warehouselocation_id": 10,
-    "target_warehouselocation_id": 10  // MESMO local!
+    "target_warehouselocation_id": 10  // SAME location!
   }
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE source_warehouselocation_id = target_warehouselocation_id`
-- Indicador de erro de sistema ou má configuração
-- Bloquear transferências com origem = destino na API
+- Indicator of a system error or misconfiguration
+- Block transfers where source = destination at the API level
 
-#### 3.1.4 Transações Sem Rastreabilidade
+#### 3.1.4 Transactions Without Traceability
 
-**Tabela**: `warehouse.transaction_history`
+**Table**: `warehouse.transaction_history`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "transaction_id": "TR-888888888",
   "quantity": 50,
-  "traceability_info": null  // Sem rastreamento!
+  "traceability_info": null  // No traceability!
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE traceability_info IS NULL`
-- Exigir traceability_info obrigatório em transações críticas
-- Alertar para auditoria (possível fraude ou erro)
+- Require traceability_info on critical transactions
+- Flag for audit (possible fraud or error)
 
 ---
 
-### 3.2 Inventário com Divergências (3-8%)
+### 3.2 Inventory Discrepancies (3-8%)
 
-#### 3.2.1 Quantidade Física ≠ Quantidade no Sistema
+#### 3.2.1 Physical Quantity ≠ System Quantity
 
-**Tabela**: `warehouse.product_inventory`
+**Table**: `warehouse.product_inventory`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "product_id": 123,
   "warehouselocation_id": 10,
-  "quantity_on_hand": 100,  // Sistema
-  "physical_count": 95,     // Contagem física
+  "quantity_on_hand": 100,  // System
+  "physical_count": 95,     // Physical count
   "last_cycle_count": "2024-01-15",
   "variance": -5
 }
 ```
 
-**Detecção**:
-- Implementar contagens cíclicas (cycle counts)
-- Calcular: `variance = physical_count - quantity_on_hand`
-- Alertar se |variance| > 5% ou valor absoluto > 10 unidades
+**Detection**:
+- Implement cycle counts
+- Compute: `variance = physical_count - quantity_on_hand`
+- Flag if |variance| > 5% or absolute value > 10 units
 
-#### 3.2.2 Produtos com Custo Negativo ou Zero
+#### 3.2.2 Products with Negative or Zero Cost
 
-**Tabela**: `warehouse.product_inventory`, `warehouse.transaction_history`
+**Table**: `warehouse.product_inventory`, `warehouse.transaction_history`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "product_id": 456,
-  "actual_cost": -10.50  // Negativo!
+  "actual_cost": -10.50  // Negative!
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE actual_cost <= 0`
-- Indicador de erro de sistema, estorno mal feito ou bug
-- Bloquear custos negativos na API (validação Pydantic)
+- Indicator of a system error, botched reversal, or bug
+- Block negative costs at the API level (Pydantic validation)
 
-#### 3.2.3 Produtos Disponíveis Sem Localização Física
+#### 3.2.3 Products Available Without a Physical Location
 
-**Tabela**: `warehouse.product_inventory`
+**Table**: `warehouse.product_inventory`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "product_id": 789,
   "quantity_on_hand": 50,
-  "warehouselocation_id": null  // Sem localização!
+  "warehouselocation_id": null  // No location!
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE quantity_on_hand > 0 AND warehouselocation_id IS NULL`
-- Impede picking (operador não sabe onde buscar)
-- Exigir localização física antes de marcar como disponível
+- Blocks picking (operator doesn't know where to look)
+- Require a physical location before marking as available
 
-#### 3.2.4 Estoque Negativo (Overselling)
+#### 3.2.4 Negative Stock (Overselling)
 
-**Tabela**: `warehouse.product_inventory`
+**Table**: `warehouse.product_inventory`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "product_id": 101,
-  "quantity_on_hand": -10  // Negativo!
+  "quantity_on_hand": -10  // Negative!
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE quantity_on_hand < 0`
-- Indicador de overselling (vendeu mais do que tinha)
-- Implementar validação no momento da venda (ATP - Available to Promise)
+- Indicator of overselling (sold more than was in stock)
+- Implement validation at time of sale (ATP - Available to Promise)
 
-#### 3.2.5 Movimentações Sem Ordem de Origem
+#### 3.2.5 Movements Without a Source Order
 
-**Tabela**: `warehouse.transaction_history`
+**Table**: `warehouse.transaction_history`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "transaction_id": "TR-777777777",
-  "transactiontype_id": 2,  // Saída para venda
+  "transactiontype_id": 2,  // Outbound for sale
   "quantity": 10,
-  "reference_order_id": null  // Sem ordem de venda vinculada!
+  "reference_order_id": null  // No linked sales order!
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE transactiontype_id = 2 AND reference_order_id IS NULL`
-- Indicador de movimentação não autorizada (possível roubo)
-- Exigir ordem de origem para transações de saída
+- Indicator of an unauthorized movement (possible theft)
+- Require a source order for outbound transactions
 
 ---
 
-### 3.3 Problemas de Qualidade (1-2%)
+### 3.3 Quality Problems (1-2%)
 
-#### 3.3.1 Produtos Reprovados mas Enviados
+#### 3.3.1 Products Failed QC but Shipped Anyway
 
-**Tabela**: `warehouse.transaction_history`, `sales.salesorder`
+**Table**: `warehouse.transaction_history`, `sales.salesorder`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "transaction_id": "TR-666666666",
   "product_id": 202,
   "traceability_info": {
-    "quality_check_status": "fail"  // Reprovado!
+    "quality_check_status": "fail"  // Failed!
   },
-  "reference_order_id": 12345  // Mas foi vendido!
+  "reference_order_id": 12345  // But it was sold!
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE quality_check_status = 'fail' AND reference_order_id IS NOT NULL`
-- Indicador de erro de processo ou fraude
-- Bloquear envio de produtos com status != "pass"
+- Indicator of a process error or fraud
+- Block shipment of products with status != "pass"
 
-#### 3.3.2 Quebra de Cold Chain (IoT)
+#### 3.3.2 Cold Chain Break (IoT)
 
-**Tabela**: `warehouse.transaction_history.traceability_info.iot_sensor_data`
+**Table**: `warehouse.transaction_history.traceability_info.iot_sensor_data`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "product_id": 303,
-  "product_category": "Alimentos Refrigerados",
-  "temp_at_scan": 15.5,  // Temperatura OK: 2-8°C esperado
+  "product_category": "Refrigerated Foods",
+  "temp_at_scan": 15.5,  // OK temperature: 2-8°C expected
   "expected_range": {"min": 2.0, "max": 8.0},
   "iot_sensor_data": {
-    "temp_at_scan": 15.5,  // FORA DO RANGE!
+    "temp_at_scan": 15.5,  // OUT OF RANGE!
     "device_id": "IOT-SCANNER-123"
   }
 }
 ```
 
-**Detecção**:
-- Definir ranges de temperatura por categoria de produto
+**Detection**:
+- Define temperature ranges per product category
 - Query: `WHERE temp_at_scan NOT BETWEEN min_temp AND max_temp`
-- Alertar e bloquear envio de produtos com temperatura fora do range
+- Flag and block shipment of products with out-of-range temperature
 
-#### 3.3.3 Produtos Vencidos em Estoque Ativo
+#### 3.3.3 Expired Products in Active Stock
 
-**Tabela**: `warehouse.product_inventory`, `product.product`
+**Table**: `warehouse.product_inventory`, `product.product`
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "product_id": 404,
-  "expiration_date": "2023-12-31",  // Vencido!
+  "expiration_date": "2023-12-31",  // Expired!
   "quantity_on_hand": 20,
-  "status": "available"  // Ainda disponível para venda!
+  "status": "available"  // Still available for sale!
 }
 ```
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE expiration_date < NOW() AND status = 'available'`
-- Implementar rotina de FEFO (First Expired, First Out)
-- Alertar para descarte ou bloqueio de venda
+- Implement a FEFO (First Expired, First Out) routine
+- Flag for disposal or sales block
 
 ---
 
-### 3.4 Valores Negativos (2-4%)
+### 3.4 Negative Values (2-4%)
 
-**Tabela**: `warehouse.transaction_history`, `sales.salesorder`, `purchasing.purchaseorderheader`
+**Table**: `warehouse.transaction_history`, `sales.salesorder`, `purchasing.purchaseorderheader`
 
-| Campo | Padrão Inválido | Tipo de Erro | Tratamento Esperado |
+| Field | Invalid Pattern | Error Type | Expected Handling |
 |-------|-----------------|--------------|---------------------|
-| `actual_cost` | `-50.00` | Estorno mal feito | Investigar transação de estorno, ajustar custo |
-| `quantity` | `-10` | Bug de integração | Bloquear quantidades negativas na API |
-| `freight` | `-100.00` | Ajuste de sistema mal implementado | Validar lógica de desconto de frete |
-| `total_due` | `-500.00` | Erro de cálculo | Recalcular total, validar regras de negócio |
-| `tax_amt` | `-18.00` | Imposto negativo (impossível) | Bloquear na validação Pydantic |
+| `actual_cost` | `-50.00` | Botched reversal | Investigate the reversal transaction, adjust the cost |
+| `quantity` | `-10` | Integration bug | Block negative quantities at the API level |
+| `freight` | `-100.00` | Poorly implemented system adjustment | Validate the freight-discount logic |
+| `total_due` | `-500.00` | Calculation error | Recompute the total, validate business rules |
+| `tax_amt` | `-18.00` | Negative tax (impossible) | Block in Pydantic validation |
 
-**Detecção**:
+**Detection**:
 - Query: `WHERE actual_cost < 0 OR quantity < 0 OR freight < 0 OR total_due < 0`
-- Implementar validação `ge=0` (greater than or equal) em schemas Pydantic
-- Permitir valores negativos apenas em tabelas de ajustes/estornos (com auditoria)
+- Implement `ge=0` (greater than or equal) validation in Pydantic schemas
+- Allow negative values only in adjustment/reversal tables (with an audit trail)
 
 ---
 
-## 3.5 Anomalias em Recursos Humanos (1-3%)
+## 3.5 Human Resources Anomalies (1-3%)
 
-**Contexto importante**: diferente de `sales`/`purchasing`/`warehouse`, o seeder de `humanresources.employee` (`dbapi/api/seeder/humanresources/humanresources_employee.py`) hoje **não gera histórico real** — todo registro nasce com `is_current=True` e nunca é fechado por um `MERGE`/upsert que compare com a versão anterior. Isso significa que a Camada Silver **não pode** corrigir estas anomalias olhando para "o valor anterior do mesmo funcionário" (não existe). As estratégias de correção abaixo usam, em vez disso: (a) dados de referência/dimensão (ex. `humanresources.jobrole`, que tem seu próprio SCD2 com `min_salary`/`max_salary`), (b) estatística de pares (mediana do mesmo cargo/departamento) ou (c) regras determinísticas de negócio — nunca "último valor conhecido do indivíduo".
+**Important context**: unlike `sales`/`purchasing`/`warehouse`, the `humanresources.employee` seeder (`dbapi/api/seeder/humanresources/humanresources_employee.py`) currently **does not generate real history** — every record is born with `is_current=True` and is never closed by a `MERGE`/upsert that compares it to the previous version. This means the Silver layer **cannot** fix these anomalies by looking at "this same employee's previous value" (it doesn't exist). The correction strategies below instead use: (a) reference/dimension data (e.g. `humanresources.jobrole`, which has its own SCD2 with `min_salary`/`max_salary`), (b) peer statistics (median for the same role/department), or (c) deterministic business rules — never "the individual's last known value".
 
-### 3.5.1 Salário Fora da Faixa do Cargo
+### 3.5.1 Salary Outside the Role's Range
 
-**Tabelas**: `humanresources.employee` (`current_salary`) + `humanresources.jobrole` (`min_salary`, `max_salary`, `is_current=true`)
+**Tables**: `humanresources.employee` (`current_salary`) + `humanresources.jobrole` (`min_salary`, `max_salary`, `is_current=true`)
 
-**Padrão**:
+**Pattern**:
 ```json
 {
   "employee_id": 42,
@@ -791,7 +791,7 @@ Todos os seeders dos schemas `sales`, `purchasing`, `warehouse`, `person`, `huma
 }
 ```
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT e.employee_id, e.current_salary, j.min_salary, j.max_salary
 FROM humanresources.employee e
@@ -800,48 +800,48 @@ JOIN humanresources.jobrole j
 WHERE e.current_salary NOT BETWEEN j.min_salary AND j.max_salary;
 ```
 
-**Correção em Silver (sem histórico do indivíduo)**:
-- **Quarentena, não sobrescrita silenciosa**: adicionar coluna derivada `salary_flag` (`'above_range'` / `'below_range'` / `'ok'`). Salário é dado sensível — a correção definitiva é decisão de RH, não do pipeline.
-- Se a Gold precisar de um valor "limpo" para métricas agregadas, gerar `current_salary_corrected = LEAST(GREATEST(current_salary, min_salary), max_salary)` **em coluna separada**, preservando `current_salary` original para auditoria.
-- Alternativa estatística: imputar pela **mediana salarial de pares** (`PERCENTILE_CONT(0.5) ... PARTITION BY job_role_id` sobre os registros que já estão dentro da faixa), em vez de um valor fixo.
+**Silver correction (without the individual's history)**:
+- **Quarantine, not silent overwrite**: add a derived `salary_flag` column (`'above_range'` / `'below_range'` / `'ok'`). Salary is sensitive data — the definitive correction is an HR decision, not the pipeline's.
+- If Gold needs a "clean" value for aggregate metrics, generate `current_salary_corrected = LEAST(GREATEST(current_salary, min_salary), max_salary)` **in a separate column**, preserving the original `current_salary` for audit purposes.
+- Statistical alternative: impute using the **peer salary median** (`PERCENTILE_CONT(0.5) ... PARTITION BY job_role_id` over records already within range), instead of a fixed value.
 
-### 3.5.2 Vendedor Sem Comissão
+### 3.5.2 Salesperson Without a Commission
 
-**Tabela**: `humanresources.employee` (`role_attributes` JSONB, quando o cargo é de Vendas)
+**Table**: `humanresources.employee` (`role_attributes` JSONB, when the role is Sales)
 
-**Nota sobre o schema**: `role_attributes: Union[SalesRoleAttributes, ..., Dict[str, Any]]` tem fallback para `Dict[str, Any]`. Isso é o que permite o payload chaos (faltando `comission_pct`) entrar no Bronze sem quebrar a validação Pydantic — o fallback deve ser mantido de propósito para este cenário.
+**Note on the schema**: `role_attributes: Union[SalesRoleAttributes, ..., Dict[str, Any]]` has a fallback to `Dict[str, Any]`. That's what lets the chaos payload (missing `comission_pct`) into Bronze without breaking Pydantic validation — the fallback should intentionally stay in place for this scenario.
 
-**Padrão**: `role_attributes->>'comission_pct' IS NULL OR = 0` com `job_title LIKE '%Vendas%'` / `%Sales%`.
+**Pattern**: `role_attributes->>'comission_pct' IS NULL OR = 0` with `job_title LIKE '%Vendas%'` / `%Sales%`.
 
-**Correção em Silver**: mesmo princípio já usado no pipeline legado do AdventureWorks (`spark/jobs/silver_layer_advworks_scripts/advdim_salesperson.py::calculateSalesPersonCommission`) — backfill por **tabela/dict de comissão padrão por território ou tier de cargo** (ex. `{"North America": 0.05, "Europe": 0.04, "Pacific": 0.04}`), nunca por valor anterior do funcionário.
+**Silver correction**: same principle already used in the legacy AdventureWorks pipeline (`spark/jobs/silver_layer_advworks_scripts/advdim_salesperson.py::calculateSalesPersonCommission`) — backfill from a **default commission table/dict by territory or role tier** (e.g. `{"North America": 0.05, "Europe": 0.04, "Pacific": 0.04}`), never from the employee's previous value.
 
-### 3.5.3 Vendedor Sem Território/Região
+### 3.5.3 Salesperson Without a Territory/Region
 
-**Tabela**: `humanresources.employee` (`role_attributes.territory_codes`)
+**Table**: `humanresources.employee` (`role_attributes.territory_codes`)
 
-**Diferença em relação ao AdventureWorks**: lá existe uma dimensão própria de território (`territoryid`); no dbapi não há — o vendedor só carrega `country_id`/`state_province_id`.
+**Difference from AdventureWorks**: there, a dedicated territory dimension exists (`territoryid`); in dbapi there isn't one — the salesperson only carries `country_id`/`state_province_id`.
 
-**Correção em Silver**: backfill determinístico usando a geografia que já existe no próprio registro (`country_id` + `state_province_id`), com um mapeamento estático país/estado → território (mesmo padrão de `transformSalesPersonTerritory`, mas chaveado por geografia em vez de string de cargo).
+**Silver correction**: deterministic backfill using the geography already present on the record itself (`country_id` + `state_province_id`), with a static country/state → territory mapping (same pattern as `transformSalesPersonTerritory`, but keyed by geography instead of role string).
 
-### 3.5.4 Hierarquia Inconsistente (Manager em Departamento Diferente)
+### 3.5.4 Inconsistent Hierarchy (Manager in a Different Department)
 
-**Tabela**: `humanresources.employee` (`manager_id`, `department_id`)
+**Table**: `humanresources.employee` (`manager_id`, `department_id`)
 
-**Padrão**: `manager_id` aponta para um funcionário de `department_id` diferente do subordinado.
+**Pattern**: `manager_id` points to an employee in a `department_id` different from the subordinate's.
 
-**Detecção**: self-join de `employee` comparando `department_id` do funcionário com o do seu `manager_id`.
+**Detection**: self-join on `employee` comparing the employee's `department_id` with their `manager_id`'s.
 
-**Correção**: apenas sinalizar (`hierarchy_flag`) para revisão manual — reporte matricial pode ser legítimo, não deve ser "corrigido" automaticamente.
+**Correction**: only flag it (`hierarchy_flag`) for manual review — a matrix reporting structure can be legitimate and shouldn't be "corrected" automatically.
 
-### 3.5.5 SCD2 Quebrado — Múltiplos "Atuais" ou Buracos Temporais
+### 3.5.5 Broken SCD2 — Multiple "Current" Records or Temporal Gaps
 
-**Tabela**: `humanresources.employee`
+**Table**: `humanresources.employee`
 
-**Padrão**: mais de um registro com `is_current=true` para o mesmo `employee_id`, ou `effective_end_date` de uma versão que não bate com o `effective_start_date` da próxima.
+**Pattern**: more than one record with `is_current=true` for the same `employee_id`, or a version's `effective_end_date` that doesn't match the next version's `effective_start_date`.
 
-**Detecção**:
+**Detection**:
 ```sql
--- Mais de uma versão "atual"
+-- More than one "current" version
 SELECT employee_id, COUNT(*)
 FROM humanresources.employee
 WHERE is_current = true
@@ -849,71 +849,71 @@ GROUP BY employee_id
 HAVING COUNT(*) > 1;
 ```
 
-**Correção**: esta é a única regra da seção que **constrói histórico em vez de depender dele** — em Silver, usar `ROW_NUMBER() OVER (PARTITION BY employee_id ORDER BY effective_start_date DESC)` para manter apenas a versão mais recente como `is_current=true` e fechar as demais (`effective_end_date = próximo effective_start_date`). Recomendação estrutural: mover essa lógica de "fechar versão anterior" para o **processo de carga** (upsert/MERGE por `employee_id` comparando atributos rastreados), não só para a limpeza — é isso que resolve a causa raiz de "não existe histórico" mencionada acima.
+**Correction**: this is the only rule in the section that **builds history instead of relying on it** — in Silver, use `ROW_NUMBER() OVER (PARTITION BY employee_id ORDER BY effective_start_date DESC)` to keep only the most recent version as `is_current=true` and close the rest (`effective_end_date = next effective_start_date`). Structural recommendation: move this "close the previous version" logic into the **load process** (upsert/MERGE by `employee_id` comparing tracked attributes), not just cleanup — that's what fixes the root cause of "no history exists" mentioned above.
 
-### 3.5.6 Funcionário Desligado Ainda Marcado como Ativo
+### 3.5.6 Terminated Employee Still Marked as Active
 
-**Tabela**: `humanresources.employee`
+**Table**: `humanresources.employee`
 
-**Padrão**: `end_date` preenchido (funcionário saiu) mas `is_active=true` e/ou `is_current=true`.
+**Pattern**: `end_date` is set (employee left) but `is_active=true` and/or `is_current=true`.
 
-**Detecção**: `WHERE end_date IS NOT NULL AND (is_active = true OR is_current = true)`
+**Detection**: `WHERE end_date IS NOT NULL AND (is_active = true OR is_current = true)`
 
-**Correção**: regra determinística (não depende de histórico) — Silver fecha o registro automaticamente: `is_active=false`, `is_current=false`, `effective_end_date=end_date`.
+**Correction**: deterministic rule (doesn't depend on history) — Silver closes the record automatically: `is_active=false`, `is_current=false`, `effective_end_date=end_date`.
 
 ---
 
-## 3.6 Anomalias em Marketing (1-5%)
+## 3.6 Marketing Anomalies (1-5%)
 
-**Contexto importante — o Guarda Pydantic**: diferente de `sales`/`purchasing`/`warehouse`/`humanresources` (onde os seeders inserem `dict` cru via SQLAlchemy), os 4 seeders de `marketing` (`marketing_campaign.py`, `marketing_adgroup.py`, `marketing_ads.py`, `marketing_daily_performance.py`) **validam o payload pelo schema Pydantic antes do insert** (`Model(**payload).model_dump()`). Isso significa que **nem todo chaos passa direto** — cada regra abaixo indica se precisa contornar a validação (bypass) ou se já passa normalmente, porque o schema atual não cobre aquele cenário.
+**Important context — the Pydantic Guard**: unlike `sales`/`purchasing`/`warehouse`/`humanresources` (where the seeders insert a raw `dict` via SQLAlchemy), the 4 `marketing` seeders (`marketing_campaign.py`, `marketing_adgroup.py`, `marketing_ads.py`, `marketing_daily_performance.py`) **validate the payload through the Pydantic schema before insert** (`Model(**payload).model_dump()`). This means **not every chaos type passes straight through** — each rule below states whether it needs to bypass validation, or whether it already passes normally because the current schema doesn't cover that scenario.
 
-| Regra | Precisa bypass do Pydantic? | Motivo |
+| Rule | Needs Pydantic bypass? | Reason |
 |---|---|---|
-| 3.6.1 Naming convention quebrado | Não | `campaign_name`/`utm_campaign` são `str` livre, sem regex |
-| 3.6.2 Budget zerado + status ativo | Não | `total_budget: Decimal = Field(ge=0.0)` aceita `0.0` |
-| 3.6.3 Budget estourado (300%) | Não* | não é validado no schema da campanha; é uma checagem cross-table (campanha × soma de `daily_performance.cost`) |
-| 3.6.4 Targeting vazio `{}` | **Sim** | `device_types: List[DeviceType]` é obrigatório, sem default |
-| 3.6.5 Idade invertida (min > max) | **Sim** | bloqueado por `model_validator` em `AgeRange`, não por `Field` — "afrouxar" campos não resolve, precisa pular o validator ou o schema inteiro |
-| 3.6.6 Links quebrados | **Sim** | `final_url: HttpUrl` e `MediaAsset.url: AnyUrl` são estritos |
-| 3.6.7 Media type incompatível com extensão | Não | não existe validação cruzada `media_type` × extensão hoje |
-| 3.6.8 Vazamento de campo entre plataformas | Não | `MarketingMetrics` aceita qualquer combinação de campos opcionais |
-| 3.6.9 Clicks > Impressions | Não | só há `ge=0` individual em cada campo |
-| 3.6.10 Custo zero com conversão | Não | idem |
-| 3.6.11 Métricas retroativas (revisão) | Não** | não é um problema de schema; é o mesmo `(ad_id, date_ref)` inserido 2x com valores diferentes — precisa que o loader permita reprocessamento |
-| 3.6.12 Funil de vídeo não-monótono | Não | nenhuma checagem de ordem entre `video_views_25/50/75/100` |
-| 3.6.13 Reach > Impressions | Não | idem, sem checagem cruzada |
-| 3.6.14 UTM duplicado entre campanhas | Não | `utm_campaign` não tem constraint de unicidade |
+| 3.6.1 Broken naming convention | No | `campaign_name`/`utm_campaign` are free-form `str`, no regex |
+| 3.6.2 Zeroed budget + active status | No | `total_budget: Decimal = Field(ge=0.0)` accepts `0.0` |
+| 3.6.3 Budget overrun (300%) | No* | not validated at the campaign schema level; it's a cross-table check (campaign × sum of `daily_performance.cost`) |
+| 3.6.4 Empty targeting `{}` | **Yes** | `device_types: List[DeviceType]` is required, no default |
+| 3.6.5 Inverted age range (min > max) | **Yes** | blocked by a `model_validator` on `AgeRange`, not by `Field` — "loosening" fields doesn't fix it, you need to skip the validator or the whole schema |
+| 3.6.6 Broken links | **Yes** | `final_url: HttpUrl` and `MediaAsset.url: AnyUrl` are strict |
+| 3.6.7 Media type incompatible with extension | No | there's no cross-validation of `media_type` × extension today |
+| 3.6.8 Field leakage between platforms | No | `MarketingMetrics` accepts any combination of optional fields |
+| 3.6.9 Clicks > Impressions | No | only an individual `ge=0` exists on each field |
+| 3.6.10 Zero cost with conversion | No | same as above |
+| 3.6.11 Retroactive metrics (revision) | No** | not a schema problem; it's the same `(ad_id, date_ref)` inserted twice with different values — requires the loader to allow reprocessing |
+| 3.6.12 Non-monotonic video funnel | No | no order check between `video_views_25/50/75/100` |
+| 3.6.13 Reach > Impressions | No | same, no cross-check |
+| 3.6.14 Duplicate UTM across campaigns | No | `utm_campaign` has no uniqueness constraint |
 
-\* precisa existir performance já semeada para a campanha (ordem de execução: campaign → adgroup → ads → daily_performance).
-\*\* precisa que o processo de carga permita inserir uma nova linha para uma chave `(ad_id, date_ref)` já existente (hoje o seeder só faz `insert()`, sem `ON CONFLICT`/upsert e sem constraint única — rodar o seeder 2x já duplicaria dias sem querer).
+\* requires performance already seeded for the campaign (execution order: campaign → adgroup → ads → daily_performance).
+\*\* requires the load process to allow inserting a new row for an already-existing `(ad_id, date_ref)` key (today the seeder only does `insert()`, with no `ON CONFLICT`/upsert and no unique constraint — running the seeder twice would already duplicate days unintentionally).
 
-### 3.6.1 Quebra de Naming Convention
+### 3.6.1 Broken Naming Convention
 
-**Tabela**: `marketing.campaign` (`campaign_name`, `utm_campaign`)
+**Table**: `marketing.campaign` (`campaign_name`, `utm_campaign`)
 
-**Padrão**: 5% das campanhas fogem do padrão `{PLATAFORMA}_{OBJETIVO}_{VARIANTE}` (ex. `GSN_Brand_Retargeting`) e vêm como texto livre de operador humano: `"Cópia de campanha teste 1"`, `"nova campanha (1)"`.
+**Pattern**: 5% of campaigns deviate from the `{PLATFORM}_{OBJECTIVE}_{VARIANT}` pattern (e.g. `GSN_Brand_Retargeting`) and come in as free text typed by a human operator: `"Cópia de campanha teste 1"` ("Copy of test campaign 1"), `"nova campanha (1)"` ("new campaign (1)").
 
-**Detecção**: `WHERE campaign_name !~ '^[A-Z]+_[A-Za-z]+_[A-Za-z]+$'` — testa se os scripts de extração de UTM por regex sobrevivem a nome fora do padrão.
+**Detection**: `WHERE campaign_name !~ '^[A-Z]+_[A-Za-z]+_[A-Za-z]+$'` — tests whether the regex-based UTM extraction scripts survive an off-pattern name.
 
-**Correção em Silver**: não tentar "adivinhar" o UTM a partir do nome livre — extrair de `utm_campaign` (campo estruturado) quando disponível; se também estiver ausente/malformado, marcar `attribution_flag = 'unparsable_name'` em vez de forçar um regex genérico.
+**Silver correction**: don't try to "guess" the UTM from the free-form name — extract from `utm_campaign` (structured field) when available; if that's also missing/malformed, flag `attribution_flag = 'unparsable_name'` instead of forcing a generic regex.
 
-### 3.6.2 Budget Zerado com Status Ativo
+### 3.6.2 Zeroed Budget with Active Status
 
-**Tabela**: `marketing.campaign`
+**Table**: `marketing.campaign`
 
-**Padrão**: `total_budget = 0.00` com `status = 'active'`.
+**Pattern**: `total_budget = 0.00` with `status = 'active'`.
 
-**Detecção**: `WHERE total_budget = 0 AND status = 'active'`
+**Detection**: `WHERE total_budget = 0 AND status = 'active'`
 
-**Correção**: sinalizar (`budget_flag = 'zero_budget_active'`) para revisão — pode ser campanha pausada na prática, mas com status desatualizado na API (comum quando a integração não sincroniza status em tempo real).
+**Correction**: flag it (`budget_flag = 'zero_budget_active'`) for review — it may actually be a paused campaign with a stale status in the API (common when the integration doesn't sync status in real time).
 
-### 3.6.3 Budget Estourado (Overspend)
+### 3.6.3 Budget Overrun (Overspend)
 
-**Tabela**: `marketing.campaign` + `marketing.daily_performance` (soma de `cost`)
+**Table**: `marketing.campaign` + `marketing.daily_performance` (sum of `cost`)
 
-**Padrão**: para ~5% das campanhas, a soma de `cost` na `daily_performance` ultrapassa `total_budget` em até 300%.
+**Pattern**: for ~5% of campaigns, the sum of `cost` in `daily_performance` exceeds `total_budget` by up to 300%.
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT c.campaign_id, c.total_budget, SUM(p.cost) as total_spent,
        (SUM(p.cost) / NULLIF(c.total_budget, 0)) as spend_ratio
@@ -923,55 +923,55 @@ GROUP BY c.campaign_id, c.total_budget
 HAVING SUM(p.cost) > c.total_budget * 1.5;
 ```
 
-**Correção**: nunca truncar o `cost` real — é dado financeiro da plataforma de anúncios. Apenas sinalizar (`overspend_flag`) e, se necessário para a Gold, expor `budget_utilization_pct` como métrica derivada.
+**Correction**: never truncate the real `cost` — it's financial data from the ad platform. Just flag it (`overspend_flag`) and, if Gold needs it, expose `budget_utilization_pct` as a derived metric.
 
-### 3.6.4 Targeting Ausente/Vazio
+### 3.6.4 Missing/Empty Targeting
 
-**Tabela**: `marketing.adgroup` (`targeting_criteria`)
+**Table**: `marketing.adgroup` (`targeting_criteria`)
 
-**Padrão**: `targeting_criteria = {}` em 10% dos AdGroups, como se a integração não tivesse permissão para ler dados de audiência daquela conta.
+**Pattern**: `targeting_criteria = {}` in 10% of AdGroups, as if the integration lacked permission to read audience data for that account.
 
-**Detecção**: `WHERE targeting_criteria = '{}'::jsonb OR targeting_criteria->'device_types' IS NULL`
+**Detection**: `WHERE targeting_criteria = '{}'::jsonb OR targeting_criteria->'device_types' IS NULL`
 
-**Correção**: não inventar critério de targeting — preencher apenas o mínimo inferível (ex. `device_types` default `["desktop", "mobile"]` como fallback documentado) e marcar `targeting_flag = 'missing_audience_data'` para excluir da análise de segmentação até ser corrigido na origem.
+**Correction**: don't invent a targeting criterion — fill in only the minimum that can be inferred (e.g. `device_types` defaulting to `["desktop", "mobile"]` as a documented fallback) and flag `targeting_flag = 'missing_audience_data'` to exclude it from segmentation analysis until it's fixed at the source.
 
-### 3.6.5 Inversão de Faixa Etária
+### 3.6.5 Inverted Age Range
 
-**Tabela**: `marketing.adgroup` (`targeting_criteria.age_range`)
+**Table**: `marketing.adgroup` (`targeting_criteria.age_range`)
 
-**Padrão**: `{"min_age": 65, "max_age": 18}`.
+**Pattern**: `{"min_age": 65, "max_age": 18}`.
 
-**Detecção**: `WHERE (targeting_criteria->'age_range'->>'min_age')::int > (targeting_criteria->'age_range'->>'max_age')::int`
+**Detection**: `WHERE (targeting_criteria->'age_range'->>'min_age')::int > (targeting_criteria->'age_range'->>'max_age')::int`
 
-**Correção**: `swap` determinístico (`LEAST`/`GREATEST` nos dois valores) — ao contrário de salário (RH), aqui não há ambiguidade de negócio: idade mínima e máxima trocadas é sempre um erro de digitação/envio, seguro de corrigir automaticamente.
+**Correction**: deterministic `swap` (`LEAST`/`GREATEST` on the two values) — unlike salary (HR), there's no business ambiguity here: a swapped min/max age is always a typo/submission error, safe to auto-correct.
 
-### 3.6.6 Links Quebrados (Criativos)
+### 3.6.6 Broken Links (Creatives)
 
-**Tabela**: `marketing.ads` (`creative_data.final_url`, `creative_data.media_assets[].url`)
+**Table**: `marketing.ads` (`creative_data.final_url`, `creative_data.media_assets[].url`)
 
-**Padrão**: URL sem `https://` (`"www.example.com/lp"`) ou com espaços (`"https://cdn.example.com/ad final.jpg"`).
+**Pattern**: URL without `https://` (`"www.example.com/lp"`) or with spaces (`"https://cdn.example.com/ad final.jpg"`).
 
-**Detecção**: `WHERE final_url !~ '^https?://' OR final_url ~ '\s'`
+**Detection**: `WHERE final_url !~ '^https?://' OR final_url ~ '\s'`
 
-**Correção**: normalizar (`trim` + prefixar `https://` quando plausível) e, se ainda inválida após normalização, marcar `creative_flag = 'broken_url'` — nunca deixar link quebrado seguir para relatórios de CTR por criativo sem sinalização.
+**Correction**: normalize (`trim` + prefix `https://` when plausible) and, if still invalid after normalization, flag `creative_flag = 'broken_url'` — never let a broken link flow into per-creative CTR reports without a flag.
 
-### 3.6.7 Media Type Incompatível com Extensão
+### 3.6.7 Media Type Incompatible with Extension
 
-**Tabela**: `marketing.ads` (`creative_data.media_type` vs `creative_data.media_assets[].url`)
+**Table**: `marketing.ads` (`creative_data.media_type` vs `creative_data.media_assets[].url`)
 
-**Padrão**: `media_type = 'video'` mas a única URL em `media_assets` termina em `.jpg`/`.png`.
+**Pattern**: `media_type = 'video'` but the only URL in `media_assets` ends in `.jpg`/`.png`.
 
-**Detecção**: `WHERE media_type = 'video' AND media_assets[0]->>'url' ~ '\.(jpg|jpeg|png)$'`
+**Detection**: `WHERE media_type = 'video' AND media_assets[0]->>'url' ~ '\.(jpg|jpeg|png)$'`
 
-**Correção**: reclassificar `media_type` a partir da extensão real do arquivo (fonte de verdade é o asset, não o metadado da API) e sinalizar `creative_flag = 'media_type_mismatch'`.
+**Correction**: reclassify `media_type` based on the actual file extension (the asset is the source of truth, not the API metadata) and flag `creative_flag = 'media_type_mismatch'`.
 
-### 3.6.8 Vazamento de Campo Entre Plataformas
+### 3.6.8 Field Leakage Between Platforms
 
-**Tabela**: `marketing.daily_performance` (`metrics`, campo `quality_score`, exclusivo do Google Ads)
+**Table**: `marketing.daily_performance` (`metrics`, `quality_score` field, exclusive to Google Ads)
 
-**Padrão**: anúncio de canal `meta_ads`/`tiktok_ads` com `metrics.quality_score` preenchido.
+**Pattern**: a `meta_ads`/`tiktok_ads` channel ad has `metrics.quality_score` populated.
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT p.performance_id
 FROM marketing.daily_performance p
@@ -983,35 +983,35 @@ WHERE ch.platform_name != 'google_ads'
   AND p.metrics->>'quality_score' IS NOT NULL;
 ```
 
-**Correção**: anular o campo fora do domínio da plataforma (`quality_score = NULL` quando `platform_name != 'google_ads'`) antes de escrever na Wide Table de Silver — mapeamento de campo por plataforma deve ser explícito, não herdado do payload bruto.
+**Correction**: null out the field outside the platform's domain (`quality_score = NULL` when `platform_name != 'google_ads'`) before writing to the Silver Wide Table — per-platform field mapping must be explicit, not inherited from the raw payload.
 
-### 3.6.9 Cliques > Impressões
+### 3.6.9 Clicks > Impressions
 
-**Tabela**: `marketing.daily_performance`
+**Table**: `marketing.daily_performance`
 
-**Padrão**: `clicks > impressions` (comum por bots ou atraso de contabilização da plataforma).
+**Pattern**: `clicks > impressions` (common due to bots or platform reporting delays).
 
-**Detecção**: `WHERE clicks > impressions`
+**Detection**: `WHERE clicks > impressions`
 
-**Correção**: não zerar nem descartar — clampar `impressions` para `GREATEST(impressions, clicks)` em coluna derivada e sinalizar `metric_flag = 'clicks_exceed_impressions'` para auditoria, mantendo os valores originais intactos.
+**Correction**: don't zero out or discard — clamp `impressions` to `GREATEST(impressions, clicks)` in a derived column and flag `metric_flag = 'clicks_exceed_impressions'` for audit, keeping the original values intact.
 
-### 3.6.10 Custo Zero com Conversão
+### 3.6.10 Zero Cost with Conversion
 
-**Tabela**: `marketing.daily_performance`
+**Table**: `marketing.daily_performance`
 
-**Padrão**: `cost = 0.00` e `conversions > 0` (ex. venda atribuída dias depois, dentro da janela de atribuição, sem custo lançado naquele dia).
+**Pattern**: `cost = 0.00` and `conversions > 0` (e.g. a sale attributed days later, within the attribution window, with no cost recorded on that day).
 
-**Detecção**: `WHERE cost = 0 AND conversions > 0`
+**Detection**: `WHERE cost = 0 AND conversions > 0`
 
-**Correção**: não é erro a corrigir — é comportamento esperado de atribuição diferida. Apenas marcar `attribution_flag = 'delayed_conversion'` para não distorcer métricas de ROAS/CPA diário (o custo real já foi contabilizado em outro `date_ref`).
+**Correction**: not an error to fix — it's expected deferred-attribution behavior. Just flag `attribution_flag = 'delayed_conversion'` so it doesn't distort daily ROAS/CPA metrics (the real cost was already recorded on a different `date_ref`).
 
-### 3.6.11 Métricas que Mudam Retroativamente
+### 3.6.11 Metrics That Change Retroactively
 
-**Tabela**: `marketing.daily_performance`
+**Table**: `marketing.daily_performance`
 
-**Padrão**: a mesma chave `(ad_id, date_ref)` recebe uma segunda carga, dias depois, com `conversions`/`conversion_value` diferentes (revisão da janela de atribuição do Google/Meta).
+**Pattern**: the same `(ad_id, date_ref)` key receives a second load, days later, with different `conversions`/`conversion_value` (Google/Meta attribution-window revision).
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT ad_id, date_ref, COUNT(*) as versions,
        COUNT(DISTINCT conversions) as distinct_conversion_values
@@ -1020,35 +1020,35 @@ GROUP BY ad_id, date_ref
 HAVING COUNT(*) > 1;
 ```
 
-**Correção**: exige mudança na estratégia de carga, não só na limpeza — implementar upsert (`MERGE`/`ON CONFLICT (ad_id, date_ref) DO UPDATE`) mantendo a versão mais recente por `updated_at`, e opcionalmente uma tabela de auditoria (`daily_performance_revisions`) para rastrear o que mudou. Hoje o seeder não tem constraint única em `(ad_id, date_ref)`, então este é o mesmo gap estrutural de [3.5.5](#35-anomalias-em-recursos-humanos-1-3) (SCD2 quebrado), agora no domínio de fatos em vez de dimensão.
+**Correction**: requires a change in the load strategy, not just cleanup — implement upsert (`MERGE`/`ON CONFLICT (ad_id, date_ref) DO UPDATE`) keeping the most recent version by `updated_at`, and optionally an audit table (`daily_performance_revisions`) to track what changed. Today the seeder has no unique constraint on `(ad_id, date_ref)`, so this is the same structural gap as [3.5.5](#355-broken-scd2--multiple-current-records-or-temporal-gaps) (broken SCD2), now in the fact domain instead of a dimension.
 
-### 3.6.12 Funil de Vídeo Não-Monótono
+### 3.6.12 Non-Monotonic Video Funnel
 
-**Tabela**: `marketing.daily_performance` (`metrics.video_views_25/50/75/100`)
+**Table**: `marketing.daily_performance` (`metrics.video_views_25/50/75/100`)
 
-**Padrão**: `video_views_75 > video_views_50` (fisicamente impossível — quem chegou a 75% também passou por 50%).
+**Pattern**: `video_views_75 > video_views_50` (physically impossible — anyone who reached 75% also passed through 50%).
 
-**Detecção**: `WHERE (metrics->>'video_views_100')::int > (metrics->>'video_views_75')::int OR (metrics->>'video_views_75')::int > (metrics->>'video_views_50')::int OR (metrics->>'video_views_50')::int > (metrics->>'video_views_25')::int`
+**Detection**: `WHERE (metrics->>'video_views_100')::int > (metrics->>'video_views_75')::int OR (metrics->>'video_views_75')::int > (metrics->>'video_views_50')::int OR (metrics->>'video_views_50')::int > (metrics->>'video_views_25')::int`
 
-**Correção**: clampar em cascata (`video_views_75 = LEAST(video_views_75, video_views_50)`, etc.) em colunas derivadas, preservando os valores brutos.
+**Correction**: clamp in cascade (`video_views_75 = LEAST(video_views_75, video_views_50)`, etc.) in derived columns, preserving the raw values.
 
 ### 3.6.13 Reach > Impressions
 
-**Tabela**: `marketing.daily_performance` (`metrics.reach`)
+**Table**: `marketing.daily_performance` (`metrics.reach`)
 
-**Padrão**: `reach` (alcance único) maior que `impressions` (total, incluindo repetições) — fisicamente impossível.
+**Pattern**: `reach` (unique reach) greater than `impressions` (total, including repeats) — physically impossible.
 
-**Detecção**: `WHERE (metrics->>'reach')::int > impressions`
+**Detection**: `WHERE (metrics->>'reach')::int > impressions`
 
-**Correção**: mesmo padrão de 3.6.9/3.6.12 — clamp em coluna derivada + flag, nunca sobrescrever o dado bruto.
+**Correction**: same pattern as 3.6.9/3.6.12 — clamp in a derived column + flag, never overwrite the raw data.
 
-### 3.6.14 UTM Duplicado Entre Campanhas
+### 3.6.14 Duplicate UTM Across Campaigns
 
-**Tabela**: `marketing.campaign` (`utm_campaign`)
+**Table**: `marketing.campaign` (`utm_campaign`)
 
-**Padrão**: dois `campaign_id` diferentes compartilhando o mesmo `utm_campaign` (erro humano comum: analista reaproveita a string de uma campanha antiga).
+**Pattern**: two different `campaign_id`s sharing the same `utm_campaign` (common human error: an analyst reuses the string from an old campaign).
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT utm_campaign, COUNT(DISTINCT campaign_id) as campaigns
 FROM marketing.campaign
@@ -1056,69 +1056,69 @@ GROUP BY utm_campaign
 HAVING COUNT(DISTINCT campaign_id) > 1;
 ```
 
-**Correção**: não é corrigível automaticamente (não dá pra saber qual campanha "é a certa" para aquele UTM) — sinalizar `attribution_flag = 'duplicate_utm'` e excluir da atribuição por UTM na Gold até resolução manual, usando `campaign_id` (chave técnica) como fallback de agrupamento.
+**Correction**: not automatically fixable (there's no way to know which campaign is the "right" one for that UTM) — flag `attribution_flag = 'duplicate_utm'` and exclude it from UTM-based attribution in Gold until manually resolved, using `campaign_id` (the technical key) as a grouping fallback.
 
 ---
 
-## 3.7 Anomalias em Person — Customer, Email e Geografia (1-5%)
+## 3.7 Person Anomalies — Customer, Email, and Geography (1-5%)
 
-**Bug corrigido nesta seção**: `person_customer.py` sorteava `country_id` e `state_province_id` de duas listas **globais e independentes** (todos os países × todos os estados), sem nenhum join entre elas — ou seja, **100% dos clientes** podiam nascer com um estado que não pertence ao país sorteado, não como exceção controlada. O seeder agora monta um mapa `states_by_country` (via `StateProvinceModel.country_id`) e só sorteia países que já têm estado cadastrado, garantindo que o estado sempre pertença ao país por construção. A partir disso, a inconsistência geográfica (3.7.6) volta a ser uma exceção rara e deliberada, não o comportamento padrão.
+**Bug fixed in this section**: `person_customer.py` drew `country_id` and `state_province_id` from two **global, independent** lists (all countries × all states), with no join between them — meaning **100% of customers** could be born with a state that doesn't belong to the drawn country, not as a controlled exception. The seeder now builds a `states_by_country` map (via `StateProvinceModel.country_id`) and only draws countries that already have a registered state, guaranteeing the state always belongs to the country by construction. As a result, the geographic inconsistency (3.7.6) goes back to being a rare, deliberate exception, not the default behavior.
 
-### 3.7.1 Formatação de Nome (Case e Espaços)
+### 3.7.1 Name Formatting (Case and Spaces)
 
-**Tabela**: `person.customer` (`customer_name`, `last_name`)
+**Table**: `person.customer` (`customer_name`, `last_name`)
 
-**Padrão**: 5% dos nomes vêm em ALL CAPS (`"JOÃO DA SILVA"`), 5% em lowercase (`"joão da silva"`), ou com espaços extras nas pontas (`"  João da Silva  "`) — aplicado ao nome completo (`customer_name` + `last_name` juntos), não a um campo de cada vez.
+**Pattern**: 5% of names come in ALL CAPS (`"JOÃO DA SILVA"`), 5% in lowercase (`"joão da silva"`), or with extra spaces at the ends (`"  João da Silva  "`) — applied to the full name (`customer_name` + `last_name` together), not to each field individually.
 
-**Detecção**: `WHERE customer_name != TRIM(customer_name) OR customer_name = UPPER(customer_name) OR customer_name = LOWER(customer_name)`
+**Detection**: `WHERE customer_name != TRIM(customer_name) OR customer_name = UPPER(customer_name) OR customer_name = LOWER(customer_name)`
 
-**Correção em Silver**: `TRIM()` + `INITCAP()` para normalizar, preservando o valor original em coluna de auditoria se o pipeline de Data Quality precisar rastrear a taxa de sujeira por período.
+**Silver correction**: `TRIM()` + `INITCAP()` to normalize, preserving the original value in an audit column if the Data Quality pipeline needs to track the dirty-data rate over time.
 
-### 3.7.2 Datas de Nascimento Ilógicas
+### 3.7.2 Illogical Birth Dates
 
-**Tabela**: `person.customer` (`birthdate`)
+**Table**: `person.customer` (`birthdate`)
 
-**Padrão**: nascido no futuro (ano 2030-2050) ou idade impossível (120-150 anos) — simulando erro de digitação na data.
+**Pattern**: born in the future (years 2030-2050) or an impossible age (120-150 years) — simulating a date-entry typo.
 
-**Detecção**: `WHERE birthdate > NOW() OR birthdate < NOW() - INTERVAL '110 years'`
+**Detection**: `WHERE birthdate > NOW() OR birthdate < NOW() - INTERVAL '110 years'`
 
-**Correção**: não é corrigível automaticamente (não dá pra saber a data real) — marcar `birthdate_flag = 'invalid'` e excluir de métricas de idade/demografia até correção manual ou re-coleta.
+**Correction**: not automatically fixable (there's no way to know the real date) — flag `birthdate_flag = 'invalid'` and exclude it from age/demographic metrics until manually corrected or re-collected.
 
-### 3.7.3 CPF/CNPJ Formatado vs Não-Formatado
+### 3.7.3 Formatted vs Unformatted CPF/CNPJ
 
-**Tabela**: `person.customer` (`social_number`)
+**Table**: `person.customer` (`social_number`)
 
-**Padrão**: já implementado em `api/samples/customer.py` (50% com pontuação `123.456.789-00`, 50% só números `12345678900`).
+**Pattern**: already implemented in `api/samples/customer.py` (50% with punctuation `123.456.789-00`, 50% digits only `12345678900`).
 
-**Correção**: normalizar via regex (remover tudo que não é dígito) antes de qualquer JOIN ou comparação entre tabelas que usem `social_number`.
+**Correction**: normalize via regex (strip everything that isn't a digit) before any JOIN or comparison across tables that use `social_number`.
 
-### 3.7.4 Sintaxe Crítica de Email
+### 3.7.4 Critical Email Syntax
 
-**Tabela**: `person.customer_email` (`customer_email`)
+**Table**: `person.customer_email` (`customer_email`)
 
-**Padrão**: vírgula no lugar do ponto (`doug@gmail,com`), TLD ausente (`doug@gmail`) — além do que já existia (email sem `@`, espaço antes do `@`).
+**Pattern**: comma instead of a period (`doug@gmail,com`), missing TLD (`doug@gmail`) — in addition to what already existed (email without `@`, space before the `@`).
 
-**Detecção**: `WHERE customer_email !~ '^[^@]+@[^@]+\.[a-zA-Z]{2,}$'`
+**Detection**: `WHERE customer_email !~ '^[^@]+@[^@]+\.[a-zA-Z]{2,}$'`
 
-**Correção**: regex de normalização + validação RFC 5322; se não for recuperável, marcar `email_flag = 'invalid'` e excluir de campanhas de marketing (não gerar bounce em provedor real).
+**Correction**: normalization regex + RFC 5322 validation; if not recoverable, flag `email_flag = 'invalid'` and exclude it from marketing campaigns (don't generate a bounce at a real provider).
 
-### 3.7.5 Multi-valor Escondido no Mesmo Campo
+### 3.7.5 Multiple Values Hidden in the Same Field
 
-**Tabela**: `person.customer_email` (`customer_email`)
+**Table**: `person.customer_email` (`customer_email`)
 
-**Padrão**: dois e-mails no mesmo registro, separados por `; ` (ex: `"doug@gmail.com; doug.work@empresa.com"`), em vez de duas linhas — erro clássico de formulário sem validação de campo único.
+**Pattern**: two emails in the same record, separated by `; ` (e.g. `"doug@gmail.com; doug.work@empresa.com"`), instead of two rows — a classic error from a form with no single-field validation.
 
-**Detecção**: `WHERE customer_email ~ '[;,]\s*\S+@\S+'`
+**Detection**: `WHERE customer_email ~ '[;,]\s*\S+@\S+'`
 
-**Correção**: split por `;`/`,` e materializar como registros adicionais (`is_primary=false`) na própria tabela, já que a modelagem correta é 1 linha por e-mail.
+**Correction**: split on `;`/`,` and materialize as additional records (`is_primary=false`) in the same table, since the correct modeling is 1 row per email.
 
-### 3.7.6 "Falso Estrangeiro" (Geografia Inconsistente)
+### 3.7.6 "Fake Foreigner" (Inconsistent Geography)
 
-**Tabela**: `person.customer` (`country_id`, `state_province_id`)
+**Table**: `person.customer` (`country_id`, `state_province_id`)
 
-**Padrão**: `state_province_id` aponta para um estado que pertence a um país diferente do `country_id` do mesmo registro (ex: estado "São Paulo" com país "Estados Unidos").
+**Pattern**: `state_province_id` points to a state that belongs to a different country than the record's `country_id` (e.g. state "São Paulo" with country "United States").
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT c.customer_id
 FROM person.customer c
@@ -1126,77 +1126,77 @@ JOIN person.stateprovince sp ON sp.state_province_id = c.state_province_id
 WHERE sp.country_id != c.country_id;
 ```
 
-**Correção**: não há como "adivinhar" qual dos dois campos está certo — sinalizar `geography_flag = 'country_state_mismatch'` para revisão manual. Nota de governança: como não existe *check constraint* no banco amarrando `state_province_id` ao `country_id` (JSONB e chaves soltas não suportam isso nativamente em `person.customer`), essa inconsistência **precisa** ser pega em Silver — o Postgres não impede sozinho.
+**Correction**: there's no way to "guess" which of the two fields is right — flag `geography_flag = 'country_state_mismatch'` for manual review. Governance note: since there's no *check constraint* in the database tying `state_province_id` to `country_id` (JSONB and loose keys don't natively support this in `person.customer`), this inconsistency **must** be caught in Silver — Postgres won't prevent it on its own.
 
-### 3.7.7 Código Geográfico em Minúsculo
+### 3.7.7 Lowercase Geographic Code
 
-**Tabelas**: `person.countryregion` (`country_code`), `person.stateprovince` (`state_province_code`)
+**Tables**: `person.countryregion` (`country_code`), `person.stateprovince` (`state_province_code`)
 
-**Padrão**: 5% dos códigos vêm em minúsculo (`br` em vez de `BR`), simulando integração de API de terceiros que não normaliza antes de enviar.
+**Pattern**: 5% of codes come in lowercase (`br` instead of `BR`), simulating a third-party API integration that doesn't normalize before sending.
 
-**Detecção**: `WHERE country_code != UPPER(country_code)`
+**Detection**: `WHERE country_code != UPPER(country_code)`
 
-**Correção**: `UPPER()` na normalização — como são tabelas de domínio pequenas e estáveis, o ideal é corrigir na origem (constraint `CHECK (country_code = UPPER(country_code))`) além de normalizar em Silver.
+**Correction**: normalize with `UPPER()` — since these are small, stable dimension tables, the ideal fix is at the source (a `CHECK (country_code = UPPER(country_code))` constraint) in addition to normalizing in Silver.
 
 ---
 
-## 3.8 Anomalias em Product — Catálogo, Categoria e Embeddings (1-5%)
+## 3.8 Product Anomalies — Catalog, Category, and Embeddings (1-5%)
 
-**Colunas novas adicionadas nesta seção** (não existiam antes — sem elas, os cenários abaixo não eram sequer representáveis):
-- `product.product.sell_start_date` / `sell_end_date` (`sell_end_date IS NULL` = produto ainda em venda)
-- `product.productcategory.parent_category_id` (self-FK, `NULL` = categoria raiz)
+**New columns added in this section** (didn't exist before — without them, the scenarios below wouldn't even be representable):
+- `product.product.sell_start_date` / `sell_end_date` (`sell_end_date IS NULL` = product still on sale)
+- `product.productcategory.parent_category_id` (self-FK, `NULL` = root category)
 
-**Gaps identificados que continuam fora de escopo** (documentados aqui para não serem confundidos com bugs):
-- `product.productmodel` não é uma tabela de "modelo de produto" com nome livre — é um enum fixo de ~19 tipos (`SMARTPHONE`, `LAPTOP_COMPUTING`, etc.), sem campo de descrição rich-text. As anomalias de "tags HTML vazando" e "nomes quase-duplicados" não se aplicam a essa tabela; a de nome duplicado foi implementada em `product.product_name` (3.8.3), que é texto livre de verdade.
-- `product.productcategory` não tem hierarquia real entre as 19 categorias (são todas irmãs) — `parent_category_id` foi adicionado como coluna, mas o seeder mantém todas como raiz (`NULL`) por padrão; só o chaos força um valor.
+**Identified gaps that remain out of scope** (documented here so they aren't mistaken for bugs):
+- `product.productmodel` isn't a free-form "product model" table — it's a fixed enum of ~19 types (`SMARTPHONE`, `LAPTOP_COMPUTING`, etc.), with no rich-text description field. The "leaking HTML tags" and "near-duplicate names" anomalies don't apply to this table; the duplicate-name one was implemented on `product.product_name` (3.8.3), which is genuinely free text.
+- `product.productcategory` has no real hierarchy across the 19 categories (they're all siblings) — `parent_category_id` was added as a column, but the seeder keeps every category as root (`NULL`) by default; only the chaos path forces a value.
 
-### 3.8.1 Margem Negativa / Preço Zerado
+### 3.8.1 Negative Margin / Zeroed Price
 
-**Tabela**: `product.product` (`productdetails.price`, `productdetails.list_price`)
+**Table**: `product.product` (`productdetails.price`, `productdetails.list_price`)
 
-**Padrão**: `price` (venda) fica abaixo de `list_price` (custo de produção) ou zerado — simulando glitch de promoção mal configurada. Note que o nome dos campos é contraintuitivo: `list_price` = custo, `price` = venda.
+**Pattern**: `price` (sale) ends up below `list_price` (production cost), or zeroed — simulating a misconfigured promotion glitch. Note the field names are counterintuitive: `list_price` = cost, `price` = sale price.
 
-**Detecção**: `WHERE (productdetails->>'price')::numeric < (productdetails->>'list_price')::numeric OR (productdetails->>'price')::numeric = 0`
+**Detection**: `WHERE (productdetails->>'price')::numeric < (productdetails->>'list_price')::numeric OR (productdetails->>'price')::numeric = 0`
 
-**Correção**: nunca corrigir automaticamente (dado financeiro sensível) — sinalizar `margin_flag = 'negative_or_zero'` e alertar para revisão manual antes de qualquer relatório de lucro consumir a linha.
+**Correction**: never auto-correct (sensitive financial data) — flag `margin_flag = 'negative_or_zero'` and alert for manual review before any profit report consumes the row.
 
-### 3.8.2 Peso com Unidade Suja (String em vez de Numeric)
+### 3.8.2 Weight with a Dirty Unit (String Instead of Numeric)
 
-**Tabela**: `product.product` (`productdetails.weight`)
+**Table**: `product.product` (`productdetails.weight`)
 
-**Padrão**: em vez de `1.5` (float limpo), o campo vem como `"1.5kg"`, `"1,5 kg"` ou `"1.5 KG"` — típico de integração com sistema legado que concatena a unidade no valor.
+**Pattern**: instead of `1.5` (clean float), the field comes as `"1.5kg"`, `"1,5 kg"`, or `"1.5 KG"` — typical of integration with a legacy system that concatenates the unit into the value.
 
-**Detecção**: `WHERE productdetails->>'weight' !~ '^[0-9]+(\.[0-9]+)?$'`
+**Detection**: `WHERE productdetails->>'weight' !~ '^[0-9]+(\.[0-9]+)?$'`
 
-**Correção**: regex para extrair a parte numérica + normalizar separador decimal (`,` → `.`) antes de fazer `CAST` para `Numeric` na Silver.
+**Correction**: regex to extract the numeric part + normalize the decimal separator (`,` → `.`) before `CAST`ing to `Numeric` in Silver.
 
-### 3.8.3 Nome de Produto Quase-Duplicado
+### 3.8.3 Near-Duplicate Product Name
 
-**Tabela**: `product.product` (`product_name`)
+**Table**: `product.product` (`product_name`)
 
-**Padrão**: dois produtos com o mesmo nome-base, mas formatação diferente (`"Smartphone Apple - Preto"` vs `"Smartphone-Apple---Preto"`) — erro clássico de cadastro duplo.
+**Pattern**: two products with the same base name but different formatting (`"Smartphone Apple - Preto"` vs `"Smartphone-Apple---Preto"`) — a classic double-registration error.
 
-**Detecção**: `GROUP BY LOWER(REPLACE(product_name, '-', ' ')) HAVING COUNT(DISTINCT product_id) > 1`
+**Detection**: `GROUP BY LOWER(REPLACE(product_name, '-', ' ')) HAVING COUNT(DISTINCT product_id) > 1`
 
-**Correção**: normalizar (`lower` + colapsar separadores) antes de qualquer deduplicação; não apagar automaticamente — os dois `product_id` podem já ter vendas associadas.
+**Correction**: normalize (`lower` + collapse separators) before any deduplication; don't auto-delete — both `product_id`s may already have associated sales.
 
-### 3.8.4 Datas de Venda Ilógicas
+### 3.8.4 Illogical Sale Dates
 
-**Tabela**: `product.product` (`sell_start_date`, `sell_end_date`)
+**Table**: `product.product` (`sell_start_date`, `sell_end_date`)
 
-**Padrão**: `sell_end_date` anterior ao `sell_start_date`.
+**Pattern**: `sell_end_date` before `sell_start_date`.
 
-**Detecção**: `WHERE sell_end_date IS NOT NULL AND sell_end_date < sell_start_date`
+**Detection**: `WHERE sell_end_date IS NOT NULL AND sell_end_date < sell_start_date`
 
-**Correção**: sinalizar `lifecycle_flag = 'invalid_sell_window'` — não é seguro inferir qual data está certa automaticamente.
+**Correction**: flag `lifecycle_flag = 'invalid_sell_window'` — it's not safe to automatically infer which date is correct.
 
-### 3.8.5 Categoria Órfã (Parent Inexistente)
+### 3.8.5 Orphan Category (Non-Existent Parent)
 
-**Tabela**: `product.productcategory` (`parent_category_id`)
+**Table**: `product.productcategory` (`parent_category_id`)
 
-**Padrão**: `parent_category_id` aponta para um `category_id` que nunca existiu (simulando categoria pai deletada sem cascade).
+**Pattern**: `parent_category_id` points to a `category_id` that never existed (simulating a deleted parent category with no cascade).
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT c.category_id
 FROM product.productcategory c
@@ -1204,128 +1204,128 @@ LEFT JOIN product.productcategory p ON p.category_id = c.parent_category_id
 WHERE c.parent_category_id IS NOT NULL AND p.category_id IS NULL;
 ```
 
-**Correção**: CTEs recursivas no Data Warehouse devem tratar `parent_category_id` órfão como raiz (`COALESCE` no join, não travar a query), além de alertar o time de catálogo.
+**Correction**: recursive CTEs in the Data Warehouse should treat an orphan `parent_category_id` as root (`COALESCE` in the join, don't fail the query), in addition to alerting the catalog team.
 
-### 3.8.6 Categoria Cíclica
+### 3.8.6 Cyclic Category
 
-**Tabela**: `product.productcategory` (`parent_category_id`)
+**Table**: `product.productcategory` (`parent_category_id`)
 
-**Padrão**: duas categorias apontando uma para a outra (`A.parent_category_id = B` e `B.parent_category_id = A`) — testa se a CTE recursiva do Data Warehouse tem proteção contra loop infinito.
+**Pattern**: two categories pointing at each other (`A.parent_category_id = B` and `B.parent_category_id = A`) — tests whether the Data Warehouse's recursive CTE has infinite-loop protection.
 
-**Detecção**: uma CTE recursiva sem `LIMIT`/profundidade máxima trava nesse caso — a query de detecção precisa ter guarda de profundidade (`WHERE depth < 20`) para não travar ela mesma.
+**Detection**: a recursive CTE with no `LIMIT`/max depth will hang on this case — the detection query itself needs a depth guard (`WHERE depth < 20`) so it doesn't hang too.
 
-**Correção**: adicionar `MAX RECURSION DEPTH` (ou equivalente) em toda CTE recursiva sobre `productcategory`, e alertar quando o limite é atingido (indica ciclo, não hierarquia legítima).
+**Correction**: add `MAX RECURSION DEPTH` (or equivalent) to every recursive CTE over `productcategory`, and alert when the limit is reached (indicates a cycle, not a legitimate hierarchy).
 
-### 3.8.7 Vetor de Embedding Truncado (Dimension Mismatch)
+### 3.8.7 Truncated Embedding Vector (Dimension Mismatch)
 
-**Tabela**: `product.productembedding` (`description_vector`)
+**Table**: `product.productembedding` (`description_vector`)
 
-**Padrão**: vetor com 1535 dimensões em vez de 1536 (falha silenciosa na etapa de inferência do modelo de ML).
+**Original pattern (revised)**: the first version of the seeder tried to insert a 1535-dimension vector instead of 1536, simulating a silent failure in the inference step. In practice this is **never silent** — the column is `vector(1536)` (fixed dimension for pgvector), the `INSERT` fails immediately with a dimension error, and since the seeder does a single `insert_in_batches` per run with no intermediate commit or per-batch handling, this failure takes down the whole transaction: **zero embeddings** get written in that run, not just the corrupted record (confirmed by running `nexomat_seeder_dag` end to end — every time this chaos variant was drawn, the entire seeder exited without inserting anything).
 
-**Nota importante**: diferente do que se poderia imaginar, isso **não é silencioso no Postgres** — a coluna é `vector(1536)` (dimensão fixa do pgvector), então o `INSERT` falha imediatamente com erro de dimensão. Vale simular mesmo assim para testar se o pipeline de carga trata esse erro de INSERT graciosamente (retry, quarentena, alerta) em vez de derrubar o job inteiro.
+**Current implementation**: instead of generating a wrong-sized array, `description_vector` is left `NULL` and `ai_metadata.text_model = "truncated_vector_error"` — the same pattern already used for `failed_image_extraction`. This represents the equivalent real-world scenario (the embedding pipeline discarded the malformed result instead of letting it leak into the database) without breaking the whole batch's INSERT.
 
-**Detecção**: falha no próprio `INSERT`; se for preciso auditar depois de já ter passado (ex: pipeline com validação fraca), `SELECT embedding_id FROM product.productembedding WHERE vector_dims(description_vector) != 1536`.
+**Detection**: `SELECT product_id FROM product.productembedding WHERE description_vector IS NULL AND ai_metadata->>'text_model' = 'truncated_vector_error'`
 
-### 3.8.8 Valores NaN/Infinitos no Vetor
+### 3.8.8 Extraction Failure with NaN/Infinite Values
 
-**Tabela**: `product.productembedding` (`description_vector`)
+**Table**: `product.productembedding` (`description_vector`)
 
-**Padrão**: 1 a 5 posições do vetor recebem `NaN`, `Infinity` ou `-Infinity` — simulando job de inferência que falhou parcialmente sem lançar exceção.
+**Original pattern (revised)**: the first version wrote `NaN`/`Infinity`/`-Infinity` into 1 to 5 vector positions. The assumption that "pgvector silently accepts it" was **wrong** — tested empirically, the INSERT fails with `DataError: infinite value not allowed in vector` (pgvector validates and rejects NaN/Infinity on write), with the same side effect of zeroing out the whole run described in 3.8.7.
 
-**Nota importante**: esta sim é a falha **verdadeiramente invisível** — pgvector aceita `NaN`/`Infinity` no INSERT sem reclamar, e o problema só aparece depois, quando o cálculo de cosine similarity retorna `NaN` para qualquer busca que toque esse vetor.
+**Current implementation**: same handling — `description_vector = NULL` and `ai_metadata.text_model = "nan_infinite_extraction_error"`.
 
-**Detecção**: `SELECT embedding_id FROM product.productembedding WHERE description_vector::text ~ 'NaN|Infinity'`
+**Detection**: `SELECT product_id FROM product.productembedding WHERE description_vector IS NULL AND ai_metadata->>'text_model' = 'nan_infinite_extraction_error'`
 
-**Correção**: não há como reconstruir o vetor correto — remover da tabela de busca (ou marcar `embedding_flag = 'corrupted'` e excluir do índice) e reenfileirar o produto para reprocessamento do embedding.
+**Correction (both cases)**: a null vector means the embedding job failed and the product needs reprocessing — there's no corrupted vector to "fix", just re-queue for reprocessing.
 
 ---
 
-## 3.9 Anomalias em Purchasing (1-5%)
+## 3.9 Purchasing Anomalies (1-5%)
 
-**Bugs corrigidos nesta seção** (encontrados ao validar as regras, não eram só falta de chaos):
-- Os 4 seeders de `purchasing` tinham imports quebrados (`api.models.purchasing.orderheader`/`orderdetail` não existem — os módulos reais são `purchaseorderheader.py`/`purchaseorderdetail.py`; `api.schemas.purchase_audit` não existe — o real é `api.schemas.purchasing.purchasing_orderaudit`; `product_id` era buscado em `ProductModel` (`productmodel.py`, tabela de tipos), não em `Product` (`product.py`, tabela real de produtos)). Nenhum dos 4 rodava antes desse fix.
-- `purchase_purchaseorderdetail.py` comparava `h["status"] == 4` para decidir se um pedido estava recebido — mas `status` é salvo como string (`"completed"`, via `Status.value`), nunca `4`. Resultado: `received_qty`/`stocked_qty`/`is_fully_received` sempre viravam `0`/`0`/`False`, independente do status real. Corrigido para `h["status"] == Status.COMPLETED.value`.
-- `purchase_purchaseorderaudit.py` não tinha função de carga (`async def seed_...`) nem `__main__` — não existia nenhum ponto de entrada pra rodar via Airflow/CLI, diferente dos outros 3 seeders do domínio. Adicionado.
+**Bugs fixed in this section** (found while validating the rules, not just missing chaos):
+- The 4 `purchasing` seeders had broken imports (`api.models.purchasing.orderheader`/`orderdetail` don't exist — the real modules are `purchaseorderheader.py`/`purchaseorderdetail.py`; `api.schemas.purchase_audit` doesn't exist — the real one is `api.schemas.purchasing.purchasing_orderaudit`; `product_id` was being looked up in `ProductModel` (`productmodel.py`, a type table), not `Product` (`product.py`, the real product table)). None of the 4 ran before this fix.
+- `purchase_purchaseorderdetail.py` compared `h["status"] == 4` to decide whether an order was received — but `status` is stored as a string (`"completed"`, via `Status.value`), never `4`. Result: `received_qty`/`stocked_qty`/`is_fully_received` always ended up `0`/`0`/`False`, regardless of the real status. Fixed to `h["status"] == Status.COMPLETED.value`.
+- `purchase_purchaseorderaudit.py` had no load function (`async def seed_...`) and no `__main__` — there was no entry point to run it via Airflow/CLI, unlike the other 3 seeders in the domain. Added.
 
-### 3.9.1 Matemática Financeira que Não Bate
+### 3.9.1 Financial Math That Doesn't Add Up
 
-**Tabela**: `purchasing.purchaseorderheader`
+**Table**: `purchasing.purchaseorderheader`
 
-**Padrão**: um "desconto manual" é aplicado direto em `total_due`, sem recalcular `sub_total`/`tax_amt`/`freight` — `sub_total + tax_amt + freight != total_due`.
+**Pattern**: a "manual discount" is applied directly to `total_due`, without recalculating `sub_total`/`tax_amt`/`freight` — `sub_total + tax_amt + freight != total_due`.
 
-**Detecção**: `WHERE total_due != (sub_total + tax_amt + freight)`
+**Detection**: `WHERE total_due != (sub_total + tax_amt + freight)`
 
-**Correção**: nunca sobrescrever `total_due` automaticamente (é dado financeiro aprovado por alguém) — sinalizar `accounting_flag = 'total_mismatch'` e alertar o financeiro para revisão manual da divergência.
+**Correction**: never auto-overwrite `total_due` (it's financial data someone approved) — flag `accounting_flag = 'total_mismatch'` and alert finance for manual review of the discrepancy.
 
-### 3.9.2 Ship Date Antes de Order Date
+### 3.9.2 Ship Date Before Order Date
 
-**Tabela**: `purchasing.purchaseorderheader`
+**Table**: `purchasing.purchaseorderheader`
 
-**Padrão**: `ship_date` anterior ao `order_date` — viagem no tempo logística.
+**Pattern**: `ship_date` earlier than `order_date` — logistics time travel.
 
-**Detecção**: `WHERE ship_date < order_date`
+**Detection**: `WHERE ship_date < order_date`
 
-**Correção**: sinalizar `logistics_flag = 'invalid_ship_window'`; não é seguro inferir qual data está certa.
+**Correction**: flag `logistics_flag = 'invalid_ship_window'`; it's not safe to infer which date is correct.
 
-### 3.9.3 Pedido Fantasma
+### 3.9.3 Phantom Order
 
-**Tabela**: `purchasing.purchaseorderheader`
+**Table**: `purchasing.purchaseorderheader`
 
-**Padrão**: `status = 'completed'` com todos os valores financeiros (`sub_total`, `tax_amt`, `freight`, `total_due`) zerados.
+**Pattern**: `status = 'completed'` with every financial value (`sub_total`, `tax_amt`, `freight`, `total_due`) zeroed.
 
-**Detecção**: `WHERE status = 'completed' AND total_due = 0.00`
+**Detection**: `WHERE status = 'completed' AND total_due = 0.00`
 
-**Correção**: bloquear faturamento de pedidos com valor zerado via regra de negócio na camada de serviço (não só detectar depois) — um pedido "completo" sem nenhum valor é, por definição, uma falha de processo.
+**Correction**: block invoicing of zero-value orders via a business rule in the service layer (not just detect it after the fact) — a "completed" order with no value at all is, by definition, a process failure.
 
-### 3.9.4 Over-shipment (Física Impossível)
+### 3.9.4 Over-Shipment (Physically Impossible)
 
-**Tabela**: `purchasing.purchaseorderdetail`
+**Table**: `purchasing.purchaseorderdetail`
 
-**Padrão**: `received_qty + rejected_qty > order_qty` — fornecedor enviou mais do que foi pedido e o almoxarifado deu entrada sem validar.
+**Pattern**: `received_qty + rejected_qty > order_qty` — the vendor shipped more than was ordered and the warehouse logged it in without validating.
 
-**Detecção**: `WHERE received_qty + rejected_qty > order_qty`
+**Detection**: `WHERE received_qty + rejected_qty > order_qty`
 
-**Correção**: sinalizar `receiving_flag = 'overshipment'` para o time de recebimento; não truncar `received_qty` automaticamente (pode ser fraude ou erro de contagem, precisa de investigação).
+**Correction**: flag `receiving_flag = 'overshipment'` for the receiving team; don't auto-truncate `received_qty` (could be fraud or a counting error, needs investigation).
 
-### 3.9.5 Pedido Zumbi (Stale Order)
+### 3.9.5 Zombie Order (Stale Order)
 
-**Tabela**: `purchasing.purchaseorderdetail`
+**Table**: `purchasing.purchaseorderdetail`
 
-**Padrão**: `is_fully_received = false` com `due_date` de anos atrás (1000-1200 dias) — item nunca chegou e ninguém percebeu.
+**Pattern**: `is_fully_received = false` with a `due_date` years in the past (1000-1200 days) — the item never arrived and nobody noticed.
 
-**Detecção**: `WHERE is_fully_received = false AND due_date < NOW() - INTERVAL '365 days'`
+**Detection**: `WHERE is_fully_received = false AND due_date < NOW() - INTERVAL '365 days'`
 
-**Correção**: alimentar um relatório de "Pedidos Pendentes e Esquecidos" para o time de compras; não fechar a linha automaticamente.
+**Correction**: feed a "Pending and Forgotten Orders" report to the purchasing team; don't auto-close the line.
 
-### 3.9.6 Fornecedor "Caloteiro Ativo"
+### 3.9.6 "Active Deadbeat" Vendor
 
-**Tabela**: `purchasing.vendor`
+**Table**: `purchasing.vendor`
 
-**Padrão**: `credit_rating` baixo (1-2) com `is_active = true`.
+**Pattern**: low `credit_rating` (1-2) with `is_active = true`.
 
-**Nota de implementação**: o schema `Vendor` já tem um `model_validator` que bloqueia exatamente essa combinação — o chaos muta o dict **depois** de passar pela validação (contornando o validator de propósito), simulando alguém forçando a ativação fora da API, direto no banco. Isso é o teste real de governança: como não existe *check constraint* equivalente no Postgres, essa combinação inválida só é pega se alguém auditar a tabela diretamente.
+**Implementation note**: the `Vendor` schema already has a `model_validator` that blocks exactly this combination — the chaos mutates the dict **after** it passes validation (deliberately bypassing the validator), simulating someone forcing activation outside the API, directly in the database. This is the real governance test: since there's no equivalent *check constraint* in Postgres, this invalid combination is only caught if someone audits the table directly.
 
-**Detecção**: `WHERE credit_rating <= 2 AND is_active = true`
+**Detection**: `WHERE credit_rating <= 2 AND is_active = true`
 
-**Correção**: alertar compliance imediatamente (não é um problema de "limpeza de dados", é uma falha de controle de acesso) e considerar reverter `is_active` automaticamente até revisão.
+**Correction**: alert compliance immediately (this isn't a "data cleaning" problem, it's an access-control failure) and consider automatically reverting `is_active` until review.
 
-### 3.9.7 Colisão de Master Data (Mesmo CNPJ, Nomes Diferentes)
+### 3.9.7 Master Data Collision (Same CNPJ, Different Names)
 
-**Tabela**: `purchasing.vendor` (`vendor_name`, `vendor_details.tax_id`)
+**Table**: `purchasing.vendor` (`vendor_name`, `vendor_details.tax_id`)
 
-**Padrão**: dois ou três fornecedores com `vendor_name` diferente compartilhando o mesmo `tax_id`.
+**Pattern**: two or three vendors with different `vendor_name` sharing the same `tax_id`.
 
-**Detecção**: `GROUP BY vendor_details->>'tax_id' HAVING COUNT(DISTINCT vendor_id) > 1`
+**Detection**: `GROUP BY vendor_details->>'tax_id' HAVING COUNT(DISTINCT vendor_id) > 1`
 
-**Correção**: Entity Resolution — não é seguro apagar um dos registros automaticamente (podem ter pedidos de compra vinculados a IDs diferentes); marcar como candidatos a merge e resolver manualmente, mantendo um `master_vendor_id` de referência.
+**Correction**: Entity Resolution — it's not safe to auto-delete one of the records (they may have purchase orders linked to different IDs); mark as merge candidates and resolve manually, keeping a reference `master_vendor_id`.
 
-### 3.9.8 Processo Pulado (Etapas de Auditoria Ausentes)
+### 3.9.8 Skipped Process (Missing Audit Steps)
 
-**Tabela**: `purchasing.purchaseorderaudit`
+**Table**: `purchasing.purchaseorderaudit`
 
-**Padrão**: a trilha de um pedido pula direto de `CREATED` para `CLOSED`, sem o `APPROVED` (ou `REJECTED`) intermediário obrigatório.
+**Pattern**: an order's trail jumps straight from `CREATED` to `CLOSED`, skipping the mandatory intermediate `APPROVED` (or `REJECTED`).
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT purchaseorderheader_id
 FROM purchasing.purchaseorderaudit
@@ -1334,15 +1334,15 @@ HAVING COUNT(*) < 2
    OR NOT bool_or(action IN ('approved', 'rejected'));
 ```
 
-**Correção**: sinalizar `process_flag = 'skipped_approval'` e bloquear qualquer ação subsequente no pedido (ex: pagamento) até que a etapa de aprovação seja retroativamente registrada ou o pedido seja cancelado.
+**Correction**: flag `process_flag = 'skipped_approval'` and block any subsequent action on the order (e.g. payment) until the approval step is retroactively recorded or the order is cancelled.
 
-### 3.9.9 Aprovador Fantasma
+### 3.9.9 Phantom Approver
 
-**Tabela**: `purchasing.purchaseorderaudit`
+**Table**: `purchasing.purchaseorderaudit`
 
-**Padrão**: um evento `APPROVED`/`CLOSED` com `employee_id` que não existe em `humanresources.employee`, ou que existe mas não ocupa cargo de gerência/diretoria.
+**Pattern**: an `APPROVED`/`CLOSED` event with an `employee_id` that doesn't exist in `humanresources.employee`, or that exists but doesn't hold a management/director role.
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT a.audit_id
 FROM purchasing.purchaseorderaudit a
@@ -1352,58 +1352,58 @@ WHERE a.action IN ('approved', 'closed')
   AND (e.employee_id IS NULL OR j.job_title !~* 'gerente|manager|diretor|director|chief');
 ```
 
-**Correção**: bloquear a aprovação na origem (validação na camada de serviço antes de gravar) — isso não deveria nem chegar ao banco; se já chegou, é indício de bypass da API (mesma classe de problema da 3.9.6).
+**Correction**: block the approval at the source (validation in the service layer before writing) — this shouldn't even reach the database; if it already has, it's a sign of an API bypass (same class of problem as 3.9.6).
 
 ---
 
-## 3.10 Anomalias em Sales — Order, Eventlog, Return Order e Seller (1-5%)
+## 3.10 Sales Anomalies — Order, Eventlog, Return Order, and Seller (1-5%)
 
-**Bugs corrigidos nesta seção**:
-- `sales_order.py` importava `ProductModel` de `api.models.product.productmodel` (tabela de tipos) em vez de `Product` de `api.models.product.product` para buscar `product_id` — mesma classe de bug já vista em purchasing.
-- `sales_seller.py` importava `CountryRegionModel` de `api.models.person.countryregion` (sem underscore) — módulo inexistente; o real é `api.models.person.country_region`.
-- `sales_eventlog.py` instanciava `SalesOrderEventLogSchema(event_id=None, ...)`, mas o schema exigia `event_id: int` obrigatório (`gt=0`) — todo evento gerado disparava `ValidationError`. Corrigido para `Optional[int] = Field(None, gt=0)`.
+**Bugs fixed in this section**:
+- `sales_order.py` imported `ProductModel` from `api.models.product.productmodel` (a type table) instead of `Product` from `api.models.product.product` to look up `product_id` — same bug class already seen in purchasing.
+- `sales_seller.py` imported `CountryRegionModel` from `api.models.person.countryregion` (no underscore) — nonexistent module; the real one is `api.models.person.country_region`.
+- `sales_eventlog.py` instantiated `SalesOrderEventLogSchema(event_id=None, ...)`, but the schema required a mandatory `event_id: int` (`gt=0`) — every generated event raised a `ValidationError`. Fixed to `Optional[int] = Field(None, gt=0)`.
 
-**Campos adicionados** (faltavam para as regras fazerem sentido):
-- `sales.salesorder.order_status` agora varia (`open`/`finalized`/`partial_shipped`/`partial_payment`/`canceled`) em vez de ser sempre `"open"` fixo.
-- `person.seller` (via `sales_seller.py`) agora popula `demographics.metrics.average_rating`, `total_gross_revenue` e `chargeback_rate`, que não existiam na geração limpa.
+**Fields added** (were missing for the rules to make sense):
+- `sales.salesorder.order_status` now varies (`open`/`finalized`/`partial_shipped`/`partial_payment`/`canceled`) instead of always being a fixed `"open"`.
+- `person.seller` (via `sales_seller.py`) now populates `demographics.metrics.average_rating`, `total_gross_revenue`, and `chargeback_rate`, which didn't exist in the clean generation.
 
-### 3.10.1 Matemática Quebrada (Desconto Fantasma)
+### 3.10.1 Broken Math (Phantom Discount)
 
-**Tabela**: `sales.salesorder` (`total_amount` vs soma de `order_items`)
+**Table**: `sales.salesorder` (`total_amount` vs the sum of `order_items`)
 
-**Padrão**: `total_amount` fica bem abaixo da soma de `unit_price * quantity` dos itens — simulando desconto aplicado direto no cabeçalho sem ratear entre as linhas.
+**Pattern**: `total_amount` ends up well below the sum of `unit_price * quantity` across the items — simulating a discount applied directly at the header level without prorating across the lines.
 
-**Detecção**: comparar `total_amount` contra `SUM((item->>'unit_price')::numeric * (item->>'quantity')::int)` extraído de `order_items`.
+**Detection**: compare `total_amount` against `SUM((item->>'unit_price')::numeric * (item->>'quantity')::int)` extracted from `order_items`.
 
-**Correção**: nunca recalcular `total_amount` automaticamente (pode ter sido um desconto legítimo) — sinalizar `financial_flag = 'total_mismatch'` e alertar o financeiro para investigar a origem do desconto.
+**Correction**: never auto-recompute `total_amount` (it may have been a legitimate discount) — flag `financial_flag = 'total_mismatch'` and alert finance to investigate the source of the discount.
 
-### 3.10.2 Pagamento Esquizofrênico
+### 3.10.2 Schizophrenic Payment
 
-**Tabela**: `sales.salesorder` (`payment_info`)
+**Table**: `sales.salesorder` (`payment_info`)
 
-**Padrão**: `is_split = false` mas `transactions` tem 3 pagamentos diferentes.
+**Pattern**: `is_split = false` but `transactions` has 3 different payments.
 
-**Detecção**: `WHERE (payment_info->>'is_split')::boolean = false AND jsonb_array_length(payment_info->'transactions') > 1`
+**Detection**: `WHERE (payment_info->>'is_split')::boolean = false AND jsonb_array_length(payment_info->'transactions') > 1`
 
-**Correção**: corrigir `is_split` para `true` na Silver quando `transactions` tiver mais de 1 item (é um campo derivável, não uma fonte de verdade independente).
+**Correction**: fix `is_split` to `true` in Silver when `transactions` has more than 1 item (it's a derivable field, not an independent source of truth).
 
-### 3.10.3 Pedido de Schrödinger
+### 3.10.3 Schrödinger's Order
 
-**Tabela**: `sales.salesorder` (`order_status` vs `payment_info.transactions[].status`)
+**Table**: `sales.salesorder` (`order_status` vs `payment_info.transactions[].status`)
 
-**Padrão**: `order_status = 'finalized'` mas a transação de pagamento está `unpaid` ou `refunded`.
+**Pattern**: `order_status = 'finalized'` but the payment transaction is `unpaid` or `refunded`.
 
-**Detecção**: `WHERE order_status = 'finalized' AND payment_info->'transactions'->0->>'status' IN ('unpaid', 'refunded')`
+**Detection**: `WHERE order_status = 'finalized' AND payment_info->'transactions'->0->>'status' IN ('unpaid', 'refunded')`
 
-**Correção**: bloquear esse pedido do cálculo de Receita Bruta até resolução — um pedido "finalizado" sem pagamento confirmado é contabilmente inválido, nunca inferir receita a partir de `order_status` isoladamente.
+**Correction**: block this order from Gross Revenue calculations until resolved — a "finalized" order with no confirmed payment is accounting-invalid; never infer revenue from `order_status` alone.
 
-### 3.10.4 Viagem no Tempo Logística
+### 3.10.4 Logistics Time Travel
 
-**Tabela**: `sales.ordereventlog` (`event_date`)
+**Table**: `sales.ordereventlog` (`event_date`)
 
-**Padrão**: um evento posterior na sequência lógica (ex: `delivered`) chega com `event_date` anterior a um evento anterior do mesmo pedido (ex: `item_picked`) — coletor do armazém sem internet que descarregou os logs com atraso.
+**Pattern**: a later event in the logical sequence (e.g. `delivered`) arrives with an `event_date` earlier than an earlier event for the same order (e.g. `item_picked`) — a warehouse scanner with no internet connection that uploaded its logs late.
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT e1.salesorder_id, e1.event_type, e1.event_date, e2.event_type, e2.event_date
 FROM sales.ordereventlog e1
@@ -1411,76 +1411,76 @@ JOIN sales.ordereventlog e2 ON e1.salesorder_id = e2.salesorder_id AND e1.event_
 WHERE e1.event_date > e2.event_date;
 ```
 
-**Correção**: a camada Silver deve ordenar eventos por `event_date` (tempo real do acontecimento), não pela ordem de chegada/`event_id` — reconstituir a timeline correta antes de qualquer cálculo de SLA de entrega.
+**Correction**: the Silver layer should order events by `event_date` (real time of occurrence), not by arrival order/`event_id` — reconstruct the correct timeline before any delivery-SLA calculation.
 
-### 3.10.5 Teletransporte GPS
+### 3.10.5 GPS Teleportation
 
-**Tabela**: `sales.ordereventlog` (`event_data.gps_location`)
+**Table**: `sales.ordereventlog` (`event_data.gps_location`)
 
-**Padrão**: coordenadas em `(0.0, 0.0)` ("Null Island", no Golfo da Guiné) ou fisicamente impossíveis (`lat: 999.9`).
+**Pattern**: coordinates at `(0.0, 0.0)` ("Null Island", in the Gulf of Guinea) or physically impossible (`lat: 999.9`).
 
-**Detecção**: `WHERE (event_data->'gps_location'->>'lat')::float NOT BETWEEN -90 AND 90 OR (event_data->'gps_location'->>'long')::float NOT BETWEEN -180 AND 180 OR (event_data->'gps_location'->>'lat' = '0' AND event_data->'gps_location'->>'long' = '0')`
+**Detection**: `WHERE (event_data->'gps_location'->>'lat')::float NOT BETWEEN -90 AND 90 OR (event_data->'gps_location'->>'long')::float NOT BETWEEN -180 AND 180 OR (event_data->'gps_location'->>'lat' = '0' AND event_data->'gps_location'->>'long' = '0')`
 
-**Correção**: descartar a coordenada (não usar em cálculos de rota/distância) e marcar `gps_flag = 'invalid'`; não é seguro interpolar uma posição a partir de eventos vizinhos sem contexto adicional.
+**Correction**: discard the coordinate (don't use it in route/distance calculations) and flag `gps_flag = 'invalid'`; it's not safe to interpolate a position from neighboring events without additional context.
 
-### 3.10.6 Reembolso Infinito
+### 3.10.6 Infinite Refund
 
-**Tabela**: `sales.returnorder` (`refund_amount`)
+**Table**: `sales.returnorder` (`refund_amount`)
 
-**Padrão**: `refund_amount` 10x maior que o valor esperado (`unit_price * quantity` do item original) — atendente digitou um zero a mais no estorno manual.
+**Pattern**: `refund_amount` 10x higher than expected (`unit_price * quantity` of the original item) — an agent typed an extra zero on the manual refund.
 
-**Detecção**: comparar `refund_amount` contra o valor do item na `order_items` do pedido original; alertar se a razão for > 2x.
+**Detection**: compare `refund_amount` against the item's value in the original order's `order_items`; flag if the ratio is > 2x.
 
-**Correção**: nunca ajustar o valor automaticamente (é uma transação financeira já processada) — sinalizar `refund_flag = 'amount_anomaly'` para auditoria e possível estorno do estorno.
+**Correction**: never auto-adjust the value (it's an already-processed financial transaction) — flag `refund_flag = 'amount_anomaly'` for audit and possible reversal of the reversal.
 
-### 3.10.7 Inspeção Fantasma
+### 3.10.7 Phantom Inspection
 
-**Tabela**: `sales.returnorder` (`inspection_data`)
+**Table**: `sales.returnorder` (`inspection_data`)
 
-**Padrão**: `return_status = 'refunded'` e `is_restockable = true`, mas `inspector_user_id` e `technical_notes` (e `inspection_date`, que já é omitido por padrão no seeder) estão nulos — alguém liberou o estorno e a reintegração ao estoque sem examinar o produto.
+**Pattern**: `return_status = 'refunded'` and `is_restockable = true`, but `inspector_user_id` and `technical_notes` (and `inspection_date`, already omitted by default in the seeder) are null — someone released the refund and restocking without examining the product.
 
-**Detecção**: `WHERE return_status = 'refunded' AND (inspection_data->>'is_restockable')::boolean = true AND inspection_data->>'inspector_user_id' IS NULL`
+**Detection**: `WHERE return_status = 'refunded' AND (inspection_data->>'is_restockable')::boolean = true AND inspection_data->>'inspector_user_id' IS NULL`
 
-**Correção**: bloquear `is_restockable = true` sem `inspector_user_id` preenchido na camada de serviço (regra de negócio, não só detecção); em dados já gravados, reverter `is_restockable` para `false` até inspeção retroativa.
+**Correction**: block `is_restockable = true` without a filled-in `inspector_user_id` at the service layer (a business rule, not just detection); for data already written, revert `is_restockable` to `false` until a retroactive inspection.
 
-### 3.10.8 Parceiro Tóxico (Seller de Alto Risco)
+### 3.10.8 Toxic Partner (High-Risk Seller)
 
-**Tabela**: `person.seller` (`demographics.metrics`, `is_active`)
+**Table**: `person.seller` (`demographics.metrics`, `is_active`)
 
-**Padrão**: `chargeback_rate` entre 0.5 e 0.9 e `average_rating` entre 1.0 e 1.5, mas `is_active = true`.
+**Pattern**: `chargeback_rate` between 0.5 and 0.9 and `average_rating` between 1.0 and 1.5, but `is_active = true`.
 
-**Detecção**: `WHERE (demographics->'metrics'->>'chargeback_rate')::numeric > 0.3 AND (demographics->'metrics'->>'average_rating')::numeric < 2.0 AND is_active = true`
+**Detection**: `WHERE (demographics->'metrics'->>'chargeback_rate')::numeric > 0.3 AND (demographics->'metrics'->>'average_rating')::numeric < 2.0 AND is_active = true`
 
-**Correção**: view de "Sellers de Alto Risco Operando" para o time de risco monitorar continuamente — não desativar automaticamente (pode haver contrato/negociação em andamento), mas alertar diariamente enquanto a combinação persistir.
+**Correction**: a "High-Risk Sellers Operating" view for the risk team to monitor continuously — don't auto-deactivate (there may be a contract/negotiation in progress), but alert daily while the combination persists.
 
-### 3.10.9 Agência e Conta Bancária Sujas
+### 3.10.9 Dirty Bank Branch and Account Number
 
-**Tabela**: `person.seller` (`demographics.bank_account`)
+**Table**: `person.seller` (`demographics.bank_account`)
 
-**Padrão**: `account_number` com caractere não-numérico (`"12345-X"`) ou `agency` vazia (`""`).
+**Pattern**: `account_number` with a non-numeric character (`"12345-X"`) or an empty `agency` (`""`).
 
-**Detecção**: `WHERE demographics->'bank_account'->>'account_number' !~ '^[0-9-]+$' OR demographics->'bank_account'->>'agency' = ''`
+**Detection**: `WHERE demographics->'bank_account'->>'account_number' !~ '^[0-9-]+$' OR demographics->'bank_account'->>'agency' = ''`
 
-**Correção**: normalizar/validar antes de qualquer tentativa de payout — nunca deixar o time de pagamentos tentar transferir para uma conta com formato inválido; bloquear o repasse e notificar o seller para corrigir o cadastro.
+**Correction**: normalize/validate before any payout attempt — never let the payments team try to transfer to an invalid-format account; block the payout and notify the seller to fix their registration.
 
 ---
 
-## 3.11 Anomalias em Warehouse — Transaction History, Inventory e Location (1-5%)
+## 3.11 Warehouse Anomalies — Transaction History, Inventory, and Location (1-5%)
 
-**Bugs corrigidos nesta seção** (code review feito pelo usuário antes do chaos, achados adicionais durante a implementação):
-- `TransactionHistorySchema.validate_transaction_logic` bloqueava `quantity < 0` com `raise ValueError`, contradizendo a própria descrição do campo ("Positivo para Entrada, Negativo para Saída") — toda saída de estoque (venda, ajuste negativo) era rejeitada pelo Pydantic. Removida a checagem de sinal, mantida apenas a checagem de `quantity == 0`.
-- `LocationCapabilities.warehouse_type: str = WarehouseType` atribuía a **classe** do Enum como valor padrão (não um membro dela) a um campo tipado como `str`. Corrigido para `warehouse_type: WarehouseType = Field(default=WarehouseType.DRY)`.
-- `transaction_history.py` importava `ProductModel` de `api.models.product.product` (a classe real é `Product`) e `TransactionTypeModel` de `api.models.warehouse.transactiontype` (a classe real é `WarehouseTransactionType`) — dois `ImportError` garantidos.
-- `product_inventory.py` usava `random.randint`/`random.choice` sem nunca importar `random` (`NameError` garantido), **e** importava `ProductModel` em vez de `Product` (mesmo bug de `transaction_history.py`).
-- `ProductInventorySchema.inventory_id` exigia `int` obrigatório, mas o seeder passa `inventory_id=None` (autoincrement) — mesma classe de bug já corrigida em `SalesOrderEventLogSchema.event_id` (seção 3.10). Corrigido para `Optional[int]`.
+**Bugs fixed in this section** (code review done by the user before the chaos work, additional findings during implementation):
+- `TransactionHistorySchema.validate_transaction_logic` blocked `quantity < 0` with `raise ValueError`, contradicting the field's own description ("Positive for Inbound, Negative for Outbound") — every stock outbound (sale, negative adjustment) was rejected by Pydantic. Removed the sign check, kept only the `quantity == 0` check.
+- `LocationCapabilities.warehouse_type: str = WarehouseType` assigned the Enum **class** itself as the default value (not a member of it) to a field typed as `str`. Fixed to `warehouse_type: WarehouseType = Field(default=WarehouseType.DRY)`.
+- `transaction_history.py` imported `ProductModel` from `api.models.product.product` (the real class is `Product`) and `TransactionTypeModel` from `api.models.warehouse.transactiontype` (the real class is `WarehouseTransactionType`) — two guaranteed `ImportError`s.
+- `product_inventory.py` used `random.randint`/`random.choice` without ever importing `random` (guaranteed `NameError`), **and** imported `ProductModel` instead of `Product` (same bug as `transaction_history.py`).
+- `ProductInventorySchema.inventory_id` required a mandatory `int`, but the seeder passes `inventory_id=None` (autoincrement) — the same bug class already fixed in `SalesOrderEventLogSchema.event_id` (section 3.10). Fixed to `Optional[int]`.
 
-### 3.11.1 Quebra de Cadeia de Frio (IoT Glitch)
+### 3.11.1 Cold Chain Break (IoT Glitch)
 
-**Tabela**: `warehouse.transactionhistory` (`traceability_info.iot_sensor_data.temp_at_scan`)
+**Table**: `warehouse.transactionhistory` (`traceability_info.iot_sensor_data.temp_at_scan`)
 
-**Padrão**: uma transação envolvendo uma localização `cold_storage` registra `temp_at_scan = 45.0`.
+**Pattern**: a transaction involving a `cold_storage` location records `temp_at_scan = 45.0`.
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT t.transaction_id
 FROM warehouse.transactionhistory t
@@ -1493,15 +1493,15 @@ WHERE wl.capabilities->>'warehouse_type' = 'cold_storage'
   AND (t.traceability_info->'iot_sensor_data'->>'temp_at_scan')::float > 8.0;
 ```
 
-**Correção**: pipeline de Compliance dedicado que dispara alerta "Lote Comprometido por Quebra de Cadeia de Frio" em tempo real (não em batch noturno) — produto potencialmente impróprio para consumo/uso não pode esperar o próximo run do Data Lake.
+**Correction**: a dedicated Compliance pipeline that fires a "Batch Compromised by Cold Chain Break" alert in real time (not in an overnight batch) — a product potentially unfit for consumption/use can't wait for the next Data Lake run.
 
-### 3.11.2 Buraco Negro Logístico
+### 3.11.2 Logistics Black Hole
 
-**Tabela**: `warehouse.transactionhistory` (`traceability_info.target_warehouselocation_id`)
+**Table**: `warehouse.transactionhistory` (`traceability_info.target_warehouselocation_id`)
 
-**Padrão**: uma transferência (tipo com `action_effect = 'neutral'`) tem `source_warehouselocation_id` preenchido, mas `target_warehouselocation_id` nulo — a carga saiu de um armazém e nunca chegou a lugar nenhum registrado.
+**Pattern**: a transfer (type with `action_effect = 'neutral'`) has `source_warehouselocation_id` filled in, but `target_warehouselocation_id` null — the load left one warehouse and never arrived anywhere on record.
 
-**Detecção**:
+**Detection**:
 ```sql
 SELECT t.transaction_id
 FROM warehouse.transactionhistory t
@@ -1511,53 +1511,53 @@ WHERE tt.action_effect = 'neutral'
   AND t.traceability_info->>'target_warehouselocation_id' IS NULL;
 ```
 
-**Correção**: alertar operações/segurança patrimonial imediatamente (pode ser roubo de carga, não só falha de sistema) — nunca inferir um destino automaticamente.
+**Correction**: alert operations/asset security immediately (could be cargo theft, not just a system failure) — never auto-infer a destination.
 
-### 3.11.3 Zumbi Perecível
+### 3.11.3 Perishable Zombie
 
-**Tabela**: `warehouse.productinventory` (`quantity`, `is_active`, `attributes.expiration_date`)
+**Table**: `warehouse.productinventory` (`quantity`, `is_active`, `attributes.expiration_date`)
 
-**Padrão**: `quantity` alto (3000-8000), `is_active = true`, mas `expiration_date` vencida há 700-900 dias.
+**Pattern**: high `quantity` (3000-8000), `is_active = true`, but `expiration_date` expired 700-900 days ago.
 
-**Detecção**: `WHERE is_active = true AND quantity > 0 AND (attributes->>'expiration_date')::date < CURRENT_DATE - INTERVAL '30 days'`
+**Detection**: `WHERE is_active = true AND quantity > 0 AND (attributes->>'expiration_date')::date < CURRENT_DATE - INTERVAL '30 days'`
 
-**Correção**: rotina de write-off automático não é segura (pode haver erro de cadastro de validade) — sinalizar `inventory_flag = 'expired_active_stock'` e excluir da valoração financeira de estoque (relatório de custo/CEO) até confirmação física, mas sem apagar o registro.
+**Correction**: an automatic write-off routine isn't safe (there could be a data-entry error on the expiration date) — flag `inventory_flag = 'expired_active_stock'` and exclude it from financial stock valuation (cost/CEO report) until physically confirmed, but without deleting the record.
 
-### 3.11.4 Lote Quântico
+### 3.11.4 Quantum Batch
 
-**Tabela**: `warehouse.productinventory` (`attributes.lot_number`, `attributes.manufacturing_date`)
+**Table**: `warehouse.productinventory` (`attributes.lot_number`, `attributes.manufacturing_date`)
 
-**Padrão**: produto com `quantity > 0` mas `lot_number` e `manufacturing_date` nulos — quebra de rastreabilidade em itens que normalmente exigem (alimentos, medicamentos, eletrônicos com garantia).
+**Pattern**: a product with `quantity > 0` but `lot_number` and `manufacturing_date` null — a traceability break on items that normally require it (food, pharmaceuticals, warrantied electronics).
 
-**Detecção**: `WHERE quantity > 0 AND attributes->>'lot_number' IS NULL AND attributes->>'manufacturing_date' IS NULL`
+**Detection**: `WHERE quantity > 0 AND attributes->>'lot_number' IS NULL AND attributes->>'manufacturing_date' IS NULL`
 
-**Correção**: bloquear a venda/expedição desse item até o lote ser identificado retroativamente — não é seguro despachar produto sem rastreabilidade em categorias regulamentadas.
+**Correction**: block the sale/shipment of this item until the batch is retroactively identified — it's not safe to dispatch a product with no traceability in regulated categories.
 
-### 3.11.5 Polo Norte no Deserto
+### 3.11.5 North Pole in the Desert
 
-**Tabela**: `warehouse.warehouselocation` (`capabilities.warehouse_type` vs `capabilities.temperature_range`)
+**Table**: `warehouse.warehouselocation` (`capabilities.warehouse_type` vs `capabilities.temperature_range`)
 
-**Padrão**: `warehouse_type = 'cold_storage'` mas `temperature_range = {min_temp: 25.0, max_temp: 40.0}` (faixa de câmara quente).
+**Pattern**: `warehouse_type = 'cold_storage'` but `temperature_range = {min_temp: 25.0, max_temp: 40.0}` (a hot-chamber range).
 
-**Detecção**: `WHERE capabilities->>'warehouse_type' = 'cold_storage' AND (capabilities->'temperature_range'->>'min_temp')::float > 0`
+**Detection**: `WHERE capabilities->>'warehouse_type' = 'cold_storage' AND (capabilities->'temperature_range'->>'min_temp')::float > 0`
 
-**Correção**: cadastro inconsistente bloqueia operação — alertar o time de facilities/cadastro; a camada Silver deve marcar `location_flag = 'temperature_mismatch'` e impedir que produtos "cold chain" sejam roteados para essa localização até correção manual.
+**Correction**: an inconsistent registration blocks operation — alert the facilities/registration team; the Silver layer should flag `location_flag = 'temperature_mismatch'` and prevent "cold chain" products from being routed to this location until manually corrected.
 
-### 3.11.6 Teletransportação Geográfica
+### 3.11.6 Geographic Teleportation
 
-**Tabela**: `warehouse.warehouselocation` (`geo_location.postal_code` vs `geo_location.country_name`)
+**Table**: `warehouse.warehouselocation` (`geo_location.postal_code` vs `geo_location.country_name`)
 
-**Padrão**: CEP em formato de outro país (ex: `"90210"` americano) num registro cujo país é diferente.
+**Pattern**: a CEP in another country's format (e.g. an American `"90210"`) on a record with a different country.
 
-**Detecção**: validar `postal_code` contra o formato esperado do `country_name`/`country_id` (regex por país); alertar divergência.
+**Detection**: validate `postal_code` against the format expected for `country_name`/`country_id` (per-country regex); flag any divergence.
 
-**Correção**: não é seguro plotar essa localização no mapa de BI sem correção — excluir de visualizações geográficas até o CEP ser validado/corrigido, sinalizando `geo_flag = 'postal_code_country_mismatch'`.
+**Correction**: it's not safe to plot this location on a BI map without correction — exclude it from geographic visualizations until the CEP is validated/corrected, flagging `geo_flag = 'postal_code_country_mismatch'`.
 
 ---
 
-## 4. Implementação nos Seeders
+## 4. Implementation in the Seeders
 
-### 4.1 Função Genérica de Chaos Engineering
+### 4.1 Generic Chaos Engineering Function
 
 ```python
 import random
@@ -1570,15 +1570,15 @@ def apply_data_quality_chaos(
     allowed_chaos_types: List[str] = None
 ) -> List[Dict[str, Any]]:
     """
-    Aplica chaos engineering (5% padrão) nos dados gerados.
+    Applies chaos engineering (5% default) to the generated data.
 
     Args:
-        batch: Lista de dicionários com dados a serem inseridos
-        chaos_rate: Percentual de registros a serem afetados (0.01 a 0.10)
-        allowed_chaos_types: Lista de tipos de chaos permitidos (None = todos)
+        batch: List of dicts with the data to be inserted
+        chaos_rate: Percentage of records to affect (0.01 to 0.10)
+        allowed_chaos_types: List of allowed chaos types (None = all)
 
     Returns:
-        Lista de dicionários com anomalias injetadas
+        List of dicts with injected anomalies
     """
     if not batch:
         return batch
@@ -1603,69 +1603,69 @@ def apply_data_quality_chaos(
     for idx in chaos_indices:
         chaos_type = random.choice(chaos_types)
 
-        # Duplicidade
+        # Duplication
         if chaos_type == "duplicate" and "customer_name" in batch[idx]:
             duplicated = batch[idx].copy()
             duplicated["customer_name"] = duplicated["customer_name"].upper()
             duplicated["row_guid"] = uuid.uuid4()
             batch.append(duplicated)
 
-        # CPF falso
+        # Fake CPF
         elif chaos_type == "dirty_cpf" and "cpf" in batch[idx]:
             batch[idx]["cpf"] = random.choice([
                 "000.000.000-00", "111.111.111-11", "123.456.789-00"
             ])
 
-        # Telefone inválido
+        # Invalid phone
         elif chaos_type == "dirty_phone" and "phone" in batch[idx]:
             batch[idx]["phone"] = random.choice([
                 "0000000", "11111111111", "(00) 0000-0000", "99 99999-9999"
             ])
 
-        # Email inválido
+        # Invalid email
         elif chaos_type == "dirty_email" and "email" in batch[idx]:
             batch[idx]["email"] = random.choice([
                 "email@dominio", "@dominio.com", "email@@dominio.com", "test@test.test"
             ])
 
-        # CEP inválido
+        # Invalid CEP
         elif chaos_type == "dirty_cep" and "cep" in batch[idx]:
             batch[idx]["cep"] = random.choice([
                 "00000-000", "XXXXX-XXX", "12345-678"
             ])
 
-        # Nome inválido
+        # Invalid name
         elif chaos_type == "dirty_name" and "customer_name" in batch[idx]:
             batch[idx]["customer_name"] = random.choice([
                 "João123", "Maria###", "Cliente Teste", "XXXX", "   ", "A"
             ])
 
-        # Outlier de valor
+        # Value outlier
         elif chaos_type == "outlier_value" and "total_amount" in batch[idx]:
             current_value = batch[idx]["total_amount"]
             batch[idx]["total_amount"] = current_value * random.randint(5, 10)
 
-        # Outlier de quantidade
+        # Quantity outlier
         elif chaos_type == "outlier_quantity" and "quantity" in batch[idx]:
             batch[idx]["quantity"] = random.randint(1000, 10000)
 
-        # Fraude: CPF falso com nome real
+        # Fraud: fake CPF with a real name
         elif chaos_type == "fraud_fake_cpf" and "cpf" in batch[idx]:
             batch[idx]["cpf"] = "000.000.000-00"
-            # Nome permanece realista
+            # Name stays realistic
 
-        # Fraude: Nome falso com endereço real
+        # Fraud: fake name with a real address
         elif chaos_type == "fraud_fake_address" and "customer_name" in batch[idx]:
             batch[idx]["customer_name"] = "Cliente Teste"
-            # Endereço permanece válido
+            # Address stays valid
 
-        # Fraude: Cartão clonado (compras impossíveis geograficamente)
+        # Fraud: cloned card (geographically impossible purchases)
         elif chaos_type == "fraud_cloned_card" and "shipping_city" in batch[idx]:
             batch[idx]["shipping_city"] = "São Paulo"
             batch[idx]["billing_city"] = "Rio de Janeiro"
             batch[idx]["order_date"] = datetime.now()
 
-        # Fraude: Ordem de compra duplicada
+        # Fraud: duplicate purchase order
         elif chaos_type == "fraud_duplicate_order" and "purchaseorderheader_id" in batch[idx]:
             duplicated = batch[idx].copy()
             duplicated["purchaseorderheader_id"] = f"PO-{random.randint(100000000, 999999999)}"
@@ -1673,42 +1673,42 @@ def apply_data_quality_chaos(
             duplicated["row_guid"] = uuid.uuid4()
             batch.append(duplicated)
 
-        # Processo incompleto: Pagamento pendente há muito tempo
+        # Incomplete process: payment pending for a long time
         elif chaos_type == "incomplete_payment" and "order_status" in batch[idx]:
             batch[idx]["order_status"] = "pending"
             batch[idx]["order_date"] = datetime.now() - timedelta(days=45)
 
-        # Processo incompleto: Pago mas não enviado
+        # Incomplete process: paid but not shipped
         elif chaos_type == "incomplete_shipping" and "payment_info" in batch[idx]:
             batch[idx]["payment_info"]["transactions"][0]["status"] = "paid"
             batch[idx]["shipping_status"] = None
             batch[idx]["order_date"] = datetime.now() - timedelta(days=20)
 
-        # Warehouse: Transferência perdida
+        # Warehouse: lost transfer
         elif chaos_type == "warehouse_lost_transfer" and "transaction_date" in batch[idx]:
             batch[idx]["transaction_date"] = datetime.now() - timedelta(days=95)
             if "traceability_info" in batch[idx]:
                 batch[idx]["traceability_info"]["status"] = "in_transit"
 
-        # Warehouse: Estoque negativo
+        # Warehouse: negative stock
         elif chaos_type == "warehouse_negative_stock" and "quantity" in batch[idx]:
             batch[idx]["quantity"] = random.randint(-50, -1)
 
-        # Warehouse: Sem localização física
+        # Warehouse: no physical location
         elif chaos_type == "warehouse_missing_location" and "warehouselocation_id" in batch[idx]:
             batch[idx]["warehouselocation_id"] = None
 
-        # Warehouse: Qualidade reprovada mas enviado
+        # Warehouse: failed QC but shipped
         elif chaos_type == "warehouse_quality_fail" and "traceability_info" in batch[idx]:
             batch[idx]["traceability_info"]["quality_check_status"] = "fail"
-            # Mas reference_order_id permanece preenchido (produto foi vendido)
+            # But reference_order_id stays filled in (product was sold)
 
-        # Warehouse: Cold chain quebrada
+        # Warehouse: broken cold chain
         elif chaos_type == "warehouse_cold_chain_break" and "traceability_info" in batch[idx]:
             if "iot_sensor_data" in batch[idx]["traceability_info"]:
                 batch[idx]["traceability_info"]["iot_sensor_data"]["temp_at_scan"] = random.uniform(15.0, 25.0)
 
-        # Valores negativos
+        # Negative values
         elif chaos_type == "negative_values":
             if "actual_cost" in batch[idx]:
                 batch[idx]["actual_cost"] = -abs(batch[idx]["actual_cost"])
@@ -1717,7 +1717,7 @@ def apply_data_quality_chaos(
             elif "freight" in batch[idx]:
                 batch[idx]["freight"] = -abs(batch[idx]["freight"])
 
-        # Referências faltando
+        # Missing references
         elif chaos_type == "missing_refs":
             if "reference_order_id" in batch[idx]:
                 batch[idx]["reference_order_id"] = None
@@ -1727,21 +1727,21 @@ def apply_data_quality_chaos(
     return batch
 ```
 
-### 4.2 Exemplo de Uso em Seeder
+### 4.2 Usage Example in a Seeder
 
 ```python
-# Em dbapi/api/seeder/sales/sales_order.py
+# In dbapi/api/seeder/sales/sales_order.py
 
 async def seed_sales_orders(count: int = 50):
     async with AsyncSessionLocal() as session:
-        # 1. Buscar FKs
+        # 1. Fetch FKs
         customer_ids = (await session.execute(select(CustomerModel.customer_id))).scalars().all()
-        # ... outras FKs
+        # ... other FKs
 
-        # 2. Gerar dados limpos
+        # 2. Generate clean data
         orders = generate_sales_order_payloads(count, customer_ids, channel_ids, offer_ids, seller_ids, product_ids)
 
-        # 3. Aplicar chaos engineering (5% de anomalias)
+        # 3. Apply chaos engineering (5% anomalies)
         orders_with_chaos = apply_data_quality_chaos(
             orders,
             chaos_rate=0.05,
@@ -1751,26 +1751,26 @@ async def seed_sales_orders(count: int = 50):
             ]
         )
 
-        # 4. Inserir em lote
+        # 4. Bulk insert
         stmt = insert(SalesOrderModel).values(orders_with_chaos)
         await session.execute(stmt)
         await session.commit()
 
-        print(f"✅ {len(orders_with_chaos)} pedidos semeados (incluindo {int(len(orders_with_chaos) * 0.05)} com anomalias)")
+        print(f"✅ {len(orders_with_chaos)} orders seeded (including {int(len(orders_with_chaos) * 0.05)} with anomalies)")
 ```
 
 ---
 
-## 5. Metadados e Documentação
+## 5. Metadata and Documentation
 
-Para cada tabela que recebe dados com chaos engineering, documentar:
+For each table that receives chaos-engineered data, document:
 
-1. **Tipos de anomalias injetadas** (quais chaos_types estão ativos)
-2. **Percentual de anomalias** (chaos_rate configurado)
-3. **Queries de detecção** (SQL para identificar cada tipo de anomalia)
-4. **Cenários de teste** (pipelines de limpeza esperados)
+1. **Injected anomaly types** (which chaos_types are active)
+2. **Anomaly percentage** (configured chaos_rate)
+3. **Detection queries** (SQL to identify each anomaly type)
+4. **Test scenarios** (expected cleaning pipelines)
 
-### Exemplo de Metadados (JSON)
+### Metadata Example (JSON)
 
 ```json
 {
@@ -1781,13 +1781,13 @@ Para cada tabela que recebe dados com chaos engineering, documentar:
     "chaos_types": [
       {
         "type": "duplicate",
-        "description": "Registros duplicados com variação de case",
+        "description": "Duplicate records with case variation",
         "detection_query": "SELECT customer_id, UPPER(customer_name) as name_upper, COUNT(*) FROM sales.salesorder GROUP BY customer_id, name_upper HAVING COUNT(*) > 1",
         "expected_count": "~2-5% of total records"
       },
       {
         "type": "fraud_cloned_card",
-        "description": "Compras geograficamente impossíveis no mesmo dia",
+        "description": "Geographically impossible purchases on the same day",
         "detection_query": "WITH orders AS (SELECT customer_id, order_date::date, shipping_city, LAG(shipping_city) OVER (PARTITION BY customer_id ORDER BY order_date) as prev_city FROM sales.salesorder) SELECT * FROM orders WHERE shipping_city != prev_city AND order_date = prev_order_date",
         "expected_count": "~1-2% of total records"
       }
@@ -1798,12 +1798,12 @@ Para cada tabela que recebe dados com chaos engineering, documentar:
 
 ---
 
-## 6. Queries de Detecção para Data Quality Dashboards
+## 6. Detection Queries for Data Quality Dashboards
 
-### 6.1 Dashboard de Qualidade de Dados
+### 6.1 Data Quality Dashboard
 
 ```sql
--- Total de registros com CPF inválido
+-- Total records with invalid CPF
 SELECT
     'Invalid CPF' as issue_type,
     COUNT(*) as issue_count,
@@ -1811,7 +1811,7 @@ SELECT
 FROM person.customer
 WHERE cpf IN ('000.000.000-00', '111.111.111-11', '123.456.789-00');
 
--- Registros duplicados (case-insensitive)
+-- Duplicate records (case-insensitive)
 SELECT
     'Duplicates' as issue_type,
     COUNT(*) as issue_count
@@ -1822,14 +1822,14 @@ FROM (
     HAVING COUNT(*) > 1
 ) subq;
 
--- Estoque negativo
+-- Negative stock
 SELECT
     'Negative Stock' as issue_type,
     COUNT(*) as issue_count
 FROM warehouse.product_inventory
 WHERE quantity_on_hand < 0;
 
--- Pedidos pagos mas não enviados (> 15 dias)
+-- Orders paid but not shipped (> 15 days)
 SELECT
     'Unpaid Orders' as issue_type,
     COUNT(*) as issue_count
@@ -1839,10 +1839,10 @@ WHERE order_status = 'paid'
   AND order_date < NOW() - INTERVAL '15 days';
 ```
 
-### 6.2 Dashboard de Qualidade — Recursos Humanos
+### 6.2 Quality Dashboard — Human Resources
 
 ```sql
--- Salário fora da faixa do cargo (join com jobrole atual)
+-- Salary outside the role's range (join with the current jobrole)
 SELECT
     'Salary Out of Range' as issue_type,
     COUNT(*) as issue_count
@@ -1851,7 +1851,7 @@ JOIN humanresources.jobrole j
   ON e.job_role_id = j.jobrole_id AND j.is_current = true
 WHERE e.current_salary NOT BETWEEN j.min_salary AND j.max_salary;
 
--- Vendedores sem comissão cadastrada
+-- Salespeople with no registered commission
 SELECT
     'Sales Without Commission' as issue_type,
     COUNT(*) as issue_count
@@ -1860,7 +1860,7 @@ JOIN humanresources.jobrole j ON e.job_role_id = j.jobrole_id
 WHERE j.job_title ILIKE '%sales%'
   AND COALESCE((e.role_attributes->>'comission_pct')::numeric, 0) = 0;
 
--- Vendedores sem território/região
+-- Salespeople with no territory/region
 SELECT
     'Sales Without Territory' as issue_type,
     COUNT(*) as issue_count
@@ -1870,7 +1870,7 @@ WHERE j.job_title ILIKE '%sales%'
   AND (e.role_attributes->'territory_codes' IS NULL
        OR jsonb_array_length(e.role_attributes->'territory_codes') = 0);
 
--- Registros SCD2 quebrados (mais de um "atual" por funcionário)
+-- Broken SCD2 records (more than one "current" per employee)
 SELECT employee_id, COUNT(*) as current_versions
 FROM humanresources.employee
 WHERE is_current = true
@@ -1878,10 +1878,10 @@ GROUP BY employee_id
 HAVING COUNT(*) > 1;
 ```
 
-### 6.3 Dashboard de Detecção de Fraudes
+### 6.3 Fraud Detection Dashboard
 
 ```sql
--- Múltiplos cadastros com mesmo email
+-- Multiple registrations with the same email
 SELECT
     email,
     COUNT(DISTINCT cpf) as distinct_cpfs,
@@ -1890,7 +1890,7 @@ FROM person.customer_email
 GROUP BY email
 HAVING COUNT(DISTINCT cpf) > 2;
 
--- Compras geograficamente impossíveis
+-- Geographically impossible purchases
 WITH order_pairs AS (
     SELECT
         customer_id,
@@ -1905,7 +1905,7 @@ FROM order_pairs
 WHERE shipping_city != prev_city
   AND order_date::date = prev_date::date;
 
--- Fornecedores fantasmas (sem entregas nos últimos 90 dias)
+-- Phantom vendors (no deliveries in the last 90 days)
 SELECT
     v.vendor_id,
     v.vendor_name,
@@ -1920,59 +1920,57 @@ HAVING MAX(poh.order_date) < NOW() - INTERVAL '90 days'
 
 ---
 
-## 7. Próximos Passos
+## 7. Next Steps
 
-1. **Implementar `apply_data_quality_chaos()` em módulo utilitário**:
-   - Criar `dbapi/api/utils/chaos_engineering.py` com a função genérica
-   - Importar em todos os seeders dos schemas críticos
-   - ✅ Feito para `marketing`: as funções ficam em `dbapi/api/seeder/chaos/marketing_chaos.py`, reexportadas por `dbapi/api/seeder/chaos/__init__.py` e importadas pelos 4 seeders (`from api.seeder.chaos import apply_campaign_chaos, ...`). Usar essa pasta como padrão para os demais domínios (`dbapi/api/seeder/chaos/<dominio>_chaos.py`).
-   - ✅ Feito para `person`: `dbapi/api/seeder/chaos/person_chaos.py` (`apply_customer_chaos`, `apply_customer_email_chaos`, `apply_geography_code_chaos`, `apply_false_foreigner_chaos`), importadas por `person_customer.py`, `person_customer_email.py`, `person_state_province.py` e `person_country.py`.
-   - ✅ Feito para `product`: `dbapi/api/seeder/chaos/product_chaos.py` (`apply_product_chaos`, `apply_category_chaos`, `apply_embedding_chaos`), importadas por `product.py`, `product_category.py` e `product_embedding.py`. Adicionou as colunas novas `product.sell_start_date`/`sell_end_date` e `productcategory.parent_category_id` (ver seção 3.8).
-   - ✅ Feito para `purchasing`: `dbapi/api/seeder/chaos/purchasing_chaos.py` (`apply_purchaseorderheader_chaos`, `apply_purchaseorderdetail_chaos`, `apply_vendor_chaos`, `apply_purchase_audit_chaos`), importadas pelos 4 seeders do domínio. Corrigiu imports quebrados que impediam qualquer um dos 4 seeders de rodar, o bug do `status == 4`, e adicionou ponto de entrada (`seed_purchase_order_audit`) que não existia em `purchase_purchaseorderaudit.py` (ver seção 3.9).
-   - ✅ Feito para `sales`: `dbapi/api/seeder/chaos/sales_chaos.py` (`apply_sales_order_chaos`, `apply_eventlog_chaos`, `apply_return_order_chaos`, `apply_seller_chaos`), importadas pelos 4 seeders do domínio. Corrigiu imports quebrados (`ProductModel`→`Product`, `countryregion`→`country_region`) e um `ValidationError` garantido em `sales_eventlog.py` (`event_id` obrigatório recebendo `None`). Nota: `apply_eventlog_chaos` opera sobre instâncias já construídas de `SalesOrderEventLogSchema`, não sobre `dict` — é o único chaos do projeto que muta atributos de objetos Pydantic diretamente, em vez de dicts pós-`model_dump()` (ver seção 3.10).
-   - ✅ Feito para `warehouse`: `dbapi/api/seeder/chaos/warehouse_chaos.py` (`apply_transaction_history_chaos`, `apply_inventory_chaos`, `apply_warehouse_location_chaos`), importadas pelos 3 seeders do domínio. Corrigiu 2 bugs de schema Pydantic encontrados via code review do usuário (`TransactionHistorySchema` bloqueava `quantity` negativo contradizendo sua própria descrição; `LocationCapabilities.warehouse_type` atribuía a classe do Enum em vez de um membro dela), além de imports quebrados (`ProductModel`→`Product`, `TransactionTypeModel`→`WarehouseTransactionType`), `product_inventory.py` sem `import random`, e `ProductInventorySchema.inventory_id` com o mesmo bug de `event_id`/`gt=0` obrigatório recebendo `None` (ver seção 3.11).
+1. **Implement `apply_data_quality_chaos()` in a utility module**:
+   - Create `dbapi/api/utils/chaos_engineering.py` with the generic function
+   - Import it into every seeder in the critical schemas
+   - ✅ Done for `marketing`: the functions live in `dbapi/api/seeder/chaos/marketing_chaos.py`, re-exported by `dbapi/api/seeder/chaos/__init__.py` and imported by all 4 seeders (`from api.seeder.chaos import apply_campaign_chaos, ...`). Use this folder as the standard for the remaining domains (`dbapi/api/seeder/chaos/<domain>_chaos.py`).
+   - ✅ Done for `person`: `dbapi/api/seeder/chaos/person_chaos.py` (`apply_customer_chaos`, `apply_customer_email_chaos`, `apply_geography_code_chaos`, `apply_false_foreigner_chaos`), imported by `person_customer.py`, `person_customer_email.py`, `person_state_province.py`, and `person_country.py`.
+   - ✅ Done for `product`: `dbapi/api/seeder/chaos/product_chaos.py` (`apply_product_chaos`, `apply_category_chaos`, `apply_embedding_chaos`), imported by `product.py`, `product_category.py`, and `product_embedding.py`. Added the new `product.sell_start_date`/`sell_end_date` and `productcategory.parent_category_id` columns (see section 3.8).
+   - ✅ Done for `purchasing`: `dbapi/api/seeder/chaos/purchasing_chaos.py` (`apply_purchaseorderheader_chaos`, `apply_purchaseorderdetail_chaos`, `apply_vendor_chaos`, `apply_purchase_audit_chaos`), imported by all 4 seeders in the domain. Fixed the broken imports that prevented any of the 4 seeders from running, the `status == 4` bug, and added the entry point (`seed_purchase_order_audit`) that was missing from `purchase_purchaseorderaudit.py` (see section 3.9).
+   - ✅ Done for `sales`: `dbapi/api/seeder/chaos/sales_chaos.py` (`apply_sales_order_chaos`, `apply_eventlog_chaos`, `apply_return_order_chaos`, `apply_seller_chaos`), imported by all 4 seeders in the domain. Fixed broken imports (`ProductModel`→`Product`, `countryregion`→`country_region`) and a guaranteed `ValidationError` in `sales_eventlog.py` (mandatory `event_id` receiving `None`). Note: `apply_eventlog_chaos` operates on already-built `SalesOrderEventLogSchema` instances, not `dict`s — it's the only chaos function in the project that mutates Pydantic object attributes directly, instead of post-`model_dump()` dicts (see section 3.10).
+   - ✅ Done for `warehouse`: `dbapi/api/seeder/chaos/warehouse_chaos.py` (`apply_transaction_history_chaos`, `apply_inventory_chaos`, `apply_warehouse_location_chaos`), imported by all 3 seeders in the domain. Fixed 2 Pydantic schema bugs found via the user's code review (`TransactionHistorySchema` blocked negative `quantity`, contradicting its own description; `LocationCapabilities.warehouse_type` assigned the Enum class instead of one of its members), plus broken imports (`ProductModel`→`Product`, `TransactionTypeModel`→`WarehouseTransactionType`), `product_inventory.py` missing `import random`, and `ProductInventorySchema.inventory_id` with the same mandatory `event_id`/`gt=0` bug receiving `None` (see section 3.11).
 
-2. **Atualizar seeders existentes**:
+2. **Update existing seeders**:
    - `sales/sales_order.py`
    - `purchasing/purchase_purchaseorderheader.py`
    - `warehouse/transaction_history.py`
    - `person/person_customer.py`
 
-3. **Criar validações no product seeder**:
-   - Verificar contagem antes de inserir (limite 100k)
-   - Adicionar argparse para controlar chaos_rate
+3. **Add validations to the product seeder**:
+   - Check the count before inserting (100k limit)
+   - Add argparse to control chaos_rate
 
-4. **Implementar dashboards de Data Quality**:
-   - Integrar com Trino para queries analíticas
-   - Criar views materializadas com métricas de qualidade
-   - Alertas via Airflow quando anomalias excedem thresholds
+4. **Implement Data Quality dashboards**:
+   - Integrate with Trino for analytical queries
+   - Create materialized views with quality metrics
+   - Airflow alerts when anomalies exceed thresholds
 
-5. **Documentar metadados de chaos**:
-   - Criar arquivo JSON por tabela em `dbapi/api/seeder/metadata/`
-   - Consumir metadados em pipelines de validação (Great Expectations)
+5. **Document chaos metadata**:
+   - Create a JSON file per table in `dbapi/api/seeder/metadata/`
+   - Consume the metadata in validation pipelines (Great Expectations)
 
-6. **Testar pipelines de limpeza**:
-   - Implementar dbt models para normalização
-   - Criar testes unitários para detecção de fraudes
-   - Validar recovery de dados após limpeza
+6. **Test cleaning pipelines**:
+   - Implement dbt models for normalization
+   - Create unit tests for fraud detection
+   - Validate data recovery after cleaning
 
-7. **Resolver a causa raiz do histórico em `humanresources.employee`**:
-   - Hoje o seeder sempre grava `is_current=true` sem fechar versões anteriores (ver [3.5.5](#355-scd2-quebrado--múltiplos-atuais-ou-buracos-temporais))
-   - Implementar upsert/MERGE por `employee_id` no processo de carga, comparando atributos rastreados (salário, cargo, departamento) com a versão `is_current=true` existente
-   - Só assim a Camada Silver poderá, no futuro, corrigir anomalias por histórico real do indivíduo em vez de depender de dados de referência/estatística de pares
+7. **Fix the root cause of the missing history in `humanresources.employee`**:
+   - Today the seeder always writes `is_current=true` without closing previous versions (see [3.5.5](#355-broken-scd2--multiple-current-records-or-temporal-gaps))
+   - Implement upsert/MERGE by `employee_id` in the load process, comparing tracked attributes (salary, role, department) against the existing `is_current=true` version
+   - Only then will the Silver layer be able to fix anomalies using the individual's real history instead of relying on reference data/peer statistics
 
-8. **Arquitetura futura: Silver Corrections + Quarentena + Great Expectations** (planejado, ainda não implementado — registrado aqui como ponto de partida):
-   - **Onde roda**: Spark, no mesmo estilo dos jobs já existentes em `spark/jobs/silver_layer_advworks_scripts/`. Nada de serviço novo — o Great Expectations entra como uma etapa a mais dentro do próprio job de Silver, usando a Spark execution engine do GX.
-   - **Pipeline por domínio**: (1) lê o Bronze; (2) roda uma suite de Expectations — cada regra já documentada nas seções 3.5 a 3.11 deste arquivo (com a query de "Detecção" pronta) vira uma `Expectation`; (3) linhas que passam seguem para a transformação de Silver normal; (4) linhas que falham vão para uma **tabela de quarentena** (mesma estrutura + colunas de auditoria `dq_rule_id`, `dq_failure_reason`, `quarantined_at`), vivendo no mesmo lakehouse Iceberg do Silver (ex: `iceberglake.quarantine.<tabela>`), não no Postgres — assim o Trino já enxerga sem precisar de outra fonte.
-   - **Job de correção**: um registro de funções (mesmo espírito do `dbapi/api/seeder/chaos/`, mas de correção em vez de injeção) — uma função por regra, cada uma com uma política `auto_fix` (normalizações objetivamente seguras: trim, uppercase, cast, clamp) ou `flag_only` (dado financeiro sensível — nunca corrigir sozinho, só sinalizar para revisão humana, conforme a política que já está descrita em cada seção 3.x deste documento). Lê da quarentena, aplica a correção quando `auto_fix=True` e faz **MERGE** (nunca append) de volta para o Silver, "promovendo" a linha.
-   - **Late arriving / backfill dinâmico**: a chave do MERGE é sempre a chave natural da tabela (ex: `(ad_id, date_ref)` em marketing, não um ID de carga), e o job roda sobre uma **janela móvel configurável** (ex: últimos 7-15 dias), nunca só "ontem". Isso faz o mesmo job de rotina também funcionar como backfill automático quando uma correção/dado atrasado chega — sem precisar de um "modo backfill" à parte.
-   - **Escopo inicial acordado**: prototipar essa cadeia completa (leitura → GX → quarentena → correção → MERGE) de ponta a ponta em **um domínio primeiro** (candidato: `marketing`, por já ter as queries de detecção mais detalhadas nas seções 3.6) antes de generalizar para os outros 5 domínios.
-   - **Em aberto, não bloqueia o início**: se o caminho pós-Silver será Gold → Trino → Postgres (para o Power BI) ou Power BI conectando direto na Gold. Essa decisão é independente do trabalho de Bronze→Silver+quarentena acima.
+8. **Future architecture: Silver Corrections + Quarantine + Great Expectations** (planned, not yet implemented — recorded here as a starting point):
+   - **Where it runs**: Spark, in the same style as the jobs already in `spark/jobs/silver_layer_advworks_scripts/`. No new service — Great Expectations goes in as one more step inside the Silver job itself, using GX's Spark execution engine.
+   - **Pipeline per domain**: (1) reads Bronze; (2) runs a suite of Expectations — each rule already documented in sections 3.5 to 3.11 of this file (with a ready-made "Detection" query) becomes an `Expectation`; (3) rows that pass move on to normal Silver transformation; (4) rows that fail go to a **quarantine table** (same structure + audit columns `dq_rule_id`, `dq_failure_reason`, `quarantined_at`), living in the same Iceberg lakehouse as Silver (e.g. `nexomart.quarantine.<table>`), not in Postgres — that way Trino can already see it without needing another source.
+   - **Correction job**: a registry of functions (same spirit as `dbapi/api/seeder/chaos/`, but for correction instead of injection) — one function per rule, each with an `auto_fix` policy (objectively safe normalizations: trim, uppercase, cast, clamp) or `flag_only` (sensitive financial data — never auto-correct, only flag for human review, per the policy already described in each 3.x section of this document). Reads from quarantine, applies the correction when `auto_fix=True`, and does a **MERGE** (never append) back into Silver, "promoting" the row.
+   - **Late-arriving / dynamic backfill**: the MERGE key is always the table's natural key (e.g. `(ad_id, date_ref)` in marketing, not a load ID), and the job runs over a **configurable moving window** (e.g. the last 7-15 days), never just "yesterday". This makes the same routine job also work as automatic backfill when a correction/late-arriving record shows up — no separate "backfill mode" needed.
+   - **Agreed initial scope**: prototype this full chain (read → GX → quarantine → correction → MERGE) end to end in **one domain first** (candidate: `marketing`, since it already has the most detailed detection queries in section 3.6) before generalizing to the other 5 domains.
+   - **Open, not blocking the start**: whether the post-Silver path is Gold → Trino → Postgres (for Power BI) or Power BI connecting directly to Gold. That decision is independent of the Bronze→Silver+quarantine work above.
 
 ---
 
-## Conclusão
+## Conclusion
 
-Este documento serve como **fonte única de verdade** para todos os tipos de anomalias injetadas nos dados. Deve ser mantido atualizado sempre que novos tipos de chaos forem adicionados aos seeders.
-
-**Importante**: Esses dados "sujos" são **intencionais e documentados**, não são bugs! Eles existem para treinar pipelines de limpeza e detecção de fraudes em um ambiente controlado.
+This document serves as the **single source of truth** for all anomaly types injected into the data. It must be kept up to date whenever new chaos types are added to the seeders.

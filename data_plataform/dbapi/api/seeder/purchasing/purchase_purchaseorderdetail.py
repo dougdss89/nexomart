@@ -13,14 +13,15 @@ from api.models.purchasing.purchaseorderdetail import PurchaseOrderDetailModel
 from api.models.product.product import Product
 from api.schemas.purchasing.purchasing_orderheader import Status
 from api.seeder.chaos import apply_purchaseorderdetail_chaos
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, insert_in_batches
 
-# Ajustar path para importar módulos da API
+# Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-def generate_po_detail_payloads(headers_reais: List[dict], product_ids: List[int]) -> List[Dict[str, Any]]:
-    """Gera payloads de detalhes de pedido com distribuição exata do sub-total."""
+def generate_po_detail_payloads(real_headers: List[dict], product_ids: List[int], chaos_rate: float = 0.05, apply_chaos: bool = True) -> List[Dict[str, Any]]:
+    """Generates order detail payloads with an exact distribution of the sub-total."""
     batch = []
-    for h in headers_reais:
+    for h in real_headers:
         h_id = h["purchaseorderheader_id"]
         sub_total = h["sub_total"]
         num_items = random.randint(1, 4)
@@ -58,32 +59,47 @@ def generate_po_detail_payloads(headers_reais: List[dict], product_ids: List[int
                 "is_active": True,
                 "row_guid": uuid.uuid4()
             })
-    return apply_purchaseorderdetail_chaos(batch)
 
-async def seed_purchase_details():
-    """Executa a carga de detalhes de pedido consumindo headers e produtos REAIS."""
+    if apply_chaos:
+        batch = apply_purchaseorderdetail_chaos(batch, chaos_rate=chaos_rate)
+
+    return batch
+
+async def seed_purchase_details(chaos_rate: float = 0.05, apply_chaos: bool = True):
+    """Runs the order details load consuming REAL headers and products."""
     async with AsyncSessionLocal() as session:
-        # 1. Buscar Headers Reais (Dimensional Integrity)
+        # 1. Fetch real Headers that don't have a detail yet (purchaseorderdetail_id is a
+        # manual "<header_id>-<line>" PK — reprocessing a header that already has a detail
+        # collides on the PK and breaks the entire batch INSERT, not just the duplicate).
+        already_detailed = set(
+            (await session.execute(select(PurchaseOrderDetailModel.purchaseorderheader_id.distinct()))).scalars().all()
+        )
         result = await session.execute(select(PurchaseOrderHeaderModel.purchaseorderheader_id, PurchaseOrderHeaderModel.sub_total, PurchaseOrderHeaderModel.ship_date, PurchaseOrderHeaderModel.status))
-        headers = [{"purchaseorderheader_id": r[0], "sub_total": r[1], "ship_date": r[2], "status": r[3]} for r in result.all()]
-        
+        headers = [
+            {"purchaseorderheader_id": r[0], "sub_total": r[1], "ship_date": r[2], "status": r[3]}
+            for r in result.all() if r[0] not in already_detailed
+        ]
+
         product_ids = (await session.execute(select(Product.product_id))).scalars().all()
 
         if not headers or not product_ids:
-            print("⚠️ Headers ou Produtos vazios! Rode os seeders base primeiro.")
+            print("⚠️ No header pending a detail (or products empty)! Run the base seeders first.")
             return
 
-        print(f"📣 Semeando detalhes para {len(headers)} pedidos...")
-        details = generate_po_detail_payloads(headers, product_ids)
-        
+        print(f"📣 Seeding details for {len(headers)} orders | chaos={chaos_rate:.2%}")
+        details = generate_po_detail_payloads(headers, product_ids, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+
         try:
-            stmt = insert(PurchaseOrderDetailModel).values(details)
-            await session.execute(stmt)
-            await session.commit()
-            print(f"✅ {len(details)} Detalhes de pedido semeados com sucesso!")
+            total = await insert_in_batches(session, PurchaseOrderDetailModel, details)
+            print(f"✅ {total} order details seeded successfully!")
         except Exception as e:
             await session.rollback()
-            print(f"❌ Erro ao semear detalhes: {e}")
+            print(f"❌ Error seeding details: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(seed_purchase_details())
+    parser = build_parser("Seeder for purchasing.purchaseorderdetail (fan-out of real headers)")
+    add_chaos_args(parser, default_chaos_rate=0.05)
+    args = parser.parse_args()
+    chaos_rate, apply_chaos = resolve_chaos_args(args, default_chaos_rate=0.05)
+
+    asyncio.run(seed_purchase_details(chaos_rate=chaos_rate, apply_chaos=apply_chaos))

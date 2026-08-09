@@ -28,4 +28,9 @@ USER astro
 RUN pip install --no-cache-dir --upgrade pip -r requirements.txt
 RUN pip install --no-cache-dir "trino>=0.321.0" "dbt-core>=1.9.0" "dbt-trino>=1.9.0"
 
+# uv roda os seeders do dbapi numa venv isolada (ver /dockervol montado no worker),
+# sem tocar no site-packages do Airflow — dbapi usa SQLAlchemy 2.x async, incompatível
+# com o SQLAlchemy que o Airflow 2.9 pina internamente.
+RUN pip install --no-cache-dir uv
+
 COPY --chown=astro:astro airflow.cfg ${AIRFLOW_HOME}/airflow.cfg

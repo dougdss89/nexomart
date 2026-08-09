@@ -2,12 +2,12 @@ from pyspark.sql import DataFrame
 
 
 def write_iceberg(df: DataFrame, table: str, mode: str = "append") -> None:
-    """Escreve um DataFrame em tabela Iceberg v3 no catálogo nexo.
+    """Writes a DataFrame to an Iceberg v3 table in the nexo catalog.
 
     Args:
-        df: DataFrame a ser escrito.
-        table: Nome qualificado no formato 'nexo.<schema>.<table>'.
-        mode: 'append' (padrão) ou 'overwrite'.
+        df: DataFrame to be written.
+        table: Qualified name in the format 'nexo.<schema>.<table>'.
+        mode: 'append' (default) or 'overwrite'.
     """
     writer = df.writeTo(table)
     if mode == "overwrite":

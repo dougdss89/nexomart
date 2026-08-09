@@ -21,13 +21,13 @@ class DiscountType(str, Enum):
 class SpecialOffer(BaseModel):
     
     special_offer_id: int = Field(gt=0)
-    description: str = Field(max_length=100, description="Descrição da oferta")
-    discount_pct: Decimal = Field(ge=0.0, le=100.00, decimal_places=2, description="Porcentagem de desconto")
+    description: str = Field(max_length=100, description="Offer description")
+    discount_pct: Decimal = Field(ge=0.0, le=100.00, decimal_places=2, description="Discount percentage")
     category: OfferCategory
     discount_type: DiscountType
-    
-    min_quantity: int = Field(ge=0, default= 0, description="Quantidade mínima")
-    max_quantity: Optional[int] = Field(ge=0, default= 0, description="Quantidade máxima")
+
+    min_quantity: int = Field(ge=0, default= 0, description="Minimum quantity")
+    max_quantity: Optional[int] = Field(ge=0, default= 0, description="Maximum quantity")
     
     start_date: datetime = Field(default_factory=datetime.now)
     end_date: datetime = Field(default_factory=datetime.now)
@@ -40,10 +40,10 @@ class SpecialOffer(BaseModel):
     @model_validator(mode='after')
     def validate_dates(self):
         if self.end_date < self.start_date:
-            raise ValueError("A data final (end_date) não pode ser anterior à data inicial (start_date).")
-    
+            raise ValueError("The end date (end_date) cannot be earlier than the start date (start_date).")
+
         if self.max_quantity is not None and self.max_quantity < self.min_quantity:
-            raise ValueError("A quantidade máxima (max_quantity) não pode ser menor que a quantidade mínima (min_quantity).")
+            raise ValueError("The maximum quantity (max_quantity) cannot be less than the minimum quantity (min_quantity).")
         
         return self
 

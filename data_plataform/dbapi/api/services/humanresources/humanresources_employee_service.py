@@ -6,7 +6,7 @@ from api.repositories.humanresources.humanresources_employee_repository import H
 logger = logging.getLogger(__name__)
 
 class HumanResourcesEmployeeService:
-    """ Orquestração de Pessoas e Hierarquias Físicas """
+    """ Orchestration of People and Physical Hierarchies """
     
     @staticmethod
     async def process_bulk_integration(db: AsyncSession, employees_data: List[Dict[str, Any]]) -> bool:

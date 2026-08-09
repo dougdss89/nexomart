@@ -6,7 +6,7 @@ from api.repositories.marketing.marketing_ads_repository import MarketingAdsRepo
 logger = logging.getLogger(__name__)
 
 class MarketingAdsService:
-    """ Serviços regendo Ativos Criativos de Mídia """
+    """ Services governing Media Creative Assets """
     
     @staticmethod
     async def process_bulk_integration(db: AsyncSession, ads_data: List[Dict[str, Any]]) -> bool:

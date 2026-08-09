@@ -8,7 +8,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-#teste de sincronização
+#sync test
 def load_source_connections():
     """ Load source connections from .env file and create a SparkSession. """
     try:
@@ -78,7 +78,7 @@ def extract_landing_buyer(spark, minio_landing, raw_table_mame:str):
 
 def buyer_replace_schema(dataframe):
     
-# Aplicar as transformações de tipo nas colunas
+# Apply type transformations to the columns
     dataframe = dataframe.select(
                             col("businessentityid").cast("int").alias("businessentityid"),
                             col("firstname").cast("string").alias("firstname"),

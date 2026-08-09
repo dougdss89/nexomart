@@ -1,538 +1,538 @@
-# Ciclo 1 — Apresentação do Canal e do Case
-## Cronograma Detalhado de Vídeos + Case NexoMart
+# Cycle 1 — Channel and Case Presentation
+## Detailed Video Schedule + NexoMart Case
 
-> **Legenda**: DT = Deep Track (8–12 min, fundamentos densos) | FT = Fast Track (15–25 min, hands-on)
-> **Série**: "Data Platform do Zero — Construindo um Data Lakehouse Open-Source"
+> **Legend**: DT = Deep Track (8–12 min, dense fundamentals) | FT = Fast Track (15–25 min, hands-on)
+> **Series**: "Data Platform From Scratch — Building an Open-Source Data Lakehouse"
 
 ---
 
-## PARTE I — O CASE: NexoMart
+## PART I — THE CASE: NexoMart
 
-### 1.1 Contexto da Empresa
+### 1.1 Company Context
 
-**NexoMart** é um marketplace brasileiro de médio porte com operação multi-canal (web, app, marketplace partners) que processa entre **100 mil e 50 milhões de pedidos por ciclo de dados** dependendo da sazonalidade (Black Friday, Natal, Dia das Mães).
+**NexoMart** is a mid-size Brazilian marketplace with multi-channel operations (web, app, marketplace partners) that processes between **100 thousand and 50 million orders per data cycle** depending on seasonality (Black Friday, Christmas, Mother's Day).
 
-A empresa opera com um banco OLTP PostgreSQL maduro, mas enfrenta um problema clássico: **o banco transacional não consegue responder às perguntas analíticas do negócio em tempo razoável** sem afetar a operação.
+The company runs on a mature PostgreSQL OLTP database, but faces a classic problem: **the transactional database can't answer the business's analytical questions in a reasonable time** without affecting operations.
 
-### 1.2 Domínios de Negócio
+### 1.2 Business Domains
 
-| Domínio | Schema | Descrição |
+| Domain | Schema | Description |
 |---|---|---|
-| Produto | `product` | Catálogo de produtos, modelos, categorias, descrições em vetores |
-| Pessoa | `person` | Clientes, vendedores, endereços, contatos |
-| Vendas | `sales` | Pedidos, itens (JSONB), devoluções, pagamentos |
-| Marketing | `marketing` | Campanhas, anúncios, performance por canal |
-| RH | `humanresources` | Funcionários, departamentos, histórico de cargos (SCD Type 2) |
-| Compras | `purchasing` | Ordens de compra, fornecedores, recebimento |
-| Estoque | `warehouse` | Inventário, transferências, histórico de movimentações |
+| Product | `product` | Product catalog, models, categories, vector descriptions |
+| Person | `person` | Customers, sellers, addresses, contacts |
+| Sales | `sales` | Orders, items (JSONB), returns, payments |
+| Marketing | `marketing` | Campaigns, ads, per-channel performance |
+| HR | `humanresources` | Employees, departments, role history (SCD Type 2) |
+| Purchasing | `purchasing` | Purchase orders, suppliers, receiving |
+| Warehouse | `warehouse` | Inventory, transfers, movement history |
 
-### 1.3 Requisitos Funcionais do Case
+### 1.3 Case Functional Requirements
 
-#### RF-01: Ingestão de Dados Operacionais
-- O sistema deve ingerir dados transacionais de todos os 7 domínios via API REST assíncrona (FastAPI + asyncpg)
-- A ingestão deve suportar bulk insert para volumes de até 50M registros por execução
-- A API deve implementar arquitetura 3-layer: Repository → Service → Router
-- Todos os modelos devem implementar auditoria automática (created_at, updated_at, is_active, row_guid)
+#### FR-01: Operational Data Ingestion
+- The system must ingest transactional data from all 7 domains via an asynchronous REST API (FastAPI + asyncpg)
+- Ingestion must support bulk insert for volumes up to 50M records per run
+- The API must implement a 3-layer architecture: Repository → Service → Router
+- All models must implement automatic auditing (created_at, updated_at, is_active, row_guid)
 
-#### RF-02: Orquestração de Pipelines
-- O sistema deve orquestrar todos os pipelines via Apache Airflow com DAGs declarativas
-- Os seeders devem ser acionados via BashOperator como scripts CLI
-- Volumes devem ser dinâmicos por execução (range min/max sorteado aleatoriamente)
-- A taxa de chaos engineering deve variar entre 1% e 10% por execução
+#### FR-02: Pipeline Orchestration
+- The system must orchestrate every pipeline via Apache Airflow with declarative DAGs
+- Seeders must be triggered via BashOperator as CLI scripts
+- Volumes must be dynamic per run (min/max range drawn at random)
+- The chaos engineering rate must vary between 1% and 10% per run
 
-#### RF-03: Armazenamento Distribuído e Versionado
-- Dados processados devem ser armazenados em tabelas Delta Lake no MinIO (object storage S3-compatible)
-- A governança, catálogo e controle de acesso devem ser gerenciados pelo Unity Catalog OSS
-- O formato de armazenamento deve suportar time-travel queries e rollback de dados
+#### FR-03: Distributed, Versioned Storage
+- Processed data must be stored in Delta Lake tables on MinIO (S3-compatible object storage)
+- Governance, catalog, and access control must be managed by Unity Catalog OSS
+- The storage format must support time-travel queries and data rollback
 
-#### RF-04: Processamento Distribuído
-- Transformações analíticas devem ser executadas via Apache Spark
-- O Spark deve ler do PostgreSQL (OLTP) e escrever em Delta Lake (OLAP) via camadas Bronze/Silver/Gold
-- O processamento deve suportar Structured Streaming para cenários near-real-time
+#### FR-04: Distributed Processing
+- Analytical transformations must run via Apache Spark
+- Spark must read from PostgreSQL (OLTP) and write to Delta Lake (OLAP) through Bronze/Silver/Gold layers
+- Processing must support Structured Streaming for near-real-time scenarios
 
-#### RF-05: Federação de Consultas
-- Analistas devem consultar dados via SQL padrão usando Apache Trino
-- O Trino deve federar dados do Delta Lake (MinIO/Unity Catalog OSS), PostgreSQL e futuras fontes
-- Queries analíticas devem retornar resultados em menos de 10s para volumes de 50M registros
+#### FR-05: Query Federation
+- Analysts must query data via standard SQL using Apache Trino
+- Trino must federate data across Delta Lake (MinIO/Unity Catalog OSS), PostgreSQL, and future sources
+- Analytical queries must return results in under 10s for volumes of 50M records
 
-#### RF-06: Qualidade de Dados e Chaos Engineering
-- O sistema deve injetar anomalias controladas (duplicatas, dados sujos, fraudes simuladas) para testar pipelines de qualidade
-- As anomalias devem ser documentadas em metadados para uso em testes de ML e auditoria
-- O sistema deve suportar cenários de detecção de fraude, chargeback e dados incompletos
+#### FR-06: Data Quality and Chaos Engineering
+- The system must inject controlled anomalies (duplicates, dirty data, simulated fraud) to test quality pipelines
+- Anomalies must be documented in metadata for use in ML testing and auditing
+- The system must support fraud detection, chargeback, and incomplete-data scenarios
 
-#### RF-07: Capacidades AI-Ready
-- O domínio `product` deve suportar busca semântica via pgvector (embeddings de descrições)
-- O sistema deve estar preparado para integração com modelos de linguagem para geração de insights
-- A modelagem deve suportar futuras features de recomendação de produtos
+#### FR-07: AI-Ready Capabilities
+- The `product` domain must support semantic search via pgvector (description embeddings)
+- The system must be ready for integration with language models for insight generation
+- The data model must support future product recommendation features
 
-### 1.4 Requisitos Não-Funcionais
+### 1.4 Non-Functional Requirements
 
-| Requisito | Meta |
+| Requirement | Target |
 |---|---|
-| Throughput de ingestão | 50M registros/execução |
-| Latência analítica | < 10s para queries sobre 50M registros |
-| Disponibilidade OLTP | 99.9% |
-| Retenção de dados | Indefinida (Delta Lake + MinIO com time-travel nativo) |
-| Rastreabilidade | 100% das operações com audit trail |
-| Portabilidade | 100% open-source, zero custo de cloud proprietária |
+| Ingestion throughput | 50M records/run |
+| Analytical latency | < 10s for queries over 50M records |
+| OLTP availability | 99.9% |
+| Data retention | Indefinite (Delta Lake + MinIO with native time-travel) |
+| Traceability | 100% of operations with an audit trail |
+| Portability | 100% open-source, zero proprietary cloud cost |
 
-### 1.5 Stack Tecnológica
+### 1.5 Technology Stack
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                     INGESTÃO & API                        │
+│                    INGESTION & API                        │
 │  FastAPI (async) + SQLAlchemy 2.0 + asyncpg + Pydantic   │
 ├──────────────────────────────────────────────────────────┤
-│                    BANCO OLTP                             │
-│  PostgreSQL 16 + pgvector + JSONB + Particionamento       │
+│                    OLTP DATABASE                           │
+│  PostgreSQL 16 + pgvector + JSONB + Partitioning          │
 ├──────────────────────────────────────────────────────────┤
-│                   ORQUESTRAÇÃO                            │
-│           Apache Airflow 2.x (DAGs + BashOperator)        │
+│                    ORCHESTRATION                            │
+│           Apache Airflow 2.x (DAGs + BashOperator)         │
 ├──────────────────────────────────────────────────────────┤
-│              PROCESSAMENTO DISTRIBUÍDO                    │
-│         Apache Spark 3.x + Structured Streaming           │
+│              DISTRIBUTED PROCESSING                        │
+│         Apache Spark 3.x + Structured Streaming            │
 ├──────────────────────────────────────────────────────────┤
-│              ARMAZENAMENTO ANALÍTICO                      │
-│  Delta Lake + Unity Catalog OSS (governança) + MinIO (S3) │
+│              ANALYTICAL STORAGE                             │
+│  Delta Lake + Unity Catalog OSS (governance) + MinIO (S3)  │
 ├──────────────────────────────────────────────────────────┤
-│               FEDERAÇÃO DE CONSULTAS                      │
-│                     Apache Trino                          │
+│                QUERY FEDERATION                              │
+│                     Apache Trino                            │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## PARTE II — CRONOGRAMA DO CICLO 1
+## PART II — CYCLE 1 SCHEDULE
 
-### Visão Geral do Ciclo
+### Cycle Overview
 
-| # | Trilha | Tipo | Duração Est. | Tema |
+| # | Track | Type | Est. Length | Topic |
 |---|--------|------|--------------|------|
-| 01 | DT | Apresentação | 10–12 min | Canal + Case NexoMart + Motivadores |
-| 02 | DT | Fundamentos | 10–12 min | Modelo de Dados + Escolha do PostgreSQL |
-| 03 | FT | Hands-on | 18–22 min | Modelagem Relacional — Tabelas, Constraints, Relacionamentos |
-| 04 | FT | Hands-on | 18–22 min | Normalização, SCD Type 2 e pgvector |
-| 05 | FT | Hands-on | 18–22 min | JSONB — Semi-estruturado sem Abrir Mão do ACID |
-| 06 | FT | Hands-on | 18–22 min | Indexando JSONB — GIN, Expression Indexes e EXPLAIN ANALYZE |
-| 07 | FT | Hands-on | 18–22 min | PostgreSQL Avançado — Particionamento, Window Functions e CTEs |
-| 08 | FT | Hands-on | 15–20 min | pgvector e Full Text Search — PostgreSQL como Banco de IA |
+| 01 | DT | Presentation | 10–12 min | Channel + NexoMart Case + Motivations |
+| 02 | DT | Fundamentals | 10–12 min | Data Model + Choosing PostgreSQL |
+| 03 | FT | Hands-on | 18–22 min | Relational Modeling — Tables, Constraints, Relationships |
+| 04 | FT | Hands-on | 18–22 min | Normalization, SCD Type 2 and pgvector |
+| 05 | FT | Hands-on | 18–22 min | JSONB — Semi-Structured Without Giving Up ACID |
+| 06 | FT | Hands-on | 18–22 min | Indexing JSONB — GIN, Expression Indexes, and EXPLAIN ANALYZE |
+| 07 | FT | Hands-on | 18–22 min | Advanced PostgreSQL — Partitioning, Window Functions, and CTEs |
+| 08 | FT | Hands-on | 15–20 min | pgvector and Full Text Search — PostgreSQL as an AI Database |
 
 ---
 
-### Vídeo 01 — DT: Apresentação do Canal e do Case NexoMart
+### Video 01 — DT: Channel and NexoMart Case Presentation
 
-**Objetivo**: Apresentar quem você é, qual o problema que o canal resolve e plantar o gancho para o próximo vídeo.
+**Goal**: Introduce who you are, what problem the channel solves, and plant the hook for the next video.
 
-**Estrutura de roteiro:**
+**Script structure:**
 
 ```
-00:00 - 00:30  Hook — "Esse pipeline aqui processa 50M registros. Tudo open-source,
-                        tudo na sua máquina. Vamos construir do zero?"
-00:30 - 01:30  Quem sou eu e por que esse canal existe
-01:30 - 03:30  O problema: OLTP não é OLAP (dor que o espectador reconhece)
-03:30 - 06:00  Apresentação do NexoMart — o case que vamos construir junto
-06:00 - 08:30  Os 7 domínios de negócio e o que acontece em cada um
-08:30 - 10:30  A stack completa — por que cada ferramenta foi escolhida
-10:30 - 12:00  O que você vai aprender ao longo da série + CTA
+00:00 - 00:30  Hook — "This pipeline processes 50M records. All open-source,
+                        all on your own machine. Let's build it from scratch?"
+00:30 - 01:30  Who I am and why this channel exists
+01:30 - 03:30  The problem: OLTP isn't OLAP (a pain the viewer recognizes)
+03:30 - 06:00  Introducing NexoMart — the case we're building together
+06:00 - 08:30  The 7 business domains and what happens in each one
+08:30 - 10:30  The full stack — why each tool was chosen
+10:30 - 12:00  What you'll learn throughout the series + CTA
 ```
 
-**Pontos obrigatórios:**
-- Mostrar o diagrama `data_platform_architecture.png` (visão geral da stack)
-- Mostrar o `business_db.png` (esquema OLTP do NexoMart)
-- Demonstrar brevemente o terminal com Docker Compose subindo para mostrar que funciona
-- Frase de posicionamento do canal: *"Este canal é para engenheiros de dados que querem construir uma plataforma moderna, open-source e production-like do zero, sem depender de cloud proprietária."*
+**Required points:**
+- Show the `data_platform_architecture.png` diagram (stack overview)
+- Show `business_db.png` (NexoMart's OLTP schema)
+- Briefly demo the terminal with Docker Compose spinning up to prove it works
+- Channel positioning line: *"This channel is for data engineers who want to build a modern, open-source, production-like platform from scratch, without depending on proprietary cloud."*
 
-**Gancho para o Vídeo 02:**
-> *"Mas antes de subir qualquer container, tem uma decisão que vai determinar se tudo isso funciona — a escolha do banco de dados e como os dados estão modelados. No próximo vídeo, eu te mostro por que escolhi o PostgreSQL e não MongoDB, Cassandra ou DynamoDB — e por que essa escolha importa mais do que você imagina."*
+**Hook for Video 02:**
+> *"But before spinning up any container, there's a decision that will determine whether all of this works — choosing the database and how the data is modeled. In the next video, I'll show you why I chose PostgreSQL over MongoDB, Cassandra, or DynamoDB — and why that choice matters more than you'd think."*
 
 ---
 
-### Vídeo 02 — DT: Modelo de Dados e Escolha do Banco de Dados
+### Video 02 — DT: Data Model and Database Choice
 
-**Objetivo**: Fundamentar tecnicamente por que PostgreSQL é a escolha certa para o OLTP do NexoMart e apresentar o modelo de dados.
+**Goal**: Technically justify why PostgreSQL is the right choice for NexoMart's OLTP and introduce the data model.
 
-**Estrutura de roteiro:**
+**Script structure:**
 
 ```
-00:00 - 00:30  Recap do vídeo anterior (15 seg)
-00:30 - 02:00  O problema de escolher um banco de dados (não é sobre moda)
-02:00 - 05:00  Comparativo: PostgreSQL vs alternativas
-                - MongoDB: flexibilidade vs consistência (ACID)
-                - Cassandra: escala vs complexidade operacional
-                - DynamoDB: managed vs vendor lock-in e custo
-05:00 - 08:00  Por que PostgreSQL vence no OLTP de marketplace
-                - ACID nativo
-                - JSONB (melhor dos dois mundos)
-                - pgvector (AI-ready sem trocar de banco)
-                - Particionamento nativo
+00:00 - 00:30  Recap of the previous video (15 sec)
+00:30 - 02:00  The problem of choosing a database (it's not about trends)
+02:00 - 05:00  Comparison: PostgreSQL vs alternatives
+                - MongoDB: flexibility vs consistency (ACID)
+                - Cassandra: scale vs operational complexity
+                - DynamoDB: managed vs vendor lock-in and cost
+05:00 - 08:00  Why PostgreSQL wins for a marketplace OLTP
+                - Native ACID
+                - JSONB (best of both worlds)
+                - pgvector (AI-ready without switching databases)
+                - Native partitioning
                 - Extensions ecosystem
-08:00 - 11:00  O modelo de dados do NexoMart (business_db.png walkthrough)
-                - Os 7 schemas e seus papéis
-                - Relacionamentos entre domínios
-                - Convenções: snake_case, AuditMixin, schema-qualified tables
-11:00 - 12:00  Gancho para o próximo vídeo
+08:00 - 11:00  NexoMart's data model (business_db.png walkthrough)
+                - The 7 schemas and their roles
+                - Relationships between domains
+                - Conventions: snake_case, AuditMixin, schema-qualified tables
+11:00 - 12:00  Hook for the next video
 ```
 
-**Pontos obrigatórios:**
-- Tabela comparativa visual (PostgreSQL vs MongoDB vs Cassandra)
-- Mostrar o `business_db.sql` — o DDL completo
-- Explicar o `AuditMixin` (created_at, updated_at, is_active, row_guid)
-- Mencionar que o pgvector aparece nos vídeos do produto mais à frente
+**Required points:**
+- Visual comparison table (PostgreSQL vs MongoDB vs Cassandra)
+- Show `business_db.sql` — the full DDL
+- Explain `AuditMixin` (created_at, updated_at, is_active, row_guid)
+- Mention that pgvector shows up in the product videos further ahead
 
-**Gancho para o Vídeo 03:**
-> *"Agora que você sabe por que escolhemos o PostgreSQL, no próximo vídeo a gente vai fundo na modelagem — linha a linha, constraint a constraint. Por que essa tabela tem JSONB? Por que esse relacionamento usa UUID em vez de BIGSERIAL? As decisões que parecem pequenas aqui vão fazer toda diferença quando o volume escalar."*
+**Hook for Video 03:**
+> *"Now that you know why we chose PostgreSQL, in the next video we go deep into the modeling — row by row, constraint by constraint. Why does this table have JSONB? Why does this relationship use UUID instead of BIGSERIAL? The decisions that look small here will make all the difference once volume scales up."*
 
 ---
 
-### Vídeo 03 — FT: Modelagem Relacional — Tabelas, Constraints e Relacionamentos
+### Video 03 — FT: Relational Modeling — Tables, Constraints, and Relationships
 
-**Objetivo**: Walkthrough hands-on do modelo de dados — foco em decisões de design (não só DDL).
+**Goal**: Hands-on walkthrough of the data model — focused on design decisions (not just DDL).
 
-**Estrutura de roteiro:**
+**Script structure:**
 
 ```
 00:00 - 00:30  Hook + Recap
-00:30 - 02:00  O que vamos cobrir hoje (mapa visual dos schemas)
-02:00 - 06:00  Schema product — ProductModel, ProductCategory, ProductModel
-                - Por que UUID como PK (distribuído, sem sequência global)
-                - Índices GIN no JSONB de atributos
-                - O campo vector(1536) — spoiler do pgvector
-06:00 - 10:00  Schema person — Customer, Address, Contact
-                - FK com ON DELETE CASCADE vs SET NULL (trade-offs)
-                - Normalização: por que endereço é uma tabela separada
-                - Validação de CPF/CNPJ: constraint vs application logic
-10:00 - 15:00  Schema sales — SalesOrder, SalesOrderItem (JSONB)
-                - Por que order_items é JSONB e não uma tabela relacional
-                - Prefixo de ID transacional: SO-XXXXXXXXX
-                - Status com Enum tipado (Python + PostgreSQL)
-15:00 - 18:00  Schema warehouse — Inventory, TransactionHistory
-                - Particionamento por data (preview)
-                - TR-XXXXXXXXX como prefixo
-18:00 - 20:00  Demo: criando as tabelas no banco local + verificando com \d
-20:00 - 22:00  Recap + gancho
+00:30 - 02:00  What we'll cover today (visual schema map)
+02:00 - 06:00  product schema — ProductModel, ProductCategory, ProductModel
+                - Why UUID as PK (distributed, no global sequence)
+                - GIN indexes on the attributes JSONB
+                - The vector(1536) field — a pgvector spoiler
+06:00 - 10:00  person schema — Customer, Address, Contact
+                - FK with ON DELETE CASCADE vs SET NULL (trade-offs)
+                - Normalization: why address is a separate table
+                - CPF/CNPJ validation: constraint vs application logic
+10:00 - 15:00  sales schema — SalesOrder, SalesOrderItem (JSONB)
+                - Why order_items is JSONB and not a relational table
+                - Transactional ID prefix: SO-XXXXXXXXX
+                - Status with a typed Enum (Python + PostgreSQL)
+15:00 - 18:00  warehouse schema — Inventory, TransactionHistory
+                - Partitioning by date (preview)
+                - TR-XXXXXXXXX as the prefix
+18:00 - 20:00  Demo: creating the tables in the local database + checking with \d
+20:00 - 22:00  Recap + hook
 ```
 
-**Pontos obrigatórios:**
-- Mostrar o `base.py` com o `AuditMixin` completo
-- Explicar a diferença entre `UUID` e `BIGSERIAL` em sistemas distribuídos
-- Demonstrar a criação real das tabelas via `uv run python` ou Alembic
+**Required points:**
+- Show `base.py` with the full `AuditMixin`
+- Explain the difference between `UUID` and `BIGSERIAL` in distributed systems
+- Demo the actual table creation via `uv run python` or Alembic
 
-**Gancho para o Vídeo 04:**
-> *"Mas tem dois tópicos que deixei pra amanhã de propósito — SCD Type 2, que é como o RH do NexoMart mantém o histórico completo de cada funcionário sem perder nada, e pgvector, a extensão que transforma o PostgreSQL num banco de dados de IA. Se você trabalha com dados e ainda não sabe o que é SCD Type 2, o próximo vídeo é obrigatório."*
+**Hook for Video 04:**
+> *"But there are two topics I deliberately left for tomorrow — SCD Type 2, which is how NexoMart's HR keeps the complete history of every employee without losing anything, and pgvector, the extension that turns PostgreSQL into an AI database. If you work with data and still don't know what SCD Type 2 is, the next video is mandatory."*
 
 ---
 
-### Vídeo 04 — FT: Normalização, SCD Type 2 e pgvector
+### Video 04 — FT: Normalization, SCD Type 2, and pgvector
 
-**Objetivo**: Cobrir os dois tópicos avançados do modelo — controle de histórico e AI-readiness.
+**Goal**: Cover the model's two advanced topics — history tracking and AI-readiness.
 
-**Estrutura de roteiro:**
+**Script structure:**
 
 ```
 00:00 - 00:30  Recap
-00:30 - 03:00  O problema do histórico: tabelas que só guardam o presente
-                - Exemplo: funcionário muda de cargo. O que acontece com o registro antigo?
-03:00 - 08:00  SCD Type 2 no humanresources
+00:30 - 03:00  The history problem: tables that only keep the present
+                - Example: an employee changes role. What happens to the old record?
+03:00 - 08:00  SCD Type 2 in humanresources
                 - valid_from / valid_to / is_current
-                - Como o INSERT + UPDATE funciona
-                - Query para pegar o estado em qualquer ponto do tempo
-                - Comparação: SCD1 vs SCD2 vs SCD3 vs SCD4
-08:00 - 12:00  pgvector — o PostgreSQL como banco vetorial
-                - O que é um embedding (analogia com coordenadas)
-                - Instalação e habilitação da extensão
-                - O campo `vector(1536)` no ProductModel
-                - Operadores: <-> (L2), <#> (inner product), <=> (cosine)
-12:00 - 17:00  Demo: gerando embeddings com OpenAI/local model e inserindo no PG
-                - Query de similaridade: "produtos parecidos com este"
-                - Criando índice HNSW para buscas em escala
-17:00 - 20:00  Por que isso é importante para o futuro da plataforma
-                - Recomendação de produtos
-                - Busca semântica no catálogo
-                - RAG sobre dados do NexoMart
-20:00 - 22:00  Recap + gancho para modelagem dimensional
+                - How the INSERT + UPDATE works
+                - Query to get the state at any point in time
+                - Comparison: SCD1 vs SCD2 vs SCD3 vs SCD4
+08:00 - 12:00  pgvector — PostgreSQL as a vector database
+                - What an embedding is (a coordinates analogy)
+                - Installing and enabling the extension
+                - The `vector(1536)` field in ProductModel
+                - Operators: <-> (L2), <#> (inner product), <=> (cosine)
+12:00 - 17:00  Demo: generating embeddings with OpenAI/a local model and inserting into PG
+                - Similarity query: "products similar to this one"
+                - Creating an HNSW index for search at scale
+17:00 - 20:00  Why this matters for the platform's future
+                - Product recommendations
+                - Semantic search over the catalog
+                - RAG over NexoMart's data
+20:00 - 22:00  Recap + hook toward dimensional modeling
 ```
 
-**Gancho para o Vídeo 05 (série JSONB):**
-> *"Nos próximos vídeos vamos fundo em um recurso específico do PostgreSQL que eu acho que é o mais subestimado da comunidade de dados: o JSONB. Não é só uma coluna JSON — é um tipo nativo indexável que muda completamente como você projeta certas tabelas. Vem comigo."*
+**Hook for Video 05 (JSONB series):**
+> *"In the next videos we go deep into a specific PostgreSQL feature that I think is the most underrated in the data community: JSONB. It's not just a JSON column — it's a native, indexable type that completely changes how you design certain tables. Come with me."*
 
 ---
 
-### Vídeo 05 — FT: JSONB — Semi-Estruturado sem Abrir Mão do ACID
+### Video 05 — FT: JSONB — Semi-Structured Without Giving Up ACID
 
-**Objetivo**: Apresentar JSONB como recurso de design, não apenas como "coluna JSON".
+**Goal**: Present JSONB as a design tool, not just a "JSON column."
 
-**Por que 3+ vídeos de PostgreSQL?**
-O PostgreSQL tem features que justificam cobertura dedicada porque são diferenciais reais para engenheiros de dados. Muitos profissionais conhecem SQL básico mas não exploram o potencial analítico nativo do banco — esses vídeos posicionam o canal como referência técnica de profundidade.
+**Why 3+ PostgreSQL videos?**
+PostgreSQL has features that justify dedicated coverage because they're real differentiators for data engineers. Many professionals know basic SQL but never explore the database's native analytical potential — these videos position the channel as a technical reference for depth.
 
-**Estrutura de roteiro:**
+**Script structure:**
 
 ```
-00:00 - 00:30  Hook: "Essa query aqui filtra por dentro de um campo JSON com índice.
-                       Tempo de resposta: 12ms. 2 milhões de registros. Sem ORM."
-00:30 - 02:00  json vs jsonb — por que jsonb é sempre a escolha
-                - json: texto, preserva formatação, não indexável eficientemente
-                - jsonb: binário, deduplication de chaves, indexável com GIN
-02:00 - 06:00  Quando usar JSONB (e quando NÃO usar)
-                - ✅ Atributos variáveis por categoria de produto
-                - ✅ Items de pedido (evitar 1:N desnecessário para leitura)
-                - ✅ Metadados de eventos (audit logs, telemetria)
-                - ❌ Campos que você filtra frequentemente em queries críticas
-                - ❌ Campos que precisam de FK constraints
-                - ❌ Quando a estrutura é 100% conhecida e estável
-06:00 - 10:00  Operadores fundamentais (com demo ao vivo)
-                - -> e ->> (acesso por chave/índice)
-                - #> e #>> (acesso por path)
-                - @> e <@ (containment)
-                - ? e ?| e ?& (key existence)
-                - jsonb_each() e jsonb_array_elements()
-                - jsonb_build_object() e jsonb_agg()
-10:00 - 15:00  JSONB no NexoMart: order_items
-                - Estrutura real da coluna no SalesOrderItem
-                - Inserindo pedidos com JSONB
-                - Consultando: "total de itens de uma categoria no pedido"
-                - Expandindo JSONB em linhas com jsonb_array_elements
-15:00 - 18:00  JSONB no NexoMart: product attributes
-                - Atributos variáveis por categoria (roupas: tamanho/cor, eletrônicos: voltagem/peso)
-                - Filtro por atributo: WHERE attributes @> '{"cor": "azul"}'
-18:00 - 20:00  Recap + gancho para índices JSONB
+00:00 - 00:30  Hook: "This query filters inside a JSON field with an index.
+                       Response time: 12ms. 2 million records. No ORM."
+00:30 - 02:00  json vs jsonb — why jsonb is always the choice
+                - json: text, preserves formatting, not efficiently indexable
+                - jsonb: binary, key deduplication, indexable with GIN
+02:00 - 06:00  When to use JSONB (and when NOT to)
+                - Yes: attributes that vary by product category
+                - Yes: order items (avoiding unnecessary 1:N for reads)
+                - Yes: event metadata (audit logs, telemetry)
+                - No: fields you filter on frequently in critical queries
+                - No: fields that need FK constraints
+                - No: when the structure is 100% known and stable
+06:00 - 10:00  Core operators (with live demo)
+                - -> and ->> (access by key/index)
+                - #> and #>> (access by path)
+                - @> and <@ (containment)
+                - ? and ?| and ?& (key existence)
+                - jsonb_each() and jsonb_array_elements()
+                - jsonb_build_object() and jsonb_agg()
+10:00 - 15:00  JSONB in NexoMart: order_items
+                - The column's real structure in SalesOrderItem
+                - Inserting orders with JSONB
+                - Querying: "total items from a category in the order"
+                - Expanding JSONB into rows with jsonb_array_elements
+15:00 - 18:00  JSONB in NexoMart: product attributes
+                - Attributes that vary by category (clothing: size/color, electronics: voltage/weight)
+                - Filtering by attribute: WHERE attributes @> '{"color": "blue"}'
+18:00 - 20:00  Recap + hook toward JSONB indexes
 ```
 
-**Gancho para o Vídeo 06:**
-> *"O problema é que sem o índice certo, essa query vai fazer um full table scan de 2 milhões de linhas toda vez. No próximo vídeo a gente vai resolver isso com GIN index — e eu vou te mostrar no EXPLAIN ANALYZE a diferença de uma query que leva 4 segundos para uma que leva 12 milissegundos."*
+**Hook for Video 06:**
+> *"The problem is that without the right index, that query will run a full table scan across 2 million rows every single time. In the next video we're going to fix that with a GIN index — and I'll show you in EXPLAIN ANALYZE the difference between a query that takes 4 seconds and one that takes 12 milliseconds."*
 
 ---
 
-### Vídeo 06 — FT: Indexando JSONB — GIN, Expression Indexes e EXPLAIN ANALYZE
+### Video 06 — FT: Indexing JSONB — GIN, Expression Indexes, and EXPLAIN ANALYZE
 
-**Objetivo**: Mostrar o impacto real de indexação correta em JSONB com evidência visual via EXPLAIN ANALYZE.
+**Goal**: Show the real impact of correct JSONB indexing with visual evidence via EXPLAIN ANALYZE.
 
-**Estrutura de roteiro:**
+**Script structure:**
 
 ```
-00:00 - 00:30  Hook: EXPLAIN ANALYZE mostrando Seq Scan vs Bitmap Index Scan
-00:30 - 02:00  Recap de JSONB + por que indexação é crítica
-02:00 - 06:00  GIN Index — como funciona por dentro
-                - Inverted index: mapeia valores → linhas
+00:00 - 00:30  Hook: EXPLAIN ANALYZE showing Seq Scan vs Bitmap Index Scan
+00:30 - 02:00  JSONB recap + why indexing is critical
+02:00 - 06:00  GIN Index — how it works internally
+                - Inverted index: maps values → rows
                 - jsonb_ops vs jsonb_path_ops
-                  - jsonb_ops: suporta ?, ?|, ?&, @>, @?
-                  - jsonb_path_ops: só @>, mais compacto e rápido para containment
-                - Custo de escrita vs ganho de leitura
-06:00 - 10:00  Demo: criando e comparando GIN indexes
+                  - jsonb_ops: supports ?, ?|, ?&, @>, @?
+                  - jsonb_path_ops: only @>, more compact and faster for containment
+                - Write cost vs read gain
+06:00 - 10:00  Demo: creating and comparing GIN indexes
                 - CREATE INDEX gin_order_items ON sales.sales_order USING GIN (order_items);
-                - EXPLAIN ANALYZE antes e depois
-                - Medir: planning time, execution time, heap fetches
-10:00 - 14:00  Expression Indexes em JSONB
-                - Quando usar: campo específico acessado frequentemente
-                - CREATE INDEX ON product.product ((attributes->>'categoria'));
-                - Partial indexes: WHERE attributes->>'status' = 'ativo'
-                - Comparação de tamanho: GIN completo vs expression index
-14:00 - 18:00  BRIN Index para colunas temporais
-                - Ideal para tabelas particionadas por data (sales, warehouse)
-                - Como funciona: min/max por bloco físico
-                - Custo mínimo de storage, excelente para time-series
-18:00 - 20:00  Guia de decisão: qual índice usar?
-                | Caso de uso                    | Índice recomendado    |
-                |---                             |---                    |
+                - EXPLAIN ANALYZE before and after
+                - Measuring: planning time, execution time, heap fetches
+10:00 - 14:00  Expression Indexes on JSONB
+                - When to use: a specific field accessed frequently
+                - CREATE INDEX ON product.product ((attributes->>'category'));
+                - Partial indexes: WHERE attributes->>'status' = 'active'
+                - Size comparison: full GIN vs expression index
+14:00 - 18:00  BRIN Index for temporal columns
+                - Ideal for tables partitioned by date (sales, warehouse)
+                - How it works: min/max per physical block
+                - Minimal storage cost, excellent for time-series
+18:00 - 20:00  Decision guide: which index to use?
+                | Use case                        | Recommended index    |
+                |---                              |---                    |
                 | JSONB containment (@>)          | GIN jsonb_path_ops   |
                 | JSONB key existence (?)         | GIN jsonb_ops        |
-                | Campo específico do JSONB       | Expression Index     |
-                | Coluna timestamp em fact table  | BRIN                 |
-                | Texto com like %termo%          | GIN + pg_trgm        |
-                | Coluna de alta cardinalidade    | B-Tree (padrão)      |
-20:00 - 22:00  Recap + gancho
+                | Specific JSONB field            | Expression Index     |
+                | Timestamp column in a fact table| BRIN                 |
+                | Text with like %term%           | GIN + pg_trgm        |
+                | High-cardinality column         | B-Tree (default)     |
+20:00 - 22:00  Recap + hook
 ```
 
-**Gancho para o Vídeo 07:**
-> *"Agora que você sabe indexar JSONB, vamos para os dois recursos do PostgreSQL que analistas de dados mais precisam mas menos conhecem: Window Functions e Particionamento de tabelas. Window Functions vão substituir subqueries que você escreve hoje — e são até 10x mais rápidas. Vem."*
+**Hook for Video 07:**
+> *"Now that you know how to index JSONB, let's move to the two PostgreSQL features data analysts need most but know least: Window Functions and table Partitioning. Window Functions will replace subqueries you're writing today — and they're up to 10x faster. Let's go."*
 
 ---
 
-### Vídeo 07 — FT: PostgreSQL Avançado — Particionamento, Window Functions e CTEs
+### Video 07 — FT: Advanced PostgreSQL — Partitioning, Window Functions, and CTEs
 
-**Objetivo**: Cobrir recursos analíticos nativos do PostgreSQL que aproximam OLTP de OLAP.
+**Goal**: Cover PostgreSQL's native analytical features that bring OLTP closer to OLAP.
 
-**Estrutura de roteiro:**
+**Script structure:**
 
 ```
 00:00 - 00:30  Hook
-00:30 - 02:00  Contexto: PG como banco híbrido OLTP + OLAP leve
-02:00 - 07:00  Particionamento de Tabelas
-                - Range Partitioning: sales_order por order_date (por mês/ano)
-                - List Partitioning: warehouse por região/hub
-                - Partition Pruning: como o planner ignora partições irrelevantes
-                - Demo: EXPLAIN para query com e sem pruning
+00:30 - 02:00  Context: PG as a hybrid OLTP + light-OLAP database
+02:00 - 07:00  Table Partitioning
+                - Range Partitioning: sales_order by order_date (per month/year)
+                - List Partitioning: warehouse by region/hub
+                - Partition Pruning: how the planner skips irrelevant partitions
+                - Demo: EXPLAIN for a query with and without pruning
                 - Constraint Exclusion + declarative partitioning (PG 10+)
-07:00 - 13:00  Window Functions — SQL Analítico sem Subquery
-                - Sintaxe: OVER (PARTITION BY ... ORDER BY ...)
-                - ROW_NUMBER() — ranking de pedidos por cliente
-                - RANK() e DENSE_RANK() — top produtos por categoria
-                - LAG() e LEAD() — variação de receita mês a mês
-                - SUM() OVER — receita acumulada (running total)
-                - NTILE() — segmentação de clientes em quartis (RFM preview)
-                - Demo ao vivo com dados do NexoMart
+07:00 - 13:00  Window Functions — Analytical SQL Without Subqueries
+                - Syntax: OVER (PARTITION BY ... ORDER BY ...)
+                - ROW_NUMBER() — ranking orders per customer
+                - RANK() and DENSE_RANK() — top products per category
+                - LAG() and LEAD() — month-over-month revenue variation
+                - SUM() OVER — running total revenue
+                - NTILE() — segmenting customers into quartiles (RFM preview)
+                - Live demo with NexoMart data
 13:00 - 17:00  CTEs — Common Table Expressions
-                - WITH clause: legibilidade vs performance
-                - CTEs recursivas: hierarquia de categorias de produto
-                - Materialized vs não-materialized (PG 12+)
-                - Quando CTE é melhor que subquery (e quando não é)
+                - WITH clause: readability vs performance
+                - Recursive CTEs: product category hierarchy
+                - Materialized vs non-materialized (PG 12+)
+                - When a CTE beats a subquery (and when it doesn't)
 17:00 - 20:00  Materialized Views
-                - Caso de uso: agregação de receita por dia já calculada
+                - Use case: pre-computed daily revenue aggregation
                 - REFRESH MATERIALIZED VIEW CONCURRENTLY
-                - Limitação: não é incremental (preview: isso é o que o dbt resolve)
-20:00 - 22:00  Recap + gancho duplo
+                - Limitation: not incremental (preview: this is what dbt solves)
+20:00 - 22:00  Recap + double hook
 ```
 
-**Gancho para Vídeo 08 (pgvector) e para Modelagem Dimensional:**
-> *"No próximo vídeo fechamos o ciclo de PostgreSQL com pgvector e Full Text Search — IA de verdade dentro do banco. E depois disso, entramos na modelagem dimensional: Star Schema, fatos, dimensões, grain — onde o dado deixa de ser operacional e vira analítico de verdade. Esse é o coração de toda plataforma de dados."*
+**Hook for Video 08 (pgvector) and for Dimensional Modeling:**
+> *"In the next video we close out the PostgreSQL cycle with pgvector and Full Text Search — real AI inside the database. And after that, we move into dimensional modeling: Star Schema, facts, dimensions, grain — where the data stops being operational and becomes truly analytical. That's the heart of every data platform."*
 
 ---
 
-### Vídeo 08 — FT: pgvector e Full Text Search — PostgreSQL como Banco de IA
+### Video 08 — FT: pgvector and Full Text Search — PostgreSQL as an AI Database
 
-**Objetivo**: Mostrar que o PostgreSQL pode servir como banco vetorial e de busca semântica sem adicionar infraestrutura.
+**Goal**: Show that PostgreSQL can serve as both a vector database and a semantic search engine without adding infrastructure.
 
-**Estrutura de roteiro:**
+**Script structure:**
 
 ```
-00:00 - 00:30  Hook: "Busca semântica em produto sem Elasticsearch, sem Pinecone,
-                       sem mais nenhum serviço. Só PostgreSQL."
-00:30 - 03:00  O problema: busca por palavra-chave vs busca por significado
-                - "tênis para corrida" não retorna "calçado esportivo para atletismo"
-                - Onde Full Text Search resolve e onde precisa de vetores
-03:00 - 08:00  Full Text Search nativo
-                - tsvector e tsquery
-                - to_tsvector('portuguese', nome || ' ' || descricao)
-                - GIN index em tsvector
-                - ts_rank() para ranking de relevância
-                - Configuração de dicionário pt_BR
-                - Demo: busca por termo no catálogo NexoMart
-08:00 - 12:00  pg_trgm — busca fuzzy para erros de digitação
+00:00 - 00:30  Hook: "Semantic search on products with no Elasticsearch, no Pinecone,
+                       no extra service at all. Just PostgreSQL."
+00:30 - 03:00  The problem: keyword search vs meaning search
+                - "running shoes" doesn't return "athletic footwear for track"
+                - Where Full Text Search solves it and where you need vectors
+03:00 - 08:00  Native Full Text Search
+                - tsvector and tsquery
+                - to_tsvector('english', name || ' ' || description)
+                - GIN index on tsvector
+                - ts_rank() for relevance ranking
+                - Dictionary configuration
+                - Demo: term search over the NexoMart catalog
+08:00 - 12:00  pg_trgm — fuzzy search for typos
                 - Trigram similarity (%)
-                - GIN index com pg_trgm
-                - Caso de uso: "sugestão de produto" enquanto digita
-12:00 - 18:00  pgvector — embeddings no banco de dados
-                - O que é um embedding (coordenadas no espaço semântico)
-                - Instalação: CREATE EXTENSION vector
-                - O campo vector(1536) no ProductModel
-                - Gerando embeddings: API OpenAI ou modelo local (nomic-embed)
-                - Inserindo embeddings: UPDATE product SET embedding = '[0.1, 0.2, ...]'
-                - Operadores de distância: <-> L2, <#> inner product, <=> cosine
+                - GIN index with pg_trgm
+                - Use case: "product suggestion" as you type
+12:00 - 18:00  pgvector — embeddings in the database
+                - What an embedding is (coordinates in semantic space)
+                - Installing: CREATE EXTENSION vector
+                - The vector(1536) field in ProductModel
+                - Generating embeddings: OpenAI API or a local model (nomic-embed)
+                - Inserting embeddings: UPDATE product SET embedding = '[0.1, 0.2, ...]'
+                - Distance operators: <-> L2, <#> inner product, <=> cosine
                 - IVFFlat vs HNSW index (trade-off: build time vs query time)
-                - Demo: "produtos similares a este" com cosine similarity
-18:00 - 20:00  Quando usar cada abordagem
-                | Caso de uso                       | Solução               |
+                - Demo: "products similar to this one" with cosine similarity
+18:00 - 20:00  When to use each approach
+                | Use case                          | Solution               |
                 |---                                |---                    |
-                | Busca por palavra exata            | ILIKE / B-Tree       |
-                | Busca por termo com variações      | Full Text Search     |
-                | Tolerância a erros de digitação    | pg_trgm              |
-                | Busca por significado/contexto     | pgvector             |
-                | Tudo junto                         | Hybrid search        |
-20:00 - 22:00  Gancho para Ciclo 2 (Modelagem da API) + Dimensional
+                | Exact keyword search               | ILIKE / B-Tree       |
+                | Search with term variations         | Full Text Search     |
+                | Typo tolerance                      | pg_trgm              |
+                | Search by meaning/context            | pgvector             |
+                | All of it combined                  | Hybrid search        |
+20:00 - 22:00  Hook toward Cycle 2 (API Modeling) + Dimensional
 ```
 
-**Gancho para o Ciclo 2:**
-> *"Agora que o banco está modelado, indexado e AI-ready, o próximo ciclo começa com a API — a camada que alimenta tudo isso. FastAPI assíncrono, SQLAlchemy 2.0, arquitetura 3-layer, e como gerar dados em volume com chaos engineering para simular um ambiente real. Até lá."*
+**Hook for Cycle 2:**
+> *"Now that the database is modeled, indexed, and AI-ready, the next cycle starts with the API — the layer that feeds all of this. Asynchronous FastAPI, SQLAlchemy 2.0, 3-layer architecture, and how to generate volume data with chaos engineering to simulate a real environment. See you there."*
 
 ---
 
-## PARTE III — ETAPAS DE DESENVOLVIMENTO
+## PART III — DEVELOPMENT STAGES
 
-### Fase 1: Fundação (paralela ao Ciclo 1 de vídeos)
+### Phase 1: Foundation (parallel to the Cycle 1 video series)
 
-**Objetivo**: Ter a base funcional para demonstrar nos vídeos 01–04.
+**Goal**: Have the functional base ready to demo in videos 01–04.
 
-| Tarefa | Artefatos | Status |
+| Task | Artifacts | Status |
 |---|---|---|
-| Schema OLTP completo | `business_db.sql`, `business_db.png` | ✅ Pronto |
-| Diagrama de arquitetura | `data_platform_architecture.png` | ✅ Pronto |
-| Modelos SQLAlchemy (7 domínios) | `dbapi/api/models/` | ✅ Pronto |
-| AuditMixin e Base | `dbapi/api/config/base.py` | ✅ Pronto |
-| Configuração Docker Compose (todos os serviços) | `docker-compose.yml` por serviço | ✅ Pronto |
-| Seeders com chaos engineering | `dbapi/api/seeder/` | ✅ Pronto |
-| Arquitetura 3-layer (Repository/Service/Router) | `dbapi/api/` | ✅ Pronto |
+| Complete OLTP schema | `business_db.sql`, `business_db.png` | Done |
+| Architecture diagram | `data_platform_architecture.png` | Done |
+| SQLAlchemy models (7 domains) | `dbapi/api/models/` | Done |
+| AuditMixin and Base | `dbapi/api/config/base.py` | Done |
+| Docker Compose configuration (all services) | `docker-compose.yml` per service | Done |
+| Seeders with chaos engineering | `dbapi/api/seeder/` | Done |
+| 3-layer architecture (Repository/Service/Router) | `dbapi/api/` | Done |
 
-### Fase 2: PostgreSQL Features (para vídeos 05–08)
+### Phase 2: PostgreSQL Features (for videos 05–08)
 
-**Objetivo**: Criar demos reproduzíveis para os vídeos de features do PG.
+**Goal**: Build reproducible demos for the PG feature videos.
 
-| Tarefa | Artefatos | Prioridade |
+| Task | Artifacts | Priority |
 |---|---|---|
-| Script de setup do pgvector | `demos/pgvector_setup.sql` | Alta |
-| Notebook de embeddings com modelo local | `demos/embeddings_demo.ipynb` | Alta |
-| Scripts de JSONB com EXPLAIN ANALYZE | `demos/jsonb_benchmarks.sql` | Alta |
-| Script de particionamento (sales por mês) | `demos/partitioning_demo.sql` | Alta |
-| Scripts de Window Functions com dados reais | `demos/window_functions.sql` | Alta |
-| Script de Full Text Search pt_BR | `demos/fts_demo.sql` | Média |
-| Script de GIN indexes comparativo | `demos/gin_index_benchmark.sql` | Alta |
-| Seeder específico para volume de demo (100k registros) | `demos/demo_seeder.py` | Alta |
+| pgvector setup script | `demos/pgvector_setup.sql` | High |
+| Embeddings notebook with a local model | `demos/embeddings_demo.ipynb` | High |
+| JSONB scripts with EXPLAIN ANALYZE | `demos/jsonb_benchmarks.sql` | High |
+| Partitioning script (sales by month) | `demos/partitioning_demo.sql` | High |
+| Window Functions scripts with real data | `demos/window_functions.sql` | High |
+| Full Text Search script | `demos/fts_demo.sql` | Medium |
+| Comparative GIN index script | `demos/gin_index_benchmark.sql` | High |
+| Dedicated demo-volume seeder (100k records) | `demos/demo_seeder.py` | High |
 
-### Fase 3: Modelagem Dimensional (Ciclo 2 — próximo)
+### Phase 3: Dimensional Modeling (Cycle 2 — next)
 
-**Objetivo**: Construir o Data Warehouse dimensional sobre o OLTP do NexoMart.
+**Goal**: Build the dimensional Data Warehouse on top of NexoMart's OLTP.
 
-| Tarefa | Descrição |
+| Task | Description |
 |---|---|
-| Bus Matrix do NexoMart | 5 fatos × 9 dimensões mapeadas |
-| Star Schema diagrama | Visual para usar no EP01 do Ciclo 2 |
-| Tabelas Fato | fact_sales, fact_inventory, fact_marketing_performance |
-| Dimensões | dim_product, dim_customer, dim_date, dim_location, dim_seller |
-| Slowly Changing Dimensions | dim_employee com SCD2 (herda do OLTP) |
-| Grain declaration | 1 linha por order_item (mais granular possível) |
+| NexoMart Bus Matrix | 5 facts × 9 dimensions mapped |
+| Star Schema diagram | Visual for use in Cycle 2's EP01 |
+| Fact tables | fact_sales, fact_inventory, fact_marketing_performance |
+| Dimensions | dim_product, dim_customer, dim_date, dim_location, dim_seller |
+| Slowly Changing Dimensions | dim_employee with SCD2 (inherited from OLTP) |
+| Grain declaration | 1 row per order_item (most granular possible) |
 
 ---
 
-## PARTE IV — FEATURES DO POSTGRESQL: GUIA DE COBERTURA
+## PART IV — POSTGRESQL FEATURES: COVERAGE GUIDE
 
-### Mapa completo de features por vídeo
+### Full feature-to-video map
 
-| Feature | Vídeo | Profundidade |
+| Feature | Video | Depth |
 |---|---|---|
-| JSONB vs JSON | 05 | Conceitual + prático |
-| Operadores JSONB (->, ->>, @>, ?) | 05 | Hands-on |
-| Funções JSONB (jsonb_each, jsonb_agg) | 05 | Hands-on |
-| GIN Index (jsonb_ops vs jsonb_path_ops) | 06 | Profundo |
-| Expression Index em JSONB | 06 | Profundo |
-| BRIN Index (time-series) | 06 | Conceitual |
-| EXPLAIN ANALYZE | 06 | Profundo |
-| Particionamento (Range, List) | 07 | Profundo |
+| JSONB vs JSON | 05 | Conceptual + hands-on |
+| JSONB operators (->, ->>, @>, ?) | 05 | Hands-on |
+| JSONB functions (jsonb_each, jsonb_agg) | 05 | Hands-on |
+| GIN Index (jsonb_ops vs jsonb_path_ops) | 06 | Deep |
+| Expression Index on JSONB | 06 | Deep |
+| BRIN Index (time-series) | 06 | Conceptual |
+| EXPLAIN ANALYZE | 06 | Deep |
+| Partitioning (Range, List) | 07 | Deep |
 | Partition Pruning | 07 | Demo |
-| Window Functions (ROW_NUMBER, LAG, SUM OVER) | 07 | Profundo |
-| CTEs e CTEs Recursivas | 07 | Profundo |
-| Materialized Views | 07 | Conceitual |
-| Full Text Search (tsvector, tsquery, GIN) | 08 | Profundo |
+| Window Functions (ROW_NUMBER, LAG, SUM OVER) | 07 | Deep |
+| CTEs and Recursive CTEs | 07 | Deep |
+| Materialized Views | 07 | Conceptual |
+| Full Text Search (tsvector, tsquery, GIN) | 08 | Deep |
 | pg_trgm (fuzzy search) | 08 | Hands-on |
-| pgvector (embeddings, IVFFlat, HNSW) | 04 + 08 | Profundo |
-| SCD Type 2 (valid_from, valid_to) | 04 | Profundo |
-| Enum types (Python + PostgreSQL) | 03 | Conceitual |
-| UUID vs BIGSERIAL | 03 | Conceitual |
-| CHECK e UNIQUE constraints | 03 | Hands-on |
-| Schema-qualified tables | 03 | Conceitual |
+| pgvector (embeddings, IVFFlat, HNSW) | 04 + 08 | Deep |
+| SCD Type 2 (valid_from, valid_to) | 04 | Deep |
+| Enum types (Python + PostgreSQL) | 03 | Conceptual |
+| UUID vs BIGSERIAL | 03 | Conceptual |
+| CHECK and UNIQUE constraints | 03 | Hands-on |
+| Schema-qualified tables | 03 | Conceptual |
 
-### Features reservadas para ciclos futuros
+### Features reserved for future cycles
 
-| Feature | Ciclo sugerido | Motivo |
+| Feature | Suggested cycle | Reason |
 |---|---|---|
-| LISTEN / NOTIFY | Ciclo 3 (Kafka) | Comparativo com mensageria |
-| Row Level Security | Ciclo 4 (Auth) | Contextualizado com multi-tenant |
-| pg_partman (automação de partições) | Ciclo 3 | Depois de particionamento básico |
-| Logical Replication / CDC | Ciclo 3 (Debezium) | Junto com Outbox Pattern |
-| pg_cron | Ciclo 2 (Airflow) | Comparativo com orquestração |
-| Vacuuming e bloat management | Ciclo futuro (Ops) | DBA track |
+| LISTEN / NOTIFY | Cycle 3 (Kafka) | Comparison with messaging |
+| Row Level Security | Cycle 4 (Auth) | Contextualized with multi-tenant |
+| pg_partman (partition automation) | Cycle 3 | After basic partitioning |
+| Logical Replication / CDC | Cycle 3 (Debezium) | Alongside the Outbox Pattern |
+| pg_cron | Cycle 2 (Airflow) | Comparison with orchestration |
+| Vacuuming and bloat management | Future cycle (Ops) | DBA track |
 
 ---
 
-## PARTE V — HOOKS E GANCHOS ENTRE CICLOS
+## PART V — HOOKS BETWEEN CYCLES
 
-### Ciclo 1 → Ciclo 2 (Modelagem da API)
+### Cycle 1 → Cycle 2 (API Modeling)
 
-O Ciclo 1 termina com o banco modelado e documentado. O gancho natural para o Ciclo 2 é:
+Cycle 1 ends with the database modeled and documented. The natural hook into Cycle 2 is:
 
-> *"O banco está pronto. Agora a pergunta é: como inserir 50 milhões de registros sem travar tudo? No Ciclo 2, construímos a camada de ingestão: FastAPI assíncrono, SQLAlchemy 2.0, arquitetura 3-layer e seeders com chaos engineering."*
+> *"The database is ready. Now the question is: how do you insert 50 million records without bringing everything to a halt? In Cycle 2, we build the ingestion layer: asynchronous FastAPI, SQLAlchemy 2.0, 3-layer architecture, and seeders with chaos engineering."*
 
-### Ciclo 2 → Ciclo 3 (Modelagem Dimensional)
+### Cycle 2 → Cycle 3 (Dimensional Modeling)
 
-> *"Os dados estão no banco OLTP. Mas o OLTP não foi feito para analytics. Agora vamos construir o modelo dimensional — Star Schema, fatos, dimensões, e o primeiro pipeline ETL com Spark e Delta Lake."*
+> *"The data is in the OLTP database. But OLTP wasn't built for analytics. Now we're going to build the dimensional model — Star Schema, facts, dimensions, and the first ETL pipeline with Spark and Delta Lake."*
 
 ---
 
-*Documento criado em 2026-04-28 | Projeto: Data Platform do Zero — NexoMart*
+*Document created 2026-04-28 | Project: Data Platform From Scratch — NexoMart*

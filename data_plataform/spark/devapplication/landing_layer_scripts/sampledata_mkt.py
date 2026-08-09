@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType, MapType, ArrayType, TimestampType
 
 
-# Configuração do Spark para Iceberg e MinIO
+# Spark configuration for Iceberg and MinIO
 spark = (SparkSession.builder
     .appName("spark_sample")
     # .config("spark.driver.maxResultSize", "6g") \
@@ -18,7 +18,7 @@ spark = (SparkSession.builder
 
 sc = spark.sparkContext
 
-# Definir schemas das tabelas TPC-H
+# Define schemas for the TPC-H tables
 schemas = {
     "nation": StructType([
         StructField("nationkey", IntegerType(), False),
@@ -98,15 +98,15 @@ schemas = {
         StructField("comment", StringType(), True)
     ]),
      "customer_marketing": StructType([
-        StructField("custkey", IntegerType(), False),  # Chave estrangeira para customer
+        StructField("custkey", IntegerType(), False),  # Foreign key to customer
         StructField("marketing_id", IntegerType(), False),
-        StructField("preferences_map", MapType(StringType(), StringType())),  # Tipo MAP
-        StructField("demographic_info", StructType([  # Tipo STRUCT
+        StructField("preferences_map", MapType(StringType(), StringType())),  # MAP type
+        StructField("demographic_info", StructType([  # STRUCT type
             StructField("age_group", StringType()),
             StructField("income_bracket", StringType()),
             StructField("education_level", StringType())
         ])),
-        StructField("purchased_categories", ArrayType(StringType())),  # Tipo ARRAY
+        StructField("purchased_categories", ArrayType(StringType())),  # ARRAY type
         StructField("last_update", TimestampType()),
         StructField("campaign_responses", ArrayType(StructType([
             StructField("campaign_id", StringType()),
@@ -116,17 +116,17 @@ schemas = {
     ]),
     "campaign_analytics": StructType([
         StructField("campaign_id", StringType(), False),
-        StructField("orderkey", IntegerType(), False),  # Relaciona com orders
-        StructField("metrics", MapType(StringType(), StringType())),  # Métricas de campanha
-        StructField("customer_segments", ArrayType(StringType())),  # Segmentos de clientes
-        StructField("timestamps", StructType([  # Estrutura temporal
+        StructField("orderkey", IntegerType(), False),  # Relates to orders
+        StructField("metrics", MapType(StringType(), StringType())),  # Campaign metrics
+        StructField("customer_segments", ArrayType(StringType())),  # Customer segments
+        StructField("timestamps", StructType([  # Temporal structure
             StructField("start_time", TimestampType()),
             StructField("end_time", TimestampType()),
             StructField("processing_time", TimestampType())
         ]))])
 }
 
-# Funções auxiliares para gerar tipos complexos
+# Helper functions to generate complex types
 def generate_preferences_map():
     preferences = {
         "newsletter": random.choice(["daily", "weekly", "monthly", "none"]),
@@ -147,7 +147,7 @@ def generate_purchased_categories():
     categories = ["electronics", "clothing", "home", "books", "groceries", "toys"]
     return random.sample(categories, k=random.randint(1, 3))
 
-# Função corrigida para gerar métricas
+# Fixed function to generate metrics
 def generate_campaign_metrics():
     return {
         "impressions": float("%.2f" % random.uniform(1000, 100000)),
@@ -156,7 +156,7 @@ def generate_campaign_metrics():
         "roi": float("%.2f" % random.uniform(1.0, 5.0))
     }
     
-# Funções de geração de dados
+# Data generation functions
 def generate_campaign_response():
     return {
         "campaign_id": random.randint(1000, 9999),
@@ -170,7 +170,7 @@ def generate_campaign_responses():
 def generate_customer_segments(max_segment_id=100):
     return [random.randint(1, max_segment_id) for _ in range(random.randint(1, 5))]
 
-# Funções auxiliares mantidas conforme original
+# Helper functions kept as original
 def generate_random_string(length):
     return ''.join(random.choices(string.ascii_uppercase, k=length))
 
@@ -188,7 +188,7 @@ def round_float(value, decimals=2):
     return float(f"{value:.{decimals}f}")
 
 def generate_timestamps():
-    """Gera uma tupla de timestamps para a estrutura de dados"""
+    """Generates a tuple of timestamps for the data structure"""
     now = datetime.now()
     start = now - timedelta(days=random.randint(1, 30))
     return (
@@ -198,18 +198,18 @@ def generate_timestamps():
     )
 
 def get_id_range(table_name, id_column):
-    """Obtém o intervalo de IDs válidos de uma tabela"""
+    """Gets the range of valid IDs for a table"""
     try:
         full_table_name = f"icebergdw.iceberglab.{table_name}"
         df = spark.sql(f"SELECT MIN({id_column}) AS min_id, MAX({id_column}) AS max_id FROM {full_table_name}")
         result = df.collect()[0]
         return (result["min_id"], result["max_id"]) if result["min_id"] is not None else (0, 0)
-    
+
     except Exception as e:
-        print(f"Erro ao obter IDs da tabela {table_name}: {str(e)}")
+        print(f"Error getting IDs from table {table_name}: {str(e)}")
         return (0, 0)
-    
-# Função para gerar dados de marketing
+
+# Function to generate marketing data
 def generate_marketing_data(num_rows):
     cust_min, cust_max = get_id_range("customer", "custkey")
     current_min, current_max = get_id_range("customer_marketing", "marketing_id")
@@ -221,15 +221,15 @@ def generate_marketing_data(num_rows):
         data.append((
             custkey,
             start_id + i,
-            dict(generate_preferences_map()),  # Garantindo que é um dict
+            dict(generate_preferences_map()),  # Ensuring it's a dict
             generate_demographic_struct(),
-            list(generate_purchased_categories()),  # Garantindo que é uma list
+            list(generate_purchased_categories()),  # Ensuring it's a list
             datetime.now(),
-            generate_campaign_responses()  # Convertendo para tupla
+            generate_campaign_responses()  # Converting to tuple
         ))
     return data
 
-# Função para gerar dados de campanhas
+# Function to generate campaign data
 def generate_campaign_data(num_rows):
     data = []
     for i in range(num_rows):
@@ -247,7 +247,7 @@ def generate_campaign_data(num_rows):
 def generate_sample_data(table_name, num_rows):
     random.seed(datetime.now().timestamp())
     
-    # Mapeamento de colunas de ID
+    # Mapping of ID columns
     id_columns = {
         "nation":   "nationkey",
         "region":   "regionkey",
@@ -257,7 +257,7 @@ def generate_sample_data(table_name, num_rows):
         "orders":   "orderkey"
     }
     
-    # Obter ID inicial para tabelas com IDs próprios
+    # Get the starting ID for tables with their own IDs
     if table_name in id_columns:
         id_col = id_columns[table_name]
         current_min, current_max = get_id_range(table_name, id_col)
@@ -265,7 +265,7 @@ def generate_sample_data(table_name, num_rows):
     else:
         start_id = 0
 
-    # Geração de dados para cada tabela
+    # Data generation for each table
     # if table_name == "nation":
     #     data = [
     #         (start_id + i, f"Nation_{generate_random_string(8)}", 
@@ -362,12 +362,12 @@ def generate_sample_data(table_name, num_rows):
         ]
     
     else:
-        raise ValueError(f"Tabela desconhecida: {table_name}")
-    
+        raise ValueError(f"Unknown table: {table_name}")
+
     return spark.createDataFrame(data, schema=schemas[table_name])
 
 def main():
-    # Ordem correta de geração considerando dependências
+    # Correct generation order considering dependencies
     tables_order = [
         # ("nation",              0),
         # ("region",              0),
@@ -396,10 +396,10 @@ def main():
         else:
             # df = generate_sample_data(table_name, batch_size)
             print("Data generated sucessfully")
-        
+
         df.repartition(2).write.mode("append").format("iceberg").saveAsTable(f"icebergdw.iceberglab.{table_name}")
-    
-    # Verificação final
+
+    # Final verification
     spark.sql("""
         SELECT 
             (SELECT COUNT(*) FROM icebergdw.iceberglab.lineitem) AS total_lineitem,
@@ -428,7 +428,7 @@ def main():
     # """).show()
 
 if __name__ == "__main__":
-    # Adicione esta linha antes do df.write...
+    # Add this line before df.write...
     # spark.sql("CREATE SCHEMA IF NOT EXISTS icebergdw.iceberglab")
     main()
     spark.stop()

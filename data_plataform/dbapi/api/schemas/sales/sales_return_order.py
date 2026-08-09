@@ -28,14 +28,14 @@ class ItemCondition(str, Enum):
     USED_OR_DIRTY = "used_or_dirty"      
 
 class InspectionData(BaseModel):
-    inspector_user_id: Optional[int] = Field(None, description="Quem fez a vistoria na doca")
+    inspector_user_id: Optional[int] = Field(None, description="Who performed the dock inspection")
     inspection_date: Optional[datetime] = None
-    
+
     condition: Optional[ItemCondition] = None
 
-    is_restockable: bool = Field(default=False, description="True se o WMS deve dar entrada no saldo")
-    
-    technical_notes: Optional[str] = Field(None, max_length=500, description="Ex: Tela riscada no canto superior")
+    is_restockable: bool = Field(default=False, description="True if the WMS should add it back to stock")
+
+    technical_notes: Optional[str] = Field(None, max_length=500, description="E.g.: Screen scratched in the top corner")
     
     evidence_urls: List[HttpUrl] = Field(default_factory=list)
 
@@ -44,13 +44,13 @@ class SalesReturnOrderSchema(BaseModel):
     
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
     
-    return_id: str = Field(..., description="Padrão RO-XXXXXXXXX")
+    return_id: str = Field(..., description="Pattern RO-XXXXXXXXX")
     requestorder_code: str = Field(max_length=100)
     
     salesordernumber: str = Field(..., max_length=20)
     customer_id: int = Field(gt=0)
     
-    # Opcional, pois uma compra totalmente online pode não ter loja envolvida
+    # Optional, since a fully online purchase may not involve a store
     store_id: Optional[int] = Field(None, gt=0) 
     
     product_id: int = Field(gt=0)
@@ -73,12 +73,12 @@ class SalesReturnOrderSchema(BaseModel):
     
     @model_validator(mode="after")
     def validate_dates(self):
-        # Valida apenas se a return_date não for nula
+        # Only validates if return_date is not null
         if self.return_date and self.return_date < self.requested_date:
-            raise ValueError("A data de retorno não pode ser anterior à data solicitada.")   
-        
-        # Lógica de negócio: Se a inspeção ocorreu, a data de retorno físico tem que existir
+            raise ValueError("The return date cannot be earlier than the requested date.")
+
+        # Business logic: If the inspection occurred, the physical return date must exist
         if self.inspection_data.inspection_date and not self.return_date:
-            raise ValueError("Não é possível haver data de inspeção sem a data de retorno físico (return_date).")
+            raise ValueError("There cannot be an inspection date without a physical return date (return_date).")
             
         return self

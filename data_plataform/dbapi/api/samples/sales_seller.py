@@ -1,21 +1,21 @@
 """
-Amostra estática de dados para vendedores (Sellers).
-Simula parceiros de marketplace, lojas oficiais e vendedores individuais.
+Static sample data for sellers.
+Simulates marketplace partners, official stores, and individual sellers.
 """
 
 SELLER_NAMES = [
-    # Grandes Lojas (Marketplace Partners)
+    # Large Stores (Marketplace Partners)
     "Magalu Oficial", "Americanas Prime", "Mercado Livre Official Store",
     "Netshoes Sports", "Casas Bahia E-commerce", "Kabum! Tecnologia",
     "Fast Shop Premium", "Carrefour Marketplace", "Ponto Frio VIP",
     "Dafiti Fashion Hub",
-    
-    # Médios e Especializados
+
+    # Mid-Size and Specialized
     "TechZone Brasil", "Livraria do Saber", "PetShop Amigo Fiel",
     "Auto Peças Velocidade", "Beleza Pura Cosméticos", "Casa & Jardim Design",
     "Esporte Total", "Brinquedos e Alegria", "Eletro Mundi", "Móveis requinte",
-    
-    # Vendedores Individuais (Pessoa Física)
+
+    # Individual Sellers (Sole Proprietors)
     "João da Silva", "Maria Oliveira", "Carlos Souza", "Ana Santos",
     "Ricardo Ferreira", "Juliana Costa", "Marcos Pereira", "Fernanda Lima",
     "Gabriel Machado", "Aline Rodrigues"

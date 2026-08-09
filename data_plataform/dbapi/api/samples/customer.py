@@ -8,22 +8,19 @@ fake = Faker('pt_BR')
 
 def generate_mock_customer() -> Dict[str, Any]:
     """
-    Gera um payload simulando um cliente (Customer) real,
-    com propriedades aninhadas em demographics.
+    Generates a payload simulating a real Customer,
+    with properties nested inside demographics.
     """
-    # Basico
+    # Basic
     is_company = random.choice([True, False])
     customer_type = "VC" if is_company else "SC"
     
     if is_company:
         customer_name = fake.company()
         last_name = fake.company_suffix()
-        # Anomalia 1: variação na formatação do CNPJ (com e sem pontuação)
-        if random.random() < 0.5:
-            social_number = fake.cnpj()
-        else:
-            # Remove pontuação
-            social_number = fake.cnpj().replace('.', '').replace('/', '').replace('-', '')
+        # Formatted CNPJ ("99.999.999/9999-99") has 18 characters — doesn't fit in
+        # social_number varchar(15). Always unpunctuated here (14 digits).
+        social_number = fake.cnpj().replace('.', '').replace('/', '').replace('-', '')
         gender = None
     else:
         gender = random.choice(["M", "F", "Other"])
@@ -37,7 +34,7 @@ def generate_mock_customer() -> Dict[str, Any]:
             customer_name = fake.first_name()
             last_name = fake.last_name()
 
-        # Anomalia 1: variação de CPF
+        # Anomaly 1: CPF variation
         if random.random() < 0.5:
             social_number = fake.cpf()
         else:
@@ -80,7 +77,7 @@ def generate_mock_customer() -> Dict[str, Any]:
         "address_info": random.choice(["Apto 101", "Casa 2", "Fundos", ""])
     }
     
-    # Datas de compra
+    # Purchase dates
     first_purchase = fake.date_between(start_date='-5y', end_date='today')
     last_purchase = fake.date_between(start_date=first_purchase, end_date='today')
     
@@ -100,21 +97,21 @@ def generate_mock_customer() -> Dict[str, Any]:
         "metrics": metrics
     }
     
-    # --- ANOMALIAS INTENCIONAIS DE DATA ENGINEERING ---
-    
-    # 1. Negative Metrics Bug: 2% de chance do valor comprado vir negativo
+    # --- INTENTIONAL DATA ENGINEERING ANOMALIES ---
+
+    # 1. Negative Metrics Bug: 2% chance of the purchased value coming in negative
     if random.random() < 0.02:
         demographics["metrics"]["total_purchased"] = -abs(demographics["metrics"]["total_purchased"])
-        
-    # 2. Schema Drift: 5% de chance de injetar uma métrica misteriosa (LTV) não coberta no Pydantic oficial
+
+    # 2. Schema Drift: 5% chance of injecting a mysterious metric (LTV) not covered by the official Pydantic schema
     if random.random() < 0.05:
         demographics["metrics"]["lifetime_value_score"] = random.randint(1, 100)
-        
-    # 3. Missing Sub-Document: 3% de chance de perder os consentimentos de marketing por erro da API frontend
+
+    # 3. Missing Sub-Document: 3% chance of losing marketing consent due to a frontend API error
     if random.random() < 0.03:
         demographics.pop("marketing_consent", None)
-        
-    # 4. Inconsistência de Texto (Typos): Nomes em Caps Lock aleatório
+
+    # 4. Text Inconsistency (Typos): Names in random Caps Lock
     if random.random() < 0.04:
         customer_name = customer_name.upper()
         last_name = last_name.lower()

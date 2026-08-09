@@ -1,7 +1,7 @@
 """
 Data Platform — Architecture Diagrams (Post-Debate Roadmap)
-Gera dois PNGs:
-  1. data_platform_pipeline.png — 7 estágios do pipeline (LR, somente backbone)
+Generates two PNGs:
+  1. data_platform_pipeline.png — 7 pipeline stages (LR, backbone only)
   2. data_platform_support.png  — Airflow · Observability · Catalog · dbt
 
 Run: uv run python3 diagram.py
@@ -62,7 +62,7 @@ GRAPH_1 = {
 
 with Diagram(
     "\nData Platform  —  Main Data Pipeline\n"
-    "★ = Roadmap (novo)          Sem ★ = Existente",
+    "★ = Roadmap (new)          No ★ = Existing",
     filename="data_platform_pipeline",
     outformat="png",
     direction="LR",
@@ -71,16 +71,16 @@ with Diagram(
     show=False,
 ):
     # ── Stage 1: Ingestion ─────────────────────────────────────────────────────
-    # dbapi roda em modo CLI (BashOperator) — não há serviço online persistente.
-    # A arquitetura 3-layer (Repository·Service·Router) existe no código e
-    # demonstra o padrão; a carga ocorre via "uv run python seeder.py" no Airflow.
+    # dbapi runs in CLI mode (BashOperator) — there is no persistent online service.
+    # The 3-layer architecture (Repository·Service·Router) exists in the code and
+    # demonstrates the pattern; the load happens via "uv run python seeder.py" in Airflow.
     with Cluster("① Data Loaders  ·  dbapi  (CLI mode via BashOperator)", graph_attr=C_DEF):
         api     = FastAPI("FastAPI  ·  3-Layer REST API\n"
-                          "Invocado via BashOperator (CLI)\n"
-                          "Não roda como serviço online")
+                          "Invoked via BashOperator (CLI)\n"
+                          "Does not run as an online service")
         seeders = Blank("Seeders  ·  Chaos Engineering\n"
-                        "1–10% anomalias injetadas\n"
-                        "Duplicatas · Fraudes · Outliers")
+                        "1–10% anomalies injected\n"
+                        "Duplicates · Fraud · Outliers")
 
     # ── Stage 2: Event Bus ★ ───────────────────────────────────────────────────
     with Cluster("② Event Bus  ★", graph_attr=C_NEW):
@@ -107,7 +107,7 @@ with Diagram(
                     "not_null · unique · relationships")
         ge    = GreatExpectations("Great Expectations ★\n"
                                   "Validation Suite · DQ Log\n"
-                                  "Quarantine de chaos data")
+                                  "Quarantine for chaos data")
 
     # ── Stage 5: Data Lake ─────────────────────────────────────────────────────
     with Cluster("⑤ Data Lake  ·  MinIO  S3-compatible", graph_attr=C_DEF):
@@ -251,6 +251,6 @@ with Diagram(
 
 print("✅  Support diagram:   data_platform_support.png")
 print()
-print("Diagramas gerados:")
-print("  • data_platform_pipeline.png — pipeline principal (README / LinkedIn)")
+print("Generated diagrams:")
+print("  • data_platform_pipeline.png — main pipeline (README / LinkedIn)")
 print("  • data_platform_support.png  — Airflow · Observability · Catalog · dbt")

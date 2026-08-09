@@ -1,6 +1,6 @@
-""" dominio de pagamento e certificações"""
+""" payment terms and certifications domain"""
 
-TERMOS_PAGAMENTO = [
+PAYMENT_TERMS = [
     "30 Dias Líquidos", 
     "60 Dias Líquidos", 
     "90 Dias Líquidos", 
@@ -8,7 +8,7 @@ TERMOS_PAGAMENTO = [
     "15 Dias / 2% Desconto"
 ]   
 
-CERTIFICACOES_POSSIVEIS = [
+POSSIBLE_CERTIFICATIONS = [
     "ISO 9001", 
     "ISO 14001", 
     "FSC", 

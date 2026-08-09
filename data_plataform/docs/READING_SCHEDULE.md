@@ -1,475 +1,475 @@
-# Plano de Estudo — 4 Pilares
+# Study Plan — 4 Pillars
 
-> **Filosofia**: lifelong learning — sem prazo, sem culpa, sem "atraso"  
-> **Projeto âncora**: NexoMart Data Platform → open-source local → deploy AWS  
-> **Canal**: cada pilar alimenta episódios e Clube do Livro
+> **Philosophy**: lifelong learning — no deadline, no guilt, no "falling behind"
+> **Anchor project**: NexoMart Data Platform → open-source local → AWS deploy
+> **Channel**: each pillar feeds episodes and the Book Club
 
 ---
 
-## Os 4 Pilares
+## The 4 Pillars
 
 ```
 ┌──────────────────┐  ┌──────────────────────┐
-│   PILAR 1        │  │   PILAR 2            │
-│   AWS            │  │   Databricks / Spark │
+│   PILLAR 1        │  │   PILLAR 2            │
+│   AWS             │  │   Databricks / Spark  │
 │                  │  │                      │
-│  Infraestrutura  │  │  Processamento       │
-│  gerenciada +    │  │  distribuído +       │
-│  serviços dados  │  │  Delta Lake nativo   │
+│  Managed          │  │  Distributed          │
+│  infrastructure +  │  │  processing +         │
+│  data services     │  │  native Delta Lake    │
 └──────────────────┘  └──────────────────────┘
 
 ┌──────────────────┐  ┌──────────────────────┐
-│   PILAR 3        │  │   PILAR 4            │
-│   Python + SQL   │  │   Leituras           │
+│   PILLAR 3        │  │   PILLAR 4            │
+│   Python + SQL    │  │   Reading             │
 │                  │  │                      │
-│  Código fluente  │  │  Teoria que          │
-│  + analytics     │  │  fundamenta os       │
-│  SQL avançado    │  │  outros 3 pilares    │
+│  Fluent code      │  │  Theory that          │
+│  + advanced        │  │  grounds the          │
+│  analytics SQL     │  │  other 3 pillars      │
 └──────────────────┘  └──────────────────────┘
 ```
 
 ---
 
-## Rotina Base (lifelong, sustentável)
+## Base Routine (lifelong, sustainable)
 
 ```
-SEGUNDA a QUINTA  (15–20 min — quando der)
-  → Leitura ou vídeo do pilar da semana
-  → Uma anotação de conexão com o projeto NexoMart
+MONDAY to THURSDAY  (15–20 min — whenever possible)
+  → Reading or video from the week's pillar
+  → One note connecting it to the NexoMart project
 
-SÁBADO  (2–3h — bloco principal, não negociável)
-  → 1h30: estudo ativo (leitura, laboratório, exercício)
-  → 30min: síntese — anotar o que aprendeu + conexão com o projeto
-  → Resultado: rascunho de roteiro do canal ou nota técnica
+SATURDAY  (2–3h — main block, non-negotiable)
+  → 1h30: active study (reading, lab, exercise)
+  → 30min: synthesis — write down what you learned + connection to the project
+  → Result: a channel script draft or technical note
 
-DOMINGO  (1h — opcional, bônus)
-  → Laboratório prático ou exercícios hands-on
-  → Avançar no projeto com o conceito da semana
+SUNDAY  (1h — optional, bonus)
+  → Practical lab or hands-on exercises
+  → Advance the project with the week's concept
 
-MÍNIMO SUSTENTÁVEL: 2h no sábado
-CADÊNCIA: alterne pilares semana a semana — nunca fique mais de 2 semanas
-          no mesmo pilar sem fazer pelo menos 30min de outro
+SUSTAINABLE MINIMUM: 2h on Saturday
+CADENCE: rotate pillars week to week — never spend more than 2 weeks
+          on the same pillar without at least 30min of another
 ```
 
-### As 3 Perguntas de Síntese (universal, para todo pilar)
+### The 3 Synthesis Questions (universal, for every pillar)
 
-> **1. Onde esse conceito aparece no projeto NexoMart — agora ou no futuro?**  
-> **2. Se eu não soubesse isso, onde teria errado na implementação?**  
-> **3. Uma frase. O que eu diria a um colega sobre isso em 15 segundos?**
+> **1. Where does this concept show up in the NexoMart project — now or in the future?**
+> **2. If I didn't know this, where would I have gotten the implementation wrong?**
+> **3. One sentence. What would I tell a colleague about this in 15 seconds?**
 
 ---
 
-## Pilar 1 — AWS
+## Pillar 1 — AWS
 
-**Meta profissional**: operar, deployar e aplicar IA na plataforma NexoMart em AWS  
-**Meta de certificação**: SAA-C03 → DEA-C01 → AIF-C01 → MLA-C01  
-**Projeto prático**: migrar NexoMart do ambiente local (Docker) para AWS com Terraform + adicionar camada de IA (Bedrock + SageMaker)
+**Professional goal**: operate, deploy, and apply AI on the NexoMart platform on AWS
+**Certification goal**: SAA-C03 → DEA-C01 → AIF-C01 → MLA-C01
+**Practical project**: migrate NexoMart from the local environment (Docker) to AWS with Terraform + add an AI layer (Bedrock + SageMaker)
 
-### Mapa: Stack Open-Source → Equivalente AWS
+### Map: Open-Source Stack → AWS Equivalent
 
-| Componente (local) | Equivalente AWS | Maturidade para usar |
+| Component (local) | AWS equivalent | Maturity to use |
 |-------------------|-----------------|---------------------|
-| MinIO | Amazon S3 | Direto — mesma API S3 |
-| Hive Metastore | AWS Glue Data Catalog | Alto — mesmo conceito |
-| Apache Spark (local) | Amazon EMR / EMR Serverless | Alto |
-| Apache Kafka (local) | Amazon MSK | Direto |
-| Apache Airflow (local) | Amazon MWAA | Direto |
-| Trino | Amazon Athena v3 | Alto — Athena usa Trino |
-| Unity Catalog OSS | AWS Lake Formation | Conceitual |
-| Iceberg no MinIO | Iceberg no S3 + Glue Catalog | Nativo no Athena v3 |
-| FastAPI local | ECS Fargate / Lambda | Arquitetural |
+| MinIO | Amazon S3 | Direct — same S3 API |
+| Hive Metastore | AWS Glue Data Catalog | High — same concept |
+| Apache Spark (local) | Amazon EMR / EMR Serverless | High |
+| Apache Kafka (local) | Amazon MSK | Direct |
+| Apache Airflow (local) | Amazon MWAA | Direct |
+| Trino | Amazon Athena v3 | High — Athena uses Trino |
+| Unity Catalog OSS | AWS Lake Formation | Conceptual |
+| Iceberg on MinIO | Iceberg on S3 + Glue Catalog | Native in Athena v3 |
+| Local FastAPI | ECS Fargate / Lambda | Architectural |
 
-### Trilha de Estudo
+### Study Track
 
-**Fase A — Fundamentos (base para tudo)**
+**Phase A — Fundamentals (base for everything)**
 
-| Serviço / Conceito | Por que importa | Recurso |
+| Service / Concept | Why it matters | Resource |
 |--------------------|-----------------|---------|
-| IAM (roles, policies, STS, assume-role) | Sem IAM não existe nada seguro | AWS Skill Builder + Cantrill |
-| S3 (particionamento, lifecycle, encryption, ACLs) | É o MinIO em produção — toda a data lake vive aqui | AWS Skill Builder |
-| VPC (subnets, SGs, NAT, VPC endpoints) | Isolamento da plataforma analítica | Cantrill SAA-C03 |
-| CloudWatch + CloudTrail | Observabilidade e auditoria | AWS Skill Builder |
-| CloudFormation / CDK / Terraform | IaC — você não clica no console em produção | Terraform docs + TF AWS Provider |
-| KMS | Criptografia em repouso (S3, RDS, EMR) | AWS docs |
+| IAM (roles, policies, STS, assume-role) | Without IAM nothing is secure | AWS Skill Builder + Cantrill |
+| S3 (partitioning, lifecycle, encryption, ACLs) | It's MinIO in production — the whole data lake lives here | AWS Skill Builder |
+| VPC (subnets, SGs, NAT, VPC endpoints) | Isolation for the analytics platform | Cantrill SAA-C03 |
+| CloudWatch + CloudTrail | Observability and auditing | AWS Skill Builder |
+| CloudFormation / CDK / Terraform | IaC — you don't click around the console in production | Terraform docs + TF AWS Provider |
+| KMS | Encryption at rest (S3, RDS, EMR) | AWS docs |
 
-**Fase B — AWS para Dados (DEA-C01)**
+**Phase B — AWS for Data (DEA-C01)**
 
-| Serviço | Conceito crítico para o projeto |
+| Service | Concept critical for the project |
 |---------|--------------------------------|
-| S3 avançado | S3 Select, S3 Inventory, S3 Intelligent-Tiering |
-| AWS Glue ETL + Data Catalog | Crawlers, partições, schema evolution, DPUs e custo |
+| Advanced S3 | S3 Select, S3 Inventory, S3 Intelligent-Tiering |
+| AWS Glue ETL + Data Catalog | Crawlers, partitions, schema evolution, DPUs and cost |
 | Amazon EMR | Cluster vs Serverless, bootstrap, spot instances, cost |
-| Amazon EMR + Spark | PySpark no EMR — o mesmo código que você já escreve |
-| Amazon MSK | Kafka gerenciado — quando usar vs Kinesis |
+| Amazon EMR + Spark | PySpark on EMR — the same code you already write |
+| Amazon MSK | Managed Kafka — when to use it vs Kinesis |
 | Amazon Kinesis | Data Streams vs Firehose vs Analytics |
-| Amazon Athena v3 | Iceberg nativo, workgroups, data lakehouse sem cluster |
+| Amazon Athena v3 | Native Iceberg, workgroups, clusterless data lakehouse |
 | AWS Lake Formation | Fine-grained access, tag-based policies, LF-Tags |
-| Amazon Redshift | Spectrum (lê S3), RA3, Serverless, integração Glue |
-| AWS DMS | CDC do PostgreSQL — extração incremental |
-| Amazon MWAA | Airflow gerenciado — custo, DAGs em S3, variáveis |
+| Amazon Redshift | Spectrum (reads S3), RA3, Serverless, Glue integration |
+| AWS DMS | CDC from PostgreSQL — incremental extraction |
+| Amazon MWAA | Managed Airflow — cost, DAGs in S3, variables |
 
-**Fase C — Projeto: NexoMart na AWS**
+**Phase C — Project: NexoMart on AWS**
 
-| Etapa | O que fazer | Serviços |
+| Step | What to do | Services |
 |-------|-------------|----------|
-| 1 | Data lake no S3 (landing/bronze/silver/gold) | S3, Glue Catalog, Lake Formation, IAM |
-| 2 | PostgreSQL → RDS Aurora (migração) | RDS, DMS, VPC, Security Groups |
-| 3 | Spark jobs → Glue ou EMR Serverless | Glue, EMR, IAM roles, S3 |
-| 4 | Athena como Trino (queries federadas Iceberg) | Athena, S3, Glue Catalog |
-| 5 | Airflow local → MWAA | MWAA, S3, VPC, IAM |
-| 6 | Kafka local → MSK | MSK, VPC, Lambda, IAM |
-| 7 | Monitoramento | CloudWatch, X-Ray, SNS, Cost Explorer |
-| 8 | IaC completo | Terraform, GitHub Actions, S3 backend |
+| 1 | Data lake on S3 (landing/bronze/silver/gold) | S3, Glue Catalog, Lake Formation, IAM |
+| 2 | PostgreSQL → RDS Aurora (migration) | RDS, DMS, VPC, Security Groups |
+| 3 | Spark jobs → Glue or EMR Serverless | Glue, EMR, IAM roles, S3 |
+| 4 | Athena as Trino (federated Iceberg queries) | Athena, S3, Glue Catalog |
+| 5 | Local Airflow → MWAA | MWAA, S3, VPC, IAM |
+| 6 | Local Kafka → MSK | MSK, VPC, Lambda, IAM |
+| 7 | Monitoring | CloudWatch, X-Ray, SNS, Cost Explorer |
+| 8 | Full IaC | Terraform, GitHub Actions, S3 backend |
 
-**Fase D — AWS para IA (AIF-C01 → MLA-C01)**
+**Phase D — AWS for AI (AIF-C01 → MLA-C01)**
 
-| Serviço / Conceito | O que é | Conexão com o NexoMart |
+| Service / Concept | What it is | Connection to NexoMart |
 |-------------------|---------|------------------------|
-| Amazon Bedrock | Foundation models gerenciados (Claude, Titan, Llama) + RAG nativo | RAG sobre catálogo de produtos — busca semântica sem vector DB próprio |
-| Amazon SageMaker Studio | IDE cloud para ML — notebooks, training, deploy | Treinar modelo de recomendação de produtos |
-| SageMaker Feature Store | Armazenamento de features para ML online/offline | Features derivadas de fact_sales → enriquecer recomendações |
-| SageMaker Pipelines | MLOps — pipelines de treinamento automatizados | Substituir Airflow para workflows de ML |
-| SageMaker Model Registry | Versionamento e aprovação de modelos | Governança de modelos de fraude e recomendação |
-| SageMaker Endpoints | Deploya modelos como API REST (real-time + batch) | Inference endpoint de recomendação para a API FastAPI |
-| Amazon OpenSearch (k-NN) | Vector search gerenciado | Substitui pgvector em produção AWS |
-| Amazon Bedrock Knowledge Bases | RAG gerenciado sobre S3 + vector store | Busca semântica no catálogo NexoMart sem infraestrutura |
-| Amazon Bedrock Agents | LLM com tools — agentes autônomos | Agente de analytics sobre os dados do NexoMart |
-| Amazon Rekognition | Análise de imagem gerenciada | Classificação automática de imagens de produto |
-| Amazon Comprehend | NLP gerenciado — sentimento, entidades | Análise de reviews de produtos |
-| Amazon Kendra | Enterprise search com ML | Alternativa ao OpenSearch para busca por texto |
-| AWS Lambda + API Gateway | Serverless inference e orquestração | Endpoint de inferência leve sem servidor permanente |
-| Amazon Q Developer | AI assistant para código e AWS | Acelerador de desenvolvimento e debugging |
+| Amazon Bedrock | Managed foundation models (Claude, Titan, Llama) + native RAG | RAG over the product catalog — semantic search with no vector DB of your own |
+| Amazon SageMaker Studio | Cloud IDE for ML — notebooks, training, deploy | Train a product recommendation model |
+| SageMaker Feature Store | Feature storage for online/offline ML | Features derived from fact_sales → enrich recommendations |
+| SageMaker Pipelines | MLOps — automated training pipelines | Replace Airflow for ML workflows |
+| SageMaker Model Registry | Model versioning and approval | Governance for fraud and recommendation models |
+| SageMaker Endpoints | Deploy models as a REST API (real-time + batch) | Recommendation inference endpoint for the FastAPI |
+| Amazon OpenSearch (k-NN) | Managed vector search | Replaces pgvector in AWS production |
+| Amazon Bedrock Knowledge Bases | Managed RAG over S3 + vector store | Semantic search over the NexoMart catalog with no infrastructure |
+| Amazon Bedrock Agents | LLM with tools — autonomous agents | Analytics agent over NexoMart's data |
+| Amazon Rekognition | Managed image analysis | Automatic classification of product images |
+| Amazon Comprehend | Managed NLP — sentiment, entities | Product review analysis |
+| Amazon Kendra | Enterprise search with ML | Alternative to OpenSearch for text search |
+| AWS Lambda + API Gateway | Serverless inference and orchestration | Lightweight inference endpoint with no standing server |
+| Amazon Q Developer | AI assistant for code and AWS | Development and debugging accelerator |
 
-### Recursos AWS
+### AWS Resources
 
-| Recurso | Tipo | Custo | Prioridade |
+| Resource | Type | Cost | Priority |
 |---------|------|-------|-----------|
-| AWS Skill Builder — Data Engineer Learning Plan | Plataforma oficial | Gratuito | Alta |
-| AWS Skill Builder — AI/ML Learning Plan | Plataforma oficial | Gratuito | Alta |
-| Adrian Cantrill SAA-C03 (cantrill.io) | Curso em vídeo | ~$40 | Alta — melhor base técnica |
-| Stephane Maarek DEA-C01 (Udemy) | Curso em vídeo | ~$15 promoção | Alta — foco dados |
-| Stephane Maarek AIF-C01 (Udemy) | Curso em vídeo | ~$15 promoção | Alta — IA foundational |
-| AWS Certified Machine Learning Engineer Study Guide | Livro (Sybex/O'Reilly) | Pago | Média — MLA-C01 |
-| AWS Well-Architected Framework + Machine Learning Lens | Whitepaper | Gratuito | Média |
-| Terraform AWS Provider + registry | Documentação | Gratuito | Alta — IaC obrigatório |
-| AWS Free Tier + AWS Sandbox | Laboratório | Gratuito | Alta — pratique tudo |
-| Amazon Bedrock Workshop (workshop.aws) | Lab oficial | Gratuito | Alta — hands-on Bedrock |
-| SageMaker Immersion Day | Lab oficial | Gratuito | Alta — hands-on SageMaker |
+| AWS Skill Builder — Data Engineer Learning Plan | Official platform | Free | High |
+| AWS Skill Builder — AI/ML Learning Plan | Official platform | Free | High |
+| Adrian Cantrill SAA-C03 (cantrill.io) | Video course | ~$40 | High — best technical base |
+| Stephane Maarek DEA-C01 (Udemy) | Video course | ~$15 on sale | High — data focus |
+| Stephane Maarek AIF-C01 (Udemy) | Video course | ~$15 on sale | High — foundational AI |
+| AWS Certified Machine Learning Engineer Study Guide | Book (Sybex/O'Reilly) | Paid | Medium — MLA-C01 |
+| AWS Well-Architected Framework + Machine Learning Lens | Whitepaper | Free | Medium |
+| Terraform AWS Provider + registry | Documentation | Free | High — IaC mandatory |
+| AWS Free Tier + AWS Sandbox | Lab | Free | High — practice everything |
+| Amazon Bedrock Workshop (workshop.aws) | Official lab | Free | High — hands-on Bedrock |
+| SageMaker Immersion Day | Official lab | Free | High — hands-on SageMaker |
 
-### Certificações (em ordem)
+### Certifications (in order)
 
 ```
 1. AWS Solutions Architect – Associate (SAA-C03)
-   → Fundação sólida — IAM, VPC, S3, EC2, RDS, arquitetura
-   → Muito cobrado em entrevistas técnicas e processos seletivos
-   → Recurso: Cantrill SAA-C03
+   → Solid foundation — IAM, VPC, S3, EC2, RDS, architecture
+   → Heavily asked about in technical interviews and hiring processes
+   → Resource: Cantrill SAA-C03
 
 2. AWS Certified Data Engineer – Associate (DEA-C01)
    → Glue, EMR, Athena, Kinesis, MSK, Lake Formation, Redshift, DMS
-   → Específico para a carreira — todos os serviços de dados
-   → Recurso: Maarek DEA-C01 (Udemy)
+   → Career-specific — every data service
+   → Resource: Maarek DEA-C01 (Udemy)
 
 3. AWS Certified AI Practitioner (AIF-C01)
-   → Conceitos de IA/ML, serviços AWS AI, Bedrock, SageMaker overview
-   → Foundational — não exige matemática de ML, foco em serviços e casos de uso
-   → Recurso: Maarek AIF-C01 + AWS Skill Builder AI/ML path
+   → AI/ML concepts, AWS AI services, Bedrock, SageMaker overview
+   → Foundational — no ML math required, focused on services and use cases
+   → Resource: Maarek AIF-C01 + AWS Skill Builder AI/ML path
 
 4. AWS Certified Machine Learning Engineer – Associate (MLA-C01)
-   → SageMaker profundo (Studio, Pipelines, Feature Store, Endpoints)
-   → MLOps, deploy, monitoramento de modelos em produção
-   → Recurso: AWS Skill Builder ML Engineer path + SageMaker docs
+   → SageMaker in depth (Studio, Pipelines, Feature Store, Endpoints)
+   → MLOps, deployment, monitoring models in production
+   → Resource: AWS Skill Builder ML Engineer path + SageMaker docs
 ```
 
-**Conexão IA → NexoMart (projeto real para cada cert)**
+**AI → NexoMart connection (real project for each cert)**
 
-| Cert | Projeto prático no NexoMart |
+| Cert | Practical NexoMart project |
 |------|-----------------------------|
-| AIF-C01 | Implementar RAG sobre catálogo com Bedrock Knowledge Bases (S3 → Bedrock → API) |
-| MLA-C01 | Treinar modelo de recomendação no SageMaker, deploya como endpoint, consumir da FastAPI |
+| AIF-C01 | Implement RAG over the catalog with Bedrock Knowledge Bases (S3 → Bedrock → API) |
+| MLA-C01 | Train a recommendation model in SageMaker, deploy it as an endpoint, consume it from FastAPI |
 
 ---
 
-## Pilar 2 — Databricks / Spark
+## Pillar 2 — Databricks / Spark
 
-**Meta profissional**: dominar PySpark e o ecossistema Databricks em nível profissional  
-**Meta de certificação**: Fundamentals → Spark Developer → Data Engineer Associate → Data Engineer Professional  
-**Projeto prático**: reproduzir e otimizar o pipeline NexoMart completo no Databricks Community Edition
+**Professional goal**: master PySpark and the Databricks ecosystem at a professional level
+**Certification goal**: Fundamentals → Spark Developer → Data Engineer Associate → Data Engineer Professional
+**Practical project**: reproduce and optimize the full NexoMart pipeline on Databricks Community Edition
 
-### Por que Databricks?
+### Why Databricks?
 
-- Empresa por trás do Delta Lake e co-criadora do Apache Spark
-- Unity Catalog que você usa no projeto = versão OSS do Unity Catalog do Databricks
-- Delta Lake que você removeu do projeto = nativo no Databricks (Iceberg também)
-- Databricks é o ambiente onde 80% das empresas que usam Spark operam em produção
-- Certificação Databricks é muito valorizada junto com AWS no mercado
+- The company behind Delta Lake and a co-creator of Apache Spark
+- The Unity Catalog you use in the project is the OSS version of Databricks' Unity Catalog
+- The Delta Lake you removed from the project is native to Databricks (Iceberg too)
+- Databricks is the environment where 80% of companies using Spark run in production
+- The Databricks certification is highly valued alongside AWS in the job market
 
-### Conteúdo por Subtópico
+### Content by Subtopic
 
-**Spark Core (você já sabe — aprofundar)**
+**Spark Core (you already know this — go deeper)**
 
-| Conceito | O que você já tem | O que aprofundar |
+| Concept | What you already have | What to go deeper on |
 |----------|------------------|------------------|
-| DataFrames e transformações | Sim — nos jobs do projeto | Catalyst optimizer, physical plans, EXPLAIN |
-| Particionamento | Parcial | repartition vs coalesce, partitionBy na escrita |
-| Spark SQL | Sim — nos silver/gold scripts | Broadcast joins, AQE (Adaptive Query Execution) |
-| Structured Streaming | Não | Triggers, watermark, stateful operations |
-| PySpark avançado | Não | UDFs, pandas UDFs, Arrow, mapInPandas |
+| DataFrames and transformations | Yes — in the project's jobs | Catalyst optimizer, physical plans, EXPLAIN |
+| Partitioning | Partial | repartition vs coalesce, partitionBy on write |
+| Spark SQL | Yes — in the silver/gold scripts | Broadcast joins, AQE (Adaptive Query Execution) |
+| Structured Streaming | No | Triggers, watermark, stateful operations |
+| Advanced PySpark | No | UDFs, pandas UDFs, Arrow, mapInPandas |
 
-**Delta Lake / Iceberg (você já usa Iceberg)**
+**Delta Lake / Iceberg (you already use Iceberg)**
 
-| Conceito | Foco |
+| Concept | Focus |
 |----------|------|
 | Delta Lake internals | Transaction log (_delta_log), checkpoints, versioning |
-| Delta Lake vs Iceberg | Trade-offs reais — você tomou essa decisão, agora entende a teoria |
-| MERGE INTO (upserts) | Padrão SCD2 no Delta/Iceberg — crítico para dimensões |
-| Z-Ordering e file compaction | Performance em leitura analítica |
-| Change Data Feed | CDC nativo do Delta — alimenta streaming |
-| Iceberg v2 (row-level deletes) | O que você usa agora — entender os format-version |
+| Delta Lake vs Iceberg | Real trade-offs — you already made that call, now understand the theory |
+| MERGE INTO (upserts) | SCD2 pattern in Delta/Iceberg — critical for dimensions |
+| Z-Ordering and file compaction | Analytical read performance |
+| Change Data Feed | Delta's native CDC — feeds streaming |
+| Iceberg v2 (row-level deletes) | What you use now — understand the format-versions |
 
 **Databricks Platform (Associate → Professional)**
 
-| Componente | Nível | O que é | Aparece em |
+| Component | Level | What it is | Shows up in |
 |------------|-------|---------|------------|
-| Databricks Lakehouse | Associate | Delta Lake + Unity Catalog + Spark gerenciado | Todo o pipeline |
-| Unity Catalog (Databricks) | Associate / Professional | Governança + lineage + fine-grained access | Você usa a versão OSS |
-| Delta Live Tables (DLT) | Associate / Professional | Pipelines declarativas com qualidade embutida | Substitui Airflow + Spark jobs |
-| Auto Loader | Associate | Ingestão incremental do S3/ADLS com schema evolution | Substitui landing jobs |
-| Databricks SQL | Associate | SQL warehouse sobre Delta/Iceberg | Substitui Trino local |
-| MLflow | Associate / Professional | Tracking, Model Registry e serving | Camada de AI do NexoMart |
-| Databricks Workflows | Professional | Orquestração multi-task nativa | Substitui Airflow DAGs |
-| Liquid Clustering | Professional | Particionamento adaptativo (substitui Z-Order manual) | Otimização Gold layer |
-| Delta Lake avançado | Professional | Shallow/deep clone, VACUUM, time travel, CDF | Governança e auditoria |
-| Structured Streaming avançado | Professional | Stateful operations, late data, idempotency, triggers | Kafka → Iceberg streaming |
-| Databricks Asset Bundles (DAB) | Professional | IaC para Databricks — deployar notebooks e jobs | CI/CD do pipeline |
-| Photon Engine | Professional | Runtime acelerado (3–10x vs Spark padrão) | Performance Gold layer |
+| Databricks Lakehouse | Associate | Delta Lake + Unity Catalog + managed Spark | The whole pipeline |
+| Unity Catalog (Databricks) | Associate / Professional | Governance + lineage + fine-grained access | You use the OSS version |
+| Delta Live Tables (DLT) | Associate / Professional | Declarative pipelines with built-in quality | Replaces Airflow + Spark jobs |
+| Auto Loader | Associate | Incremental ingestion from S3/ADLS with schema evolution | Replaces landing jobs |
+| Databricks SQL | Associate | SQL warehouse over Delta/Iceberg | Replaces local Trino |
+| MLflow | Associate / Professional | Tracking, Model Registry, and serving | NexoMart's AI layer |
+| Databricks Workflows | Professional | Native multi-task orchestration | Replaces Airflow DAGs |
+| Liquid Clustering | Professional | Adaptive partitioning (replaces manual Z-Order) | Gold layer optimization |
+| Advanced Delta Lake | Professional | Shallow/deep clone, VACUUM, time travel, CDF | Governance and auditing |
+| Advanced Structured Streaming | Professional | Stateful operations, late data, idempotency, triggers | Kafka → Iceberg streaming |
+| Databricks Asset Bundles (DAB) | Professional | IaC for Databricks — deploying notebooks and jobs | Pipeline CI/CD |
+| Photon Engine | Professional | Accelerated runtime (3–10x vs standard Spark) | Gold layer performance |
 
-**Spark Core Profundo (Spark Developer cert)**
+**Deep Spark Core (Spark Developer cert)**
 
-| Conceito | O que dominar |
+| Concept | What to master |
 |----------|--------------|
-| Arquitetura interna | Driver vs Executor, stages vs tasks, DAG scheduler, shuffle write/read |
-| Catalyst Optimizer | Logical plan → Physical plan → CodeGen — ler o EXPLAIN EXTENDED |
-| Adaptive Query Execution (AQE) | Como o Spark reotimiza em runtime — skew join, coalesce pós-shuffle |
-| Joins | Broadcast (BHJ), Sort-Merge (SMJ), Shuffle Hash — quando usar cada um |
-| Particionamento | repartition vs coalesce, partitionBy na escrita, skew handling |
+| Internal architecture | Driver vs Executor, stages vs tasks, DAG scheduler, shuffle write/read |
+| Catalyst Optimizer | Logical plan → Physical plan → CodeGen — reading EXPLAIN EXTENDED |
+| Adaptive Query Execution (AQE) | How Spark re-optimizes at runtime — skew join, post-shuffle coalesce |
+| Joins | Broadcast (BHJ), Sort-Merge (SMJ), Shuffle Hash — when to use each |
+| Partitioning | repartition vs coalesce, partitionBy on write, skew handling |
 | Caching | cache() vs persist(), storage levels (MEMORY_AND_DISK, OFF_HEAP) |
-| UDFs | Por que UDF é lento, pandas UDF com Arrow, mapInPandas sem overhead |
-| Broadcast variables + Accumulators | Compartilhar dados read-only e acumular métricas |
-| Spark UI | Ler DAG, identificar gargalos por stage, spill to disk, GC time |
-| RDD API | createRDD, map/filter/reduce — base do DataFrame API |
+| UDFs | Why UDFs are slow, pandas UDF with Arrow, mapInPandas with no overhead |
+| Broadcast variables + Accumulators | Sharing read-only data and accumulating metrics |
+| Spark UI | Reading the DAG, spotting bottlenecks per stage, spill to disk, GC time |
+| RDD API | createRDD, map/filter/reduce — the base of the DataFrame API |
 | Streaming (basics) | readStream/writeStream, triggers, checkpointing |
 
-### Recursos Databricks
+### Databricks Resources
 
-| Recurso | Tipo | Custo | Prioridade |
+| Resource | Type | Cost | Priority |
 |---------|------|-------|-----------|
-| Databricks Academy (academy.databricks.com) | Plataforma oficial | Gratuito | Alta |
-| Databricks Community Edition | Ambiente prático | Gratuito | Alta — laboratório |
-| Databricks Fundamentals Accreditation | Certificado gratuito | Gratuito | Alta — faz primeiro |
-| "Delta Lake: The Definitive Guide" (O'Reilly) | Livro | Pago | Alta — Associate + Professional |
-| "Spark: The Definitive Guide" (Chambers & Zaharia) | Livro | Pago | Alta — Spark Developer |
-| Databricks docs — DLT + Unity Catalog + DAB | Documentação | Gratuito | Alta |
-| Databricks Learning — Data Engineer Professional prep | Plataforma oficial | Pago (assinatura) | Alta — Professional |
-| YouTube: Advancing Analytics (Simon Whiteley) | Canal | Gratuito | Média — casos reais |
-| Data + AI Summit sessions (YouTube) | Vídeos | Gratuito | Média — cases avançados |
+| Databricks Academy (academy.databricks.com) | Official platform | Free | High |
+| Databricks Community Edition | Practice environment | Free | High — lab |
+| Databricks Fundamentals Accreditation | Free certificate | Free | High — do this first |
+| "Delta Lake: The Definitive Guide" (O'Reilly) | Book | Paid | High — Associate + Professional |
+| "Spark: The Definitive Guide" (Chambers & Zaharia) | Book | Paid | High — Spark Developer |
+| Databricks docs — DLT + Unity Catalog + DAB | Documentation | Free | High |
+| Databricks Learning — Data Engineer Professional prep | Official platform | Paid (subscription) | High — Professional |
+| YouTube: Advancing Analytics (Simon Whiteley) | Channel | Free | Medium — real-world cases |
+| Data + AI Summit sessions (YouTube) | Videos | Free | Medium — advanced case studies |
 
-### Certificações Databricks (em ordem)
+### Databricks Certifications (in order)
 
 ```
 1. Databricks Fundamentals Accreditation
-   → Gratuito, online, ~2h de estudo
-   → Faz primeiro — valida o vocabulário de toda a trilha
+   → Free, online, ~2h of study
+   → Do this first — validates the vocabulary for the whole track
 
 2. Databricks Certified Associate Developer for Apache Spark
-   → Spark Core: DataFrames, SQL, joins, particionamento, caching, Spark UI
-   → Prova com código Python ao vivo (tempo limitado)
-   → 4–6 semanas — estuda com Spark: The Definitive Guide + exercícios práticos
+   → Spark Core: DataFrames, SQL, joins, partitioning, caching, Spark UI
+   → Exam with live Python code (time-limited)
+   → 4–6 weeks — study with Spark: The Definitive Guide + hands-on exercises
 
 3. Databricks Certified Data Engineer Associate
-   → Delta Lake + Auto Loader + DLT básico + Unity Catalog + MLflow intro
-   → 4–6 semanas após Spark Developer (aproveita o momentum)
+   → Delta Lake + Auto Loader + basic DLT + Unity Catalog + MLflow intro
+   → 4–6 weeks after Spark Developer (rides the momentum)
 
 4. Databricks Certified Data Engineer Professional
-   → DLT avançado + Workflows + Liquid Clustering + Streaming stateful + DAB + MLflow avançado
-   → A mais difícil da trilha — exige projeto real funcionando
-   → 8–12 semanas — estude com os labs do Databricks Academy + projeto NexoMart
+   → Advanced DLT + Workflows + Liquid Clustering + stateful Streaming + DAB + advanced MLflow
+   → The hardest in the track — requires a real, working project
+   → 8–12 weeks — study with the Databricks Academy labs + the NexoMart project
 ```
 
-**Diferença Associate → Professional em um parágrafo**
+**Associate → Professional difference in one paragraph**
 
-O Associate valida que você conhece a plataforma e consegue construir pipelines funcionais. O Professional valida que você consegue otimizar, operar e governar pipelines em produção — custo, performance, idempotência, CI/CD e recovery. A pergunta do Professional não é "funciona?", é "funciona em escala, com falha parcial, com rollback, com custo controlado?"
+The Associate validates that you know the platform and can build working pipelines. The Professional validates that you can optimize, operate, and govern pipelines in production — cost, performance, idempotency, CI/CD, and recovery. The Professional's question isn't "does it work?", it's "does it work at scale, under partial failure, with rollback, with cost under control?"
 
 ---
 
-## Pilar 3 — Python + SQL
+## Pillar 3 — Python + SQL
 
-**Meta profissional**: escrever código Python de plataforma de dados — fluente, tipado, testado  
-**Meta SQL**: dominar SQL analítico — window functions, CTEs, otimização, e dialetos Spark/Trino
+**Professional goal**: write data-platform Python code — fluent, typed, tested
+**SQL goal**: master analytical SQL — window functions, CTEs, optimization, and the Spark/Trino dialects
 
-### Python — Subtópicos
+### Python — Subtopics
 
-**Python de Plataforma (você já tem base — aprofundar)**
+**Platform Python (you already have a base — go deeper)**
 
-| Subtópico | Foco | Onde aparece no projeto |
+| Subtopic | Focus | Where it shows up in the project |
 |-----------|------|------------------------|
 | Async + asyncio | Coroutines, event loop, gather, async generators | FastAPI + asyncpg + seeders |
-| Type hints + Pydantic v2 | Modelos tipados, validators, discriminated unions | Schemas da API |
-| Generators e itertools | yield, send, lazy evaluation, pipelines | Seeders em bulk |
-| Protocolos e ABCs | Duck typing formal, interfaces implícitas | Repositories |
-| Dataclasses vs Pydantic | Quando usar cada um em data engineering | Configs e schemas |
-| pytest + fixtures | Testes de integração na API | dbapi/api/tests/ |
-| uv + ruff | Gerenciamento de ambiente e linting moderno | Já usa no projeto |
-| Logging estruturado | structlog vs logging — JSON logs para CloudWatch | Todos os jobs Spark |
+| Type hints + Pydantic v2 | Typed models, validators, discriminated unions | API schemas |
+| Generators and itertools | yield, send, lazy evaluation, pipelines | Bulk seeders |
+| Protocols and ABCs | Formal duck typing, implicit interfaces | Repositories |
+| Dataclasses vs Pydantic | When to use each in data engineering | Configs and schemas |
+| pytest + fixtures | Integration tests in the API | dbapi/api/tests/ |
+| uv + ruff | Modern environment management and linting | Already used in the project |
+| Structured logging | structlog vs logging — JSON logs for CloudWatch | Every Spark job |
 
-**OOP Fundamentos: Lutz → Fluent Python (leitura pareada)**
+**OOP Fundamentals: Lutz → Fluent Python (paired reading)**
 
-Mesma lógica do Clube T3 (Evans → Khononov): livro de fundamentos primeiro, tratamento
-idiomático/avançado depois. Ler em blocos temáticos, não em paralelo capítulo a capítulo.
+Same logic as Book Club T3 (Evans → Khononov): fundamentals book first, idiomatic/advanced
+treatment second. Read in thematic blocks, not chapter-by-chapter in parallel.
 
-| Bloco | Learning Python — Lutz (fundamentos) | Fluent Python — Ramalho (idiomático) |
+| Block | Learning Python — Lutz (fundamentals) | Fluent Python — Ramalho (idiomatic) |
 |-------|--------------------------------------|----------------------------------------|
-| 1. OOP básico | Cap. 26–28 — OOP: The Big Picture, Class Coding Basics/Details | Cap. 11 — A Pythonic Object |
-| 2. Sobrecarga de operadores | Cap. 29 — Operator Overloading | Cap. 12 + 16 — Special Methods for Sequences, Operator Overloading |
-| 3. Design com classes | Cap. 30 — Designing with Classes (herança, composição) | Cap. 14 — Inheritance: For Better or Worse |
-| 4. Tópicos avançados | Cap. 31 — Advanced Class Topics (slots, properties, descriptors, metaclasses) | Cap. 13 — Interfaces, Protocols, and ABCs |
+| 1. Basic OOP | Ch. 26–28 — OOP: The Big Picture, Class Coding Basics/Details | Ch. 11 — A Pythonic Object |
+| 2. Operator overloading | Ch. 29 — Operator Overloading | Ch. 12 + 16 — Special Methods for Sequences, Operator Overloading |
+| 3. Design with classes | Ch. 30 — Designing with Classes (inheritance, composition) | Ch. 14 — Inheritance: For Better or Worse |
+| 4. Advanced topics | Ch. 31 — Advanced Class Topics (slots, properties, descriptors, metaclasses) | Ch. 13 — Interfaces, Protocols, and ABCs |
 
-> Confirme os números de capítulo contra o sumário da sua edição do Lutz (variam um
-> pouco entre a 4ª e a 5ª). O Bloco 4 fecha direto no Fluent Python cap. 13, que já
-> está mapeado abaixo nos Recursos e no Clube T6.
+> Confirm the chapter numbers against your edition of Lutz's table of contents (they vary
+> slightly between the 4th and 5th editions). Block 4 leads directly into Fluent Python
+> ch. 13, which is already mapped below under Resources and in Book Club T6.
 
-**PySpark (Python + Spark — cobre os dois pilares)**
+**PySpark (Python + Spark — covers both pillars)**
 
-| Subtópico | Foco |
+| Subtopic | Focus |
 |-----------|------|
-| Schema inference vs declarado | Evitar surpresas em produção |
-| pandas UDFs com Arrow | Performance em UDFs complexas |
-| Column expressions vs lambda | Por que `.withColumn(col(...))` é melhor que UDF |
-| Broadcast variables + accumulators | Otimização de joins grandes |
-| SparkContext vs SparkSession | O que está por baixo |
+| Schema inference vs declared | Avoiding surprises in production |
+| pandas UDFs with Arrow | Performance for complex UDFs |
+| Column expressions vs lambda | Why `.withColumn(col(...))` beats a UDF |
+| Broadcast variables + accumulators | Optimizing large joins |
+| SparkContext vs SparkSession | What's underneath |
 
-### SQL — Subtópicos
+### SQL — Subtopics
 
-**SQL Analítico (fundação)**
+**Analytical SQL (foundation)**
 
-| Conceito | Onde pratica | Nível atual |
+| Concept | Where you practice it | Current level |
 |----------|-------------|-------------|
-| Window Functions (ROW_NUMBER, LAG, LEAD, NTILE, SUM OVER) | Trino + Spark SQL + PostgreSQL | Parcial — aprofundar |
-| CTEs e CTEs recursivas | Hierarquia de categorias, árvores | Parcial |
-| Materialized Views | PostgreSQL + Redshift | Básico |
-| Query optimization (EXPLAIN, planos de execução) | PostgreSQL EXPLAIN ANALYZE | Parcial |
-| Particionamento e Partition Pruning | PostgreSQL + Spark | Parcial |
-| Índices avançados (GIN, BRIN, Expression) | PostgreSQL | Conhece — aprofundar |
+| Window Functions (ROW_NUMBER, LAG, LEAD, NTILE, SUM OVER) | Trino + Spark SQL + PostgreSQL | Partial — go deeper |
+| CTEs and recursive CTEs | Category hierarchy, trees | Partial |
+| Materialized Views | PostgreSQL + Redshift | Basic |
+| Query optimization (EXPLAIN, execution plans) | PostgreSQL EXPLAIN ANALYZE | Partial |
+| Partitioning and Partition Pruning | PostgreSQL + Spark | Partial |
+| Advanced indexes (GIN, BRIN, Expression) | PostgreSQL | Familiar — go deeper |
 
-**SQL de Plataforma (Delta/Iceberg/Spark SQL)**
+**Platform SQL (Delta/Iceberg/Spark SQL)**
 
-| Conceito | Foco |
+| Concept | Focus |
 |----------|------|
-| MERGE INTO (upsert) | Padrão crítico para SCDs e deduplicação |
-| Time Travel (AT VERSION / AT TIMESTAMP) | Delta e Iceberg — debug e auditoria |
-| COPY INTO / Auto Loader SQL | Ingestão incremental no Databricks |
-| Spark SQL dialeto vs ANSI SQL | O que é portável, o que não é |
-| dbt (data build tool) | SQL modularizado + testes + docs + lineage |
+| MERGE INTO (upsert) | Critical pattern for SCDs and deduplication |
+| Time Travel (AT VERSION / AT TIMESTAMP) | Delta and Iceberg — debugging and auditing |
+| COPY INTO / Auto Loader SQL | Incremental ingestion on Databricks |
+| Spark SQL dialect vs ANSI SQL | What's portable, what isn't |
+| dbt (data build tool) | Modularized SQL + tests + docs + lineage |
 
-**dbt — vale estudar separado**
+**dbt — worth studying separately**
 
-| Aspecto | Por que importa |
+| Aspect | Why it matters |
 |---------|-----------------|
-| dbt Core + dbt Cloud | Transforma Silver → Gold com SQL versionado |
-| Models, Sources, Seeds | Organização do projeto de transformação |
-| Tests (not_null, unique, relationships) | Qualidade de dados automatizada |
-| Lineage graph | Visualiza o fluxo de dados de ponta a ponta |
-| dbt + Spark (dbt-spark) | Corre sobre Databricks ou EMR |
-| dbt + Trino (dbt-trino) | Corre sobre Athena ou Trino local |
+| dbt Core + dbt Cloud | Transforms Silver → Gold with versioned SQL |
+| Models, Sources, Seeds | Transformation project organization |
+| Tests (not_null, unique, relationships) | Automated data quality |
+| Lineage graph | Visualizes the end-to-end data flow |
+| dbt + Spark (dbt-spark) | Runs on Databricks or EMR |
+| dbt + Trino (dbt-trino) | Runs on Athena or local Trino |
 
-### Recursos Python + SQL
+### Python + SQL Resources
 
-| Recurso | Tipo | Custo | Prioridade |
+| Resource | Type | Cost | Priority |
 |---------|------|-------|-----------|
-| Fluent Python — Ramalho (caps 13, 17, 21) | Livro | Pago | Alta |
-| Learning Python — Mark Lutz (Parte VI, caps 26–31) | Livro | Pago | Alta — fundamentos OOP antes do Fluent Python |
-| Python Docs — asyncio | Documentação | Gratuito | Alta |
-| Mode Analytics SQL Tutorial | Plataforma online | Gratuito | Alta — SQL analítico |
-| dbt Learn (courses.getdbt.com) | Plataforma oficial | Gratuito | Alta |
-| "Spark: The Definitive Guide" | Livro | Pago | Alta — PySpark profundo |
-| SQLZoo + StrataScratch | Prática SQL | Gratuito | Média — exercícios |
-| pgexercises.com | Prática PostgreSQL | Gratuito | Média |
+| Fluent Python — Ramalho (chs 13, 17, 21) | Book | Paid | High |
+| Learning Python — Mark Lutz (Part VI, chs 26–31) | Book | Paid | High — OOP fundamentals before Fluent Python |
+| Python Docs — asyncio | Documentation | Free | High |
+| Mode Analytics SQL Tutorial | Online platform | Free | High — analytical SQL |
+| dbt Learn (courses.getdbt.com) | Official platform | Free | High |
+| "Spark: The Definitive Guide" | Book | Paid | High — deep PySpark |
+| SQLZoo + StrataScratch | SQL practice | Free | Medium — exercises |
+| pgexercises.com | PostgreSQL practice | Free | Medium |
 
 ---
 
-## Pilar 4 — Leituras
+## Pillar 4 — Reading
 
-Os livros não são um pilar isolado — eles fundamentam e enriquecem os outros três. A tabela abaixo mostra **qual pilar cada livro alimenta**.
+The books aren't a standalone pillar — they ground and enrich the other three. The table below shows **which pillar each book feeds**.
 
-| Livro | Pilar principal | Pilar secundário | Canal |
+| Book | Main pillar | Secondary pillar | Channel |
 |-------|----------------|-----------------|-------|
-| Kimball — Data Warehouse Toolkit | Python + SQL (modelagem) | Databricks/Spark (Gold Layer) | Clube T0 |
-| Fundamentos de Engenharia de Dados | Databricks/Spark (ciclo de vida) | AWS (mapa de serviços) | Clube T1 |
-| DDIA — Kleppmann | AWS (distribuídos) | Databricks/Spark (storage) | Clube T2 |
-| DDD Evans | Python + SQL (domínios) | — | base T3.1–T3.4 |
-| Learning DDD — Khononov | Python + SQL (Outbox, CQRS) | AWS (EventBridge, SQS) | Clube T3.1–T3.4 |
-| Hard Parts — Ford & Richards | AWS (decomposição) | Databricks/Spark (CQRS) | Clube T4 |
-| GoF — Design Patterns | Python + SQL (padrões de código) | — | Clube T5 |
-| Fluent Python — Ramalho | Python + SQL (Python profundo) | Databricks/Spark (PySpark) | Clube T6 |
+| Kimball — Data Warehouse Toolkit | Python + SQL (modeling) | Databricks/Spark (Gold Layer) | Book Club T0 |
+| Fundamentals of Data Engineering | Databricks/Spark (lifecycle) | AWS (service map) | Book Club T1 |
+| DDIA — Kleppmann | AWS (distributed systems) | Databricks/Spark (storage) | Book Club T2 |
+| DDD Evans | Python + SQL (domains) | — | base T3.1–T3.4 |
+| Learning DDD — Khononov | Python + SQL (Outbox, CQRS) | AWS (EventBridge, SQS) | Book Club T3.1–T3.4 |
+| Hard Parts — Ford & Richards | AWS (decomposition) | Databricks/Spark (CQRS) | Book Club T4 |
+| GoF — Design Patterns | Python + SQL (code patterns) | — | Book Club T5 |
+| Fluent Python — Ramalho | Python + SQL (deep Python) | Databricks/Spark (PySpark) | Book Club T6 |
 
-### Sequência de Leitura (por ordem de fundação)
+### Reading Sequence (in order of foundation)
 
 ```
-BLOCO 1 — Base de Dados e Engenharia
-  1. Kimball (Caps 1–4)              → star schema do NexoMart
-  2. Fundamentos DE (caps selecionados)  → vocabulário do ciclo de vida
+BLOCK 1 — Data and Engineering Foundations
+  1. Kimball (Ch 1–4)              → NexoMart's star schema
+  2. Fundamentals of DE (selected chapters)  → lifecycle vocabulary
 
-BLOCO 2 — Sistemas Distribuídos
-  3. DDIA (Caps 3–4 + 11)            → por dentro do Spark e Kafka
+BLOCK 2 — Distributed Systems
+  3. DDIA (Ch 3–4 + 11)            → inside Spark and Kafka
 
-BLOCO 3 — Design de Domínio
-  4. DDD Evans (Pts I + II + IV)     → teoria — leia devagar
-  5. Khononov (Caps 1–6 + 10)        → prática — Outbox, eventos
-     → Clube T3 expandido em 4 sub-episódios (T3.1–T3.4), pareando
-       Evans + Khononov por tema em vez de um único episódio.
-       Detalhamento completo: ESTRATEGIA_CONSOLIDADA_CONTEUDO.md
+BLOCK 3 — Domain Design
+  4. DDD Evans (Pts I + II + IV)     → theory — read it slowly
+  5. Khononov (Ch 1–6 + 10)        → practice — Outbox, events
+     → Book Club T3 expanded into 4 sub-episodes (T3.1–T3.4), pairing
+       Evans + Khononov by theme instead of a single episode.
+       Full breakdown: CONTENT_STRATEGY.md
 
-BLOCO 4 — Arquitetura e Padrões
-  6. Hard Parts (Caps 1–4 + 6 + 9)   → CQRS, trade-offs
-  7. GoF (intro + 4 padrões)         → nomear o que você já faz
+BLOCK 4 — Architecture and Patterns
+  6. Hard Parts (Ch 1–4 + 6 + 9)   → CQRS, trade-offs
+  7. GoF (intro + 4 patterns)         → name what you're already doing
 
-BLOCO 5 — Python Profundo
-  8. Fluent Python (Caps 13 + 17 + 21)  → async, generators, protocols
+BLOCK 5 — Deep Python
+  8. Fluent Python (Ch 13 + 17 + 21)  → async, generators, protocols
 ```
 
-### Capítulos por Livro (o que ler de cada um)
+### Chapters by Book (what to read from each)
 
 #### Kimball — The Data Warehouse Toolkit
-| Cap | Tema | Páginas |
+| Ch | Topic | Pages |
 |-----|------|---------|
 | 1 | Dimensional Modeling Primer | ~35p |
-| 2 | Retail Sales (análogo ao NexoMart) | ~35p |
+| 2 | Retail Sales (analogous to NexoMart) | ~35p |
 | 3 | Inventory | ~25p |
 | 4 | Procurement | ~25p |
 
-#### Fundamentos de Engenharia de Dados (Reis & Housley)
-| Cap | Tema | Páginas |
+#### Fundamentals of Data Engineering (Reis & Housley)
+| Ch | Topic | Pages |
 |-----|------|---------|
-| 1 + 2 | Ciclo de vida + Undercurrents | ~60p |
-| 3 | Projetando boas arquiteturas | ~40p |
-| 8 | Queries, Modelagem e Transformações | ~50p |
-| 9 | Ingestão | ~40p |
+| 1 + 2 | Lifecycle + Undercurrents | ~60p |
+| 3 | Designing good architectures | ~40p |
+| 8 | Queries, Modeling, and Transformations | ~50p |
+| 9 | Ingestion | ~40p |
 
 #### DDIA — Kleppmann
-| Cap | Tema | Páginas |
+| Ch | Topic | Pages |
 |-----|------|---------|
 | 3 | Storage and Retrieval (LSM-Tree, B-Tree, columnar) | ~35p |
 | 4 | Encoding and Evolution (schema evolution) | ~25p |
-| 11 | Stream Processing — o mais importante para a stack | ~45p |
+| 11 | Stream Processing — the most important for this stack | ~45p |
 
 #### DDD Evans
-| Parte/Cap | Tema | Páginas |
+| Part/Ch | Topic | Pages |
 |-----------|------|---------|
-| Parte I (caps 1–3) | Ubiquitous Language + modelo para trabalhar | ~60p |
-| Parte II (caps 5–7) | Entities, Value Objects, Aggregates, Repositories | ~90p |
-| Parte IV (caps 14–15) | Strategic Design — Context Map, Bounded Contexts | ~70p |
+| Part I (ch 1–3) | Ubiquitous Language + a model to work with | ~60p |
+| Part II (ch 5–7) | Entities, Value Objects, Aggregates, Repositories | ~90p |
+| Part IV (ch 14–15) | Strategic Design — Context Map, Bounded Contexts | ~70p |
 
 #### Learning DDD — Khononov
-| Cap | Tema | Páginas |
+| Ch | Topic | Pages |
 |-----|------|---------|
 | 1–2 | Analyzing Business Domains + Domain Knowledge | ~40p |
 | 3–4 | Managing Complexity + Bounded Contexts | ~40p |
@@ -477,23 +477,23 @@ BLOCO 5 — Python Profundo
 | 10 | Design Patterns (Outbox, Saga, CQRS) | ~60p |
 
 #### Hard Parts — Ford & Richards
-| Cap | Tema | Páginas |
+| Ch | Topic | Pages |
 |-----|------|---------|
-| 1–2 | As partes difíceis + encontrando limites | ~40p |
-| 3–4 | Decomposição — granularidade, drivers | ~50p |
+| 1–2 | The hard parts + finding boundaries | ~40p |
+| 3–4 | Decomposition — granularity, drivers | ~50p |
 | 6 | Pulling Apart Operational Data | ~30p |
 | 9 | Distributed Data Access (CQRS, data mesh) | ~40p |
 
 #### GoF — Design Patterns
-| Padrão | Páginas |
+| Pattern | Pages |
 |--------|---------|
-| Introdução + Catalog (obrigatório) | ~30p |
+| Introduction + Catalog (required) | ~30p |
 | Repository / Proxy / Façade | ~20p |
 | Factory Method + Abstract Factory | ~25p |
 | Observer / Event | ~20p |
 
 #### Fluent Python — Ramalho
-| Cap | Tema | Páginas |
+| Ch | Topic | Pages |
 |-----|------|---------|
 | 13 | Protocols and ABCs | ~35p |
 | 17 | Iterators and Generators | ~40p |
@@ -501,51 +501,51 @@ BLOCO 5 — Python Profundo
 
 ---
 
-## Visão de Rotação Semanal (sugestão)
+## Weekly Rotation View (suggestion)
 
-Você não precisa terminar um pilar para começar outro. A rotação mantém o ritmo sem saturar:
+You don't need to finish one pillar to start another. Rotation keeps the pace without burning you out:
 
 ```
-SEMANA A: Leitura (Pilar 4) + aplicação no projeto
-SEMANA B: AWS — lab prático no console / Terraform
-SEMANA C: Databricks — notebook no Community Edition
-SEMANA D: Python + SQL — exercício, refatoração de código, dbt
+WEEK A: Reading (Pillar 4) + applying it to the project
+WEEK B: AWS — hands-on lab in the console / Terraform
+WEEK C: Databricks — notebook in Community Edition
+WEEK D: Python + SQL — exercise, code refactoring, dbt
 
-Repete. Sem prazo. Sem sprint. Sem burnout.
+Repeat. No deadline. No sprint. No burnout.
 ```
 
-Quando uma leitura fundamenta diretamente um dos outros pilares (ex: DDIA cap 3 → Spark storage), faça as duas semanas juntas: leia + faça o laboratório correspondente.
+When a reading directly grounds one of the other pillars (e.g., DDIA ch 3 → Spark storage), do both weeks together: read + do the matching lab.
 
 ---
 
-## Conexão com os ADRs do Projeto
+## Connection to the Project's ADRs
 
-| ADR | Decisão | Pilar | Livro / Recurso |
+| ADR | Decision | Pillar | Book / Resource |
 |-----|---------|-------|-----------------|
-| ADR-001 | SQLAlchemy async + bulk insert sem for-loops | Python + SQL | Fluent Python caps 17 + 21 |
-| ADR-002 | Iceberg + Unity Catalog para governança | Databricks/Spark | DDIA cap 3 + Databricks docs |
-| ADR-003 | Modelagem dimensional (star schema) | Python + SQL | Kimball caps 1–4 |
-| ADR-004 | Kafka como buffer entre API e storage | AWS / Databricks | DDIA cap 11 |
-| ADR-005 | Outbox Pattern para exactly-once com Kafka | Python + SQL | Khononov cap 10 |
-| ADR-006 | CQRS com Trino para separar read/write paths | AWS | Hard Parts caps 6 + 9 |
-| ADR-007 | Arquitetura 3-layer (Repository/Service/Router) | Python + SQL | Evans Pt II + GoF |
-| ADR-008 | Deploy AWS com IaC (Terraform) | AWS | DEA-C01 + Cantrill SAA-C03 |
+| ADR-001 | Async SQLAlchemy + bulk insert with no for-loops | Python + SQL | Fluent Python ch 17 + 21 |
+| ADR-002 | Iceberg + Unity Catalog for governance | Databricks/Spark | DDIA ch 3 + Databricks docs |
+| ADR-003 | Dimensional modeling (star schema) | Python + SQL | Kimball ch 1–4 |
+| ADR-004 | Kafka as a buffer between the API and storage | AWS / Databricks | DDIA ch 11 |
+| ADR-005 | Outbox Pattern for exactly-once with Kafka | Python + SQL | Khononov ch 10 |
+| ADR-006 | CQRS with Trino to separate read/write paths | AWS | Hard Parts ch 6 + 9 |
+| ADR-007 | 3-layer architecture (Repository/Service/Router) | Python + SQL | Evans Pt II + GoF |
+| ADR-008 | AWS deploy with IaC (Terraform) | AWS | DEA-C01 + Cantrill SAA-C03 |
 
 ---
 
 ![alt text]({88FAC256-41ED-41E3-95B1-500C83FA2C3D}.png)
 
-## Regras para Não Abandonar
+## Rules to Avoid Giving Up
 
-1. **Sem prazo = sem atraso.** Nenhuma fase tem deadline. Cada página, lab ou exercício é progresso real.
-2. **Mínimo sustentável**: 2h no sábado — suficiente para não perder o ritmo.
-3. **Se uma semana falhar**: continue de onde parou. Não tente "recuperar" — isso gera culpa e abandono.
-4. **Rotação é mais forte que profundidade forçada**: dois dias de AWS + dois dias de Spark > quatro dias de AWS com saturação.
-5. **AWS e Databricks exigem laboratório** — conte o dobro do tempo estimado para qualquer prática hands-on.
-6. **O projeto é a prova real**: se você consegue aplicar o conceito no NexoMart, aprendeu. Se não consegue, releia.
-7. **Canal como deadline natural**: cada Clube do Livro que vai ao ar fecha a leitura daquele bloco — use isso como âncora.
+1. **No deadline = no falling behind.** No phase has a due date. Every page, lab, or exercise is real progress.
+2. **Sustainable minimum**: 2h on Saturday — enough to not lose the rhythm.
+3. **If a week fails**: continue where you left off. Don't try to "catch up" — that breeds guilt and abandonment.
+4. **Rotation beats forced depth**: two days of AWS + two days of Spark > four days of AWS with saturation.
+5. **AWS and Databricks require labs** — budget double the estimated time for any hands-on practice.
+6. **The project is the real proof**: if you can apply the concept in NexoMart, you learned it. If you can't, re-read.
+7. **The channel as a natural deadline**: every Book Club episode that airs closes out the reading for that block — use that as an anchor.
 
 ---
 
-*Documento criado em 2026-07-04 | Revisão: quando terminar um bloco ou os recursos mudarem*  
-*Projeto âncora: Data Platform do Zero — NexoMart*
+*Document created 2026-07-04 | Revision: whenever a block finishes or resources change*
+*Anchor project: Data Platform From Scratch — NexoMart*

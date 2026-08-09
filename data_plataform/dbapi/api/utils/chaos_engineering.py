@@ -19,10 +19,10 @@ from decimal import Decimal
 
 
 # ==================== CHAOS STRATEGIES ====================
-# Cada função recebe um registro e retorna None ou um novo registro (para duplicações)
+# Each function receives a record and returns None or a new record (for duplications)
 
 def chaos_duplicate(record: Dict[str, Any]) -> Dict[str, Any] | None:
-    """Duplica registro com variação de case, espaços ou acentos."""
+    """Duplicates a record with case, whitespace, or accent variation."""
     if "customer_name" not in record:
         return None
 
@@ -39,7 +39,7 @@ def chaos_duplicate(record: Dict[str, Any]) -> Dict[str, Any] | None:
 
 
 def chaos_dirty_cpf(record: Dict[str, Any]) -> None:
-    """Injeta CPF inválido."""
+    """Injects an invalid CPF."""
     if "cpf" in record:
         record["cpf"] = random.choice([
             "000.000.000-00", "111.111.111-11", "123.456.789-00",
@@ -48,7 +48,7 @@ def chaos_dirty_cpf(record: Dict[str, Any]) -> None:
 
 
 def chaos_dirty_phone(record: Dict[str, Any]) -> None:
-    """Injeta telefone inválido."""
+    """Injects an invalid phone number."""
     if "phone" in record:
         record["phone"] = random.choice([
             "0000000", "11111111111", "(00) 0000-0000",
@@ -57,16 +57,16 @@ def chaos_dirty_phone(record: Dict[str, Any]) -> None:
 
 
 def chaos_dirty_email(record: Dict[str, Any]) -> None:
-    """Injeta email inválido."""
+    """Injects an invalid email."""
     if "email" in record:
         record["email"] = random.choice([
-            "email@dominio", "@dominio.com", "email@@dominio.com",
-            "email@dominio .com", "test@test.test"
+            "email@domain", "@domain.com", "email@@domain.com",
+            "email@domain .com", "test@test.test"
         ])
 
 
 def chaos_dirty_cep(record: Dict[str, Any]) -> None:
-    """Injeta CEP inválido."""
+    """Injects an invalid postal code (CEP)."""
     if "cep" in record:
         record["cep"] = random.choice([
             "00000-000", "XXXXX-XXX", "12345-678", "01310100"
@@ -74,7 +74,7 @@ def chaos_dirty_cep(record: Dict[str, Any]) -> None:
 
 
 def chaos_dirty_name(record: Dict[str, Any]) -> None:
-    """Injeta nome inválido."""
+    """Injects an invalid name."""
     if "customer_name" in record:
         record["customer_name"] = random.choice([
             "João123", "Maria###", "Cliente Teste", "XXXX", "   ", "A"
@@ -82,7 +82,7 @@ def chaos_dirty_name(record: Dict[str, Any]) -> None:
 
 
 def chaos_outlier_value(record: Dict[str, Any]) -> None:
-    """Multiplica valor por 5-10x (outlier legítimo)."""
+    """Multiplies a value by 5-10x (legitimate outlier)."""
     if "total_amount" in record:
         multiplier = random.randint(5, 10)
         if isinstance(record["total_amount"], Decimal):
@@ -92,25 +92,25 @@ def chaos_outlier_value(record: Dict[str, Any]) -> None:
 
 
 def chaos_outlier_quantity(record: Dict[str, Any]) -> None:
-    """Injeta quantidade anormalmente alta."""
+    """Injects an abnormally high quantity."""
     if "quantity" in record:
         record["quantity"] = random.randint(1000, 10000)
 
 
 def chaos_outlier_lead_time(record: Dict[str, Any]) -> None:
-    """Injeta lead time muito longo (90-180 dias)."""
+    """Injects a very long lead time (90-180 days)."""
     if "ship_date" in record and "order_date" in record:
         record["ship_date"] = record["order_date"] + timedelta(days=random.randint(90, 180))
 
 
 def chaos_fraud_fake_cpf(record: Dict[str, Any]) -> None:
-    """CPF falso com nome realista (fraude)."""
+    """Fake CPF with a realistic name (fraud)."""
     if "cpf" in record:
         record["cpf"] = "000.000.000-00"
 
 
 def chaos_fraud_fake_address(record: Dict[str, Any]) -> None:
-    """Nome falso com endereço real (fraude)."""
+    """Fake name with a real address (fraud)."""
     if "customer_name" in record:
         record["customer_name"] = random.choice([
             "Cliente Teste", "Fulano de Tal", "João Silva", "Maria Santos"
@@ -118,7 +118,7 @@ def chaos_fraud_fake_address(record: Dict[str, Any]) -> None:
 
 
 def chaos_fraud_cloned_card(record: Dict[str, Any]) -> None:
-    """Compras geograficamente impossíveis (cartão clonado)."""
+    """Geographically impossible purchases (cloned card)."""
     if "shipping_city" in record:
         record["shipping_city"] = "São Paulo"
         if "billing_city" in record:
@@ -128,21 +128,21 @@ def chaos_fraud_cloned_card(record: Dict[str, Any]) -> None:
 
 
 def chaos_fraud_high_value_suspicious(record: Dict[str, Any]) -> None:
-    """Alto valor com dados suspeitos (email gratuito + cadastro novo)."""
+    """High value with suspicious data (free email + new registration)."""
     if "total_amount" in record:
         record["total_amount"] = Decimal(random.uniform(50000.0, 100000.0)).quantize(Decimal("0.01"))
     if "email" in record:
-        record["email"] = f"teste{random.randint(1, 999)}@gmail.com"
+        record["email"] = f"test{random.randint(1, 999)}@gmail.com"
 
 
 def chaos_fraud_multiple_cards_same_address(record: Dict[str, Any]) -> None:
-    """Múltiplos cartões no mesmo endereço (padrão de fraude)."""
-    # Implementação depende de lógica cross-record (não aplicável aqui, apenas marcador)
+    """Multiple cards at the same address (fraud pattern)."""
+    # Implementation depends on cross-record logic (not applicable here, marker only)
     pass
 
 
 def chaos_fraud_duplicate_order(record: Dict[str, Any]) -> Dict[str, Any] | None:
-    """Duplica ordem de compra (possível suborno ou erro)."""
+    """Duplicates a purchase order (possible bribery or error)."""
     if "purchaseorderheader_id" not in record:
         return None
 
@@ -155,7 +155,7 @@ def chaos_fraud_duplicate_order(record: Dict[str, Any]) -> Dict[str, Any] | None
 
 
 def chaos_fraud_phantom_vendor(record: Dict[str, Any]) -> None:
-    """Fornecedor fantasma (CNPJ inválido)."""
+    """Phantom vendor (invalid CNPJ)."""
     if "vendor_name" in record:
         record["vendor_name"] = f"Fornecedor Fantasma {random.randint(1, 999)}"
     if "cnpj" in record:
@@ -163,7 +163,7 @@ def chaos_fraud_phantom_vendor(record: Dict[str, Any]) -> None:
 
 
 def chaos_fraud_overpriced(record: Dict[str, Any]) -> None:
-    """Superfaturamento (preço 3-8x acima do normal)."""
+    """Overbilling (price 3-8x above normal)."""
     if "unit_price" in record:
         multiplier = random.randint(3, 8)
         if isinstance(record["unit_price"], Decimal):
@@ -173,19 +173,19 @@ def chaos_fraud_overpriced(record: Dict[str, Any]) -> None:
 
 
 def chaos_fraud_unauthorized_approval(record: Dict[str, Any]) -> None:
-    """Aprovação sem autorização (marcador, validação na API)."""
-    # Validação deve ser feita contra tabela de permissões
+    """Approval without authorization (marker, validated at the API level)."""
+    # Validation should be checked against the permissions table
     pass
 
 
 def chaos_fraud_personal_delivery(record: Dict[str, Any]) -> None:
-    """Entrega em endereço pessoal ao invés de warehouse (marcador)."""
-    # Validação deve verificar se endereço está em warehouselocation
+    """Delivery to a personal address instead of a warehouse (marker)."""
+    # Validation should check whether the address is in warehouselocation
     pass
 
 
 def chaos_incomplete_payment(record: Dict[str, Any]) -> None:
-    """Pagamento pendente há muito tempo (> 30 dias)."""
+    """Payment pending for a long time (> 30 days)."""
     if "order_status" in record:
         record["order_status"] = "pending"
     if "order_date" in record:
@@ -193,7 +193,7 @@ def chaos_incomplete_payment(record: Dict[str, Any]) -> None:
 
 
 def chaos_incomplete_shipping(record: Dict[str, Any]) -> None:
-    """Pago mas não enviado (> 15 dias)."""
+    """Paid but never shipped (> 15 days)."""
     if "payment_info" in record and "transactions" in record["payment_info"]:
         record["payment_info"]["transactions"][0]["status"] = "paid"
     if "order_date" in record:
@@ -201,7 +201,7 @@ def chaos_incomplete_shipping(record: Dict[str, Any]) -> None:
 
 
 def chaos_incomplete_delivery(record: Dict[str, Any]) -> None:
-    """Enviado mas não entregue (> 90 dias)."""
+    """Shipped but never delivered (> 90 days)."""
     if "shipping_status" in record:
         record["shipping_status"] = "in_transit"
     if "shipping_date" in record:
@@ -209,13 +209,13 @@ def chaos_incomplete_delivery(record: Dict[str, Any]) -> None:
 
 
 def chaos_incomplete_product_missing(record: Dict[str, Any]) -> None:
-    """Produto inexistente (ID improvável)."""
+    """Nonexistent product (improbable ID)."""
     if "product_id" in record:
         record["product_id"] = 99999
 
 
 def chaos_warehouse_lost_transfer(record: Dict[str, Any]) -> None:
-    """Transferência perdida (em trânsito há > 90 dias)."""
+    """Lost transfer (in transit for > 90 days)."""
     if "transaction_date" in record:
         record["transaction_date"] = datetime.now() - timedelta(days=random.randint(90, 180))
     if "traceability_info" in record and isinstance(record["traceability_info"], dict):
@@ -223,32 +223,32 @@ def chaos_warehouse_lost_transfer(record: Dict[str, Any]) -> None:
 
 
 def chaos_warehouse_quantity_mismatch(record: Dict[str, Any]) -> None:
-    """Divergência de quantidade (recebido < enviado)."""
+    """Quantity discrepancy (received < shipped)."""
     if "quantity" in record:
         reduction = random.uniform(0.05, 0.15)
         record["quantity"] = int(record["quantity"] * (1 - reduction))
 
 
 def chaos_warehouse_negative_stock(record: Dict[str, Any]) -> None:
-    """Estoque negativo (overselling)."""
+    """Negative stock (overselling)."""
     if "quantity" in record:
         record["quantity"] = random.randint(-50, -1)
 
 
 def chaos_warehouse_missing_location(record: Dict[str, Any]) -> None:
-    """Produto sem localização física."""
+    """Product with no physical location."""
     if "warehouselocation_id" in record:
         record["warehouselocation_id"] = None
 
 
 def chaos_warehouse_quality_fail(record: Dict[str, Any]) -> None:
-    """Produto reprovado mas enviado."""
+    """Product failed quality check but still shipped."""
     if "traceability_info" in record and isinstance(record["traceability_info"], dict):
         record["traceability_info"]["quality_check_status"] = "fail"
 
 
 def chaos_warehouse_cold_chain_break(record: Dict[str, Any]) -> None:
-    """Cold chain quebrada (temperatura fora do range)."""
+    """Broken cold chain (temperature outside the allowed range)."""
     if "traceability_info" in record and isinstance(record["traceability_info"], dict):
         if "iot_sensor_data" in record["traceability_info"]:
             if isinstance(record["traceability_info"]["iot_sensor_data"], dict):
@@ -256,20 +256,20 @@ def chaos_warehouse_cold_chain_break(record: Dict[str, Any]) -> None:
 
 
 def chaos_warehouse_same_location_transfer(record: Dict[str, Any]) -> None:
-    """Transferência para o mesmo local (erro de sistema)."""
+    """Transfer to the same location (system error)."""
     if "traceability_info" in record and isinstance(record["traceability_info"], dict):
         if "source_warehouselocation_id" in record["traceability_info"]:
             record["traceability_info"]["target_warehouselocation_id"] = record["traceability_info"]["source_warehouselocation_id"]
 
 
 def chaos_warehouse_missing_traceability(record: Dict[str, Any]) -> None:
-    """Transação sem rastreabilidade."""
+    """Transaction with no traceability."""
     if "traceability_info" in record:
         record["traceability_info"] = None
 
 
 def chaos_negative_cost(record: Dict[str, Any]) -> None:
-    """Custo negativo (erro de sistema)."""
+    """Negative cost (system error)."""
     if "actual_cost" in record:
         if isinstance(record["actual_cost"], Decimal):
             record["actual_cost"] = -abs(record["actual_cost"])
@@ -278,13 +278,13 @@ def chaos_negative_cost(record: Dict[str, Any]) -> None:
 
 
 def chaos_negative_quantity(record: Dict[str, Any]) -> None:
-    """Quantidade negativa (bug de integração)."""
+    """Negative quantity (integration bug)."""
     if "quantity" in record:
         record["quantity"] = -abs(record["quantity"])
 
 
 def chaos_negative_freight(record: Dict[str, Any]) -> None:
-    """Frete negativo (ajuste mal implementado)."""
+    """Negative freight (poorly implemented adjustment)."""
     if "freight" in record:
         if isinstance(record["freight"], Decimal):
             record["freight"] = -abs(record["freight"])
@@ -293,23 +293,23 @@ def chaos_negative_freight(record: Dict[str, Any]) -> None:
 
 
 def chaos_missing_order_ref(record: Dict[str, Any]) -> None:
-    """Movimentação sem ordem de origem."""
+    """Movement with no originating order."""
     if "reference_order_id" in record:
         record["reference_order_id"] = None
 
 
 def chaos_missing_vendor_ref(record: Dict[str, Any]) -> None:
-    """Compra sem fornecedor (erro de sistema)."""
+    """Purchase with no vendor (system error)."""
     if "vendor_id" in record:
         record["vendor_id"] = None
 
 
 # ==================== CHAOS STRATEGY MAP ====================
 CHAOS_STRATEGIES: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any] | None]] = {
-    # Duplicidade
+    # Duplication
     "duplicate": chaos_duplicate,
 
-    # Dados sujos
+    # Dirty data
     "dirty_cpf": chaos_dirty_cpf,
     "dirty_phone": chaos_dirty_phone,
     "dirty_email": chaos_dirty_email,
@@ -321,21 +321,21 @@ CHAOS_STRATEGIES: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any] | None]] =
     "outlier_quantity": chaos_outlier_quantity,
     "outlier_lead_time": chaos_outlier_lead_time,
 
-    # Fraudes em compras
+    # Purchase fraud
     "fraud_fake_cpf": chaos_fraud_fake_cpf,
     "fraud_fake_address": chaos_fraud_fake_address,
     "fraud_cloned_card": chaos_fraud_cloned_card,
     "fraud_high_value_suspicious": chaos_fraud_high_value_suspicious,
     "fraud_multiple_cards_same_address": chaos_fraud_multiple_cards_same_address,
 
-    # Fraudes em purchasing
+    # Purchasing fraud
     "fraud_duplicate_order": chaos_fraud_duplicate_order,
     "fraud_phantom_vendor": chaos_fraud_phantom_vendor,
     "fraud_overpriced": chaos_fraud_overpriced,
     "fraud_unauthorized_approval": chaos_fraud_unauthorized_approval,
     "fraud_personal_delivery": chaos_fraud_personal_delivery,
 
-    # Processos incompletos
+    # Incomplete processes
     "incomplete_payment": chaos_incomplete_payment,
     "incomplete_shipping": chaos_incomplete_shipping,
     "incomplete_delivery": chaos_incomplete_delivery,
@@ -351,12 +351,12 @@ CHAOS_STRATEGIES: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any] | None]] =
     "warehouse_same_location_transfer": chaos_warehouse_same_location_transfer,
     "warehouse_missing_traceability": chaos_warehouse_missing_traceability,
 
-    # Valores negativos
+    # Negative values
     "negative_cost": chaos_negative_cost,
     "negative_quantity": chaos_negative_quantity,
     "negative_freight": chaos_negative_freight,
 
-    # Referências faltando
+    # Missing references
     "missing_order_ref": chaos_missing_order_ref,
     "missing_vendor_ref": chaos_missing_vendor_ref,
 }
@@ -370,16 +370,16 @@ def apply_data_quality_chaos(
     verbose: bool = False
 ) -> List[Dict[str, Any]]:
     """
-    Aplica chaos engineering (5% padrão) nos dados gerados usando strategy pattern.
+    Applies chaos engineering (5% default) to the generated data using the strategy pattern.
 
     Args:
-        batch: Lista de dicionários com dados a serem inseridos
-        chaos_rate: Percentual de registros a serem afetados (0.01 a 0.10)
-        allowed_chaos_types: Lista de tipos de chaos permitidos (None = todos disponíveis)
-        verbose: Se True, imprime estatísticas de chaos aplicado
+        batch: List of dictionaries with the data to be inserted
+        chaos_rate: Percentage of records to affect (0.01 to 0.10)
+        allowed_chaos_types: List of allowed chaos types (None = all available)
+        verbose: If True, prints statistics about the chaos applied
 
     Returns:
-        Lista de dicionários com anomalias injetadas
+        List of dictionaries with anomalies injected
 
     Example:
         >>> orders = generate_sales_order_payloads(100, ...)
@@ -394,17 +394,17 @@ def apply_data_quality_chaos(
     if not batch:
         return batch
 
-    # Validar chaos_rate
+    # Clamp chaos_rate
     chaos_rate = max(0.01, min(chaos_rate, 0.10))
 
     num_chaos = max(1, int(len(batch) * chaos_rate))
     chaos_indices = random.sample(range(len(batch)), min(num_chaos, len(batch)))
 
-    # Filtrar tipos de chaos disponíveis
+    # Filter available chaos types
     available_chaos_types = list(CHAOS_STRATEGIES.keys())
     chaos_types = allowed_chaos_types if allowed_chaos_types else available_chaos_types
 
-    # Validar que todos os tipos solicitados existem
+    # Validate that all requested types exist
     invalid_types = set(chaos_types) - set(available_chaos_types)
     if invalid_types:
         print(f"⚠️ Invalid chaos types requested (ignored): {invalid_types}")
@@ -420,14 +420,14 @@ def apply_data_quality_chaos(
         chaos_type = random.choice(chaos_types)
         chaos_strategy = CHAOS_STRATEGIES[chaos_type]
 
-        # Rastrear tipos de chaos aplicados
+        # Track applied chaos types
         chaos_applied[chaos_type] = chaos_applied.get(chaos_type, 0) + 1
 
-        # Aplicar estratégia de chaos
+        # Apply the chaos strategy
         try:
             result = chaos_strategy(batch[idx])
 
-            # Se a estratégia retornou um novo registro (duplicação), adicionar ao batch
+            # If the strategy returned a new record (duplication), append it to the batch
             if result is not None:
                 batch.append(result)
 
@@ -448,15 +448,15 @@ def generate_chaos_metadata(
     chaos_types: List[str]
 ) -> Dict[str, Any]:
     """
-    Gera metadados de chaos engineering para documentação.
+    Generates chaos engineering metadata for documentation.
 
     Args:
-        table_name: Nome da tabela (ex: "sales.salesorder")
-        chaos_rate: Taxa de chaos aplicada
-        chaos_types: Lista de tipos de chaos injetados
+        table_name: Table name (e.g. "sales.salesorder")
+        chaos_rate: Chaos rate applied
+        chaos_types: List of chaos types injected
 
     Returns:
-        Dicionário com metadados estruturados
+        Dictionary with structured metadata
 
     Example:
         >>> metadata = generate_chaos_metadata(
@@ -477,5 +477,5 @@ def generate_chaos_metadata(
 
 
 def get_available_chaos_types() -> List[str]:
-    """Retorna lista de todos os tipos de chaos disponíveis."""
+    """Returns a list of all available chaos types."""
     return list(CHAOS_STRATEGIES.keys())

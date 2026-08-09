@@ -1,730 +1,730 @@
-# Estratégia Consolidada de Conteúdo — Data Engineering Creator
+# Consolidated Content Strategy — Data Engineering Creator
 
-> YouTube + LinkedIn + Medium + Instagram: como criar, distribuir e crescer documentando seu Data Platform.
-
----
-
-## As Personas Consultadas
-
-**ALEX** — Especialista em Storytelling  
-*Acredita que toda arquitetura técnica esconde uma história humana. Foco em narrativa, conflito, resolução e emoção.*
-
-**MARINA** — Especialista em Comunicação  
-*Obcecada com clareza, linguagem acessível e a distância entre o que o expert sabe e o que a audiência entende.*
-
-**RAFAEL** — Especialista em Apresentação  
-*Domina ritmo visual, slides, demos ao vivo, câmera e edição. Sabe que o formato mata ou salva o conteúdo.*
+> YouTube + LinkedIn + Medium + Instagram: how to create, distribute, and grow while documenting your Data Platform.
 
 ---
 
-## O Princípio Central: Um Conteúdo, Cinco Formatos
+## The Personas Consulted
 
-Você não vai criar conteúdo separado para cada plataforma. Você vai criar **uma vez** e **distribuir em camadas**. O YouTube é o motor. Todo o resto é derivado.
+**ALEX** — Storytelling Specialist
+*Believes every technical architecture hides a human story. Focused on narrative, conflict, resolution, and emotion.*
+
+**MARINA** — Communication Specialist
+*Obsessed with clarity, accessible language, and the gap between what the expert knows and what the audience understands.*
+
+**RAFAEL** — Presentation Specialist
+*Masters visual pacing, slides, live demos, camera, and editing. Knows that format can make or break the content.*
+
+---
+
+## The Core Principle: One Piece of Content, Five Formats
+
+You're not going to create separate content for each platform. You're going to create **once** and **distribute in layers**. YouTube is the engine. Everything else is derived from it.
 
 ```
-YOUTUBE (Pillar — três trilhas)
+YOUTUBE (Pillar — three tracks)
         │
-        ├── Fast Track (série principal — EP01 a EP09)
-        ├── Deep Track (fundamentos — EP02.1, 02.2...)
-        ├── Theory Track / Clube do Livro ──→ DISCORD (comunidade)
+        ├── Fast Track (main series — EP01 to EP09)
+        ├── Deep Track (fundamentals — EP02.1, 02.2...)
+        ├── Theory Track / Book Club ──→ DISCORD (community)
         │
-        ├── MEDIUM (Texto longo — SEO orgânico)
-        ├── LINKEDIN NEWSLETTER (Ângulo profissional — audiência existente)
-        ├── LINKEDIN POSTS (Insights individuais + ADRs arquiteturais)
-        └── INSTAGRAM (Visual — diagrama / bastidores / carrossel)
+        ├── MEDIUM (Long-form text — organic SEO)
+        ├── LINKEDIN NEWSLETTER (Professional angle — existing audience)
+        ├── LINKEDIN POSTS (Individual insights + architectural ADRs)
+        └── INSTAGRAM (Visual — diagrams / behind-the-scenes / carousel)
 ```
 
-Cada plataforma tem uma função específica no ecossistema. Misturar as funções quebra a estratégia.
+Each platform has a specific function in the ecosystem. Mixing up those functions breaks the strategy.
 
 ---
 
-## BLOCO I — YOUTUBE: O Motor
+## BLOCK I — YOUTUBE: The Engine
 
-### PARTE 1 — Posicionamento: Para Quem Você Está Falando?
+### PART 1 — Positioning: Who Are You Talking To?
 
-**MARINA:** Antes de gravar o primeiro frame, precisamos resolver uma questão fundamental: quem é a sua audiência? Esse projeto — FastAPI, Airflow, Spark, Iceberg, Trino, MinIO, Nessie — é denso. Se você falar para iniciantes, vai precisar de 20 vídeos só de fundamentos. Se falar para sêniores, pode ir direto ao ponto. A decisão muda tudo.
+**MARINA:** Before recording the first frame, we need to answer a fundamental question: who is your audience? This project — FastAPI, Airflow, Spark, Iceberg, Trino, MinIO, Nessie — is dense. If you talk to beginners, you'll need 20 videos just on fundamentals. If you talk to seniors, you can get straight to the point. That decision changes everything.
 
-**ALEX:** Eu diria que a audiência ideal aqui são **engenheiros de dados plenos e desenvolvedores backend curiosos** que já passaram pela frustração de montar uma stack de dados e descobriram que é um campo minado. Eles conhecem Docker, já viram Airflow, mas nunca montaram tudo isso junto de forma coesa. Essa é a dor que você resolve — e dor é o começo de toda boa história.
+**ALEX:** I'd say the ideal audience here is **mid-level data engineers and curious backend developers** who have already been through the frustration of putting together a data stack and discovered it's a minefield. They know Docker, they've seen Airflow before, but they've never put all of this together cohesively. That's the pain you solve — and pain is the beginning of every good story.
 
-**RAFAEL:** Do ponto de vista de apresentação, isso define o *tom* de cada vídeo. Para esse público, você não precisa explicar o que é um container Docker, mas precisa mostrar *por que* a sequência de serviços que você escolheu faz sentido e não outra. A câmera pode ficar em segundo plano — o terminal e os dashboards são os protagonistas visuais.
+**RAFAEL:** From a presentation standpoint, this defines the *tone* of every video. For this audience, you don't need to explain what a Docker container is, but you do need to show *why* the sequence of services you chose makes sense and not some other order. The camera can stay in the background — the terminal and the dashboards are the visual protagonists.
 
-**MARINA:** Minha recomendação: escreva uma frase de posicionamento antes de gravar qualquer coisa. Algo como: *"Este canal é para engenheiros de dados que querem construir uma plataforma de dados moderna, open-source e production-like do zero, sem depender de cloud proprietária."* Isso vira sua bússola editorial.
+**MARINA:** My recommendation: write a positioning statement before recording anything. Something like: *"This channel is for data engineers who want to build a modern, open-source, production-like data platform from scratch, without depending on proprietary cloud."* That becomes your editorial compass.
 
-**ALEX:** E note que essa frase já tem um antagonista implícito — a cloud proprietária, o lock-in, o custo. Antagonista é narrativa. Você não está só ensinando tecnologia; está defendendo uma filosofia.
-
----
-
-### PARTE 2 — A Estrutura Narrativa: O Arco dos Vídeos
-
-**ALEX:** Todo vídeo técnico de sucesso segue, conscientemente ou não, a estrutura clássica de três atos. No contexto do seu projeto:
-
-- **Ato 1 (Problema):** "Você já tentou montar uma plataforma de dados e ficou perdido entre 10 ferramentas que não conversam entre si?"
-- **Ato 2 (Jornada):** Aqui você mostra o caminho — as decisões de arquitetura, os erros, as configurações, o código.
-- **Ato 3 (Resolução):** O dado fluindo do FastAPI até o Trino, a query funcionando, o dashboard aparecendo. A satisfação visual do sistema operando.
-
-**MARINA:** Isso é essencial. A maioria dos vídeos técnicos começa direto no Ato 2 — instalação, configuração, código. Sem o Ato 1, a audiência não sabe *por que* deveria se importar. Você perde o espectador nos primeiros 30 segundos.
-
-**RAFAEL:** No YouTube, os primeiros **15 a 30 segundos** determinam se a pessoa fica ou sai. Eu recomendo começar com o *resultado final rodando*: Trino consultando uma tabela Iceberg, um pipeline Airflow completando, os dados aparecendo. Mostre o destino antes de começar a viagem. Depois volta para "mas como chegamos aqui?"
-
-**ALEX:** É o que chamamos de *in medias res* — entrar no meio da ação. A abertura mais poderosa para o primeiro vídeo seria algo como: "Esse terminal aqui está consultando 50 milhões de registros em menos de 3 segundos. Esse pipeline aqui gerou esses dados há 10 minutos. E isso tudo roda na sua máquina, com Docker, sem gastar um centavo em cloud." — pausa — "Bora construir?"
-
-**MARINA:** Perfeito porque estabelece credibilidade, promessa e convite em três frases.
+**ALEX:** And notice that this statement already has an implicit antagonist — proprietary cloud, lock-in, cost. An antagonist is narrative. You're not just teaching technology; you're defending a philosophy.
 
 ---
 
-### PARTE 3 — Comunicando Complexidade Técnica Sem Perder Ninguém
+### PART 2 — Narrative Structure: The Video Arc
 
-**MARINA:** Esse é o maior desafio do seu projeto especificamente. Você tem sete serviços que precisam funcionar em conjunto. Se tentar explicar todos de uma vez, ninguém entende nada. O princípio que uso é o da **camada de cebola**: comece com o que o espectador já conhece e adicione uma camada por vídeo.
+**ALEX:** Every successful technical video follows, consciously or not, the classic three-act structure. In the context of your project:
 
-**ALEX:** Analogias são seus melhores aliados aqui. Algumas que funcionariam:
-- **MinIO** = "É o S3 da Amazon, mas roda na sua máquina"
-- **Nessie** = "É o Git para os seus dados — você pode criar branches de dados, fazer commit, rollback"
-- **Iceberg** = "É a camada que torna sua tabela de dados inteligente: ela sabe o que mudou, quando mudou e quem mudou"
-- **Trino** = "É o Google dos seus dados — ele não armazena nada, só sabe onde tudo está e devolve o resultado rápido"
-- **Airflow** = "É a agenda da sua plataforma — decide o que roda, quando roda e na que ordem"
+- **Act 1 (Problem):** "Have you ever tried to put together a data platform and gotten lost among 10 tools that don't talk to each other?"
+- **Act 2 (Journey):** Here you show the path — the architecture decisions, the mistakes, the configuration, the code.
+- **Act 3 (Resolution):** Data flowing from FastAPI to Trino, the query working, the dashboard appearing. The visual satisfaction of the system operating.
 
-**RAFAEL:** Cada uma dessas analogias pode abrir um vídeo inteiro. E visualmente, diagramas animados simples — mesmo feitos no Excalidraw ou no próprio Python como você já fez no `diagram.py` — valem mais que mil palavras. Mostre o dado *se movendo* entre os serviços com setas.
+**MARINA:** This is essential. Most technical videos start straight into Act 2 — installation, configuration, code. Without Act 1, the audience doesn't know *why* they should care. You lose the viewer in the first 30 seconds.
 
-**MARINA:** Outro recurso poderoso: **repita os conceitos em contextos diferentes**. Na segunda vez que mencionar Iceberg, não explique de novo — apenas diga "lembra que o Iceberg é o Git dos dados? Aqui ele vai criar um novo snapshot automaticamente." Reforça sem ser repetitivo.
+**RAFAEL:** On YouTube, the first **15 to 30 seconds** determine whether the person stays or leaves. I recommend starting with the *final result running*: Trino querying an Iceberg table, an Airflow pipeline completing, the data appearing. Show the destination before starting the journey. Then go back to "but how did we get here?"
 
-**ALEX:** E sempre que introduzir uma nova ferramenta, aplique o framework **Problema → Ferramenta → Prova**. "O problema é que queries em arquivos Parquet não suportam deletes eficientes. O Iceberg resolve isso. Olha aqui o DELETE rodando e o dado desaparecendo da query seguinte."
+**ALEX:** That's what we call *in medias res* — starting in the middle of the action. The most powerful opening for the first video would be something like: "This terminal here is querying 50 million records in under 3 seconds. This pipeline generated this data 10 minutes ago. And all of this runs on your machine, with Docker, without spending a cent on cloud." — pause — "Let's build it?"
+
+**MARINA:** Perfect because it establishes credibility, promise, and invitation in three sentences.
 
 ---
 
-### PARTE 4 — Formato, Ritmo Visual e Apresentação
+### PART 3 — Communicating Technical Complexity Without Losing Anyone
 
-**RAFAEL:** Vamos falar de produção. Para um projeto como esse, recomendo fortemente o formato **"Talking Head + Screen"**: você aparece em um canto pequeno da tela (câmera de notebook serve para começar) enquanto 80% do frame é seu terminal, seu browser, seu código. Isso humaniza sem tirar o foco do que importa.
+**MARINA:** This is the biggest challenge specific to your project. You have seven services that need to work together. If you try to explain all of them at once, nobody understands anything. The principle I use is the **onion layer**: start with what the viewer already knows and add one layer per video.
 
-**ALEX:** Humanizar é crucial. As pessoas não seguem canais — seguem pessoas. Mesmo que seja um projeto técnico denso, momentos de "eu travei 3 horas nisso aqui e depois descobri que era uma variável de ambiente errada" constroem conexão genuína. Vulnerabilidade técnica é relatável.
+**ALEX:** Analogies are your best allies here. Some that would work:
+- **MinIO** = "It's Amazon's S3, but it runs on your machine"
+- **Nessie** = "It's Git for your data — you can create data branches, commit, rollback"
+- **Iceberg** = "It's the layer that makes your data table smart: it knows what changed, when it changed, and who changed it"
+- **Trino** = "It's the Google of your data — it doesn't store anything, it just knows where everything is and returns the result fast"
+- **Airflow** = "It's your platform's schedule — it decides what runs, when it runs, and in what order"
 
-**MARINA:** Para comunicação clara no formato vídeo, algumas regras práticas:
-1. **Uma ideia por cena** — se você está explicando o Airflow DAG, não mude para o código do FastAPI na mesma cena sem uma transição clara
-2. **Sinalize as transições verbalmente** — "agora que o serviço está configurado, vamos ver como o Spark se conecta a ele"
-3. **Recapitule no início** — 15 segundos de "no vídeo anterior fizemos X, hoje vamos fazer Y porque Z"
-4. **Preview no início, recap no fim** — espelhe o que você prometeu com o que entregou
+**RAFAEL:** Each of these analogies can open an entire video. And visually, simple animated diagrams — even ones made in Excalidraw or in Python itself like you already did in `diagram.py` — are worth more than a thousand words. Show the data *moving* between services with arrows.
 
-**RAFAEL:** Sobre duração: vídeos técnicos profundos performam bem entre **15 e 25 minutos** no YouTube. Abaixo disso você não consegue cobrir o que precisa com profundidade. Acima de 30 minutos, a retenção cai significativamente a menos que você seja já um nome estabelecido. Para o primeiro vídeo, mire em **20 minutos**.
+**MARINA:** Another powerful device: **repeat concepts in different contexts**. The second time you mention Iceberg, don't explain it again — just say "remember Iceberg is the Git of data? Here it's going to create a new snapshot automatically." It reinforces without being repetitive.
 
-**ALEX:** E divida o vídeo em **capítulos** (timestamps no description e no próprio vídeo). Capítulos aumentam a retenção porque a pessoa sente que pode "navegar" no conteúdo sem ficar perdida.
+**ALEX:** And whenever you introduce a new tool, apply the **Problem → Tool → Proof** framework. "The problem is that queries on Parquet files don't support efficient deletes. Iceberg solves this. Look, here's the DELETE running and the data disappearing from the next query."
 
-**RAFAEL:** Estrutura de produção que recomendo para cada vídeo:
+---
+
+### PART 4 — Format, Visual Pacing, and Presentation
+
+**RAFAEL:** Let's talk production. For a project like this, I strongly recommend the **"Talking Head + Screen"** format: you appear in a small corner of the screen (a laptop camera is fine to start) while 80% of the frame is your terminal, your browser, your code. This humanizes without taking focus away from what matters.
+
+**ALEX:** Humanizing is crucial. People don't follow channels — they follow people. Even in a dense technical project, moments like "I was stuck on this for 3 hours and then found out it was a wrong environment variable" build genuine connection. Technical vulnerability is relatable.
+
+**MARINA:** For clear communication in video format, some practical rules:
+1. **One idea per scene** — if you're explaining the Airflow DAG, don't switch to the FastAPI code in the same scene without a clear transition
+2. **Signal transitions verbally** — "now that the service is configured, let's see how Spark connects to it"
+3. **Recap at the start** — 15 seconds of "in the previous video we did X, today we're going to do Y because Z"
+4. **Preview at the start, recap at the end** — mirror what you promised with what you delivered
+
+**RAFAEL:** On duration: deep technical videos perform well between **15 and 25 minutes** on YouTube. Below that you can't cover what you need with depth. Above 30 minutes, retention drops significantly unless you're already an established name. For the first video, aim for **20 minutes**.
+
+**ALEX:** And break the video into **chapters** (timestamps in the description and in the video itself). Chapters increase retention because the viewer feels they can "navigate" the content without getting lost.
+
+**RAFAEL:** Production structure I recommend for each video:
 
 ```
-00:00 - 00:30  Hook (resultado final rodando / promessa)
-00:30 - 02:00  Contexto e o que vamos construir hoje
-02:00 - 05:00  Diagrama / arquitetura do episódio
-05:00 - 18:00  Hands-on (código, terminal, configuração)
-18:00 - 20:00  Teste ao vivo + resultado
-20:00 - 21:00  Recap + próximo vídeo (CTA)
+00:00 - 00:30  Hook (final result running / promise)
+00:30 - 02:00  Context and what we're building today
+02:00 - 05:00  Diagram / architecture of the episode
+05:00 - 18:00  Hands-on (code, terminal, configuration)
+18:00 - 20:00  Live test + result
+20:00 - 21:00  Recap + next video (CTA)
 ```
 
-**RAFAEL:** Sobre equipamento — sem desculpas para não começar:
-- **Áudio** é mais importante que vídeo. Um microfone USB simples (R$150-300) faz diferença enorme
-- **Iluminação** — uma janela na frente já resolve 80% do problema
-- **Resolução** — grave em 1080p. 4K é dispensável no começo
-- **Edição** — DaVinci Resolve (gratuito) serve bem. Corte os silêncios e os "éééé". O ritmo do áudio define o ritmo do vídeo
+**RAFAEL:** On equipment — no excuses not to start:
+- **Audio** matters more than video. A simple USB microphone (R$150-300) makes a huge difference
+- **Lighting** — a window in front of you already solves 80% of the problem
+- **Resolution** — record in 1080p. 4K is unnecessary at the start
+- **Editing** — DaVinci Resolve (free) works well. Cut the silences and the "uhhh"s. The pacing of the audio defines the pacing of the video
 
 ---
 
-### PARTE 5 — Planejamento da Série: A Playlist como Produto
+### PART 5 — Series Planning: The Playlist as the Product
 
-**ALEX:** Aqui está o insight mais importante: **a playlist é o produto, não o vídeo**. Cada vídeo individual é um capítulo. O espectador que assiste ao vídeo 1 deve sentir que *precisa* do vídeo 2. Isso é storytelling serial — o mesmo mecanismo que faz pessoas maratanarem séries.
+**ALEX:** Here's the most important insight: **the playlist is the product, not the video**. Each individual video is a chapter. The viewer who watches video 1 should feel they *need* video 2. That's serial storytelling — the same mechanism that makes people binge-watch series.
 
-**MARINA:** E isso tem implicações práticas de comunicação. Cada vídeo deve terminar com um cliffhanger técnico: "mas tem um problema — quando o volume de dados cresce, essa abordagem trava. No próximo vídeo vamos resolver isso com particionamento." Você plantou uma dúvida, ela não vai embora.
+**MARINA:** And this has practical communication implications. Every video should end with a technical cliffhanger: "but there's a problem — when the data volume grows, this approach chokes. In the next video we'll solve this with partitioning." You've planted a question that won't go away.
 
-**RAFAEL:** Minha sugestão de estrutura para a série completa do projeto:
+**RAFAEL:** My suggested structure for the project's full series:
 
-#### Série Sugerida: "Data Platform do Zero"
+#### Suggested Series: "Data Platform From Scratch"
 
-| Episódio | Título | Serviço Principal |
+| Episode | Title | Main Service |
 |----------|--------|------------------|
-| EP01 | O Marketplace — O Caso de Negócio, o Banco de Dados e o Problema Analítico | business_db + Visão Geral + Docker |
-| EP02 | Ingestão com FastAPI Async — PostgreSQL e 3-Layer Architecture | dbapi + PostgreSQL + SQLAlchemy |
-| EP03 | Armazenamento Distribuído — MinIO, Delta Lake e Unity Catalog OSS | MinIO + Delta Lake + Unity Catalog |
-| EP04 | Processamento em Escala com Spark — da Ingestão ao Bronze | Spark + Autoloader + Airflow |
-| EP05 | Kafka entra na Stack — Event-Driven e Outbox Pattern | Kafka + Schema Registry + Outbox |
-| EP06 | CQRS na Prática — Read Path via Trino sobre Delta Lake | Trino + CQRS |
-| EP07 | Qualidade de Dados — Chaos Engineering, dbt e Great Expectations | dbt + Great Expectations + OpenLineage |
-| EP08 | Observabilidade — OpenTelemetry, Prometheus e Data Lineage | OpenTelemetry + Prometheus + Marquez |
-| EP09 | Pipeline Completo — do Evento Kafka ao Dashboard Trino | Integração total |
+| EP01 | The Marketplace — The Business Case, the Database, and the Analytical Problem | business_db + Overview + Docker |
+| EP02 | Async Ingestion with FastAPI — PostgreSQL and 3-Layer Architecture | dbapi + PostgreSQL + SQLAlchemy |
+| EP03 | Distributed Storage — MinIO, Delta Lake, and Unity Catalog OSS | MinIO + Delta Lake + Unity Catalog |
+| EP04 | Processing at Scale with Spark — from Ingestion to Bronze | Spark + Autoloader + Airflow |
+| EP05 | Kafka Enters the Stack — Event-Driven and the Outbox Pattern | Kafka + Schema Registry + Outbox |
+| EP06 | CQRS in Practice — Read Path via Trino over Delta Lake | Trino + CQRS |
+| EP07 | Data Quality — Chaos Engineering, dbt, and Great Expectations | dbt + Great Expectations + OpenLineage |
+| EP08 | Observability — OpenTelemetry, Prometheus, and Data Lineage | OpenTelemetry + Prometheus + Marquez |
+| EP09 | The Full Pipeline — from Kafka Event to Trino Dashboard | Full integration |
 
-**ALEX:** Repara que essa estrutura tem um arco perfeito: o EP01 é a promessa, os EPs 02-09 são a jornada (cada serviço é um "boss") e o EP10 é a resolução — tudo funcionando junto. É a estrutura do herói aplicada à engenharia de dados.
+**ALEX:** Notice that this structure has a perfect arc: EP01 is the promise, EPs 02-09 are the journey (each service is a "boss"), and EP10 is the resolution — everything working together. It's the hero's structure applied to data engineering.
 
-**MARINA:** E do ponto de vista de SEO e distribuição, títulos com "do zero" e "na prática" performam muito bem em conteúdo técnico em português. Não subestime thumbnails — elas determinam o CTR (taxa de clique). Use uma fórmula consistente: logo da tecnologia principal + uma frase de impacto curta.
-
----
-
-### PARTE 7 — As Duas Trilhas: Fast Track e Deep Track
-
-**MARINA:** Quero voltar a algo que disse antes — a camada de cebola. O problema real é que a audiência que você quer atingir não é homogênea. Tem o engenheiro pleno que já conhece FastAPI e quer saber como integrá-lo ao Iceberg. Mas tem o dev backend que está migrando para dados e não sabe o que é um seeder, não entende async de verdade, nunca configurou um pool de conexões. Se você fizer um vídeo só, vai ser raso demais para um e denso demais para o outro. Você vai perder os dois.
-
-**ALEX:** Esse é um problema clássico de audiência dividida. E a solução narrativa para isso é criar duas jornadas paralelas com o mesmo destino. É o que séries de TV fazem com subplots — narrativas que correm em paralelo, se cruzam nos pontos certos e chegam juntas no clímax. Aqui o "clímax" é o EP10 — o pipeline completo rodando. Os dois públicos chegam lá por caminhos diferentes.
-
-**MARINA:** Exatamente. E eu chamaria assim: **Fast Track** e **Deep Track**. O Fast Track é a série principal que já planejamos — EP01 a EP10. Assume que a pessoa tem uma base técnica razoável e quer construir. O Deep Track são episódios complementares, numerados como sub-episódios — EP02.1, EP02.2, EP02.3 — que existem para quem precisa dos fundamentos antes de entrar no episódio principal. São episódios menores, focados, cirúrgicos.
-
-**RAFAEL:** Do ponto de vista de produção, isso é elegante porque muda completamente o formato. O Fast Track tem 15-25 minutos, terminal aberto, código na tela, ritmo alto. O Deep Track pode ser 8-12 minutos, mais didático, com mais diagrama e menos código, câmera um pouco mais presente porque você está *explicando*, não *construindo*. São produtos diferentes em aparência, mas derivados da mesma preparação.
-
-**ALEX:** E tem um ganho narrativo enorme: você transforma a barreira de entrada em conteúdo. Em vez de suavizar o EP02 para não assustar os iniciantes — o que sempre dilui o conteúdo para os avançados — você diz: "se você não conhece FastAPI ainda, eu gravei o EP02.1 especialmente para você. Assiste aquele primeiro e volta aqui." É um convite, não um muro. E a pessoa que assiste o EP02.1 já chega no EP02 preparada e agradecida.
-
-**MARINA:** A comunicação entre as trilhas precisa ser explícita em cada vídeo. No início do Fast Track, mencione o Deep Track disponível. No final do Deep Track, mostre onde o espectador entra na Fast Track. Isso cria uma malha — as pessoas circulam entre as playlists e o tempo total assistido no canal explode.
-
-**RAFAEL:** Duas playlists distintas no canal, com nomes claros:
-- **"Data Platform do Zero — Fast Track"** (EP01 a EP10)
-- **"Fundamentos de Data Engineering"** (todos os sub-episódios organizados por tema)
-
-A segunda playlist tem valor standalone. Alguém que nunca vai construir a plataforma completa pode assistir só os fundamentos e já aprender muito. Isso amplia o topo do funil sem comprometer a profundidade da série principal.
-
-**ALEX:** E o SEO dessa segunda playlist é ouro puro. Enquanto o Fast Track compete com outros tutoriais de stack completa — que são poucos mas densos — o Deep Track compete em keywords de fundamentos: "o que é FastAPI", "como funciona async python", "o que é um ORM", "seeder de banco de dados". Essas keywords têm volume altíssimo e a concorrência em português é fraca.
-
-**MARINA:** Resumindo a lógica: o Fast Track é o produto principal. O Deep Track é o caminho de entrada — e também um produto autônomo para quem ainda não está pronto para o Fast Track. Os dois se alimentam. E o espectador nunca fica preso: sempre tem um próximo passo claro independente do nível em que ele chegou.
+**MARINA:** And from an SEO and distribution standpoint, titles with "from scratch" and "in practice" perform very well in Portuguese-language technical content. Don't underestimate thumbnails — they determine CTR (click-through rate). Use a consistent formula: main technology logo + a short impact phrase.
 
 ---
 
-#### Estrutura Completa das Três Trilhas
+### PART 7 — The Two Tracks: Fast Track and Deep Track
 
-| Episódio | Trilha | Título | Duração |
+**MARINA:** I want to go back to something I said earlier — the onion layer. The real problem is that the audience you want to reach isn't homogeneous. There's the mid-level engineer who already knows FastAPI and wants to know how to integrate it with Iceberg. But there's also the backend dev who's migrating into data and doesn't know what a seeder is, doesn't really understand async, has never configured a connection pool. If you make just one video, it'll be too shallow for one and too dense for the other. You'll lose both.
+
+**ALEX:** This is a classic split-audience problem. And the narrative solution is to create two parallel journeys with the same destination. It's what TV series do with subplots — narratives that run in parallel, cross at the right points, and arrive together at the climax. Here the "climax" is EP10 — the full pipeline running. Both audiences get there by different paths.
+
+**MARINA:** Exactly. And I'd call them: **Fast Track** and **Deep Track**. The Fast Track is the main series we already planned — EP01 to EP10. It assumes the person has a reasonable technical base and wants to build. The Deep Track consists of complementary episodes, numbered as sub-episodes — EP02.1, EP02.2, EP02.3 — that exist for those who need the fundamentals before jumping into the main episode. They're shorter, focused, surgical episodes.
+
+**RAFAEL:** From a production standpoint, this is elegant because it completely changes the format. The Fast Track is 15-25 minutes, terminal open, code on screen, fast pace. The Deep Track can be 8-12 minutes, more didactic, with more diagrams and less code, camera a bit more present because you're *explaining*, not *building*. They're different products in appearance, but derived from the same preparation.
+
+**ALEX:** And there's a huge narrative gain here: you turn the barrier to entry into content. Instead of softening EP02 so you don't scare off beginners — which always dilutes the content for advanced viewers — you say: "if you don't know FastAPI yet, I recorded EP02.1 especially for you. Watch that one first and come back here." It's an invitation, not a wall. And the person who watches EP02.1 arrives at EP02 prepared and grateful.
+
+**MARINA:** Communication between the tracks needs to be explicit in every video. At the start of the Fast Track, mention the available Deep Track. At the end of the Deep Track, show where the viewer enters the Fast Track. This creates a web — people circulate between the playlists and the total watch time on the channel explodes.
+
+**RAFAEL:** Two distinct playlists on the channel, with clear names:
+- **"Data Platform From Scratch — Fast Track"** (EP01 to EP10)
+- **"Data Engineering Fundamentals"** (all sub-episodes organized by topic)
+
+The second playlist has standalone value. Someone who's never going to build the full platform can watch just the fundamentals and still learn a lot. This widens the top of the funnel without compromising the depth of the main series.
+
+**ALEX:** And the SEO on that second playlist is pure gold. While the Fast Track competes with other full-stack tutorials — which are few but dense — the Deep Track competes on fundamentals keywords: "what is FastAPI", "how does python async work", "what is an ORM", "database seeder". These keywords have very high volume and weak competition in Portuguese.
+
+**MARINA:** To sum up the logic: the Fast Track is the main product. The Deep Track is the entry path — and also a standalone product for those not yet ready for the Fast Track. The two feed each other. And the viewer is never stuck: there's always a clear next step regardless of the level they arrived at.
+
+---
+
+#### Full Structure of the Three Tracks
+
+| Episode | Track | Title | Duration |
 |----------|--------|--------|---------|
-| EP01 | Fast Track | O Marketplace — O Caso de Negócio, o Banco de Dados e o Problema Analítico | 22 min |
-| Clube T0 | Theory Track | Lendo Kimball Caps 1–3: O que é modelagem dimensional e por que o OLTP não basta | 10 min |
-| EP01.1 | Deep Track | O que é uma Plataforma de Dados? (e por que montar uma) | 10 min |
-| EP01.2 | Deep Track | Docker para Engenheiros de Dados — o mínimo que você precisa saber | 10 min |
-| EP01.3 | Deep Track | OLTP vs OLAP: por que não conseguimos analisar direto do banco transacional | 10 min |
-| EP01.4 | Deep Track | Fato, Dimensão e Grain: os 3 conceitos do Kimball no contexto do Marketplace | 12 min |
-| EP01.5 | Deep Track | Star Schema na prática: desenhando o modelo dimensional do NexoMart | 12 min |
-| Clube T1 | Theory Track | Lendo: Fundamentos de Engenharia de Dados — ciclo de vida e Medallion | 10 min |
-| EP02 | Fast Track | Ingestão com FastAPI Async — PostgreSQL e 3-Layer Architecture | 20 min |
-| EP02.1 | Deep Track | O que é FastAPI e por que async muda tudo em APIs de dados | 10 min |
-| EP02.2 | Deep Track | PostgreSQL para Engenheiros de Dados — além do CRUD | 10 min |
-| EP02.3 | Deep Track | O que é um Seeder e por que todo pipeline de dados precisa de um | 8 min |
-| EP02.4 | Deep Track | SQLAlchemy 2.0 — ORM, Async e a arquitetura de repositórios | 12 min |
-| EP02.5 | Deep Track | Explodindo JSONB: como transformar order_items em linhas analíticas no Spark | 10 min |
-| Clube T2 | Theory Track | DDIA — Storage Engines: por que Delta Lake e Parquet são dramaticamente mais rápidos | 10 min |
-| EP03 | Fast Track | Armazenamento Distribuído — MinIO, Delta Lake e Unity Catalog OSS | 20 min |
-| EP03.1 | Deep Track | Delta Lake vs Iceberg — trade-offs reais e por que escolhemos Delta | 12 min |
-| EP03.2 | Deep Track | Unity Catalog OSS — governança de dados Open Source alinhada ao Databricks | 10 min |
-| EP03.3 | Deep Track | SCD Type 2 na prática: clientes e produtos que mudam com o tempo | 12 min |
-| EP04 | Fast Track | Processamento em Escala com Spark — da Ingestão ao Bronze | 22 min |
-| EP04.1 | Deep Track | Driver e Executor: a divisão de trabalho no Spark | 10 min |
-| EP04.2 | Deep Track | Autoloader: ingestão incremental, checkpoint e schema evolution | 12 min |
-| Clube T3 | Theory Track | DDIA Cap 11 — por que o log do Kafka é o event store imutável | 10 min |
-| EP05 | Fast Track | Kafka entra na Stack — Event-Driven e Outbox Pattern | 22 min |
-| EP05.1 | Deep Track | Structured Streaming e Kafka no Spark — offset management e checkpoints | 12 min |
-| Clube T4 | Theory Track | As Partes Difíceis — decomposição e CQRS em sistemas distribuídos | 10 min |
-| EP06 | Fast Track | CQRS na Prática — Read Path via Trino sobre Delta Lake | 20 min |
-| EP06.1 | Deep Track | O que é SQL Federado? Como o Trino consulta sem mover dados | 10 min |
-| EP07 | Fast Track | Qualidade de Dados — Chaos Engineering, dbt e Great Expectations | 20 min |
-| EP07.1 | Deep Track | dbt na prática — transformações Silver → Gold sobre Delta Lake | 12 min |
-| EP07.2 | Deep Track | O que é Chaos Engineering em dados? Qualidade, fraudes e anomalias | 12 min |
-| EP08 | Fast Track | Observabilidade — OpenTelemetry, Prometheus e Data Lineage | 20 min |
-| EP08.1 | Deep Track | OpenTelemetry em pipelines de dados — traces, métricas e logs | 10 min |
-| EP09 | Fast Track | Pipeline Completo — do Evento Kafka ao Dashboard Trino | 25 min |
+| EP01 | Fast Track | The Marketplace — The Business Case, the Database, and the Analytical Problem | 22 min |
+| Club T0 | Theory Track | Reading Kimball Ch. 1–3: What is dimensional modeling and why OLTP isn't enough | 10 min |
+| EP01.1 | Deep Track | What is a Data Platform? (and why build one) | 10 min |
+| EP01.2 | Deep Track | Docker for Data Engineers — the minimum you need to know | 10 min |
+| EP01.3 | Deep Track | OLTP vs OLAP: why we can't analyze directly from the transactional database | 10 min |
+| EP01.4 | Deep Track | Fact, Dimension, and Grain: Kimball's 3 concepts in the Marketplace context | 12 min |
+| EP01.5 | Deep Track | Star Schema in practice: designing NexoMart's dimensional model | 12 min |
+| Club T1 | Theory Track | Reading: Fundamentals of Data Engineering — lifecycle and Medallion | 10 min |
+| EP02 | Fast Track | Async Ingestion with FastAPI — PostgreSQL and 3-Layer Architecture | 20 min |
+| EP02.1 | Deep Track | What is FastAPI and why async changes everything in data APIs | 10 min |
+| EP02.2 | Deep Track | PostgreSQL for Data Engineers — beyond CRUD | 10 min |
+| EP02.3 | Deep Track | What is a Seeder and why every data pipeline needs one | 8 min |
+| EP02.4 | Deep Track | SQLAlchemy 2.0 — ORM, Async, and the repository architecture | 12 min |
+| EP02.5 | Deep Track | Exploding JSONB: turning order_items into analytical rows in Spark | 10 min |
+| Club T2 | Theory Track | DDIA — Storage Engines: why Delta Lake and Parquet are dramatically faster | 10 min |
+| EP03 | Fast Track | Distributed Storage — MinIO, Delta Lake, and Unity Catalog OSS | 20 min |
+| EP03.1 | Deep Track | Delta Lake vs Iceberg — real trade-offs and why we chose Delta | 12 min |
+| EP03.2 | Deep Track | Unity Catalog OSS — open-source data governance aligned with Databricks | 10 min |
+| EP03.3 | Deep Track | SCD Type 2 in practice: customers and products that change over time | 12 min |
+| EP04 | Fast Track | Processing at Scale with Spark — from Ingestion to Bronze | 22 min |
+| EP04.1 | Deep Track | Driver and Executor: the division of labor in Spark | 10 min |
+| EP04.2 | Deep Track | Autoloader: incremental ingestion, checkpointing, and schema evolution | 12 min |
+| Club T3 | Theory Track | DDIA Ch. 11 — why the Kafka log is the immutable event store | 10 min |
+| EP05 | Fast Track | Kafka Enters the Stack — Event-Driven and the Outbox Pattern | 22 min |
+| EP05.1 | Deep Track | Structured Streaming and Kafka in Spark — offset management and checkpoints | 12 min |
+| Club T4 | Theory Track | The Hard Parts — decomposition and CQRS in distributed systems | 10 min |
+| EP06 | Fast Track | CQRS in Practice — Read Path via Trino over Delta Lake | 20 min |
+| EP06.1 | Deep Track | What is Federated SQL? How Trino queries without moving data | 10 min |
+| EP07 | Fast Track | Data Quality — Chaos Engineering, dbt, and Great Expectations | 20 min |
+| EP07.1 | Deep Track | dbt in practice — Silver → Gold transformations over Delta Lake | 12 min |
+| EP07.2 | Deep Track | What is Chaos Engineering in data? Quality, fraud, and anomalies | 12 min |
+| EP08 | Fast Track | Observability — OpenTelemetry, Prometheus, and Data Lineage | 20 min |
+| EP08.1 | Deep Track | OpenTelemetry in data pipelines — traces, metrics, and logs | 10 min |
+| EP09 | Fast Track | The Full Pipeline — from Kafka Event to Trino Dashboard | 25 min |
 
 ---
 
-#### Exemplo Detalhado: EP02 em Fast Track + Deep Track
+#### Detailed Example: EP02 in Fast Track + Deep Track
 
-**EP02 — Fast Track (20 min): "Ingestão de Dados com FastAPI Async"**
+**EP02 — Fast Track (20 min): "Data Ingestion with FastAPI Async"**
 
-> Assume: você já sabe o que é uma API REST e já usou Docker antes.  
-> Entrega: endpoint `/sales/orders` recebendo dados, validando com Pydantic, persistindo via repositório assíncrono no PostgreSQL.
-
-```
-00:00 - 00:30  Hook: "Esse endpoint aqui vai receber 50 mil requisições por hora sem travar."
-00:30 - 02:00  O papel do dbapi na stack: onde ele se encaixa entre o mundo externo e o Iceberg
-02:00 - 04:00  Diagrama da arquitetura 3 camadas: Router → Service → Repository
-04:00 - 08:00  Criando o modelo SQLAlchemy com AuditMixin
-08:00 - 12:00  Schema Pydantic + validações de negócio
-12:00 - 17:00  Repository com bulk insert assíncrono (sem for-loop)
-17:00 - 19:00  Testando com 10.000 registros — tempo de resposta ao vivo
-19:00 - 20:00  Cliffhanger: "Esses dados estão no Postgres. No EP03 vamos modelar as relações."
-```
-
----
-
-**EP02.1 — Deep Track (10 min): "O que é FastAPI e por que async muda tudo em APIs de dados"**
-
-> Para quem: devs que conhecem Flask/Django mas nunca usaram FastAPI ou nunca entenderam async de verdade.  
-> Entrega: clareza conceitual — você sai sabendo *por que* async importa em ingestão de dados de alta volumetria.
+> Assumes: you already know what a REST API is and have used Docker before.
+> Delivers: `/sales/orders` endpoint receiving data, validating with Pydantic, persisting via an async repository into PostgreSQL.
 
 ```
-00:00 - 01:00  Problema: "Por que APIs síncronas travam quando o volume de dados cresce?"
-01:00 - 04:00  Analogia: garçom síncrono vs garçom assíncrono (o garçom não espera o prato ficar pronto)
-04:00 - 07:00  FastAPI vs Flask: o que muda na prática (benchmark simples ao vivo)
-07:00 - 09:00  Como async/await funciona em Python — o mínimo que você precisa saber
-09:00 - 10:00  "Agora que você entende isso, o EP02 vai fazer muito mais sentido — link na descrição."
+00:00 - 00:30  Hook: "This endpoint here is going to receive 50 thousand requests per hour without choking."
+00:30 - 02:00  The role of dbapi in the stack: where it fits between the outside world and Iceberg
+02:00 - 04:00  Diagram of the 3-layer architecture: Router → Service → Repository
+04:00 - 08:00  Creating the SQLAlchemy model with AuditMixin
+08:00 - 12:00  Pydantic schema + business validations
+12:00 - 17:00  Repository with async bulk insert (no for-loop)
+17:00 - 19:00  Testing with 10,000 records — live response time
+19:00 - 20:00  Cliffhanger: "This data is in Postgres now. In EP03 we'll model the relationships."
 ```
 
 ---
 
-**EP02.2 — Deep Track (10 min): "PostgreSQL para Engenheiros de Dados — além do CRUD"**
+**EP02.1 — Deep Track (10 min): "What is FastAPI and why async changes everything in data APIs"**
 
-> Para quem: pessoas que usaram Postgres como banco de uma aplicação web mas nunca pensaram nele como destino de pipelines.  
-> Entrega: entender schemas, particionamento básico, o papel do asyncpg e por que não usamos SQLite aqui.
-
-```
-00:00 - 01:00  "Postgres não é só banco de aplicação — aqui ele é nossa camada transacional"
-01:00 - 04:00  Schemas como namespaces: sales, warehouse, person, product (demonstração visual)
-04:00 - 07:00  asyncpg vs psycopg2: por que o driver importa em alta concorrência
-07:00 - 09:30  Bulk insert vs insert individual — demonstração de performance ao vivo
-09:30 - 10:00  "Próximo: o que é SQLAlchemy 2.0 e por que abstraímos o SQL — EP02.4"
-```
-
----
-
-**EP02.3 — Deep Track (8 min): "O que é um Seeder e por que todo pipeline precisa de um"**
-
-> Para quem: quem vem do mundo de aplicações web e nunca trabalhou com geração de dados sintéticos.  
-> Entrega: entender o papel do seeder, chaos engineering básico e como isso simula produção real.
+> For: devs who know Flask/Django but have never used FastAPI or never truly understood async.
+> Delivers: conceptual clarity — you walk away knowing *why* async matters in high-volume data ingestion.
 
 ```
-00:00 - 01:00  "Como você testa um pipeline sem dados reais? Com dados falsos que se comportam como reais."
-01:00 - 03:30  O que um seeder faz: gera, valida e insere dados com estrutura de produção
-03:30 - 06:00  Chaos engineering básico: por que injetamos erros de propósito (CPFs inválidos, duplicatas)
-06:00 - 07:30  Argparse + integração com Airflow BashOperator (preview do EP07)
-07:30 - 08:00  "No EP02 você vai ver o seeder rodando contra a API que construímos."
+00:00 - 01:00  Problem: "Why do synchronous APIs choke when data volume grows?"
+01:00 - 04:00  Analogy: synchronous waiter vs asynchronous waiter (the waiter doesn't wait for the dish to be ready)
+04:00 - 07:00  FastAPI vs Flask: what changes in practice (simple live benchmark)
+07:00 - 09:00  How async/await works in Python — the minimum you need to know
+09:00 - 10:00  "Now that you understand this, EP02 is going to make a lot more sense — link in the description."
 ```
 
 ---
 
-**EP02.4 — Deep Track (12 min): "SQLAlchemy 2.0 — ORM, Async e a arquitetura de repositórios"**
+**EP02.2 — Deep Track (10 min): "PostgreSQL for Data Engineers — beyond CRUD"**
 
-> Para quem: quem conhece SQL mas nunca usou ORM, ou usou SQLAlchemy 1.x e ficou confuso com a versão 2.0.  
-> Entrega: entender Model → Repository como separação de responsabilidades, e por que zero for-loops em inserts.
+> For: people who used Postgres as an application database but never thought of it as a pipeline destination.
+> Delivers: understanding schemas, basic partitioning, the role of asyncpg, and why we don't use SQLite here.
 
 ```
-00:00 - 01:00  "ORM não é magia — é uma camada de tradução entre Python e SQL"
-01:00 - 04:00  SQLAlchemy 1.x vs 2.0: o que mudou e por que importa (async nativo)
-04:00 - 07:00  Model vs Repository: por que separar acesso a dados de regra de negócio
-07:00 - 10:00  bulk insert com insert().values(matrix) — por que isso escala e o for-loop não
-10:00 - 12:00  "Agora você está pronto para o EP02 — o full build da camada de ingestão."
+00:00 - 01:00  "Postgres isn't just an application database — here it's our transactional layer"
+01:00 - 04:00  Schemas as namespaces: sales, warehouse, person, product (visual demonstration)
+04:00 - 07:00  asyncpg vs psycopg2: why the driver matters under high concurrency
+07:00 - 09:30  Bulk insert vs individual insert — live performance demonstration
+09:30 - 10:00  "Next: what is SQLAlchemy 2.0 and why we abstract the SQL — EP02.4"
 ```
 
 ---
 
-### PARTE 8 — Theory Track: O Clube do Livro como Terceira Trilha
+**EP02.3 — Deep Track (8 min): "What is a Seeder and why every pipeline needs one"**
 
-**ALEX:** Tem uma coisa que falta na maioria dos canais técnicos em português — e que diferencia os canais que viram referência dos que ficam estagnados em 5 mil inscritos. A *justificativa* das decisões. Qualquer um pode mostrar como instalar o Kafka. Poucos conseguem explicar *por que* Kafka aqui e não RabbitMQ, Pulsar ou uma fila simples. A resposta não está no código — está nos livros. E o Clube do Livro resolve isso de um jeito que eu nunca vi ser feito em português.
+> For: people coming from the web application world who have never worked with synthetic data generation.
+> Delivers: understanding the role of the seeder, basic chaos engineering, and how it simulates real production.
 
-**MARINA:** O que torna essa proposta diferente é o timing. O Clube não acontece *depois* do episódio — como complementar opcional que ninguém assiste. Ele acontece *antes*. A leitura antecede a implementação por design. Isso transforma o canal de um repositório de tutoriais em um registro de como um engenheiro sênior constrói algo do zero — lendo antes de codar, documentando as decisões, entendendo os trade-offs. Essa frase resume o posicionamento: **"a gente não implementa sem entender por que"**. Eu nunca vi outro canal em português usar isso como diferencial. Esse é o espaço vazio que você ocupa.
+```
+00:00 - 01:00  "How do you test a pipeline without real data? With fake data that behaves like real data."
+01:00 - 03:30  What a seeder does: generates, validates, and inserts data with production-like structure
+03:30 - 06:00  Basic chaos engineering: why we inject errors on purpose (invalid CPFs, duplicates)
+06:00 - 07:30  Argparse + integration with Airflow BashOperator (preview of EP07)
+07:30 - 08:00  "In EP02 you'll see the seeder running against the API we built."
+```
 
-**RAFAEL:** Do ponto de vista de produção, o Theory Track tem um formato completamente diferente das outras duas trilhas. Não é tutorial — é discussão de leitura. Eu chamaria de **"Lendo Junto"**: 8-10 minutos onde você pega capítulos específicos do livro da vez e extrai os 3-5 conceitos que vão aparecer no próximo Fast Track. Não é resumo do livro inteiro — é a ponte entre a teoria e a implementação. Câmera mais presente, anotações na tela, ritmo conversacional. Thumbnail roxo — para a audiência saber imediatamente ao ver a miniatura: isso é Clube do Livro, não é Fast Track nem Deep Track.
+---
 
-**ALEX:** E tem um terceiro elemento além do vídeo: o Discord. Clube do Livro sem comunidade é só mais um vídeo. Com o Discord, cada sessão de leitura vira um debate — a audiência traz dúvidas, discordâncias, exemplos de como aplicou aquilo na empresa delas. Isso é conteúdo gerado pela comunidade que você não consegue produzir sozinho. Uma live mensal onde você aplica o conceito do livro em código ao vivo fecha o ciclo perfeito: **leitura → debate no Discord → implementação ao vivo → Fast Track**.
+**EP02.4 — Deep Track (12 min): "SQLAlchemy 2.0 — ORM, Async, and the Repository Architecture"**
 
-**MARINA:** A cadência que faz sentido: uma sessão do Clube por episódio Fast Track, saindo 1 semana antes. Com o Fast Track saindo a cada 2 semanas, o Clube sai na semana alternada. A pessoa que acompanha o canal tem conteúdo toda semana — e sempre com sequência lógica. No longo prazo, essa é também a semente de monetização: parceria com editoras para distribuir exemplares aos membros do Discord, assinatura premium para as lives mensais, bootcamp que percorre a trilha completa com os livros como base teórica.
+> For: people who know SQL but have never used an ORM, or used SQLAlchemy 1.x and got confused by version 2.0.
+> Delivers: understanding Model → Repository as separation of concerns, and why zero for-loops in inserts.
 
-#### Livros da Temporada 1 — Mapeados por Decisão Arquitetural
+```
+00:00 - 01:00  "An ORM isn't magic — it's a translation layer between Python and SQL"
+01:00 - 04:00  SQLAlchemy 1.x vs 2.0: what changed and why it matters (native async)
+04:00 - 07:00  Model vs Repository: why separate data access from business logic
+07:00 - 10:00  Bulk insert with insert().values(matrix) — why this scales and the for-loop doesn't
+10:00 - 12:00  "Now you're ready for EP02 — the full build of the ingestion layer."
+```
 
-| Temporada | Livro | Capítulos Relevantes | Fundamenta |
+---
+
+### PART 8 — Theory Track: The Book Club as the Third Track
+
+**ALEX:** There's something missing from most Portuguese-language technical channels — the thing that separates the channels that become reference points from the ones stuck at 5 thousand subscribers. The *justification* behind decisions. Anyone can show how to install Kafka. Few can explain *why* Kafka here and not RabbitMQ, Pulsar, or a simple queue. The answer isn't in the code — it's in the books. And the Book Club solves this in a way I've never seen done in Portuguese.
+
+**MARINA:** What makes this proposal different is the timing. The Club doesn't happen *after* the episode — as an optional add-on nobody watches. It happens *before*. The reading precedes the implementation, by design. This turns the channel from a repository of tutorials into a record of how a senior engineer builds something from scratch — reading before coding, documenting the decisions, understanding the trade-offs. This sentence sums up the positioning: **"we don't implement without understanding why."** I've never seen another Portuguese-language channel use this as a differentiator. That's the empty space you occupy.
+
+**RAFAEL:** From a production standpoint, the Theory Track has a completely different format from the other two tracks. It's not a tutorial — it's a reading discussion. I'd call it **"Reading Together"**: 8-10 minutes where you take specific chapters from the current book and extract the 3-5 concepts that will show up in the next Fast Track. It's not a summary of the whole book — it's the bridge between theory and implementation. Camera more present, on-screen notes, conversational pace. Purple thumbnail — so the audience knows immediately when they see the thumbnail: this is Book Club, not Fast Track or Deep Track.
+
+**ALEX:** And there's a third element beyond the video: Discord. Book Club without a community is just another video. With Discord, each reading session becomes a debate — the audience brings questions, disagreements, examples of how they applied that at their own company. That's community-generated content you can't produce alone. A monthly live stream where you apply the book's concept in code, live, closes the loop perfectly: **reading → Discord debate → live implementation → Fast Track**.
+
+**MARINA:** The cadence that makes sense: one Club session per Fast Track episode, releasing 1 week before. With the Fast Track coming out every 2 weeks, the Club comes out on the alternating week. Someone following the channel has content every week — and always in logical sequence. In the long run, this is also the seed of monetization: partnerships with publishers to distribute copies to Discord members, a premium subscription for the monthly live streams, a bootcamp that walks the full track with the books as theoretical foundation.
+
+#### Season 1 Books — Mapped by Architectural Decision
+
+| Season | Book | Relevant Chapters | Underpins |
 |-----------|-------|---------------------|------------|
-| T0 | **The Data Warehouse Toolkit** (Kimball & Ross) | Caps 1–4: Modelagem dimensional, Star Schema, Grain, SCDs | EP01, EP02, EP07 |
-| T1 | **Fundamentos de Engenharia de Dados** (Reis & Housley) | Ciclo de vida, Medallion, Data Quality como disciplina | EP02, EP03, EP07 |
-| T2 | **Designing Data-Intensive Applications** (Kleppmann) | Caps 3–4: Storage Engines + Cap 11: Stream Processing | EP03, EP04, EP05 |
-| T3 | **Domain-Driven Design** (Khononov) | Agregados, Consistência de Domínio, Outbox Pattern | EP05 |
-| T4 | **Software Architecture: The Hard Parts** (Ford & Richards) | Decomposição, CQRS, Trade-offs em sistemas distribuídos | EP06 |
-| T5 | **Gang of Four — Design Patterns** (GoF) | Repository, Factory | EP02 (retroativo) |
-| T6 | **Fluent Python** (Ramalho) | Generators, Protocolos, Async nativo | EP02, EP04 |
+| T0 | **The Data Warehouse Toolkit** (Kimball & Ross) | Ch. 1–4: Dimensional modeling, Star Schema, Grain, SCDs | EP01, EP02, EP07 |
+| T1 | **Fundamentals of Data Engineering** (Reis & Housley) | Lifecycle, Medallion, Data Quality as a discipline | EP02, EP03, EP07 |
+| T2 | **Designing Data-Intensive Applications** (Kleppmann) | Ch. 3–4: Storage Engines + Ch. 11: Stream Processing | EP03, EP04, EP05 |
+| T3 | **Domain-Driven Design** (Khononov) | Aggregates, Domain Consistency, Outbox Pattern | EP05 |
+| T4 | **Software Architecture: The Hard Parts** (Ford & Richards) | Decomposition, CQRS, trade-offs in distributed systems | EP06 |
+| T5 | **Gang of Four — Design Patterns** (GoF) | Repository, Factory | EP02 (retroactive) |
+| T6 | **Fluent Python** (Ramalho) | Generators, protocols, native async | EP02, EP04 |
 
-**ALEX:** Repara no posicionamento que emerge disso tudo: você não está apenas ensinando ferramentas. Você está mostrando *como um engenheiro sênior pensa* — lê antes de implementar, documenta as decisões em ADRs, entende os trade-offs, admite o que ainda não sabe. Esse é o canal que um engenheiro sênior vai recomendar para o júnior quando ele perguntar: *"como você aprende arquitetura de verdade?"*
+**ALEX:** Notice the positioning that emerges from all this: you're not just teaching tools. You're showing *how a senior engineer thinks* — reads before implementing, documents decisions in ADRs, understands the trade-offs, admits what they still don't know. This is the channel a senior engineer recommends to a junior when they ask: *"how do you actually learn architecture?"*
 
-#### Formato dos Vídeos "Lendo Junto" (8-10 min)
+#### "Reading Together" Video Format (8-10 min)
 
 ```
-00:00 - 01:00  Hook: qual decisão do projeto esse livro fundamenta
-01:00 - 03:00  Contexto: por que lemos esse livro agora (a implementação vem na semana seguinte)
-03:00 - 07:00  Os 3–5 conceitos-chave que vão aparecer no Fast Track correspondente
-07:00 - 09:00  Como esses conceitos se manifestam no código do projeto (preview)
-09:00 - 10:00  "Na semana que vem, no EP[N], você vai ver isso acontecendo na plataforma real."
-               CTA para Discord: "A discussão continua lá — link na descrição."
+00:00 - 01:00  Hook: which project decision this book underpins
+01:00 - 03:00  Context: why we're reading this book now (the implementation comes the following week)
+03:00 - 07:00  The 3–5 key concepts that will show up in the corresponding Fast Track
+07:00 - 09:00  How these concepts manifest in the project's code (preview)
+09:00 - 10:00  "Next week, in EP[N], you'll see this happening on the real platform."
+               CTA for Discord: "The discussion continues there — link in the description."
 ```
 
 ---
 
-### PARTE 6 — Engajamento, Credibilidade e Crescimento
+### PART 6 — Engagement, Credibility, and Growth
 
-**MARINA:** Um canal técnico cresce por **credibilidade demonstrada**, não por algoritmo. A melhor estratégia de crescimento é simples: o conteúdo precisa funcionar. Se o espectador seguir seus passos e chegar no mesmo resultado, ele vira fã e compartilha. Se der erro, ele abandona e não volta. Por isso, **teste tudo antes de gravar**. O vídeo é a performance ensaiada, não o experimento ao vivo.
+**MARINA:** A technical channel grows through **demonstrated credibility**, not algorithm luck. The best growth strategy is simple: the content has to work. If the viewer follows your steps and reaches the same result, they become a fan and share it. If it fails, they leave and don't come back. That's why you should **test everything before recording**. The video is the rehearsed performance, not the live experiment.
 
-**RAFAEL:** Exceto quando o erro é intencional e pedagógico. Um vídeo chamado "Eu errei a arquitetura e tive que refazer — aprenda com meus erros" pode ser extremamente poderoso. Mostra processo real, não a versão sanitizada.
+**RAFAEL:** Except when the mistake is intentional and pedagogical. A video called "I got the architecture wrong and had to redo it — learn from my mistakes" can be extremely powerful. It shows the real process, not the sanitized version.
 
-**ALEX:** Isso é o que chamo de **vulnerabilidade estratégica**. Não é expor fraqueza — é mostrar que você já esteve onde o espectador está agora. "Eu passei 2 dias tentando entender por que o Spark não conectava no MinIO. O problema era esse campo aqui no spark-defaults.conf." Isso é ouro narrativo.
+**ALEX:** That's what I call **strategic vulnerability**. It's not about exposing weakness — it's about showing that you've already been where the viewer is right now. "I spent 2 days trying to understand why Spark wasn't connecting to MinIO. The problem was this field here in spark-defaults.conf." That's narrative gold.
 
-**MARINA:** Para engajamento nos comentários: faça perguntas abertas ao final de cada vídeo. Não "deixe seu like", mas "qual serviço você está tendo mais dificuldade de entender? Me conta nos comentários." Respostas geram mais respostas, e o YouTube interpreta como sinal de qualidade.
+**MARINA:** For engagement in the comments: ask open-ended questions at the end of every video. Not "leave a like," but "which service are you having the most trouble understanding? Tell me in the comments." Replies generate more replies, and YouTube reads that as a quality signal.
 
-**ALEX:** E uma última coisa sobre narrativa de canal: **documente a jornada em tempo real**. Se você ainda está construindo partes do projeto, filme o processo. "Hoje fui implementar o particionamento por data no Iceberg e descobri que..." — isso é mais autêntico e conecta mais do que vídeos de tutoriais polidos onde tudo sempre funciona na primeira tentativa.
+**ALEX:** And one last thing about channel narrative: **document the journey in real time**. If you're still building parts of the project, film the process. "Today I went to implement date partitioning in Iceberg and discovered that..." — this is more authentic and connects more than polished tutorial videos where everything always works on the first try.
 
-**MARINA:** Resumindo a filosofia do canal em uma frase: **"Mostre o trabalho real, explique o raciocínio por trás das decisões, e deixe o dado fluindo no final para provar que funciona."**
-
----
-
-## BLOCO II — ECOSSISTEMA: O Papel de Cada Plataforma
-
-### YouTube — O Motor (Conteúdo Pilar)
-- **Função**: Profundidade técnica + prova de competência
-- **Formato**: 15-25 min por vídeo, série estruturada
-- **Audiência**: Engenheiros de dados, devs backend, estudantes
-- **Métrica que importa**: Watch Time + Subscribers
-- **Frequência ideal**: 1 vídeo a cada 2 semanas (consistência > quantidade)
-
-### LinkedIn Newsletter — O Conversor (Audiência Quente)
-- **Função**: Transformar conexões passivas em leitores ativos + nutrir os 500 subs existentes
-- **Formato**: 800-1.200 palavras, ângulo de carreira/decisão técnica (não tutorial)
-- **Audiência**: Os mesmos que te seguem no LinkedIn — recrutadores, gestores, pares técnicos
-- **Métrica que importa**: Open Rate + Novos assinantes por edição
-- **Frequência ideal**: 1 edição por quinzena (sincronizado com o YouTube)
-
-### LinkedIn Posts — O Amplificador (Alcance Orgânico)
-- **Função**: Atrair novos seguidores via feed + direcionar para newsletter e YouTube
-- **Formato**: 3-5 posts por semana, cada um extraído do vídeo da semana
-- **Audiência**: Feed aberto do LinkedIn — alcance viral possível
-- **Métrica que importa**: Impressões + Novos seguidores
-- **Frequência ideal**: 3-5x por semana
-
-### Medium — O Arquivo (SEO de Longo Prazo)
-- **Função**: Tráfego orgânico via Google + credencial escrita permanente
-- **Formato**: Artigo técnico aprofundado, 1.500-3.000 palavras, com código
-- **Audiência**: Quem pesquisa "apache iceberg tutorial", "airflow spark integration" no Google
-- **Métrica que importa**: Views orgânicas + Follows
-- **Frequência ideal**: 1 artigo por vídeo publicado
-
-### Instagram — O Humanizador (Audiência Fria → Morna)
-- **Função**: Top of funnel — apresentar você para pessoas que não te conhecem ainda
-- **Formato**: Carrosséis técnicos (diagramas, "5 coisas sobre X") + Stories de bastidores
-- **Audiência**: Devs e estudantes de tecnologia que usam Instagram
-- **Métrica que importa**: Reach + Saves (saves = conteúdo útil)
-- **Frequência ideal**: 3x por semana (2 carrosséis + 1 reels curto ou stories)
-
-### Discord — A Comunidade (Theory Track Hub)
-- **Função**: Debate das leituras do Clube + comunidade de prática dos membros mais engajados
-- **Formato**: Canais por livro/temporada, canal de dúvidas por episódio, voz mensal para a live do Clube
-- **Audiência**: Os 10-20% mais engajados do canal — quem quer ir além do vídeo
-- **Métrica que importa**: Membros ativos + tópicos criados por sessão do Clube
-- **Frequência**: Sempre ativo — cada Clube T[N] gera um tópico de debate com duração de 1 semana
-- **Monetização futura**: Acesso premium às lives mensais, sessões privadas de ADR, bootcamp ao vivo
+**MARINA:** Summing up the channel's philosophy in one sentence: **"Show the real work, explain the reasoning behind the decisions, and let the data flow at the end to prove it works."**
 
 ---
 
-## BLOCO III — O FLUXO: Como Tudo Se Conecta
+## BLOCK II — ECOSYSTEM: The Role of Each Platform
 
-### Semana tipo com 1 vídeo publicado:
+### YouTube — The Engine (Pillar Content)
+- **Function**: Technical depth + proof of competence
+- **Format**: 15-25 min per video, structured series
+- **Audience**: Data engineers, backend devs, students
+- **Metric that matters**: Watch Time + Subscribers
+- **Ideal frequency**: 1 video every 2 weeks (consistency > quantity)
+
+### LinkedIn Newsletter — The Converter (Warm Audience)
+- **Function**: Turn passive connections into active readers + nurture the existing 500 subs
+- **Format**: 800-1,200 words, career/technical-decision angle (not a tutorial)
+- **Audience**: The same people who follow you on LinkedIn — recruiters, managers, technical peers
+- **Metric that matters**: Open Rate + New subscribers per edition
+- **Ideal frequency**: 1 edition every two weeks (synced with YouTube)
+
+### LinkedIn Posts — The Amplifier (Organic Reach)
+- **Function**: Attract new followers via the feed + drive to newsletter and YouTube
+- **Format**: 3-5 posts per week, each extracted from that week's video
+- **Audience**: LinkedIn's open feed — potential viral reach
+- **Metric that matters**: Impressions + New followers
+- **Ideal frequency**: 3-5x per week
+
+### Medium — The Archive (Long-Term SEO)
+- **Function**: Organic traffic via Google + permanent written credential
+- **Format**: In-depth technical article, 1,500-3,000 words, with code
+- **Audience**: People searching "apache iceberg tutorial", "airflow spark integration" on Google
+- **Metric that matters**: Organic views + Follows
+- **Ideal frequency**: 1 article per published video
+
+### Instagram — The Humanizer (Cold → Warm Audience)
+- **Function**: Top of funnel — introduce yourself to people who don't know you yet
+- **Format**: Technical carousels (diagrams, "5 things about X") + behind-the-scenes Stories
+- **Audience**: Devs and tech students who use Instagram
+- **Metric that matters**: Reach + Saves (saves = useful content)
+- **Ideal frequency**: 3x per week (2 carousels + 1 short reel or stories)
+
+### Discord — The Community (Theory Track Hub)
+- **Function**: Debate around Club readings + practice community for the most engaged members
+- **Format**: Channels by book/season, Q&A channel per episode, monthly voice call for the Club live stream
+- **Audience**: The most engaged 10-20% of the channel — those who want more than the video
+- **Metric that matters**: Active members + threads created per Club session
+- **Frequency**: Always active — each Club T[N] generates a debate thread lasting 1 week
+- **Future monetization**: Premium access to monthly live streams, private ADR sessions, live bootcamp
+
+---
+
+## BLOCK III — THE FLOW: How Everything Connects
+
+### Typical week with 1 video published:
 
 ```
-DIA 1 (Segunda) — Gravação/edição do vídeo YouTube
-DIA 2 (Terça)  — Publicar YouTube + LinkedIn Post #1 (insight principal do vídeo)
-DIA 3 (Quarta) — Instagram Carrossel (diagrama de arquitetura do vídeo)
-DIA 4 (Quinta) — LinkedIn Post #2 (erro/aprendizado do vídeo) + Medium artigo publicado
-DIA 5 (Sexta)  — LinkedIn Newsletter (versão editorial do tema) + LinkedIn Post #3 (CTA para newsletter)
-DIA 7 (Domingo)— Stories de bastidores do próximo vídeo (Instagram)
+DAY 1 (Monday)    — Record/edit the YouTube video
+DAY 2 (Tuesday)   — Publish YouTube + LinkedIn Post #1 (main insight from the video)
+DAY 3 (Wednesday) — Instagram Carousel (architecture diagram from the video)
+DAY 4 (Thursday)  — LinkedIn Post #2 (mistake/lesson from the video) + Medium article published
+DAY 5 (Friday)    — LinkedIn Newsletter (editorial version of the topic) + LinkedIn Post #3 (CTA to newsletter)
+DAY 7 (Sunday)    — Behind-the-scenes Stories for the next video (Instagram)
 ```
 
-### Como cada post é extraído do mesmo vídeo:
+### How each post is extracted from the same video:
 
-**Exemplo: EP06 — Apache Spark**
+**Example: EP06 — Apache Spark**
 
-| Plataforma | Ângulo | Título/Legenda |
+| Platform | Angle | Title/Caption |
 |-----------|--------|----------------|
-| YouTube | Tutorial técnico completo | "Apache Spark no Docker: do zero ao job rodando em 20 min" |
-| LinkedIn Post #1 | Insight de decisão | "Por que escolhi Spark em vez de DuckDB para esse projeto (e quando eu erraria essa escolha)" |
-| LinkedIn Post #2 | Vulnerabilidade técnica | "Passei 3 horas travado nessa config do Spark. O problema era uma linha no spark-defaults.conf" |
-| LinkedIn Post #3 | CTA editorial | "Escrevi sobre isso na newsletter essa semana. Link nos comentários." |
-| Medium | Artigo técnico com código | "Spark + MinIO + Iceberg: configuração completa com exemplos reais" |
-| Newsletter | Ângulo de carreira | "O que saber sobre Spark antes da próxima entrevista de dados (e o que ninguém te conta)" |
-| Instagram | Visual | Carrossel: "5 conceitos do Spark que você precisa entender antes de usar em prod" |
+| YouTube | Full technical tutorial | "Apache Spark in Docker: from zero to a running job in 20 min" |
+| LinkedIn Post #1 | Decision insight | "Why I chose Spark over DuckDB for this project (and when I'd get that choice wrong)" |
+| LinkedIn Post #2 | Technical vulnerability | "I was stuck on this Spark config for 3 hours. The problem was one line in spark-defaults.conf" |
+| LinkedIn Post #3 | Editorial CTA | "I wrote about this in the newsletter this week. Link in the comments." |
+| Medium | Technical article with code | "Spark + MinIO + Iceberg: full configuration with real examples" |
+| Newsletter | Career angle | "What to know about Spark before your next data interview (and what nobody tells you)" |
+| Instagram | Visual | Carousel: "5 Spark concepts you need to understand before using it in prod" |
 
 ---
 
-## BLOCO IV — PLATAFORMAS: Guia Específico por Canal
+## BLOCK IV — PLATFORMS: Channel-Specific Guide
 
-### LinkedIn Newsletter — Reativando os 500 Subs
+### LinkedIn Newsletter — Reactivating the 500 Subs
 
-Essa é sua maior vantagem imediata. 500 assinantes ativos valem mais que 10.000 seguidores frios.
+This is your biggest immediate advantage. 500 active subscribers are worth more than 10,000 cold followers.
 
-**Estratégia de reativação em 3 etapas:**
+**3-step reactivation strategy:**
 
-**Etapa 1 — Edição de Retorno (Semana 1)**
-Não finja que nunca parou. Seja direto:
+**Step 1 — Comeback Edition (Week 1)**
+Don't pretend you never stopped. Be direct:
 
-> *"Essa newsletter ficou parada por [X] meses. Vou explicar por quê parei, o que estava construindo nesse tempo, e o que muda agora."*
+> *"This newsletter has been on hold for [X] months. I'm going to explain why I stopped, what I was building during that time, and what changes now."*
 
-Mostre o projeto — a plataforma de dados — como o motivo. Você estava construindo o conteúdo, não apenas publicando sobre ele. Isso ressignifica o silêncio.
+Show the project — the data platform — as the reason. You were building the content, not just publishing about it. This reframes the silence.
 
-**Etapa 2 — Série de Onboarding (Semanas 2-4)**
-Publique 3 edições introdutórias antes de entrar na cadência normal:
-- Edição 2: "A stack que estou documentando e por que escolhi cada ferramenta"
-- Edição 3: "O maior erro que cometi montando essa arquitetura"
-- Edição 4: "O que você vai aprender acompanhando essa série"
+**Step 2 — Onboarding Series (Weeks 2-4)**
+Publish 3 introductory editions before entering the normal cadence:
+- Edition 2: "The stack I'm documenting and why I chose each tool"
+- Edition 3: "The biggest mistake I made setting up this architecture"
+- Edition 4: "What you'll learn by following this series"
 
-**Etapa 3 — Cadência Quinzenal Sustentável**
-Uma edição a cada duas semanas, sempre sincronizada com o vídeo do YouTube.
+**Step 3 — Sustainable Biweekly Cadence**
+One edition every two weeks, always synced with the YouTube video.
 
-**Formato da Newsletter LinkedIn (template):**
+**LinkedIn Newsletter Format (template):**
 
 ```
-LINHA DE ASSUNTO: [Número] + [benefício específico] + [emoção]
-Exemplos:
-- "3 decisões de arquitetura que eu refaria (e o que aprendi)"
-- "Por que o Airflow quase me fez desistir — e como resolvi"
-- "A query que deveria demorar 3h rodou em 4 segundos. Veja como."
+SUBJECT LINE: [Number] + [specific benefit] + [emotion]
+Examples:
+- "3 architecture decisions I'd redo (and what I learned)"
+- "Why Airflow almost made me quit — and how I solved it"
+- "The query that should've taken 3h ran in 4 seconds. Here's how."
 
-ESTRUTURA INTERNA:
-• Abertura (2-3 linhas): gancho + o que vem nessa edição
-• Contexto (1 parágrafo): por que esse tema importa agora
-• Conteúdo principal (3-4 parágrafos): o ensinamento real
-• Lição transferível (1 parágrafo): o que isso muda na prática
-• CTA (2 linhas): link para o vídeo + convite para responder
+INTERNAL STRUCTURE:
+• Opening (2-3 lines): hook + what's in this edition
+• Context (1 paragraph): why this topic matters now
+• Main content (3-4 paragraphs): the real lesson
+• Transferable takeaway (1 paragraph): what this changes in practice
+• CTA (2 lines): link to the video + invitation to reply
 ```
 
 ---
 
-### LinkedIn Posts — A Fábrica de Alcance
+### LinkedIn Posts — The Reach Factory
 
-O feed do LinkedIn tem um mecanismo diferente de qualquer outra rede: **texto longo sem link performa melhor** que posts com link externo. O algoritmo pune quem "faz as pessoas saírem do LinkedIn".
+The LinkedIn feed has a different mechanism than any other network: **long-form text without a link performs better** than posts with an external link. The algorithm penalizes anyone who "makes people leave LinkedIn."
 
-**Tática principal: publicar sem link → responder com link nos comentários**
+**Main tactic: publish without a link → reply with the link in the comments**
 
 ```
-Post principal: Insight completo, sem link
-Primeiro comentário (seu): "Gravei um vídeo detalhando isso aqui: [link]"
+Main post: Full insight, no link
+First comment (yours): "I recorded a video going into detail on this: [link]"
 ```
 
-**5 tipos de posts que funcionam:**
+**5 post types that work:**
 
-**Tipo 1 — O Contraintuitivo**
-*"Todo mundo fala para usar [tecnologia X]. Eu discordo. Aqui está o porquê."*
+**Type 1 — The Counterintuitive Take**
+*"Everyone says to use [technology X]. I disagree. Here's why."*
 
-**Tipo 2 — O Número com História**
-*"50 milhões de registros inseridos em 12 minutos. Era impossível há 6 meses com a arquitetura que eu tinha."*
+**Type 2 — The Number With a Story**
+*"50 million records inserted in 12 minutes. That would've been impossible 6 months ago with the architecture I had."*
 
-**Tipo 3 — A Lição Cara**
-*"O erro que me custou 2 dias de debug. Não cometa esse."*
+**Type 3 — The Expensive Lesson**
+*"The mistake that cost me 2 days of debugging. Don't make this one."*
 
-**Tipo 4 — O Carrossel de Conceito**
-*"5 ferramentas open-source que substituem serviços AWS pagos [carrossel]"*
+**Type 4 — The Concept Carousel**
+*"5 open-source tools that replace paid AWS services [carousel]"*
 
-**Tipo 5 — O Bastidor**
-*"Gravando o EP07 da série sobre Airflow. Aqui está o diagrama que usei para organizar o raciocínio antes de codar."*
+**Type 5 — The Behind-the-Scenes**
+*"Recording EP07 of the Airflow series. Here's the diagram I used to organize my thinking before coding."*
 
 ---
 
-### Medium — SEO de Longo Prazo
+### Medium — Long-Term SEO
 
-O Medium é o único canal onde o conteúdo tem valor crescente no tempo — um artigo publicado hoje pode gerar tráfego por anos via Google.
+Medium is the only channel where content has increasing value over time — an article published today can generate traffic for years via Google.
 
-**Dica crítica:** Publique **primeiro no Medium**, espere 3 dias para indexação do Google, depois compartilhe no LinkedIn. Se você compartilhar antes de indexar, o LinkedIn vai "roubar" a audiência e o Google vai tratar como conteúdo duplicado.
+**Critical tip:** Publish on **Medium first**, wait 3 days for Google to index it, then share it on LinkedIn. If you share before it's indexed, LinkedIn will "steal" the audience and Google will treat it as duplicate content.
 
-**Estratégia de keywords por episódio:**
+**Keyword strategy by episode:**
 
-| Artigo | Keyword Principal |
+| Article | Main Keyword |
 |--------|------------------|
-| EP01 overview | "plataforma de dados open source do zero" |
+| EP01 overview | "open source data platform from scratch" |
 | EP02 FastAPI | "fastapi postgresql async sqlalchemy 2.0" |
 | EP03 Delta Lake | "delta lake tutorial docker unity catalog" |
 | EP07 Airflow | "apache airflow docker compose tutorial" |
 | EP08 Trino | "trino delta lake query tutorial" |
 | EP09 Seeders | "chaos engineering data quality python" |
 
-**Estrutura de artigo no Medium:**
+**Medium article structure:**
 
 ```markdown
-# Título com keyword + benefício
+# Title with keyword + benefit
 
-## TL;DR (3 bullets — para quem lê scanning)
+## TL;DR (3 bullets — for scanners)
 
-## O Problema
-(Por que esse tema existe?)
+## The Problem
+(Why does this topic exist?)
 
-## A Solução
-(Código + explicação alternada — nunca bloco de código sem contexto)
+## The Solution
+(Code + explanation alternating — never a code block without context)
 
-## Armadilhas Comuns
-(O que dá errado — seção mais lida)
+## Common Pitfalls
+(What goes wrong — the most-read section)
 
-## Conclusão
-(O que você levaria desse artigo em 3 linhas)
+## Conclusion
+(What you'd take away from this article in 3 lines)
 
-## Próximos passos
-(Link para o YouTube + próximo artigo)
+## Next steps
+(Link to YouTube + next article)
 ```
 
 ---
 
-### Instagram — Conteúdo Técnico Que Funciona Visualmente
+### Instagram — Technical Content That Works Visually
 
-O segredo é: **não tente ser o que o Instagram não é**. Você não vai ensinar Spark em 30 segundos. Use o Instagram para **despertar curiosidade**, não para ensinar.
+The secret is: **don't try to be what Instagram isn't**. You're not going to teach Spark in 30 seconds. Use Instagram to **spark curiosity**, not to teach.
 
-**Carrossel de Arquitetura** (melhor formato)
-- Slide 1: Diagrama visual da stack completa (você já tem o `diagram.py`)
-- Slides 2-6: Cada serviço isolado com 1 frase explicando sua função
-- Slide final: "Tutorial completo no YouTube — link na bio"
-- Saves > Likes nesse formato — e saves é o que o algoritmo valoriza
+**Architecture Carousel** (best format)
+- Slide 1: Visual diagram of the full stack (you already have `diagram.py`)
+- Slides 2-6: Each service isolated with 1 sentence explaining its function
+- Final slide: "Full tutorial on YouTube — link in bio"
+- Saves > Likes in this format — and saves is what the algorithm values
 
-**Reels de Terminal** (segundo melhor)
-- 30-60 segundos de um pipeline rodando com música lo-fi
-- Legenda: "50 milhões de registros. 12 minutos. Zero cloud." + CTA
-- Não precisa de narração — o terminal falando sozinho já é conteúdo
+**Terminal Reels** (second best)
+- 30-60 seconds of a pipeline running with lo-fi music
+- Caption: "50 million records. 12 minutes. Zero cloud." + CTA
+- No narration needed — the terminal speaking for itself is already content
 
-**Stories de Bastidores**
-- Setup do computador, segundo monitor com terminal, configuração do microfone
-- Erros em tempo real ("travado nessa config há 2 horas")
-- Enquetes: "Você usa Airflow ou Prefect?" — engajamento fácil
+**Behind-the-Scenes Stories**
+- Computer setup, second monitor with terminal, microphone configuration
+- Real-time mistakes ("stuck on this config for 2 hours")
+- Polls: "Do you use Airflow or Prefect?" — easy engagement
 
-**O que NÃO fazer:**
-- Tutoriais em formato de foto estática (ninguém lê)
-- Posts com muito texto na imagem
-- Frequência inconsistente (2x/semana sempre > 7x/semana por 2 semanas e sumir)
+**What NOT to do:**
+- Tutorials as static image posts (nobody reads them)
+- Posts with too much text on the image
+- Inconsistent frequency (2x/week always beats 7x/week for 2 weeks and then disappearing)
 
 ---
 
-## BLOCO V — O FLYWHEEL: Como Tudo Se Auto-Alimenta
+## BLOCK V — THE FLYWHEEL: How Everything Self-Feeds
 
 ```
 YOUTUBE FAST TRACK (EP01–EP09)
- → gera prova técnica e conteúdo pilar com ADRs como abertura
- → alimenta MEDIUM (SEO) e NEWSLETTER (audiência quente)
- → referencia DEEP TRACK para espectadores sem base
- → cada episódio tem um Clube correspondente que foi ao ar 1 semana antes
+ → generates technical proof and pillar content with ADRs as the opener
+ → feeds MEDIUM (SEO) and NEWSLETTER (warm audience)
+ → references DEEP TRACK for viewers without the base knowledge
+ → each episode has a corresponding Club session that aired 1 week before
 
-YOUTUBE THEORY TRACK / CLUBE DO LIVRO (Clube T1, T2, T3, T4)
- → acontece 1 semana antes do Fast Track correspondente
- → fundamenta as decisões arquiteturais com livros técnicos de referência
- → gera debate no DISCORD — comunidade de prática do canal
- → a audiência mais engajada migra para o núcleo do canal (Discord)
- → cria diferencial único: "o canal que lê antes de implementar"
+YOUTUBE THEORY TRACK / BOOK CLUB (Club T1, T2, T3, T4)
+ → happens 1 week before the corresponding Fast Track
+ → underpins architectural decisions with reference technical books
+ → generates debate on DISCORD — the channel's practice community
+ → the most engaged audience migrates to the channel's core (Discord)
+ → creates a unique differentiator: "the channel that reads before implementing"
 
 YOUTUBE DEEP TRACK (EP02.1, 02.2...)
- → captura buscas de fundamentos (alto volume, baixa concorrência em PT-BR)
- → converte iniciantes em seguidores do FAST TRACK
- → gera artigos no MEDIUM com keywords de topo de funil
+ → captures fundamentals searches (high volume, low competition in PT-BR)
+ → converts beginners into FAST TRACK followers
+ → generates MEDIUM articles with top-of-funnel keywords
 
-DISCORD (Clube do Livro Hub)
- → debate das leituras após cada Theory Track
- → live mensal de aplicação com a audiência participando
- → embrião da comunidade paga (premium, bootcamp)
- → fonte de dúvidas reais para futuros episódios Deep Track
+DISCORD (Book Club Hub)
+ → debate on readings after each Theory Track
+ → monthly application live stream with audience participation
+ → seed of the paid community (premium, bootcamp)
+ → source of real questions for future Deep Track episodes
 
 LINKEDIN POSTS
- → alcance orgânico no feed
- → ADRs publicados como posts técnicos (alto engajamento — opinativo e convidativo)
- → novos seguidores descobrem a NEWSLETTER
- → newsletter converte em assinantes do YOUTUBE (todas as três trilhas)
+ → organic reach in the feed
+ → ADRs published as technical posts (high engagement — opinionated and inviting)
+ → new followers discover the NEWSLETTER
+ → newsletter converts into YOUTUBE subscribers (all three tracks)
 
 INSTAGRAM
- → audiência fria descobre você
- → vai para o LinkedIn ou YouTube (Deep Track é mais acessível como porta de entrada)
- → entra no ecossistema
+ → cold audience discovers you
+ → moves to LinkedIn or YouTube (Deep Track is a more accessible entry point)
+ → enters the ecosystem
 
 MEDIUM
- → Google traz tráfego orgânico constante (Fast Track = keywords avançadas, Deep Track = keywords de volume)
- → leitor encontra link para YOUTUBE
- → se inscreve no canal
+ → Google brings constant organic traffic (Fast Track = advanced keywords, Deep Track = volume keywords)
+ → reader finds the link to YOUTUBE
+ → subscribes to the channel
 ```
 
-**Em 6 meses**: O Fast Track cresce via LinkedIn (rede técnica) + Medium (SEO avançado). O Deep Track cresce via Google (keywords de fundamento) + Instagram (top of funnel). O Theory Track diferencia o canal — atrai quem quer mais que tutoriais e constrói o núcleo mais fiel da audiência. O Discord transforma espectadores em comunidade. As três playlists se alimentam mutuamente: o iniciante entra pelo Deep Track, vira fã pelo Fast Track, vira membro pelo Theory Track.
+**In 6 months**: The Fast Track grows via LinkedIn (technical network) + Medium (advanced SEO). The Deep Track grows via Google (fundamentals keywords) + Instagram (top of funnel). The Theory Track sets the channel apart — it attracts people who want more than tutorials and builds the audience's most loyal core. Discord turns viewers into a community. The three playlists feed each other: the beginner enters through the Deep Track, becomes a fan through the Fast Track, becomes a member through the Theory Track.
 
 ---
 
-## BLOCO VI — EXECUÇÃO: Plano dos Primeiros 30 Dias
+## BLOCK VI — EXECUTION: First 30 Days Plan
 
-### Semana 1 — Fundação
-- [ ] Escrever a frase de posicionamento do canal
-- [ ] Reativar newsletter com a "Edição de Retorno"
-- [ ] Publicar 3 LinkedIn posts de aquecimento (sem link ainda)
-- [ ] Gravar EP01 do YouTube (overview da stack)
+### Week 1 — Foundation
+- [ ] Write the channel's positioning statement
+- [ ] Reactivate the newsletter with the "Comeback Edition"
+- [ ] Publish 3 warm-up LinkedIn posts (no link yet)
+- [ ] Record EP01 of the YouTube series (stack overview)
 
-### Semana 2 — Lançamento
-- [ ] Publicar EP01 no YouTube
-- [ ] Publicar artigo EP01 no Medium (3 dias antes de divulgar no LinkedIn)
-- [ ] LinkedIn Post com insight principal do EP01 (sem link no post)
-- [ ] Instagram: carrossel com diagrama da stack
+### Week 2 — Launch
+- [ ] Publish EP01 on YouTube
+- [ ] Publish the EP01 article on Medium (3 days before promoting it on LinkedIn)
+- [ ] LinkedIn Post with the main insight from EP01 (no link in the post)
+- [ ] Instagram: carousel with the stack diagram
 
-### Semana 3 — Cadência
-- [ ] Newsletter Edição 2 (com link para EP01)
-- [ ] 2 LinkedIn posts adicionais sobre o tema do EP01
-- [ ] Começar gravação do EP02
-- [ ] Stories de bastidores no Instagram
+### Week 3 — Cadence
+- [ ] Newsletter Edition 2 (with link to EP01)
+- [ ] 2 additional LinkedIn posts about the EP01 topic
+- [ ] Start recording EP02
+- [ ] Behind-the-scenes Stories on Instagram
 
-### Semana 4 — Validação
-- [ ] Analisar métricas: qual post do LinkedIn teve mais alcance? Qual tipo?
-- [ ] Qual foi a taxa de abertura da newsletter?
-- [ ] Quantas views o EP01 teve?
-- [ ] Ajustar o que não funcionou antes de entrar no ritmo do mês 2
-
----
+### Week 4 — Validation
+- [ ] Analyze metrics: which LinkedIn post had the most reach? Which type?
+- [ ] What was the newsletter's open rate?
+- [ ] How many views did EP01 get?
+- [ ] Adjust what didn't work before settling into month 2's rhythm
 
 ---
 
-## BLOCO VIII — O Caso de Negócio: O Marketplace NexoMart
+---
 
-### O Contexto Narrativo
+## BLOCK VIII — The Business Case: The NexoMart Marketplace
 
-**ALEX:** A decisão mais importante para o canal é: não vamos ensinar tecnologias no vácuo. Vamos contar a história de uma empresa. A empresa se chama **NexoMart** — um marketplace brasileiro que está nascendo. Eles têm o banco de dados operacional desenhado. Eles precisam de uma plataforma de dados para analisar o negócio. É exatamente o problema que qualquer engenheiro de dados vai enfrentar na vida real. A diferença é que vamos construir tudo do zero, ao vivo, e documentar cada decisão.
+### The Narrative Context
 
-**MARINA:** Do ponto de vista de comunicação, isso muda como os episódios funcionam. O espectador não está assistindo a um tutorial sobre FastAPI — está acompanhando a construção do backend analítico de uma empresa real. Cada ferramenta tem uma justificativa de negócio. O Kafka entra porque o marketplace precisa processar eventos de pedido em tempo real sem travar a API. O Iceberg entra porque precisamos versionar o catálogo de produtos para auditoria. A audiência entende o *porquê* antes do *como*.
+**ALEX:** The most important decision for the channel is: we're not going to teach technologies in a vacuum. We're going to tell the story of a company. The company is called **NexoMart** — a Brazilian marketplace that's just getting started. They have their operational database designed. They need a data platform to analyze the business. It's exactly the problem any data engineer will face in real life. The difference is we're going to build everything from scratch, live, and document every decision.
 
-**RAFAEL:** E visualmente, isso é ouro. Em vez de abrir um terminal em branco no EP01, você abre o diagrama do banco de dados. Você mostra os 7 schemas. Você explica quem é o Seller, quem é o Customer, o que está em cada tabela. O `business_db.png` já é o slide de abertura do episódio.
+**MARINA:** From a communication standpoint, this changes how the episodes work. The viewer isn't watching a tutorial about FastAPI — they're following the construction of a real company's analytical backend. Every tool has a business justification. Kafka comes in because the marketplace needs to process order events in real time without choking the API. Iceberg comes in because we need to version the product catalog for audit purposes. The audience understands the *why* before the *how*.
+
+**RAFAEL:** And visually, that's gold. Instead of opening a blank terminal in EP01, you open the database diagram. You show the 7 schemas. You explain who the Seller is, who the Customer is, what's in each table. `business_db.png` is already the episode's opening slide.
 
 ---
 
-### O Banco de Dados Operacional (OLTP) do NexoMart
+### NexoMart's Operational Database (OLTP)
 
-Arquivo de referência: `business_db.sql` + `business_db.png`
+Reference files: `business_db.sql` + `business_db.png`
 
-O schema define o banco transacional em **7 domínios isolados** — cada schema é um bounded context (conexão direta com DDD, Clube T3).
+The schema defines the transactional database across **7 isolated domains** — each schema is a bounded context (a direct connection to DDD, Club T3).
 
-#### Os 7 Schemas e o que Representam
+#### The 7 Schemas and What They Represent
 
-| Schema | Domínio | Tabelas-chave | Decisão Arquitetural de Destaque |
+| Schema | Domain | Key Tables | Notable Architectural Decision |
 |--------|---------|--------------|----------------------------------|
-| `product` | Catálogo | product, productcategory, productmodel, **productembedding** | JSONB para atributos variáveis por categoria. **pgvector(1536)** para busca semântica — o banco já é AI-ready. |
-| `person` | Identidade | customer, **seller**, customeremail, countryregion | Seller como entidade de 1ª classe confirma o modelo de marketplace. Dados bancários no JSONB (desafio de PII e LGPD). |
-| `sales` | Transações | salesorder, **ordereventlog**, returnorder, saleschannel | `order_items` em JSONB multi-seller. `ordereventlog` como event sourcing lite (cada mudança de status logada). |
-| `marketing` | Aquisição | channel, campaign, adgroup, advertise, **dailyperformance** | Hierarquia de 4 níveis (Channel → Campaign → AdGroup → Ad). `dailyperformance` já tem cara de tabela fato. |
-| `humanresources` | Pessoas | employee, department, jobrole | **SCD Type 2 nativo** — `effective_start_date`, `effective_end_date`, `is_current`. Auto-referência em `department` para hierarquia de org. |
-| `purchasing` | Suprimentos | vendor, purchaseorderheader, purchaseorderdetail | Header + Detail com `employee_id` no header — o Comprador vem do HR. `audit_trail` em JSONB com histórico de aprovações. |
-| `warehouse` | Logística | warehouselocation, productinventory, transactionhistory | `transactionhistory` com qty positivo (entrada) / negativo (saída). `capabilities` JSONB com dados de IoT e cold chain. |
+| `product` | Catalog | product, productcategory, productmodel, **productembedding** | JSONB for attributes that vary by category. **pgvector(1536)** for semantic search — the database is already AI-ready. |
+| `person` | Identity | customer, **seller**, customeremail, countryregion | Seller as a first-class entity confirms the marketplace model. Banking data in JSONB (a PII and LGPD challenge). |
+| `sales` | Transactions | salesorder, **ordereventlog**, returnorder, saleschannel | `order_items` in multi-seller JSONB. `ordereventlog` as lightweight event sourcing (every status change logged). |
+| `marketing` | Acquisition | channel, campaign, adgroup, advertise, **dailyperformance** | 4-level hierarchy (Channel → Campaign → AdGroup → Ad). `dailyperformance` already looks like a fact table. |
+| `humanresources` | People | employee, department, jobrole | **Native SCD Type 2** — `effective_start_date`, `effective_end_date`, `is_current`. Self-reference in `department` for org hierarchy. |
+| `purchasing` | Supply Chain | vendor, purchaseorderheader, purchaseorderdetail | Header + Detail with `employee_id` on the header — the Buyer comes from HR. `audit_trail` in JSONB with approval history. |
+| `warehouse` | Logistics | warehouselocation, productinventory, transactionhistory | `transactionhistory` with positive qty (inbound) / negative qty (outbound). `capabilities` JSONB with IoT and cold-chain data. |
 
-#### 5 Decisões de Design que Viram Episódios
+#### 5 Design Decisions That Become Episodes
 
-**1. `order_items` como JSONB (ADR implícito)**
-Por que não criar `sales.salesorderdetail`? Em um marketplace multi-seller, cada item tem `delivery_info`, `taxes` e `seller_id` próprios. A maioria das queries de cabeçalho nunca precisa da granularidade de item. O custo: para análise, precisamos de `jsonb_array_elements` no SQL ou `explode()` no Spark. → *Deep Track EP02.5*
+**1. `order_items` as JSONB (implicit ADR)**
+Why not create a `sales.salesorderdetail`? In a multi-seller marketplace, each item has its own `delivery_info`, `taxes`, and `seller_id`. Most header-level queries never need item-level granularity. The cost: for analysis, we need `jsonb_array_elements` in SQL or `explode()` in Spark. → *Deep Track EP02.5*
 
-**2. `productembedding` com pgvector**
-O banco prevê busca semântica desde o design. `description_vector(1536)` + `image_vector(512)` gerados via ETL. → *Episódio futuro: ML + DE + pgvector*
+**2. `productembedding` with pgvector**
+The database plans for semantic search from the design stage. `description_vector(1536)` + `image_vector(512)` generated via ETL. → *Future episode: ML + DE + pgvector*
 
-**3. SCD Type 2 no `employee`**
-O banco transacional já implementa Slowly Changing Dimensions com `effective_start_date / effective_end_date / is_current`. Quando o engenheiro modelar o DW, vai encontrar um aliado inesperado. → *Deep Track EP03.3 + Kimball Clube T0*
+**3. SCD Type 2 on `employee`**
+The transactional database already implements Slowly Changing Dimensions with `effective_start_date / effective_end_date / is_current`. When the engineer models the DW, they'll find an unexpected ally. → *Deep Track EP03.3 + Kimball Club T0*
 
-**4. `ordereventlog` como event sourcing lite**
-Cada transição de estado de um pedido logada: `PAYMENT_APPROVED`, `ITEM_PICKED`, `DELIVERY_ATTEMPT_FAILED`. → *Conecta com DDIA Cap 11 (Clube T3) e Kafka EP05*
+**4. `ordereventlog` as lightweight event sourcing**
+Every state transition of an order is logged: `PAYMENT_APPROVED`, `ITEM_PICKED`, `DELIVERY_ATTEMPT_FAILED`. → *Connects to DDIA Ch. 11 (Club T3) and Kafka EP05*
 
-**5. Schemas como bounded contexts**
-`product.product` não tem tabela de endereço — atributos variáveis ficam no JSONB. Endereço do customer em `demographics`. Endereço do seller em `demographics`. Geo do warehouse em `geo_location`. → *Conecta com DDD (Clube T3)*
+**5. Schemas as bounded contexts**
+`product.product` has no address table — variable attributes live in JSONB. Customer address lives in `demographics`. Seller address lives in `demographics`. Warehouse geo lives in `geo_location`. → *Connects to DDD (Club T3)*
 
 ---
 
-### O Problema Analítico — Por Que o OLTP Não Basta
+### The Analytical Problem — Why OLTP Isn't Enough
 
-**MARINA:** O gancho do EP01 não é "vamos aprender FastAPI". É: *"esse banco guarda tudo que o NexoMart faz. Mas quando o CEO pergunta qual categoria tem a maior margem, qual seller tem menor chargeback, ou qual campanha gerou mais receita — esse banco não responde com performance. Por quê? E o que fazemos?"*
+**MARINA:** The hook for EP01 isn't "let's learn FastAPI." It's: *"this database stores everything NexoMart does. But when the CEO asks which category has the highest margin, which seller has the lowest chargeback rate, or which campaign generated the most revenue — this database doesn't respond with performance. Why? And what do we do about it?"*
 
-**ALEX:** Mostre o schema funcionando, insira dados com a API, tente fazer a query analítica — e mostre o explain plan explodindo. Ou melhor: mostre que a query *correta nem consegue ser formulada* porque os `order_items` estão no JSONB. *"A resposta para isso é o que vamos construir nos próximos 9 episódios."* Esse é o cliffhanger do EP01.
+**ALEX:** Show the schema working, insert data through the API, try to run the analytical query — and show the explain plan blowing up. Or better: show that the query *can't even be formulated* correctly because `order_items` is stuck in JSONB. *"The answer to this is what we're going to build over the next 9 episodes."* That's the EP01 cliffhanger.
 
-| Pergunta de Negócio | Problema no OLTP | Solução na Data Platform |
+| Business Question | OLTP Problem | Data Platform Solution |
 |--------------------|-----------------|------------------------|
-| Qual produto vendeu mais esta semana por categoria? | `order_items` em JSONB precisa de unnest | `fact_sales_order_item` (grain: linha de pedido) |
-| Qual seller tem a maior margem líquida? | Cruzar 4 tabelas + parse JSONB | `dim_seller` + `fact_sales` com métricas pré-calculadas |
-| Como a campanha Google Ads converteu vs Meta? | `dailyperformance` sem join com jornada do cliente | `fact_marketing_performance` + atribuição |
-| Quantos dias em média um pedido fica em cada status? | `ordereventlog` precisa de window functions pesadas | `fact_order_lifecycle` com SLA pré-calculado |
-| O estoque do warehouse A dura quantos dias? | `transactionhistory` sem agregação histórica | `fact_inventory_snapshot` (Daily Snapshot) |
-| Qual comprador aprovou mais POs com fornecedores problemáticos? | Cruzar `purchasing` + `humanresources` + `vendor` | `fact_purchase_order_line` + `dim_vendor` com `credit_rating` |
+| Which product sold the most this week by category? | `order_items` in JSONB needs unnesting | `fact_sales_order_item` (grain: order line) |
+| Which seller has the highest net margin? | Join 4 tables + parse JSONB | `dim_seller` + `fact_sales` with pre-calculated metrics |
+| How did the Google Ads campaign convert vs. Meta? | `dailyperformance` with no join to customer journey | `fact_marketing_performance` + attribution |
+| On average, how many days does an order stay in each status? | `ordereventlog` needs heavy window functions | `fact_order_lifecycle` with pre-calculated SLA |
+| How many days will warehouse A's stock last? | `transactionhistory` with no historical aggregation | `fact_inventory_snapshot` (Daily Snapshot) |
+| Which buyer approved the most POs with problematic vendors? | Join `purchasing` + `humanresources` + `vendor` | `fact_purchase_order_line` + `dim_vendor` with `credit_rating` |
 
 ---
 
-### O Modelo Dimensional — Bus Matrix do NexoMart
+### The Dimensional Model — NexoMart's Bus Matrix
 
-A transformação OLTP → Dimensional é o coração da série. O Kimball (Clube T0) fundamenta as decisões antes de construirmos.
+The OLTP → Dimensional transformation is the heart of the series. Kimball (Club T0) underpins the decisions before we build.
 
-**RAFAEL:** A Bus Matrix é o artefato que abre o EP02. Você coloca ela na tela — uma tabela simples — e diz: *"isso é o mapa de navegação da nossa plataforma. Cada linha é um fato. Cada coluna é uma dimensão."* A audiência entende a arquitetura completa antes de ver uma linha de código.
+**RAFAEL:** The Bus Matrix is the artifact that opens EP02. You put it on screen — a simple table — and say: *"this is the navigation map for our platform. Every row is a fact. Every column is a dimension."* The audience understands the full architecture before seeing a single line of code.
 
-| Fato | date | customer | product | seller | channel | warehouse | employee | vendor | special_offer |
+| Fact | date | customer | product | seller | channel | warehouse | employee | vendor | special_offer |
 |------|:----:|:--------:|:-------:|:------:|:-------:|:---------:|:--------:|:------:|:-------------:|
 | fact_sales_order_item | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — | ✓ |
 | fact_inventory_snapshot | ✓ | — | ✓ | — | — | ✓ | — | — | — |
@@ -732,179 +732,179 @@ A transformação OLTP → Dimensional é o coração da série. O Kimball (Club
 | fact_purchase_order_line | ✓ | — | ✓ | — | — | — | ✓ | ✓ | — |
 | fact_order_lifecycle | ✓ | ✓ | — | ✓ | ✓ | — | — | — | — |
 
-#### Grain de Cada Fato
+#### Grain of Each Fact
 
-| Fato | Grain (1 linha = 1 ...) | Fonte OLTP | SCD nas Dims |
+| Fact | Grain (1 row = 1 ...) | OLTP Source | SCD in Dims |
 |------|------------------------|------------|--------------|
-| `fact_sales_order_item` | Item dentro de um pedido (unnest do JSONB) | `sales.salesorder.order_items` | dim_customer SCD2, dim_product SCD2 |
-| `fact_inventory_snapshot` | Produto × Warehouse × Dia | `warehouse.productinventory` | dim_product SCD2 |
-| `fact_marketing_performance` | Anúncio × Dia | `marketing.dailyperformance` | — |
-| `fact_purchase_order_line` | Linha de ordem de compra | `purchasing.purchaseorderdetail` | dim_employee SCD2 (já no OLTP!) |
-| `fact_order_lifecycle` | Pedido × Evento de status | `sales.ordereventlog` | dim_customer SCD2 |
+| `fact_sales_order_item` | Item within an order (unnested from JSONB) | `sales.salesorder.order_items` | dim_customer SCD2, dim_product SCD2 |
+| `fact_inventory_snapshot` | Product × Warehouse × Day | `warehouse.productinventory` | dim_product SCD2 |
+| `fact_marketing_performance` | Ad × Day | `marketing.dailyperformance` | — |
+| `fact_purchase_order_line` | Purchase order line | `purchasing.purchaseorderdetail` | dim_employee SCD2 (already in the OLTP!) |
+| `fact_order_lifecycle` | Order × Status event | `sales.ordereventlog` | dim_customer SCD2 |
 
 ---
 
-### Episódios Extras Gerados pelo Caso NexoMart
+### Extra Episodes Generated by the NexoMart Case
 
-| Episódio | Trilha | Título |
+| Episode | Track | Title |
 |----------|--------|--------|
-| Clube T0 | Theory Track | Kimball Caps 1–3: O que é modelagem dimensional e por que o OLTP não basta |
-| EP01.3 | Deep Track | OLTP vs OLAP: por que não conseguimos analisar direto do banco transacional |
-| EP01.4 | Deep Track | Fato, Dimensão e Grain: os 3 conceitos do Kimball no contexto do NexoMart |
-| EP01.5 | Deep Track | Star Schema na prática: desenhando o DW do NexoMart — Bus Matrix e grain decisions |
-| EP02.5 | Deep Track | Explodindo JSONB: como transformar `order_items` em linhas analíticas no Spark |
-| EP03.3 | Deep Track | SCD Type 2 na prática: clientes e produtos que mudam com o tempo |
-| EP07.3 | Deep Track | pgvector no DW: busca semântica de produtos integrada ao pipeline |
+| Club T0 | Theory Track | Kimball Ch. 1–3: What is dimensional modeling and why OLTP isn't enough |
+| EP01.3 | Deep Track | OLTP vs OLAP: why we can't analyze directly from the transactional database |
+| EP01.4 | Deep Track | Fact, Dimension, and Grain: Kimball's 3 concepts in the NexoMart context |
+| EP01.5 | Deep Track | Star Schema in practice: designing NexoMart's DW — Bus Matrix and grain decisions |
+| EP02.5 | Deep Track | Exploding JSONB: turning `order_items` into analytical rows in Spark |
+| EP03.3 | Deep Track | SCD Type 2 in practice: customers and products that change over time |
+| EP07.3 | Deep Track | pgvector in the DW: semantic product search integrated into the pipeline |
 
 ---
 
-## BLOCO VII — ADRs como Conteúdo: Cada Decisão é um Episódio
+## BLOCK VII — ADRs as Content: Every Decision Is an Episode
 
-**ALEX:** Uma das ideias mais poderosas que emerge da combinação das três trilhas é o uso de ADRs — Architecture Decision Records — como conteúdo. Um ADR é um documento que registra *por que* uma decisão arquitetural foi tomada, quais alternativas foram consideradas e quais trade-offs foram aceitos. É o que empresas de dados de ponta fazem internamente. O diferencial é fazer isso publicamente, ao vivo, com a audiência acompanhando.
+**ALEX:** One of the most powerful ideas to emerge from combining the three tracks is using ADRs — Architecture Decision Records — as content. An ADR is a document that records *why* an architectural decision was made, what alternatives were considered, and what trade-offs were accepted. This is what top-tier data companies do internally. The differentiator is doing it publicly, live, with the audience following along.
 
-**RAFAEL:** Na prática, cada episódio Fast Track abre com o ADR em tela — literalmente um Markdown ou Notion formatado aparecendo por 30-60 segundos: *"Aqui está a decisão que tomamos. Aqui estão as alternativas que rejeitamos. Aqui está por que."* Isso transforma o vídeo de tutorial em raciocínio arquitetural documentado. Não é um tutorial sobre Kafka — é um registro de *por que escolhemos Kafka* e o que o DDIA Cap 11 diz sobre isso.
+**RAFAEL:** In practice, every Fast Track episode opens with the ADR on screen — literally a formatted Markdown or Notion doc appearing for 30-60 seconds: *"Here's the decision we made. Here are the alternatives we rejected. Here's why."* This turns the video from a tutorial into documented architectural reasoning. It's not a tutorial about Kafka — it's a record of *why we chose Kafka* and what DDIA Ch. 11 says about it.
 
-**MARINA:** E isso tem um efeito imediato no posicionamento: você para de competir com tutoriais de instalação e começa a competir com engenharia de software aplicada. "Como instalar Kafka" tem milhares de vídeos. "Por que Kafka e não RabbitMQ nesta arquitetura específica, fundamentado em Kleppmann" — tem praticamente zero em português. É o espaço vazio.
+**MARINA:** And this has an immediate effect on positioning: you stop competing with installation tutorials and start competing with applied software engineering. "How to install Kafka" has thousands of videos. "Why Kafka and not RabbitMQ in this specific architecture, grounded in Kleppmann" — has practically zero in Portuguese. That's the empty space.
 
-#### ADRs da Temporada 1
+#### Season 1 ADRs
 
-| ADR | Decisão | Livro que Fundamenta | Status |
+| ADR | Decision | Book It's Grounded In | Status |
 |-----|---------|---------------------|--------|
-| ADR-001 | SQLAlchemy async com bulk insert — sem for-loops | Fluent Python — generators e iteradores eficientes | Aceito |
-| ADR-002 | Delta Lake + Unity Catalog OSS para governança e versionamento | DDIA Caps 3–4 + Fundamentos DE | Aceito |
-| ADR-003 | Chaos Engineering como estratégia de qualidade de dados | Fundamentos DE — confiabilidade como disciplina | Aceito |
-| ADR-004 | Kafka como buffer entre API e armazenamento (event-driven) | DDIA Cap 11 — Stream Processing e o log imutável | Proposto |
-| ADR-005 | Outbox Pattern para exactly-once semantics com Kafka | DDD (Khononov) — consistência de domínio e transações | Proposto |
-| ADR-006 | CQRS com Trino para separar read/write paths | As Partes Difíceis — decomposição e trade-offs arquiteturais | Proposto |
-| ADR-007 | dbt como camada de transformação Silver → Gold | Fundamentos DE — transformação e qualidade como prática | Proposto |
-| ADR-008 | OpenLineage + Marquez para rastreabilidade de linhagem | Fundamentos DE — observabilidade de dados | Proposto |
+| ADR-001 | Async SQLAlchemy with bulk insert — no for-loops | Fluent Python — efficient generators and iterators | Accepted |
+| ADR-002 | Delta Lake + Unity Catalog OSS for governance and versioning | DDIA Ch. 3–4 + Fundamentals of DE | Accepted |
+| ADR-003 | Chaos Engineering as a data quality strategy | Fundamentals of DE — reliability as a discipline | Accepted |
+| ADR-004 | Kafka as a buffer between the API and storage (event-driven) | DDIA Ch. 11 — Stream Processing and the immutable log | Proposed |
+| ADR-005 | Outbox Pattern for exactly-once semantics with Kafka | DDD (Khononov) — domain consistency and transactions | Proposed |
+| ADR-006 | CQRS with Trino to separate read/write paths | The Hard Parts — decomposition and architectural trade-offs | Proposed |
+| ADR-007 | dbt as the Silver → Gold transformation layer | Fundamentals of DE — transformation and quality as practice | Proposed |
+| ADR-008 | OpenLineage + Marquez for lineage traceability | Fundamentals of DE — data observability | Proposed |
 
-**ALEX:** Os ADRs com status "Proposto" são conteúdo em si. A audiência acompanha as decisões sendo tomadas em tempo real — não edições polidas de algo que já funcionou. *"Estamos debatendo se usamos Kafka ou não. Aqui está o argumento pró. Aqui está o contra. No Clube T3 a gente lê o DDIA Cap 11 juntos. Depois do Clube, tomamos a decisão e implementamos no EP05."* Isso é engajamento genuíno, não artificialmente estimulado.
+**ALEX:** The ADRs with "Proposed" status are content in themselves. The audience follows the decisions being made in real time — not polished edits of something that already worked. *"We're debating whether to use Kafka or not. Here's the argument for. Here's the argument against. In Club T3 we read DDIA Ch. 11 together. After the Club, we make the decision and implement it in EP05."* That's genuine engagement, not artificially manufactured.
 
-**MARINA:** Do ponto de vista de LinkedIn, cada ADR é um post. "Tomamos uma decisão arquitetural hoje. O argumento que virou o debate: [trecho do DDIA]. Detalhes no vídeo." Esse formato performa extremamente bem — é opinativo, técnico e convida à discussão sem precisar de clickbait. E os ADRs "Proposto" viram dois posts: o debate antes, e a decisão depois.
+**MARINA:** From a LinkedIn standpoint, every ADR is a post. "We made an architectural decision today. The argument that sparked the debate: [excerpt from DDIA]. Details in the video." This format performs extremely well — it's opinionated, technical, and invites discussion without needing clickbait. And the "Proposed" ADRs become two posts: the debate before, and the decision after.
 
 ---
 
-## Métricas de Sucesso (90 dias)
+## Success Metrics (90 days)
 
-| Plataforma | Métrica | Meta Realista |
+| Platform | Metric | Realistic Target |
 |-----------|---------|--------------|
-| YouTube | Subscribers | +100 orgânicos |
-| YouTube | Watch Time | >40% retenção média |
+| YouTube | Subscribers | +100 organic |
+| YouTube | Watch Time | >40% average retention |
 | Newsletter | Open Rate | >30% |
-| Newsletter | Novos subs | +50 por mês |
-| LinkedIn | Impressões/post | >2.000 médio |
-| Medium | Views | >500 por artigo |
-| Instagram | Saves por carrossel | >50 |
+| Newsletter | New subs | +50 per month |
+| LinkedIn | Impressions/post | >2,000 average |
+| Medium | Views | >500 per article |
+| Instagram | Saves per carousel | >50 |
 
 ---
 
-## CHECKLIST ANTES DE GRAVAR CADA VÍDEO
+## CHECKLIST BEFORE RECORDING EACH VIDEO
 
-**Fast Track (série principal):**
+**Fast Track (main series):**
 ```
-[ ] A promessa do vídeo está clara nos primeiros 30 segundos?
-[ ] O problema que este vídeo resolve está explícito?
-[ ] Existe uma analogia ou metáfora para cada conceito novo?
-[ ] O diagrama/arquitetura do episódio está preparado?
-[ ] O ambiente está funcionando localmente (testado)?
-[ ] Os capítulos/timestamps estão planejados?
-[ ] O cliffhanger para o próximo episódio está definido?
-[ ] O title e thumbnail comunicam claramente o valor?
-[ ] Os sub-episódios Deep Track estão linkados na descrição?
+[ ] Is the video's promise clear in the first 30 seconds?
+[ ] Is the problem this video solves made explicit?
+[ ] Is there an analogy or metaphor for every new concept?
+[ ] Is the episode's diagram/architecture ready?
+[ ] Is the environment working locally (tested)?
+[ ] Are the chapters/timestamps planned?
+[ ] Is the cliffhanger for the next episode defined?
+[ ] Do the title and thumbnail clearly communicate the value?
+[ ] Are the Deep Track sub-episodes linked in the description?
 ```
 
-**Deep Track (fundamentos):**
+**Deep Track (fundamentals):**
 ```
-[ ] O conceito central está definido em uma frase antes de gravar?
-[ ] Existe pelo menos uma analogia do mundo real (não técnica)?
-[ ] O vídeo termina com uma ponte clara para o Fast Track correspondente?
-[ ] A duração está dentro de 8-12 minutos (foco cirúrgico)?
-[ ] O título contém a keyword de busca principal ("o que é X", "como funciona Y")?
+[ ] Is the central concept defined in one sentence before recording?
+[ ] Is there at least one real-world (non-technical) analogy?
+[ ] Does the video end with a clear bridge to the corresponding Fast Track?
+[ ] Is the duration within 8-12 minutes (surgical focus)?
+[ ] Does the title contain the main search keyword ("what is X", "how does Y work")?
 ```
 
 ---
 
-## TEMPLATES DE ROTEIRO
+## SCRIPT TEMPLATES
 
-### Fast Track — Roteiro Base (15-25 min)
+### Fast Track — Base Script (15-25 min)
 
 ```markdown
-# EP[N] — [Título]
+# EP[N] — [Title]
 
 ## HOOK (00:00 - 00:30)
-[Mostre o resultado final rodando. Uma frase de impacto.]
-[Mencionar: "Se você não conhece [conceito X], assista o EP[N.1] antes — link na descrição."]
+[Show the final result running. One impactful sentence.]
+[Mention: "If you don't know [concept X], watch EP[N.1] first — link in the description."]
 
-## CONTEXTO (00:30 - 02:00)
-- Recap do episódio anterior (se houver)
-- O que construímos hoje e por quê
+## CONTEXT (00:30 - 02:00)
+- Recap of the previous episode (if any)
+- What we're building today and why
 
-## DIAGRAMA (02:00 - 05:00)
-- Onde esse serviço se encaixa na arquitetura total
-- O fluxo de dados deste episódio
+## DIAGRAM (02:00 - 05:00)
+- Where this service fits in the overall architecture
+- This episode's data flow
 
 ## HANDS-ON (05:00 - 18:00)
-- Passo 1: [descrição]
-- Passo 2: [descrição]
-- Passo N: [descrição]
-- [Documentar pontos de atenção e armadilhas comuns]
+- Step 1: [description]
+- Step 2: [description]
+- Step N: [description]
+- [Document points of attention and common pitfalls]
 
-## TESTE E RESULTADO (18:00 - 20:00)
-- Rodar o pipeline completo do episódio
-- Mostrar o dado no destino final
+## TEST AND RESULT (18:00 - 20:00)
+- Run the episode's full pipeline
+- Show the data at the final destination
 
-## RECAP E CTA (20:00 - 21:00)
-- O que construímos hoje
-- O problema que fica em aberto (cliffhanger)
-- Links para Deep Track relacionados
-- "No próximo episódio..." + link para playlist Fast Track
+## RECAP AND CTA (20:00 - 21:00)
+- What we built today
+- The problem that remains open (cliffhanger)
+- Links to related Deep Track episodes
+- "Next episode..." + link to the Fast Track playlist
 ```
 
-### Deep Track — Roteiro Base (8-12 min)
+### Deep Track — Base Script (8-12 min)
 
 ```markdown
-# EP[N.X] — [O que é / Como funciona / Por que usar — Conceito]
+# EP[N.X] — [What is / How does it work / Why use — Concept]
 
 ## HOOK (00:00 - 01:00)
-[Problema concreto: "Você já tentou X e não entendeu por que travou?"]
-[Sem mostrar código ainda — mostrar a confusão, não a solução]
+[Concrete problem: "Have you ever tried X and not understood why it choked?"]
+[Don't show code yet — show the confusion, not the solution]
 
-## ANALOGIA (01:00 - 03:00)
-- Explicar o conceito com analogia do mundo real (não técnica)
-- Uma imagem mental que vai grudar
+## ANALOGY (01:00 - 03:00)
+- Explain the concept with a real-world (non-technical) analogy
+- A mental image that will stick
 
-## CONCEITO (03:00 - 07:00)
-- Explicação técnica agora, ancorada na analogia
-- Diagrama simples (Excalidraw ou quadro branco)
-- Uma demonstração mínima se aplicável (< 20 linhas de código)
+## CONCEPT (03:00 - 07:00)
+- Technical explanation now, anchored in the analogy
+- Simple diagram (Excalidraw or whiteboard)
+- A minimal demo if applicable (< 20 lines of code)
 
-## QUANDO USAR / QUANDO NÃO USAR (07:00 - 09:30)
-- Casos de uso reais
-- O que este conceito NÃO resolve (evitar expectativa errada)
+## WHEN TO USE / WHEN NOT TO USE (07:00 - 09:30)
+- Real use cases
+- What this concept does NOT solve (avoid setting the wrong expectation)
 
-## PONTE PARA O FAST TRACK (09:30 - 10:00)
-- "Agora que você entende [conceito], você está pronto para o EP[N]."
-- "Lá você vai ver isso funcionando em um pipeline real de dados."
-- Link direto para o Fast Track correspondente
+## BRIDGE TO THE FAST TRACK (09:30 - 10:00)
+- "Now that you understand [concept], you're ready for EP[N]."
+- "There you'll see this working in a real data pipeline."
+- Direct link to the corresponding Fast Track
 ```
 
 ---
 
-## Ferramentas Recomendadas (todas gratuitas ou freemium)
+## Recommended Tools (all free or freemium)
 
-| Função | Ferramenta |
+| Function | Tool |
 |--------|-----------|
-| Design de carrosséis | Canva (templates prontos para devs) |
-| Diagrama de arquitetura | Excalidraw ou o próprio `diagram.py` |
-| Edição de vídeo | DaVinci Resolve (gratuito) |
-| Calendário de conteúdo | Notion ou planilha simples |
-| Agendamento LinkedIn | LinkedIn nativo (funciona bem) |
-| Agendamento Instagram | Meta Business Suite (gratuito) |
-| Análise de keywords Medium | Google Search Console + Ubersuggest |
+| Carousel design | Canva (ready-made templates for devs) |
+| Architecture diagram | Excalidraw or `diagram.py` itself |
+| Video editing | DaVinci Resolve (free) |
+| Content calendar | Notion or a simple spreadsheet |
+| LinkedIn scheduling | Native LinkedIn (works well) |
+| Instagram scheduling | Meta Business Suite (free) |
+| Medium keyword analysis | Google Search Console + Ubersuggest |
 
 ---
 
-*Gerado em: 2026-04-23 | Atualizado em: 2026-04-25*  
-*Base: Data Platform com FastAPI, Kafka, Airflow, Spark, Delta Lake, Unity Catalog OSS, MinIO, Trino, dbt, OpenTelemetry*  
-*Braço adicionado: Theory Track (Clube do Livro) + Discord + ADRs como conteúdo*
+*Generated on: 2026-04-23 | Updated on: 2026-04-25*
+*Base: Data Platform with FastAPI, Kafka, Airflow, Spark, Delta Lake, Unity Catalog OSS, MinIO, Trino, dbt, OpenTelemetry*
+*Branch added: Theory Track (Book Club) + Discord + ADRs as content*

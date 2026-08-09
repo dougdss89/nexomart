@@ -1,4 +1,5 @@
 import asyncio
+import random
 import sys
 import os
 from datetime import datetime, timedelta
@@ -10,18 +11,19 @@ from api.models.sales.specialoffer import SpecialOfferModel
 
 # Amostras
 from api.samples.sales_special_offer import SPECIAL_OFFERS
+from api.seeder.cli_common import build_parser
 
-# Ajustar path para importar módulos da API
+# Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 async def seed_special_offers():
-    """Executa a carga de ofertas especiais (Master Data)."""
+    """Runs the special offers load (Master Data)."""
     async with AsyncSessionLocal() as session:
-        print(f"📣 Semeando {len(SPECIAL_OFFERS)} ofertas especiais...")
-        
+        print(f"📣 Seeding {len(SPECIAL_OFFERS)} special offers...")
+
         offers = []
         now = datetime.now()
-        
+
         for item in SPECIAL_OFFERS:
             offers.append({
                 **item,
@@ -29,17 +31,19 @@ async def seed_special_offers():
                 "end_date": now + timedelta(days=random.randint(30, 90)),
                 "is_active": True
             })
-            
+
         try:
             # Bulk Insert
             stmt = insert(SpecialOfferModel).values(offers)
             await session.execute(stmt)
             await session.commit()
-            print(f"✅ {len(offers)} Ofertas especiais semeadas com sucesso!")
+            print(f"✅ {len(offers)} special offers seeded successfully!")
         except Exception as e:
             await session.rollback()
-            print(f"❌ Erro ao semear ofertas: {e}")
+            print(f"❌ Error seeding offers: {e}")
 
 if __name__ == "__main__":
-    import random # Import local para o helper de data
+    parser = build_parser("Seeder for sales.specialoffer (fixed master data, no chaos)")
+    parser.parse_args()
+
     asyncio.run(seed_special_offers())

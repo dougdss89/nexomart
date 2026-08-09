@@ -1,25 +1,36 @@
 import uuid
 import random
+import asyncio
+import sys
+import os
 from datetime import datetime
 from typing import List, Dict, Any
 from faker import Faker
+from sqlalchemy import select, insert
+from api.database import AsyncSessionLocal
+from api.models.person.customer import CustomerModel
+from api.models.person.customer_email import CustomerEmailModel
 from api.seeder.chaos import apply_customer_email_chaos
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, insert_in_batches
+
+# Adjust path to import API modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 fake = Faker('pt_BR')
 
 def generate_mock_emails(customer: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    Gera as linhas de e-mail para um único cliente.
-    Pode gerar 1 ou mais e-mails.
-    Injeta anomalias (erros de digitação, falta de @, domínios sujos).
+    Generates the email rows for a single customer.
+    Can generate 1 or more emails.
+    Injects anomalies (typos, missing @, dirty domains).
     """
     emails = []
-    
-    # Decobre o domínio baseado no tipo de cliente
+
+    # Determine the domain based on the customer type
     is_company = customer.get("customer_type") == "VC"
     base_name = str(customer.get("customer_name")).lower().replace(" ", "").replace(".", "").replace(",", "")
-    
-    # 1. Gerar o E-mail Principal
+
+    # 1. Generate the primary email
     primary_email = ""
     if is_company:
         domain = f"{base_name}.com.br"
@@ -27,17 +38,17 @@ def generate_mock_emails(customer: Dict[str, Any]) -> List[Dict[str, Any]]:
     else:
         domain = random.choice(["gmail.com", "hotmail.com", "outlook.com", "yahoo.com.br"])
         primary_email = f"{base_name}.{random.randint(1950, 2010)}@{domain}"
-        
-    # --- ANOMALIAS NO PRIMARY EMAIL ---
+
+    # --- PRIMARY EMAIL ANOMALIES ---
     if random.random() < 0.03:
-        # Erro de formatação: Esquecer o '@'
+        # Formatting error: missing '@'
         primary_email = primary_email.replace("@", "")
     elif random.random() < 0.02:
-        # Erro de formatação: Espaço no e-mail
+        # Formatting error: space in the email
         primary_email = primary_email.replace("@", " @")
-        
+
     emails.append({
-        "customer_id": customer.get("customer_id", 0), # Será injetado pelo orquestrador
+        "customer_id": customer.get("customer_id", 0), # Will be injected by the orchestrator
         "customer_email": primary_email,
         "is_primary": True,
         "email_uuid": str(uuid.uuid4()),
@@ -46,8 +57,8 @@ def generate_mock_emails(customer: Dict[str, Any]) -> List[Dict[str, Any]]:
         "is_active": True,
         "row_guid": str(uuid.uuid4())
     })
-    
-    # 2. Gerar E-mails Secundários (20% de chance)
+
+    # 2. Generate secondary emails (20% chance)
     if random.random() < 0.20:
         sec_email = f"financeiro@{domain}" if is_company else f"spam_{base_name}@{domain}"
         
@@ -64,48 +75,56 @@ def generate_mock_emails(customer: Dict[str, Any]) -> List[Dict[str, Any]]:
         
     return emails
 
-def get_customer_email_seeders(customers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def get_customer_email_seeders(customers: List[Dict[str, Any]], chaos_rate: float = 0.05, apply_chaos: bool = True) -> List[Dict[str, Any]]:
     """
-    Recebe a lista de clientes gerada anteriormente e cria os e-mails
-    vinculando as Chaves Estrangeiras dinamicamente.
+    Receives REAL customers from the database (with customer_id/customer_name/customer_type
+    already populated) and generates the emails linked to them.
     """
     try:
         batch = []
-        
-        # Como o payload vindo do get_customer_seeders() inicialmente não tem 'customer_id' 
-        # (pois o PostgreSQL é quem gera o autoincrement), no mundo do MOCK nós iremos
-        # iterar os clientes usando um ID virtual correspondente ao índice.
-        
-        for idx, customer in enumerate(customers, start=1):
-            
-            # Adicionamos o ID virtual (Mock constraint)
-            customer_with_id = customer.copy()
-            customer_with_id["customer_id"] = idx
-            
-            # Chama a fábrica de e-mails do cliente atual
-            emails_do_cliente = generate_mock_emails(customer_with_id)
-            
-            batch.extend(emails_do_cliente)
+        for customer in customers:
+            batch.extend(generate_mock_emails(customer))
 
-        return apply_customer_email_chaos(batch)
+        if apply_chaos:
+            batch = apply_customer_email_chaos(batch, chaos_rate=chaos_rate)
+
+        return batch
 
     except Exception as e:
-        print(f"Erro ao gerar seeders de email: {e}")
+        print(f"Error generating email seeders: {e}")
         return []
 
-# --- TESTANDO NO TERMINAL ---
+
+async def seed_customer_emails(chaos_rate: float = 0.05, apply_chaos: bool = True):
+    """Generates emails for REAL customers in the database that don't have any email registered yet."""
+    async with AsyncSessionLocal() as session:
+        already_have_email = set((await session.execute(select(CustomerEmailModel.customer_id))).scalars().all())
+
+        result = await session.execute(select(CustomerModel.customer_id, CustomerModel.customer_name, CustomerModel.customer_type))
+        customers = [
+            {"customer_id": r[0], "customer_name": r[1], "customer_type": r[2]}
+            for r in result.all() if r[0] not in already_have_email
+        ]
+
+        if not customers:
+            print("⚠️ No customer pending an email! Run the Customer seeder first (or everyone already has an email).")
+            return
+
+        print(f"📣 Generating emails for {len(customers)} real customers | chaos={chaos_rate:.2%}")
+        emails = get_customer_email_seeders(customers, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+
+        try:
+            total = await insert_in_batches(session, CustomerEmailModel, emails)
+            print(f"✅ {total} emails seeded successfully!")
+        except Exception as e:
+            await session.rollback()
+            print(f"❌ Error seeding emails: {e}")
+
+
 if __name__ == "__main__":
-    from api.seeder.person.person_customer import get_customer_seeders
-    
-    print("Gerando clientes para base do teste...")
-    clientes_mock = get_customer_seeders(quantidade=3)
-    
-    print("Gerando e-mails mockados...")
-    emails_mock = get_customer_email_seeders(clientes_mock)
-    
-    print(f"Total de clientes base: {len(clientes_mock)}")
-    print(f"Total de e-mails gerados: {len(emails_mock)}")
-    print("-" * 50)
-    
-    import json
-    print(json.dumps(emails_mock, indent=2, default=str))
+    parser = build_parser("Seeder for person.customer_email (fan-out of real customers)")
+    add_chaos_args(parser, default_chaos_rate=0.05)
+    args = parser.parse_args()
+    chaos_rate, apply_chaos = resolve_chaos_args(args, default_chaos_rate=0.05)
+
+    asyncio.run(seed_customer_emails(chaos_rate=chaos_rate, apply_chaos=apply_chaos))

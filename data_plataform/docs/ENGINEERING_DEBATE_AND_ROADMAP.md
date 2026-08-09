@@ -1,32 +1,32 @@
 # Data Platform — Engineering Debate & Implementation Roadmap
 
-> **Contexto**: Revisão arquitetural colaborativa simulando um debate entre três engenheiros sênior para identificar lacunas, sugerir melhorias e priorizar um roadmap de evolução. Destinado ao portfólio pessoal de engenharia de dados.
+> **Context**: Collaborative architectural review simulating a debate between three senior engineers to identify gaps, suggest improvements, and prioritize an evolution roadmap. Intended for a personal data engineering portfolio.
 
-> **Restrição de hardware documentada**: O `dbapi` (FastAPI) **não roda como serviço online persistente** neste portfólio. Toda a carga é acionada pelo Airflow via **BashOperator** que invoca os seeders como scripts CLI (`uv run python seeder.py --min-count X --max-count Y`). A arquitetura 3-layer (Repository → Service → Router) existe no código e demonstra o padrão corretamente — mas o runtime é batch/CLI, não HTTP. As sugestões do roadmap que dependem de API online (JWT Auth, Rate Limiting, Cursor Pagination, Redis Cache-Aside para reads de usuário) são **aspiracionais** — corretas para produção, mas inaplicáveis na configuração atual por limitação de hardware.
+> **Documented hardware constraint**: The `dbapi` (FastAPI) **does not run as a persistent online service** in this portfolio. All load is triggered by Airflow via **BashOperator**, which invokes the seeders as CLI scripts (`uv run python seeder.py --min-count X --max-count Y`). The 3-layer architecture (Repository → Service → Router) exists in the code and correctly demonstrates the pattern — but the runtime is batch/CLI, not HTTP. Roadmap suggestions that depend on an online API (JWT Auth, Rate Limiting, Cursor Pagination, Redis Cache-Aside for user reads) are **aspirational** — correct for production, but not applicable to the current setup due to hardware limitations.
 
 ---
 
-## Participantes
+## Participants
 
-| Papel | Nome | Especialidade |
+| Role | Name | Specialty |
 |---|---|---|
-| Senior Data Engineer | **Rafael** | Streaming, Kafka, sistemas event-driven |
+| Senior Data Engineer | **Rafael** | Streaming, Kafka, event-driven systems |
 | Senior Data Engineer | **Beatriz** | Data quality, dbt, platform architecture |
 | Principal Data Architect | **Lucas** | Distributed systems, performance, portfolio design |
 
 ---
 
-## Parte 1 — Debate Técnico
+## Part 1 — Technical Debate
 
-### Rodada 1: Ingestão e Streaming (Kafka)
+### Round 1: Ingestion and Streaming (Kafka)
 
 ---
 
-**Rafael:** Vou direto ao ponto. A API está assumindo um papel de **ingestão síncrona** para volumes que podem chegar a 50 milhões de registros por execução. O endpoint recebe a payload, passa pelo service, e espera o bulk insert terminar antes de responder. Isso é um bottleneck de design, não de implementação.
+**Rafael:** I'll get straight to the point. The API is taking on a **synchronous ingestion** role for volumes that can reach 50 million records per run. The endpoint receives the payload, passes it through the service, and waits for the bulk insert to finish before responding. That's a design bottleneck, not an implementation one.
 
-O problema não é o `insert(Model).values(matrix)` — esse padrão está correto. O problema é que a API é ao mesmo tempo o **produtor**, o **processador** e o **escritor**. Se o Airflow chamar o seeder diretamente via BashOperator enquanto três DAGs rodam em paralelo para `sales`, `purchasing` e `warehouse` simultaneamente, temos contenção de conexão no PostgreSQL e nenhuma backpressure.
+The problem isn't `insert(Model).values(matrix)` — that pattern is correct. The problem is that the API is simultaneously the **producer**, the **processor**, and the **writer**. If Airflow calls the seeder directly via BashOperator while three DAGs run in parallel for `sales`, `purchasing`, and `warehouse` at the same time, we get connection contention on PostgreSQL and no backpressure.
 
-**Proposta**: Introduzir Apache Kafka como camada de buffer entre o seeder e o banco. O seeder publica eventos no tópico. Um consumer group (workers assíncronos) consome e faz o bulk insert. O Airflow passa a orquestrar produtores, não escritores diretos.
+**Proposal**: Introduce Apache Kafka as a buffer layer between the seeder and the database. The seeder publishes events to the topic. A consumer group (async workers) consumes them and performs the bulk insert. Airflow then orchestrates producers, not direct writers.
 
 ```
 Seeder (Producer) → Kafka Topic → Consumer Group → PostgreSQL Bulk Insert
@@ -35,11 +35,11 @@ Seeder (Producer) → Kafka Topic → Consumer Group → PostgreSQL Bulk Insert
 
 ---
 
-**Beatriz:** Concordo com o racional do Kafka, mas preciso qualificar: para o portfólio, a implementação de Kafka sem **Schema Registry** e **Data Contracts** é um anti-padrão que vai atrás de você. Vi projetos onde o producer mudou o schema do evento e o consumer quebrou silenciosamente por três dias.
+**Beatriz:** I agree with the Kafka rationale, but I need to qualify it: for a portfolio, implementing Kafka without a **Schema Registry** and **Data Contracts** is an anti-pattern that will come back to bite you. I've seen projects where the producer changed the event schema and the consumer broke silently for three days.
 
-O projeto já tem `apache-airflow-providers-apache-kafka==1.12.0` como dependência — o provider já está declarado, mas não há nenhuma DAG usando-o. Isso é uma lacuna explícita.
+The project already has `apache-airflow-providers-apache-kafka==1.12.0` as a dependency — the provider is already declared, but there's no DAG using it. That's an explicit gap.
 
-Proposta complementar ao Rafael: usar **Apache Avro + Confluent Schema Registry** (ou Karapace, que é open source) para contratos de schema entre producers e consumers. Cada domínio tem seu próprio tópico com schema versionado:
+Proposal to complement Rafael's: use **Apache Avro + Confluent Schema Registry** (or Karapace, which is open source) for schema contracts between producers and consumers. Each domain has its own topic with a versioned schema:
 
 ```
 kafka-topics:
@@ -51,16 +51,16 @@ kafka-topics:
 
 ---
 
-**Lucas:** Vou trazer a perspectiva de portfólio. Kafka com Schema Registry é correto, mas precisamos implementar o **Outbox Pattern** na API para garantir entrega exactly-once no caso de falha entre o insert no PostgreSQL e a publicação no Kafka. Sem isso, o portfólio mostra que o candidato sabe Kafka, mas não sabe os problemas que Kafka introduz.
+**Lucas:** I'll bring the portfolio perspective. Kafka with Schema Registry is correct, but we need to implement the **Outbox Pattern** in the API to guarantee exactly-once delivery in case of failure between the PostgreSQL insert and the Kafka publish. Without it, the portfolio shows the candidate knows Kafka, but doesn't know the problems Kafka introduces.
 
-O Outbox Pattern funciona assim:
+The Outbox Pattern works like this:
 
-1. O service faz o insert da entidade **e** o insert no `outbox` em uma única transação.
-2. Um processo separado (Debezium CDC ou job Airflow) lê a tabela `outbox` e publica no Kafka.
-3. Após confirmação do Kafka, marca o registro como `processed`.
+1. The service inserts the entity **and** inserts into `outbox` within a single transaction.
+2. A separate process (Debezium CDC or an Airflow job) reads the `outbox` table and publishes to Kafka.
+3. After Kafka confirms, the record is marked as `processed`.
 
 ```sql
--- Tabela outbox (por schema/domínio)
+-- Outbox table (per schema/domain)
 CREATE TABLE sales.outbox (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     aggregate   VARCHAR(100),       -- 'SalesOrder', 'SalesReturn'
@@ -72,37 +72,37 @@ CREATE TABLE sales.outbox (
 );
 ```
 
-Isso transforma o projeto de "API que usa Kafka" para "sistema event-driven com garantias de consistência" — diferença enorme em entrevista.
+This turns the project from "API that uses Kafka" into "event-driven system with consistency guarantees" — a huge difference in an interview.
 
 ---
 
-### Rodada 2: Observabilidade e Qualidade de Dados
+### Round 2: Observability and Data Quality
 
 ---
 
-**Beatriz:** Aqui está meu maior problema com o projeto atual: o **caos engineering** está excelente — `chaos_engineering.py` com 35+ estratégias é impressionante para portfólio. Mas não há nada que **detecte** o caos que foi injetado.
+**Beatriz:** Here's my biggest issue with the current project: **chaos engineering** is excellent — `chaos_engineering.py` with 35+ strategies is impressive for a portfolio. But there's nothing that **detects** the chaos that was injected.
 
-O ciclo completo de engenharia de dados é:
+The complete data engineering cycle is:
 ```
 Ingest → Transform → Validate → Monitor → Alert → Remediate
 ```
 
-O projeto cobre bem `Ingest` e parcialmente `Transform`. Mas `Validate`, `Monitor`, `Alert` e `Remediate` estão ausentes.
+The project covers `Ingest` well and `Transform` partially. But `Validate`, `Monitor`, `Alert`, and `Remediate` are missing.
 
-**Proposta concreta**:
+**Concrete proposal**:
 
-1. **dbt** para transformações silver → gold com `dbt tests` nativos (`not_null`, `unique`, `accepted_values`, `relationships`)
-2. **Great Expectations** ou **Soda** integrado às DAGs para validação após cada carga
-3. **Apache Superset** ou **Metabase** para dashboards de data quality
-4. Tabela `data_quality_log` no PostgreSQL para histórico de anomalias detectadas
+1. **dbt** for silver → gold transformations with native `dbt tests` (`not_null`, `unique`, `accepted_values`, `relationships`)
+2. **Great Expectations** or **Soda** integrated into the DAGs for validation after each load
+3. **Apache Superset** or **Metabase** for data quality dashboards
+4. `data_quality_log` table in PostgreSQL for a history of detected anomalies
 
-O grande showcase é: "Injetei dados sujos intencionalmente no bronze e construí um pipeline que os detecta, quarentena e reporta automaticamente no silver."
+The big showcase here is: "I intentionally injected dirty data into bronze and built a pipeline that automatically detects, quarantines, and reports it in silver."
 
 ---
 
-**Rafael:** Validação de dados é necessária, mas observabilidade da plataforma é igualmente crítica. Hoje não há nada que responda: "Quanto tempo levou o bulk insert de 5M de registros? Qual foi o throughput? Houve degradação ao longo do tempo?"
+**Rafael:** Data validation is necessary, but platform observability is equally critical. Today nothing answers: "How long did the bulk insert of 5M records take? What was the throughput? Did it degrade over time?"
 
-**Proposta**: OpenTelemetry como camada unificada de observabilidade:
+**Proposal**: OpenTelemetry as a unified observability layer:
 
 ```python
 # dbapi/api/config/telemetry.py
@@ -113,7 +113,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 
 tracer = trace.get_tracer("data_platform.dbapi")
 
-# Uso nos services
+# Usage in services
 async def bulk_insert_orders(session, data):
     with tracer.start_as_current_span("sales.orders.bulk_insert") as span:
         span.set_attribute("record_count", len(data))
@@ -122,65 +122,65 @@ async def bulk_insert_orders(session, data):
         span.set_attribute("duration_ms", elapsed)
 ```
 
-Stack de observabilidade para o portfólio:
-- **Traces**: OpenTelemetry → Jaeger ou Tempo
-- **Metrics**: Prometheus + Grafana (scrape da API e dos workers Kafka)
-- **Logs**: Structured JSON → Loki ou OpenSearch
-- **Alertas**: AlertManager para SLA de DAGs
+Observability stack for the portfolio:
+- **Traces**: OpenTelemetry → Jaeger or Tempo
+- **Metrics**: Prometheus + Grafana (scraping the API and Kafka workers)
+- **Logs**: Structured JSON → Loki or OpenSearch
+- **Alerts**: AlertManager for DAG SLAs
 
 ---
 
-**Lucas:** Ótimo, mas quero conectar os dois pontos. O projeto tem `apache-airflow-providers-openlineage==1.9` instalado e **não está sendo usado**. OpenLineage é o padrão de data lineage que a Marquez/OpenMetadata consome.
+**Lucas:** Great, but I want to connect the two points. The project has `apache-airflow-providers-openlineage==1.9` installed and it **isn't being used**. OpenLineage is the data lineage standard that Marquez/OpenMetadata consumes.
 
-Se o projeto instrumentar OpenLineage nas DAGs, o portfólio demonstra rastreabilidade de linhagem de dados de ponta a ponta:
+If the project instruments OpenLineage in the DAGs, the portfolio demonstrates end-to-end data lineage traceability:
 
 ```
 PostgreSQL (source) → Spark Job (transform) → Delta Lake (sink)
                    OpenLineage event →  Marquez UI (lineage graph)
 ```
 
-Isso é nível de empresa de dados de ponta. Candidatos que sabem lineage automaticamente passam pelo filtro de engenheiros plenos e são avaliados como sênior.
+That's data-company-grade sophistication. Candidates who know lineage automatically clear the mid-level engineer filter and get evaluated as senior.
 
 ---
 
-### Rodada 3: Performance e Padrões de Projeto
+### Round 3: Performance and Design Patterns
 
 ---
 
-**Lucas:** Agora vou ser direto sobre os padrões de projeto. A arquitetura 3-layer (Repository → Service → Router) está correta, mas está implementada como **CRUD puro**. Para um portfólio de engenharia de dados, precisamos mostrar padrões mais sofisticados.
+**Lucas:** Now I'll be direct about design patterns. The 3-layer architecture (Repository → Service → Router) is correct, but it's implemented as **pure CRUD**. For a data engineering portfolio, we need to show more sophisticated patterns.
 
-**CQRS (Command Query Responsibility Segregation)** é o mais relevante aqui:
+**CQRS (Command Query Responsibility Segregation)** is the most relevant one here:
 
 ```
 Write Path (Commands): FastAPI → Service → Repository → PostgreSQL → Kafka → Delta Lake
 Read  Path (Queries):  FastAPI → Query Service → Trino (federated SQL over Delta Lake)
 ```
 
-Por que isso importa: hoje se alguém quiser consultar 50M de registros de `sales`, a query vai direto no PostgreSQL OLTP. Com CQRS, leituras analíticas vão para Trino sobre Delta Lake (OLAP) e escritas vão para PostgreSQL (OLTP). O projeto já tem Trino, mas não há nenhum endpoint da API que o usa.
+Why this matters: today, if someone wants to query 50M `sales` records, the query goes straight to the OLTP PostgreSQL. With CQRS, analytical reads go to Trino over Delta Lake (OLAP) and writes go to PostgreSQL (OLTP). The project already has Trino, but no API endpoint uses it.
 
 ---
 
-**Rafael:** Concordo com CQRS, mas quero adicionar **Event Sourcing parcial** para os domínios transacionais. Em vez de armazenar apenas o estado atual de um pedido, armazenamos a sequência de eventos:
+**Rafael:** I agree with CQRS, but I want to add **partial Event Sourcing** for the transactional domains. Instead of storing only the current state of an order, we store the sequence of events:
 
 ```
 OrderCreated → OrderPaymentConfirmed → OrderShipped → OrderDelivered
 ```
 
-Cada evento é imutável. O estado atual é a projeção (fold) dos eventos. Isso é natural com Kafka — o log do Kafka **é** o event store.
+Each event is immutable. The current state is the projection (fold) of the events. This is natural with Kafka — the Kafka log **is** the event store.
 
-Benefício para portfólio: demonstra understanding de consistência eventual, projeções, e replay de eventos — conceitos que aparecem em entrevistas para posições sênior em empresas como iFood, Nubank, Mercado Livre.
+Portfolio benefit: it demonstrates understanding of eventual consistency, projections, and event replay — concepts that come up in senior-level interviews at companies like iFood, Nubank, Mercado Livre.
 
 ---
 
-**Beatriz:** Vou trazer um ponto mais pragmático sobre performance que ninguém mencionou: **não há paginação nem cursor-based pagination nos routers**.
+**Beatriz:** I'll bring up a more pragmatic performance point nobody's mentioned: **there's no pagination or cursor-based pagination in the routers**.
 
 ```python
-# Como está hoje (presumido)
+# How it stands today (assumed)
 @router.get("/orders")
 async def list_orders(db: AsyncSession = Depends(get_db)):
-    return await order_service.get_all(db)  # SELECT * — sem limite
+    return await order_service.get_all(db)  # SELECT * — no limit
 
-# Como deveria ser
+# How it should be
 @router.get("/orders")
 async def list_orders(
     cursor: Optional[str] = Query(None),
@@ -190,9 +190,9 @@ async def list_orders(
     return await order_service.get_page(db, cursor=cursor, limit=limit)
 ```
 
-Cursor-based pagination é mais eficiente que offset pagination para tabelas grandes (no offset, o banco lê e descarta os primeiros N registros). Com 50M de registros em `sales`, isso é crítico.
+Cursor-based pagination is more efficient than offset pagination for large tables (with offset, the database reads and discards the first N records). With 50M records in `sales`, this is critical.
 
-Segundo ponto: **Redis não está sendo usado para cache**, apesar de estar configurado no `.env`. Padrão Cache-Aside para queries frequentes de dimensões (produtos, clientes, localizações):
+Second point: **Redis isn't being used for caching**, despite being configured in `.env`. Cache-Aside pattern for frequent dimension queries (products, customers, locations):
 
 ```python
 async def get_product(product_id: UUID) -> Product:
@@ -207,17 +207,17 @@ async def get_product(product_id: UUID) -> Product:
 
 ---
 
-### Rodada 4: Segurança e CI/CD
+### Round 4: Security and CI/CD
 
 ---
 
-**Beatriz:** Segurança é o ponto mais crítico para portfólio. As credenciais `minioadmin:minioadmin` e `admin:admin` no `.env` são aceitáveis para desenvolvimento local, mas o portfólio precisa mostrar que o candidato sabe o que **não fazer em produção**.
+**Beatriz:** Security is the most critical point for a portfolio. The `minioadmin:minioadmin` and `admin:admin` credentials in `.env` are acceptable for local development, but the portfolio needs to show that the candidate knows what **not to do in production**.
 
-**O que adicionar**:
-1. **Makefile** ou script de setup que gera `.env` a partir de `.env.example` (nunca commitar o `.env` real)
-2. **GitHub Actions** com `trufflehog` ou `detect-secrets` para bloquear commits com credenciais
-3. **Docker Secrets** ou **HashiCorp Vault** (modo dev) para secrets em runtime
-4. **JWT Authentication** nos routers da API com FastAPI Security
+**What to add**:
+1. **Makefile** or setup script that generates `.env` from `.env.example` (never commit the real `.env`)
+2. **GitHub Actions** with `trufflehog` or `detect-secrets` to block commits containing credentials
+3. **Docker Secrets** or **HashiCorp Vault** (dev mode) for runtime secrets
+4. **JWT Authentication** on the API routers with FastAPI Security
 
 ```python
 # dbapi/api/config/auth.py
@@ -236,7 +236,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 ---
 
-**Rafael:** CI/CD é ausente e é uma das primeiras coisas que recrutadores olham no GitHub. O projeto precisa de pelo menos:
+**Rafael:** CI/CD is missing, and it's one of the first things recruiters look at on GitHub. The project needs at least:
 
 ```yaml
 # .github/workflows/ci.yml
@@ -260,60 +260,60 @@ jobs:
     - pytest dbapi/api/tests/integration/
 ```
 
-Além disso, **pre-commit hooks** com `ruff`, `mypy`, `detect-secrets` e `hadolint` (linter de Dockerfile).
+On top of that, **pre-commit hooks** with `ruff`, `mypy`, `detect-secrets`, and `hadolint` (Dockerfile linter).
 
 ---
 
-**Lucas:** Para fechar o debate, quero falar sobre o que diferencia este portfólio de outros 95% de projetos no GitHub:
+**Lucas:** To close out the debate, I want to talk about what sets this portfolio apart from 95% of GitHub projects:
 
-1. **README com arquitetura visual** — o `diagram.py` existe mas a imagem não aparece no README
-2. **Demo video / GIF** — mostrar o Airflow rodando, o Trino consultando, o chaos engineering em ação
-3. **Makefile unificado** — `make start`, `make seed`, `make test`, `make stop` para facilitar reprodução
-4. **ARCHITECTURE.md** separado com decisões arquiteturais (ADRs — Architecture Decision Records)
-5. **Badges no README** — CI passing, coverage %, Python version, license
+1. **README with visual architecture** — `diagram.py` exists but the image doesn't show up in the README
+2. **Demo video / GIF** — show Airflow running, Trino querying, chaos engineering in action
+3. **Unified Makefile** — `make start`, `make seed`, `make test`, `make stop` to make it easy to reproduce
+4. **Separate ARCHITECTURE.md** with architectural decisions (ADRs — Architecture Decision Records)
+5. **Badges in the README** — CI passing, coverage %, Python version, license
 
-O que faz um portfólio de engenharia de dados se destacar não é só a complexidade técnica — é a **comunicação da complexidade técnica**. Um recrutador técnico passa 3 minutos no README antes de decidir continuar.
+What makes a data engineering portfolio stand out isn't just technical complexity — it's **communicating that technical complexity**. A technical recruiter spends 3 minutes on the README before deciding whether to keep going.
 
 ---
 
-## Parte 2 — Roadmap de Implementação
+## Part 2 — Implementation Roadmap
 
-### Priorização por Impacto × Esforço
+### Prioritization by Impact × Effort
 
-> **Legenda de modo**: `CLI` = aplica-se ao modo atual (BashOperator); `ONLINE` = requer API rodando como serviço (aspiracional); `INFRA` = componente de infraestrutura independente do modo da API.
+> **Mode legend**: `CLI` = applies to the current mode (BashOperator); `ONLINE` = requires the API running as a service (aspirational); `INFRA` = infrastructure component independent of the API's mode.
 
-| # | Item | Modo | Impacto Portfólio | Esforço | Prioridade |
+| # | Item | Mode | Portfolio Impact | Effort | Priority |
 |---|------|:----:|:-----------------:|:-------:|:----------:|
-| 1 | README com arquitetura e badges | INFRA | Alto | Baixo | **P0** |
-| 2 | Makefile unificado (`make start/stop/seed/test`) | INFRA | Alto | Baixo | **P0** |
-| 3 | `.env.example` + remoção de credenciais do git | INFRA | Alto | Baixo | **P0** |
-| 4 | GitHub Actions CI (lint + test + build) | INFRA | Alto | Médio | **P0** |
-| 5 | Kafka (producer no seeder CLI) + consumer group | CLI | Alto | Alto | **P1** |
-| 6 | Schema Registry (Karapace) + Avro schemas | CLI | Alto | Alto | **P1** |
-| 7 | dbt project (silver → gold transforms) | INFRA | Alto | Alto | **P1** |
-| 8 | OpenLineage nas DAGs + Marquez UI | INFRA | Alto | Médio | **P1** |
-| 9 | Alembic migrations (hoje ausente) | CLI | Médio | Médio | **P1** |
-| 10 | pytest integração com fixtures AsyncSession | CLI | Médio | Médio | **P1** |
-| 11 | Outbox Pattern (tabela + Debezium CDC) | CLI | Alto | Alto | **P2** |
-| 12 | Great Expectations integrado nas DAGs | INFRA | Médio | Médio | **P2** |
-| 13 | Prometheus + Grafana stack | INFRA | Médio | Médio | **P2** |
-| 14 | OpenTelemetry nos seeders CLI (sem HTTP) | CLI | Médio | Médio | **P2** |
-| 15 | CQRS Read Path via Trino (DAG de query) | INFRA | Médio | Alto | **P2** |
-| 16 | Cursor-based pagination nos routers | ONLINE | Baixo | Médio | **P3** |
-| 17 | Redis Cache-Aside para dimensões | ONLINE | Baixo | Médio | **P3** |
-| 18 | JWT Authentication nos routers | ONLINE | Baixo | Médio | **P3** |
-| 19 | Event Sourcing para `sales` domain | CLI | Médio | Alto | **P3** |
-| 20 | HashiCorp Vault (modo dev) | INFRA | Baixo | Alto | **P3** |
+| 1 | README with architecture and badges | INFRA | High | Low | **P0** |
+| 2 | Unified Makefile (`make start/stop/seed/test`) | INFRA | High | Low | **P0** |
+| 3 | `.env.example` + removing credentials from git | INFRA | High | Low | **P0** |
+| 4 | GitHub Actions CI (lint + test + build) | INFRA | High | Medium | **P0** |
+| 5 | Kafka (producer in the CLI seeder) + consumer group | CLI | High | High | **P1** |
+| 6 | Schema Registry (Karapace) + Avro schemas | CLI | High | High | **P1** |
+| 7 | dbt project (silver → gold transforms) | INFRA | High | High | **P1** |
+| 8 | OpenLineage in the DAGs + Marquez UI | INFRA | High | Medium | **P1** |
+| 9 | Alembic migrations (currently missing) | CLI | Medium | Medium | **P1** |
+| 10 | pytest integration with AsyncSession fixtures | CLI | Medium | Medium | **P1** |
+| 11 | Outbox Pattern (table + Debezium CDC) | CLI | High | High | **P2** |
+| 12 | Great Expectations integrated into the DAGs | INFRA | Medium | Medium | **P2** |
+| 13 | Prometheus + Grafana stack | INFRA | Medium | Medium | **P2** |
+| 14 | OpenTelemetry in the CLI seeders (no HTTP) | CLI | Medium | Medium | **P2** |
+| 15 | CQRS Read Path via Trino (query DAG) | INFRA | Medium | High | **P2** |
+| 16 | Cursor-based pagination in the routers | ONLINE | Low | Medium | **P3** |
+| 17 | Redis Cache-Aside for dimensions | ONLINE | Low | Medium | **P3** |
+| 18 | JWT Authentication in the routers | ONLINE | Low | Medium | **P3** |
+| 19 | Event Sourcing for the `sales` domain | CLI | Medium | High | **P3** |
+| 20 | HashiCorp Vault (dev mode) | INFRA | Low | High | **P3** |
 
 ---
 
-## Parte 3 — Especificações de Implementação
+## Part 3 — Implementation Specs
 
 ### SPEC-01: Apache Kafka Integration
 
-**Objetivo**: Desacoplar produção e consumo de dados, adicionar backpressure e suporte a Structured Streaming via Spark.
+**Objective**: Decouple data production and consumption, add backpressure, and support Structured Streaming via Spark.
 
-**Arquitetura**:
+**Architecture**:
 
 ```
                           ┌─────────────────────────────────────────────┐
@@ -334,7 +334,7 @@ O que faz um portfólio de engenharia de dados se destacar não é só a complex
            (bulk insert)          Streaming Job             (bronze layer)
 ```
 
-**Arquivos a criar**:
+**Files to create**:
 
 ```
 kafka/
@@ -344,9 +344,9 @@ kafka/
 │   └── karapace.config.json    # Schema registry config
 dbapi/api/
 ├── kafka/
-│   ├── producer.py             # KafkaProducer com Avro serialization
-│   ├── consumer.py             # KafkaConsumer base class com bulk insert
-│   └── schemas/                # Avro schemas por domínio
+│   ├── producer.py             # KafkaProducer with Avro serialization
+│   ├── consumer.py             # KafkaConsumer base class with bulk insert
+│   └── schemas/                # Avro schemas per domain
 │       ├── sales_order.avsc
 │       ├── person_customer.avsc
 │       └── warehouse_transaction.avsc
@@ -431,8 +431,8 @@ logger = logging.getLogger(__name__)
 
 class DataPlatformProducer:
     """
-    Kafka producer com Avro serialization e Schema Registry.
-    Garante que todos os eventos publicados estejam em conformidade com o schema registrado.
+    Kafka producer with Avro serialization and Schema Registry.
+    Ensures every published event conforms to the registered schema.
     """
 
     def __init__(self, topic: str, schema_str: str):
@@ -489,7 +489,7 @@ class DataPlatformProducer:
     {"name": "total_amount",   "type": "double"},
     {"name": "status",         "type": "string"},
     {"name": "chaos_metadata", "type": ["null", "string"], "default": null,
-     "doc": "Chaos engineering metadata — null em dados limpos"}
+     "doc": "Chaos engineering metadata — null on clean data"}
   ]
 }
 ```
@@ -498,9 +498,9 @@ class DataPlatformProducer:
 
 ### SPEC-02: Outbox Pattern
 
-**Objetivo**: Garantir entrega exactly-once entre PostgreSQL e Kafka sem Two-Phase Commit.
+**Objective**: Guarantee exactly-once delivery between PostgreSQL and Kafka without Two-Phase Commit.
 
-**Fluxo**:
+**Flow**:
 
 ```
 Service.create_order(data)
@@ -509,7 +509,7 @@ Service.create_order(data)
       └─ INSERT INTO sales.outbox (aggregate='SalesOrder', event_type='OrderCreated', payload=..., processed=false)
   └─ COMMIT  ← atomic
 
-OutboxRelay (Airflow DAG ou Debezium CDC)
+OutboxRelay (Airflow DAG or Debezium CDC)
   └─ SELECT * FROM sales.outbox WHERE processed = false ORDER BY created_at LIMIT 1000
       ├─ kafka_producer.publish_batch(records)
       └─ UPDATE sales.outbox SET processed=true, processed_at=NOW() WHERE id IN (...)
@@ -518,7 +518,7 @@ OutboxRelay (Airflow DAG ou Debezium CDC)
 **Migration SQL**:
 
 ```sql
--- Para cada schema de domínio transacional
+-- For each transactional domain schema
 CREATE TABLE sales.outbox (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     aggregate       VARCHAR(100) NOT NULL,
@@ -545,7 +545,7 @@ async def relay_outbox_batch(session: AsyncSession, producer: DataPlatformProduc
         .where(OutboxModel.processed == False)
         .order_by(OutboxModel.created_at)
         .limit(batch_size)
-        .with_for_update(skip_locked=True)  # Evita lock contention com múltiplos workers
+        .with_for_update(skip_locked=True)  # Avoids lock contention with multiple workers
     )
     records = result.scalars().all()
     if not records:
@@ -566,7 +566,7 @@ async def relay_outbox_batch(session: AsyncSession, producer: DataPlatformProduc
 
 ### SPEC-03: OpenTelemetry Observability Stack
 
-**Objetivo**: Traces, métricas e logs estruturados unificados.
+**Objective**: Unified traces, metrics, and structured logs.
 
 **Stack**:
 
@@ -609,7 +609,7 @@ def configure_telemetry(app):
     SQLAlchemyInstrumentor().instrument(enable_commenter=True, commenter_options={})
 
 
-# Métricas customizadas para bulk inserts
+# Custom metrics for bulk inserts
 meter = metrics.get_meter("data_platform.dbapi")
 bulk_insert_counter  = meter.create_counter("bulk_inserts_total", description="Total bulk inserts by domain")
 bulk_insert_duration = meter.create_histogram("bulk_insert_duration_ms", description="Bulk insert duration in ms")
@@ -620,23 +620,23 @@ chaos_injection_rate = meter.create_gauge("chaos_injection_rate", description="C
 
 ### SPEC-04: dbt Project (Silver → Gold)
 
-**Objetivo**: Substituir Spark SQL ad-hoc por modelos dbt versionados e testados para camada gold.
+**Objective**: Replace ad-hoc Spark SQL with versioned, tested dbt models for the gold layer.
 
-**Estrutura do projeto dbt**:
+**dbt project structure**:
 
 ```
 dbt/
 ├── dbt_project.yml
-├── profiles.yml              # Aponta para Trino (catálogo Delta) ou PostgreSQL
+├── profiles.yml              # Points to Trino (Delta catalog) or PostgreSQL
 ├── models/
-│   ├── staging/              # Limpeza básica — 1:1 com bronze Delta
+│   ├── staging/              # Basic cleanup — 1:1 with bronze Delta
 │   │   ├── stg_sales_orders.sql
 │   │   ├── stg_person_customers.sql
 │   │   └── stg_warehouse_transactions.sql
-│   ├── intermediate/         # Joins, deduplicação, enriquecimento
+│   ├── intermediate/         # Joins, deduplication, enrichment
 │   │   ├── int_sales_enriched.sql
 │   │   └── int_customer_360.sql
-│   └── marts/                # Camada gold — modelos analíticos finais
+│   └── marts/                # Gold layer — final analytical models
 │       ├── sales/
 │       │   ├── fct_sales_orders.sql
 │       │   └── dim_customers.sql
@@ -647,14 +647,14 @@ dbt/
 │   ├── assert_no_negative_revenue.sql
 │   └── assert_valid_order_statuses.sql
 └── macros/
-    ├── detect_chaos.sql      # Macro para detectar registros com flags de chaos
-    └── audit_columns.sql     # Macro para adicionar colunas de auditoria
+    ├── detect_chaos.sql      # Macro to detect records with chaos flags
+    └── audit_columns.sql     # Macro to add audit columns
 ```
 
 **`dbt/models/staging/stg_sales_orders.sql`**:
 
 ```sql
--- Detecta e marca registros com anomalias do chaos engineering
+-- Detects and flags records with chaos engineering anomalies
 WITH source AS (
     SELECT * FROM {{ source('iceberg_bronze', 'sales_orders') }}
 ),
@@ -665,7 +665,7 @@ validated AS (
         order_date,
         total_amount,
         status,
-        -- Detecção de chaos
+        -- Chaos detection
         CASE
             WHEN total_amount < 0                       THEN 'NEGATIVE_AMOUNT'
             WHEN customer_id IS NULL                    THEN 'NULL_FK'
@@ -682,7 +682,7 @@ validated AS (
 SELECT * FROM validated
 ```
 
-**Integração com Airflow**:
+**Airflow integration**:
 
 ```python
 # airflow/dags/dbt_transform_dag.py
@@ -703,9 +703,9 @@ dbt_run >> dbt_test
 
 ---
 
-### SPEC-05: Cursor-Based Pagination e Redis Cache
+### SPEC-05: Cursor-Based Pagination and Redis Cache
 
-**Objetivo**: Endpoints de leitura eficientes e caching de dimensões.
+**Objective**: Efficient read endpoints and dimension caching.
 
 **`dbapi/api/schemas/pagination.py`**:
 
@@ -719,10 +719,10 @@ class PageResponse(BaseModel, Generic[T]):
     data: List[T]
     next_cursor: Optional[str] = None
     has_more: bool
-    total_count: Optional[int] = None  # Opcional — caro em tabelas grandes
+    total_count: Optional[int] = None  # Optional — expensive on large tables
 ```
 
-**`dbapi/api/repositories/base_repository.py`** (adição ao padrão existente):
+**`dbapi/api/repositories/base_repository.py`** (addition to the existing pattern):
 
 ```python
 async def get_page(
@@ -755,7 +755,7 @@ from api.config.settings import settings
 redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
 
 def cached(prefix: str, ttl: int = 3600):
-    """Cache-Aside decorator para métodos de repositório."""
+    """Cache-Aside decorator for repository methods."""
     def decorator(func):
         async def wrapper(*args, **kwargs):
             key = f"{prefix}:{':'.join(str(a) for a in args[1:])}"  # Skip 'self'
@@ -768,7 +768,7 @@ def cached(prefix: str, ttl: int = 3600):
         return wrapper
     return decorator
 
-# Uso nos repositories de dimensões
+# Usage in dimension repositories
 @cached("product", ttl=3600)
 async def get_product_by_id(self, session, product_id: UUID) -> Product: ...
 
@@ -845,18 +845,18 @@ jobs:
 
 ---
 
-### SPEC-07: OpenLineage nas DAGs
+### SPEC-07: OpenLineage in the DAGs
 
-**Objetivo**: Rastreabilidade de linhagem de dados automática com zero código adicional nas DAGs.
+**Objective**: Automatic data lineage traceability with zero extra code in the DAGs.
 
-**`airflow/airflow.cfg`** (seção relevante):
+**`airflow/airflow.cfg`** (relevant section):
 
 ```ini
 [openlineage]
 transport = {"type": "http", "url": "http://marquez:5000", "endpoint": "/api/v1/lineage"}
 ```
 
-**`docker-compose` para Marquez**:
+**`docker-compose` for Marquez**:
 
 ```yaml
 marquez:
@@ -880,32 +880,32 @@ marquez-web:
     - hadoopcluster
 ```
 
-Com OpenLineage configurado, cada execução de DAG automaticamente registra:
-- Datasets de entrada (tabelas PostgreSQL, arquivos MinIO)
-- Datasets de saída (tabelas Delta Lake, tópicos Kafka)
-- Transformações aplicadas (Spark jobs, dbt models)
-- Métricas de qualidade (rows written, schema changes)
+With OpenLineage configured, every DAG run automatically records:
+- Input datasets (PostgreSQL tables, MinIO files)
+- Output datasets (Delta Lake tables, Kafka topics)
+- Applied transformations (Spark jobs, dbt models)
+- Quality metrics (rows written, schema changes)
 
 ---
 
 ### SPEC-08: Alembic Migrations
 
-**Objetivo**: Versionamento de schema do banco de dados com rollback controlado.
+**Objective**: Database schema versioning with controlled rollback.
 
 ```bash
-# Setup inicial
+# Initial setup
 cd dbapi
 uv run alembic init api/migrations
 ```
 
-**`dbapi/api/migrations/env.py`** (adaptação):
+**`dbapi/api/migrations/env.py`** (adaptation):
 
 ```python
 from api.config.base import Base
-from api.models.sales import *      # noqa — imports necessários para autogenerate
+from api.models.sales import *      # noqa — imports required for autogenerate
 from api.models.person import *     # noqa
 from api.models.warehouse import *  # noqa
-# ... demais domínios
+# ... remaining domains
 
 target_metadata = Base.metadata
 ```
@@ -913,10 +913,10 @@ target_metadata = Base.metadata
 **Workflow**:
 
 ```bash
-# Gerar migration após mudança de model
+# Generate a migration after a model change
 uv run alembic revision --autogenerate -m "add outbox table to sales schema"
 
-# Aplicar
+# Apply
 uv run alembic upgrade head
 
 # Rollback
@@ -925,7 +925,7 @@ uv run alembic downgrade -1
 
 ---
 
-### SPEC-09: Makefile Unificado
+### SPEC-09: Unified Makefile
 
 **`/Makefile`**:
 
@@ -989,7 +989,7 @@ diagram:  ## Regenerate architecture diagram
 
 ### SPEC-10: CQRS — Read Path via Trino
 
-**Objetivo**: Separar reads analíticos do OLTP PostgreSQL, usando Trino sobre Delta Lake para queries pesadas.
+**Objective**: Separate analytical reads from OLTP PostgreSQL, using Trino over Delta Lake for heavy queries.
 
 **`dbapi/api/routers/analytics_router.py`**:
 
@@ -1009,8 +1009,8 @@ async def get_sales_summary(
     conn = Depends(get_trino_conn)
 ):
     """
-    Leitura analítica via Trino sobre Iceberg — não toca o PostgreSQL OLTP.
-    Suporta queries sobre bilhões de registros sem impacto no sistema transacional.
+    Analytical read via Trino over Iceberg — never touches the OLTP PostgreSQL.
+    Supports queries over billions of records with no impact on the transactional system.
     """
     return await AnalyticsService.sales_summary(conn, start_date, end_date, granularity)
 ```
@@ -1037,9 +1037,9 @@ def get_trino_conn():
 
 ---
 
-## Parte 4 — README Badge Template
+## Part 4 — README Badge Template
 
-Adicionar ao `README.md` existente:
+Add to the existing `README.md`:
 
 ```markdown
 ![CI](https://github.com/dougdss89/data_plataform/actions/workflows/ci.yml/badge.svg)
@@ -1053,46 +1053,46 @@ Adicionar ao `README.md` existente:
 
 ---
 
-## Parte 5 — Architecture Decision Records (ADRs)
+## Part 5 — Architecture Decision Records (ADRs)
 
-Criar pasta `docs/adr/` com decisões arquiteturais documentadas:
+Create a `docs/adr/` folder with documented architectural decisions:
 
-| ADR | Decisão | Status |
+| ADR | Decision | Status |
 |-----|---------|--------|
-| ADR-001 | Usar SQLAlchemy async com bulk insert (sem for-loops) | Aceito |
-| ADR-002 | Delta Lake + Unity Catalog OSS para governança e versionamento | Aceito |
-| ADR-003 | Chaos Engineering como estratégia de qualidade de dados | Aceito |
-| ADR-004 | Kafka como camada de buffer entre API e armazenamento | Proposto |
-| ADR-005 | Outbox Pattern para garantia exactly-once com Kafka | Proposto |
-| ADR-006 | CQRS com Trino para separar read/write paths | Proposto |
-| ADR-007 | dbt como camada de transformação silver → gold | Proposto |
-| ADR-008 | OpenLineage para rastreabilidade de linhagem | Proposto |
+| ADR-001 | Use async SQLAlchemy with bulk insert (no for-loops) | Accepted |
+| ADR-002 | Delta Lake + Unity Catalog OSS for governance and versioning | Accepted |
+| ADR-003 | Chaos Engineering as a data quality strategy | Accepted |
+| ADR-004 | Kafka as a buffer layer between the API and storage | Proposed |
+| ADR-005 | Outbox Pattern for exactly-once guarantees with Kafka | Proposed |
+| ADR-006 | CQRS with Trino to separate read/write paths | Proposed |
+| ADR-007 | dbt as the silver → gold transformation layer | Proposed |
+| ADR-008 | OpenLineage for lineage traceability | Proposed |
 
 ---
 
-## Resumo Executivo do Debate
+## Executive Summary of the Debate
 
-### O que está excelente (não mudar)
+### What's excellent (don't change)
 
-1. **3-layer architecture** (Repository → Service → Router) — implementação limpa e disciplinada
-2. **Chaos Engineering** com 35+ estratégias — diferencial real de portfólio
-3. **Delta Lake + Unity Catalog OSS + Trino** — stack de lakehouse alinhado com Databricks e padrão de mercado
-4. **AuditMixin** universal — boa prática de rastreabilidade de registros
-5. **Bulk insert sem for-loops** — demonstra conhecimento de performance em escala
+1. **3-layer architecture** (Repository → Service → Router) — clean, disciplined implementation
+2. **Chaos Engineering** with 35+ strategies — a real portfolio differentiator
+3. **Delta Lake + Unity Catalog OSS + Trino** — a lakehouse stack aligned with Databricks and market standards
+4. **Universal AuditMixin** — good record-traceability practice
+5. **Bulk insert with no for-loops** — demonstrates performance-at-scale knowledge
 
-### O que adicionar (maior impacto)
+### What to add (highest impact)
 
-1. **Kafka + Schema Registry** — transforma de "API de ingestão" para "plataforma event-driven"
-2. **Outbox Pattern** — demonstra conhecimento de consistência distribuída
-3. **OpenTelemetry** — observabilidade profissional que recrutadores reconhecem
-4. **dbt + Great Expectations** — ciclo completo de qualidade de dados
-5. **GitHub Actions CI** + **Makefile** — mostra maturidade de engenharia de software
+1. **Kafka + Schema Registry** — turns it from "ingestion API" into "event-driven platform"
+2. **Outbox Pattern** — demonstrates distributed consistency knowledge
+3. **OpenTelemetry** — professional observability that recruiters recognize
+4. **dbt + Great Expectations** — complete data quality cycle
+5. **GitHub Actions CI** + **Makefile** — shows software engineering maturity
 
-### O que o portfólio comunica com essas melhorias
+### What the portfolio communicates with these improvements
 
-> *"Engenheiro que constrói sistemas de dados distribuídos com garantias de consistência, qualidade de dados automatizada, observabilidade de ponta a ponta e boas práticas de engenharia de software — pronto para operar em escala de produção."*
+> *"An engineer who builds distributed data systems with consistency guarantees, automated data quality, end-to-end observability, and solid software engineering practices — ready to operate at production scale."*
 
 ---
 
-*Documento gerado em: 2026-04-21*
-*Revisado por: debate simulado entre Rafael (Streaming), Beatriz (Data Quality) e Lucas (Architecture)*
+*Document generated on: 2026-04-21*
+*Reviewed by: simulated debate between Rafael (Streaming), Beatriz (Data Quality), and Lucas (Architecture)*

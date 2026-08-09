@@ -23,7 +23,7 @@ class SalesSettings(BaseModel):
     allows_return: bool = True
     requires_pos_auth: bool = False
     default_currency: Optional[SalesCurrency] = SalesCurrency.BRL
-    stock_source_priority: List[str] = Field(..., min_length=1, description="Lista de prioridade de armazéns (ex: ['warehouse_sp', 'store_01'])")    
+    stock_source_priority: List[str] = Field(..., min_length=1, description="Warehouse priority list (e.g.: ['warehouse_sp', 'store_01'])")
     
 class SalesChannelSchema(BaseModel):
     

@@ -5,36 +5,36 @@ import uuid
 from pydantic import BaseModel, Field
 
 class MarketingMetrics(BaseModel):
-    # --- VIDEO (Funil de Retenção) ---
-    video_views: int = Field(default=0, description="Visualizações totais (ex: 3s ou 2s)")
+    # --- VIDEO (Retention Funnel) ---
+    video_views: int = Field(default=0, description="Total views (e.g. 3s or 2s)")
     video_views_25: int = Field(default=0)
     video_views_50: int = Field(default=0)
-    video_views_75: int = Field(default=0) # O quartil que faltava
+    video_views_75: int = Field(default=0) # The quartile that was missing
     video_views_100: int = Field(default=0)
-    
-    # --- ENGAJAMENTO SOCIAL ---
+
+    # --- SOCIAL ENGAGEMENT ---
     likes: int = Field(default=0)
     comments: int = Field(default=0)
     shares: int = Field(default=0)
-    saves: int = Field(default=0, description="Salvamentos (comum no Insta/TikTok)")
-    clicks_all: int = Field(default=0, description="Cliques totais (inclui clique no perfil, não só link)")
+    saves: int = Field(default=0, description="Saves (common on Insta/TikTok)")
+    clicks_all: int = Field(default=0, description="Total clicks (includes profile clicks, not just link clicks)")
 
-    # --- FUNIL DE CONVERSÃO (Granularidade) ---
+    # --- CONVERSION FUNNEL (Granularity) ---
     adds_to_cart: int = Field(default=0)
     checkouts_initiated: int = Field(default=0)
     leads: int = Field(default=0)
     app_installs: int = Field(default=0)
-    
-    # --- COMPETITIVIDADE (Google Ads) ---
-    # Usamos Float (0.0 a 1.0 ou percentual)
+
+    # --- COMPETITIVENESS (Google Ads) ---
+    # We use Float (0.0 to 1.0 or percentage)
     search_impression_share: Optional[float] = Field(None)
     search_lost_is_budget: Optional[float] = Field(None)
     search_lost_is_rank: Optional[float] = Field(None)
 
-    # --- METRICAS DE QUALIDADE ---
+    # --- QUALITY METRICS ---
     quality_score: Optional[int] = Field(None, ge=1, le=10)
     frequency: float = Field(default=1.0)
-    reach: int = Field(default=0, description="Alcance único diário")
+    reach: int = Field(default=0, description="Unique daily reach")
 
     created_at: datetime = Field(default_factory=datetime.now)
 
@@ -44,23 +44,23 @@ class MarketingDailyPerformance(BaseModel):
     campaign_id: int = Field(gt=0)
     ad_id: int = Field(gt=0)
     
-    # Adicionei ad_group_id pois é o nível intermediário padrão (Hierarquia: Campanha > Grupo > Anúncio)
-    ad_group_id: int = Field(gt=0) 
-    
-    # Use date do Python padrão para garantir serialização ISO (YYYY-MM-DD)
-    date_ref: date = Field(..., description="Data de referência da performance") 
-    
-    # --- CORREÇÃO DE NOMES (Snake Case) ---
-    # No banco de dados, colunas com letras maiúsculas (Cost) exigem aspas ("Cost").
-    # O padrão em Data Engineering é sempre minúsculo (snake_case).
-    
-    cost: Decimal = Field(ge=0.0, decimal_places=4) # 4 casas decimais para CPMs baixos
+    # Added ad_group_id since it is the standard intermediate level (Hierarchy: Campaign > Group > Ad)
+    ad_group_id: int = Field(gt=0)
+
+    # Use Python's standard date to guarantee ISO serialization (YYYY-MM-DD)
+    date_ref: date = Field(..., description="Performance reference date")
+
+    # --- NAME FIX (Snake Case) ---
+    # In the database, columns with uppercase letters (Cost) require quotes ("Cost").
+    # The standard in Data Engineering is always lowercase (snake_case).
+
+    cost: Decimal = Field(ge=0.0, decimal_places=4) # 4 decimal places for low CPMs
     impressions: int = Field(ge=0)
     clicks: int = Field(ge=0)
-    conversions: int = Field(ge=0) # 'Conv' é abreviado demais, prefira explicito
+    conversions: int = Field(ge=0) # 'Conv' is too abbreviated, prefer explicit naming
     conversion_value: Decimal = Field(ge=0.0, decimal_places=2)
-    
-    # Campo JSONB no Postgres
+
+    # JSONB field in Postgres
     metrics: MarketingMetrics = Field(default_factory=MarketingMetrics)
         
     created_at: datetime = Field(default_factory=datetime.now)

@@ -3,11 +3,11 @@ from api.schemas.humanresources.humanresources_department import (
     HRGroupName
 )
 
-ORGANOGRAMA = [
-    # --- RAIZ (C-Level) ---
+ORG_CHART = [
+    # --- ROOT (C-Level) ---
     (HRDepartmentName.EXECUTIVE, None),
-    
-    # --- DIRETORIAS (Respondem ao Executive) ---
+
+    # --- DIRECTORATES (Report to Executive) ---
     (HRDepartmentName.ENGINEERING, HRDepartmentName.EXECUTIVE),
     (HRDepartmentName.SALES, HRDepartmentName.EXECUTIVE),
     (HRDepartmentName.FINANCE, HRDepartmentName.EXECUTIVE),
@@ -16,15 +16,15 @@ ORGANOGRAMA = [
     (HRDepartmentName.PRODUCTION, HRDepartmentName.EXECUTIVE),
     (HRDepartmentName.PURCHASING, HRDepartmentName.EXECUTIVE),
     (HRDepartmentName.FACILITIES_AND_MAINTENANCE, HRDepartmentName.EXECUTIVE),
-    
-    # --- GERÊNCIAS (Respondem às Diretorias) ---
+
+    # --- MANAGEMENT (Report to Directorates) ---
     (HRDepartmentName.MARKETING, HRDepartmentName.SALES),
     (HRDepartmentName.TOOL_DESIGN, HRDepartmentName.ENGINEERING),
     (HRDepartmentName.RESEARCH_AND_DEVELOPMENT, HRDepartmentName.ENGINEERING),
     (HRDepartmentName.PRODUCTION_CONTROL, HRDepartmentName.PRODUCTION),
     (HRDepartmentName.QUALITY_ASSURANCE, HRDepartmentName.PRODUCTION),
     (HRDepartmentName.SHIPPING_AND_RECEIVING, HRDepartmentName.PURCHASING),
-    
-    # --- COORDENAÇÕES (Respondem às Gerências) ---
+
+    # --- COORDINATION (Report to Management) ---
     (HRDepartmentName.DOCUMENT_CONTROL, HRDepartmentName.QUALITY_ASSURANCE),
 ]

@@ -3,11 +3,10 @@ import random
 import asyncio
 import sys
 import os
-import argparse
 from datetime import datetime, timedelta, date
 from faker import Faker
 from typing import Dict, List, Any
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, func
 from api.database import AsyncSessionLocal
 
 # Modelos
@@ -16,49 +15,57 @@ from api.models.humanresources.department import HumanResourcesDepartmentModel
 from api.models.person.country_region import CountryRegionModel
 from api.models.person.state_province import StateProvinceModel
 from api.models.humanresources.employee import HumanResourcesEmployeeModel
+from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
 
-# Ajustar path para importar módulos da API
+# Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+
+SCHEMA_NAME = "humanresources"
+TABLE_NAME = "humanresources.employee"
 
 fake = Faker('pt_BR')
 
-def generate_role_attributes(funcao: str, is_manager: bool) -> dict:
-    """Gera atributos JSONB específicos baseados na função."""
-    if funcao == "VENDAS":
+def generate_role_attributes(role: str, is_manager: bool) -> dict:
+    """Generates JSONB attributes specific to the role."""
+    if role == "SALES":
         return {
             "annual_bonus_target_pct": round(random.uniform(5.0, 25.0), 2),
             "managed_regions": ["SP", "RJ"] if is_manager else ["SP"]
         }
-    elif funcao == "COMPRAS":
+    elif role == "PURCHASING":
         return {"approval_limit": random.randint(10000, 100000)}
     return {}
 
-async def seed_humanresources_employees():
-    """Executa a carga de funcionários com integridade dimensional total."""
+async def seed_humanresources_employees(count: int = 50, chaos_rate: float = 0.0, batch_size: int = 10_000, apply_chaos: bool = False):
+    """Runs the employee load with full dimensional integrity.
+
+    HumanResources is a critical dimension with no chaos engineering by design (CLAUDE.md);
+    chaos_rate/apply_chaos are accepted only to keep the CLI uniform with the other
+    volume-driven seeders, but have no effect here.
+    """
     async with AsyncSessionLocal() as session:
-        # 1. Buscar Cadastros Base (Dimensional Integrity)
+        existing_count = await session.scalar(select(func.count(HumanResourcesEmployeeModel.employee_id)))
+        # 1. Fetch base records (Dimensional Integrity)
         jobs = {row[1]: row[0] for row in (await session.execute(select(HumanResourcesJobRoleModel.jobrole_id, HumanResourcesJobRoleModel.job_title))).all()}
         depts = {row[1]: row[0] for row in (await session.execute(select(HumanResourcesDepartmentModel.department_id, HumanResourcesDepartmentModel.department_name))).all()}
-        paises = {row[1]: row[0] for row in (await session.execute(select(CountryRegionModel.country_id, CountryRegionModel.country_code))).all()}
-        
-        # Mapa de estados por país
-        estados_result = (await session.execute(select(StateProvinceModel.state_province_id, StateProvinceModel.country_id))).all()
-        estados_por_pais = {}
-        for row in estados_result:
-            estados_por_pais.setdefault(row[1], []).append(row[0])
+        countries = {row[1]: row[0] for row in (await session.execute(select(CountryRegionModel.country_id, CountryRegionModel.country_code))).all()}
 
-        if not jobs or not depts or not paises:
-            print("⚠️ Tabelas base (Jobs, Depts, Geography) vazias! Rode os seeders base primeiro.")
+        # Map of states by country
+        states_result = (await session.execute(select(StateProvinceModel.state_province_id, StateProvinceModel.country_id))).all()
+        states_by_country = {}
+        for row in states_result:
+            states_by_country.setdefault(row[1], []).append(row[0])
+
+        if not jobs or not depts or not countries:
+            print("⚠️ Base tables (Jobs, Depts, Geography) are empty! Run the base seeders first.")
             return
 
-        print("📣 Gerando Hierarquia Corporativa...")
-        
-        employees = []
-        
+        print(f"📣 Generating Corporate Hierarchy | {count:,} employees (existing: {existing_count:,})...")
+
         def build_employee(title: str, dept: str, country_code: str, is_mgr: bool, manager_id: int = None):
-            cid = paises.get(country_code, random.choice(list(paises.values())))
-            sid = random.choice(estados_por_pais.get(cid, [1]))
-            
+            cid = countries.get(country_code, random.choice(list(countries.values())))
+            sid = random.choice(states_by_country.get(cid, [1]))
+
             first = fake.first_name()
             last = fake.last_name()
             
@@ -75,7 +82,7 @@ async def seed_humanresources_employees():
                 "manager_id": manager_id,
                 "country_id": cid,
                 "state_province_id": sid,
-                "role_attributes": generate_role_attributes("VENDAS" if "Vendas" in title else "GERAL", is_mgr),
+                "role_attributes": generate_role_attributes("SALES" if "Vendas" in title else "GENERAL", is_mgr),
                 "current_salary": random.randint(5000, 25000),
                 "is_current": True,
                 "created_at": datetime.now(),
@@ -84,29 +91,29 @@ async def seed_humanresources_employees():
                 "row_guid": uuid.uuid4()
             }
 
-        # Simulação de Hierarquia
-        # 1. CEO
-        ceo = build_employee("Chief Executive Officer (CEO)", "executive", "US", True)
-        # 2. Directors
-        # ... logic summarized for brevity
-        
-        # Para fins de seeder bulk, vamos simplificar a inserção mas manter a lógica de IDs REAIS
-        batch = [ceo]
-        # Inserir CEO primeiro para pegar o ID se necessário para manager_id (mas aqui o seeder é bulk)
-        # Devido ao autoincrement no bulk, manager_id fictício ou nulo no primeiro lote.
-        
-        # Vamos gerar 20 funcionários genéricos vinculados aos IDs reais
-        for _ in range(20):
-            batch.append(build_employee(random.choice(list(jobs.keys())), random.choice(list(depts.keys())), random.choice(list(paises.keys())), False))
+        # Hierarchy simulation: the first employee in the batch is always the CEO (only if there
+        # are no employees yet), the rest are generic and linked to real IDs.
+        batch = []
+        if existing_count == 0 and count > 0:
+            batch.append(build_employee("Chief Executive Officer (CEO)", "executive", "US", True))
+
+        while len(batch) < count:
+            batch.append(build_employee(random.choice(list(jobs.keys())), random.choice(list(depts.keys())), random.choice(list(countries.keys())), False))
 
         try:
-            stmt = insert(HumanResourcesEmployeeModel).values(batch)
-            await session.execute(stmt)
+            for i in range(0, len(batch), batch_size):
+                stmt = insert(HumanResourcesEmployeeModel).values(batch[i:i + batch_size])
+                await session.execute(stmt)
             await session.commit()
-            print(f"✅ {len(batch)} Funcionários semeados com sucesso!")
+            print(f"✅ {len(batch)} Employees seeded successfully!")
         except Exception as e:
             await session.rollback()
-            print(f"❌ Erro ao semear funcionários: {e}")
+            print(f"❌ Error seeding employees: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(seed_humanresources_employees())
+    parser = build_parser(f"Dynamic seeder for {TABLE_NAME}")
+    add_volume_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
+    args = parser.parse_args()
+    count, chaos_rate, apply_chaos, batch_size = resolve_volume_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+
+    asyncio.run(seed_humanresources_employees(count=count, chaos_rate=chaos_rate, batch_size=batch_size, apply_chaos=apply_chaos))

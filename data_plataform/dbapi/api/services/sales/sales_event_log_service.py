@@ -15,5 +15,11 @@ class SalesEventLogService:
         """
         Processamento massiva de logs de eventos de pedidos.
         """
-        processed_data = [item.model_dump() for item in events_data]
+        processed_data = []
+        for item in events_data:
+            data = item.model_dump()
+            data["salesorder_id"] = data.pop("order_id")  # nome da coluna real difere do schema
+            if data.get("event_id") is None:
+                data.pop("event_id", None)  # deixa o autoincrement do banco assumir
+            processed_data.append(data)
         await self.repository.bulk_insert(processed_data)

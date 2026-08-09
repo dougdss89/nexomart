@@ -9,7 +9,7 @@ from api.models.purchasing.vendor import PurchaseVendorModel as VendorModel
 logger = logging.getLogger(__name__)
 
 class PurchasingVendorRepository:
-    """ Exclusivo para operações de BD das Entidades Fornecedoras """
+    """ Exclusively for DB operations on Vendor Entities """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, vendors_data: List[Dict[str, Any]]) -> bool:
@@ -20,7 +20,7 @@ class PurchasingVendorRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL Bulk Insert Vendors: {e}")
+            logger.error(f"SQL Error Bulk Insert Vendors: {e}")
             raise
             
     @staticmethod
@@ -30,5 +30,5 @@ class PurchasingVendorRepository:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro ao buscar Vendor ID={vendor_id}: {e}")
+            logger.error(f"Error fetching Vendor ID={vendor_id}: {e}")
             raise

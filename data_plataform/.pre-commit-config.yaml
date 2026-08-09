@@ -1,6 +1,6 @@
-# Configuração do pre-commit
-# Para instalar: pip install pre-commit && pre-commit install
-# Para executar manualmente: pre-commit run --all-files
+# Pre-commit configuration
+# To install: pip install pre-commit && pre-commit install
+# To run manually: pre-commit run --all-files
 
 repos:
   # Hooks gerais
@@ -68,11 +68,11 @@ repos:
       - id: yamllint
         args: [--strict]
 
-# Configuração global
+# Global configuration
 default_language_version:
   python: python3.12
 
-# Execução
+# Execution
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit.com hooks

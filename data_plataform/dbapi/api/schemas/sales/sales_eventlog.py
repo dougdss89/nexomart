@@ -18,10 +18,10 @@ class GPSLocation(BaseModel):
     lat: float = Field(..., description="Latitude")
     long: float = Field(..., description="Longitude")
 
-# O Payload Flexível (JSONB)
+# The Flexible Payload (JSONB)
 class SalesEventContext(BaseModel):
-    user_id: Optional[int] = Field(None, gt=0, description="Pode ser nulo se for evento de sistema")
-    affected_line_ids: List[int] = Field(default_factory=list, description="Lista de itens do pedido")
+    user_id: Optional[int] = Field(None, gt=0, description="Can be null for system events")
+    affected_line_ids: List[int] = Field(default_factory=list, description="List of order items")
     reason: Optional[str] = Field(None, max_length=200)
     gps_location: Optional[GPSLocation] = None
 
@@ -30,14 +30,14 @@ class SalesOrderEventLogSchema(BaseModel):
     
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
     
-    event_id: Optional[int] = Field(None, gt=0, description="None = auto-increment no banco")
+    event_id: Optional[int] = Field(None, gt=0, description="None = auto-increment in the database")
     order_id: int = Field(gt=0)
 
-    # CONTRAPONTO: De volta ao Topo da Tabela!
+    # COUNTERPOINT: Back to the Top of the Table!
     event_type: SalesEventType
     event_date: datetime = Field(default_factory=datetime.now)
-    
-    # O contexto variável (JSONB)
+
+    # The variable context (JSONB)
     event_data: SalesEventContext = Field(default_factory=SalesEventContext)
     
     created_at: datetime = Field(default_factory=datetime.now)
@@ -47,7 +47,7 @@ class SalesOrderEventLogSchema(BaseModel):
     
     @model_validator(mode='after')
     def validate_event_date(self) -> 'SalesOrderEventLogSchema':
-        # Agora validamos o event_date diretamente da raiz da classe
+        # Now we validate event_date directly from the class root
         if self.event_date > self.created_at:
             raise ValueError("event_date cannot be in the future relative to created_at")
         return self

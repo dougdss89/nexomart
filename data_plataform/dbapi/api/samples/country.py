@@ -1,10 +1,10 @@
 """
-Amostra estática de dados para a carga inicial da tabela CountryRegion.
-Isola os dados brutos da lógica de geração (Seeder).
+Static data sample for the initial load of the CountryRegion table.
+Isolates the raw data from the generation logic (Seeder).
 """
 
-# Adicionado a terceira variável da Tupla para conversão cambial (Local Currency)
-PAISES_OPERACAO = [
+# Added the third tuple element for currency conversion (Local Currency)
+OPERATING_COUNTRIES = [
     ("BR", "South America", "BRL"),
     ("AR", "South America", "ARS"),
     ("CO", "South America", "COP"),

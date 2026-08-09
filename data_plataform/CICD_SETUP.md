@@ -1,158 +1,158 @@
 # 🚀 CI/CD Setup - Data Platform
 
-Esteira de CI/CD configurada para o projeto **data_plataform** com GitHub Actions.
+CI/CD pipeline set up for the **data_plataform** project with GitHub Actions.
 
-## 📦 Estrutura
+## 📦 Structure
 
 ```
 data_plataform/
 ├── .github/
 │   ├── workflows/
-│   │   ├── ci.yml           # Pipeline de CI (lint + testes)
-│   │   ├── cd.yml           # Pipeline de CD (deploy)
-│   │   └── pr-checks.yml    # Checks de qualidade em PRs
-│   └── README.md            # Documentação completa
+│   │   ├── ci.yml           # CI pipeline (lint + tests)
+│   │   ├── cd.yml           # CD pipeline (deploy)
+│   │   └── pr-checks.yml    # Quality checks on PRs
+│   └── README.md            # Full documentation
 ├── scripts/
-│   └── lint.sh              # Script para executar linters
-├── pyproject.toml           # Configurações de linters (Ruff, Black, isort, pytest)
-├── .flake8                  # Configurações Flake8
-├── .sqlfluff                # Configurações SQLFluff (SQL linting)
+│   └── lint.sh              # Script to run linters
+├── pyproject.toml           # Linter configs (Ruff, Black, isort, pytest)
+├── .flake8                  # Flake8 config
+├── .sqlfluff                # SQLFluff config (SQL linting)
 ├── .pre-commit-config.yaml  # Pre-commit hooks
-└── Makefile                 # Comandos make (agora com CI/CD)
+└── Makefile                 # Make commands (now with CI/CD)
 ```
 
-## 🎯 Como Usar
+## 🎯 How to Use
 
-### Localmente
+### Locally
 
 ```bash
 cd data_plataform
 
-# Instalar dependências de desenvolvimento
+# Install dev dependencies
 make install-dev
 
-# Executar todos os linters
+# Run all linters
 make lint
 
-# Executar e corrigir automaticamente
+# Run and auto-fix
 make lint-fix
 
-# Executar apenas linters Python
+# Run only Python linters
 make lint-python
 
-# Executar apenas linters SQL
+# Run only SQL linters
 make lint-sql
 
-# Formatar código
+# Format code
 make format
 
-# Executar testes
+# Run tests
 make test
 
-# Executar testes com coverage
+# Run tests with coverage
 make test-cov
 
-# Varredura de segurança
+# Security scan
 make security
 
-# Pipeline CI completo
+# Full CI pipeline
 make ci
 
-# Limpar cache
+# Clear cache
 make clean-cache
 ```
 
-### No GitHub
+### On GitHub
 
-Os workflows executam automaticamente em:
+Workflows run automatically on:
 
-- **CI Pipeline**: Push e PR para `main` e `devbranch`
-- **CD Pipeline**: Push para `main` ou tags `v*`
-- **PR Checks**: Abertura/atualização de PRs
+- **CI Pipeline**: Push and PR to `main` and `devbranch`
+- **CD Pipeline**: Push to `main` or `v*` tags
+- **PR Checks**: PR opened/updated
 
-## 🔧 Workflows Configurados
+## 🔧 Configured Workflows
 
 ### 1. CI Pipeline
 
 - ✅ **Lint Python**: Ruff, Black, isort, Flake8
 - ✅ **Lint SQL**: SQLFluff (dbt + postgres)
-- ✅ **Testes**: pytest com coverage
-- ✅ **DBT**: Validação de modelos
-- ✅ **Segurança**: Bandit, Safety
+- ✅ **Tests**: pytest with coverage
+- ✅ **DBT**: Model validation
+- ✅ **Security**: Bandit, Safety
 
 ### 2. CD Pipeline
 
-- ✅ **Docker Build**: DBAPI e Airflow
-- ✅ **Deploy Staging**: Deploy automático na main
-- ✅ **Deploy Production**: Deploy com tags
-- ✅ **DBT Deploy**: Deploy de modelos dbt
+- ✅ **Docker Build**: DBAPI and Airflow
+- ✅ **Deploy Staging**: Automatic deploy on main
+- ✅ **Deploy Production**: Deploy on tags
+- ✅ **DBT Deploy**: Deploy dbt models
 
 ### 3. PR Quality Checks
 
-- ✅ **Título do PR**: Conventional commits
-- ✅ **Complexidade**: Análise de código
-- ✅ **Coverage**: Report de cobertura
-- ✅ **SQL Changes**: Análise de mudanças SQL
+- ✅ **PR Title**: Conventional commits
+- ✅ **Complexity**: Code analysis
+- ✅ **Coverage**: Coverage report
+- ✅ **SQL Changes**: SQL change analysis
 
-## 🔍 Linters Configurados
+## 🔍 Configured Linters
 
 ### Python
 
-- **Ruff**: Linter super rápido (substitui Flake8, isort, etc)
-- **Black**: Formatador de código (line-length: 100)
-- **isort**: Ordenação de imports
-- **Flake8**: Guia de estilo
+- **Ruff**: Super-fast linter (replaces Flake8, isort, etc.)
+- **Black**: Code formatter (line-length: 100)
+- **isort**: Import sorting
+- **Flake8**: Style guide
 - **mypy**: Type checking
-- **Bandit**: Segurança
-- **Safety**: Dependências vulneráveis
+- **Bandit**: Security
+- **Safety**: Vulnerable dependencies
 
 ### SQL
 
-- **SQLFluff**: Linter e formatador SQL
+- **SQLFluff**: SQL linter and formatter
   - Dialect: PostgreSQL
-  - Suporte a templates dbt
-  - Keywords em UPPERCASE
-  - Identifiers em lowercase
+  - dbt template support
+  - Keywords in UPPERCASE
+  - Identifiers in lowercase
 
-## ⚙️ Configurar GitHub Secrets
+## ⚙️ Configuring GitHub Secrets
 
-Para o CD funcionar, adicione em:
+For CD to work, add these under:
 **Settings → Secrets and variables → Actions**
 
 ```
-DOCKER_USERNAME       # Usuário Docker Hub
-DOCKER_PASSWORD       # Token Docker Hub
-SLACK_WEBHOOK         # (Opcional) Webhook para notificações
+DOCKER_USERNAME       # Docker Hub username
+DOCKER_PASSWORD       # Docker Hub token
+SLACK_WEBHOOK         # (Optional) Webhook for notifications
 ```
 
-## 🚀 Criar Primeiro PR
+## 🚀 Creating Your First PR
 
 ```bash
-# Na raiz do projeto
+# From the project root
 cd data_plataform
 
-# Criar branch
+# Create a branch
 git checkout -b feature/test-ci
 
-# Fazer mudanças
+# Make changes
 # ...
 
-# Executar CI localmente antes do commit
+# Run CI locally before committing
 make ci
 
-# Commit e push
+# Commit and push
 git add .
-git commit -m "feat: adiciona nova funcionalidade"
+git commit -m "feat: add new feature"
 git push origin feature/test-ci
 ```
 
-Os workflows executarão automaticamente! 🎉
+The workflows will run automatically! 🎉
 
-## 🎨 Customizar
+## 🎨 Customizing
 
-### Alterar regras de lint
+### Changing lint rules
 
-**Ruff**: Edite `[tool.ruff.lint]` em `pyproject.toml`
+**Ruff**: Edit `[tool.ruff.lint]` in `pyproject.toml`
 
 ```toml
 [tool.ruff.lint]
@@ -160,16 +160,16 @@ select = ["E", "F", "I", "B"]
 ignore = ["E501"]
 ```
 
-**SQLFluff**: Edite `[sqlfluff:rules]` em `.sqlfluff`
+**SQLFluff**: Edit `[sqlfluff:rules]` in `.sqlfluff`
 
 ```ini
 [sqlfluff:rules:L010]
-capitalisation_policy = upper  # ou lower
+capitalisation_policy = upper  # or lower
 ```
 
-### Adicionar novo job no CI
+### Adding a new CI job
 
-Edite `.github/workflows/ci.yml`:
+Edit `.github/workflows/ci.yml`:
 
 ```yaml
 my-job:
@@ -180,36 +180,36 @@ my-job:
     - name: Run my task
       run: |
         cd data_plataform
-        # seu comando aqui
+        # your command here
 ```
 
 ## 📊 Badges
 
-Adicione ao README principal:
+Add to the main README:
 
 ```markdown
-![CI](https://github.com/seu-usuario/seu-repo/actions/workflows/ci.yml/badge.svg)
-![CD](https://github.com/seu-usuario/seu-repo/actions/workflows/cd.yml/badge.svg)
+![CI](https://github.com/your-user/your-repo/actions/workflows/ci.yml/badge.svg)
+![CD](https://github.com/your-user/your-repo/actions/workflows/cd.yml/badge.svg)
 ```
 
 ## 🐛 Troubleshooting
 
-### Erro: "ruff: command not found"
+### Error: "ruff: command not found"
 
 ```bash
 make install-dev
 ```
 
-### Workflow não executou
+### Workflow didn't run
 
-1. Verifique se os workflows estão em `data_plataform/.github/workflows/`
-2. Vá em **Actions** no GitHub
-3. Verifique os logs
+1. Check that the workflows are under `data_plataform/.github/workflows/`
+2. Go to **Actions** on GitHub
+3. Check the logs
 
-### SQLFluff falhando
+### SQLFluff failing
 
 ```bash
-# Teste localmente
+# Test locally
 cd data_plataform
 sqlfluff lint ../dbt/models/ --dialect postgres --verbose
 ```
@@ -223,29 +223,29 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-## 📚 Documentação
+## 📚 Documentation
 
-- Documentação completa: [.github/README.md](.github/README.md)
-- Comandos make: `make help`
+- Full documentation: [.github/README.md](.github/README.md)
+- Make commands: `make help`
 - GitHub Actions: [Actions Tab](https://github.com)
 
-## 🎯 Convenções de Commit
+## 🎯 Commit Conventions
 
 ```
-feat:     nova funcionalidade
-fix:      correção de bug
-docs:     documentação
-style:    formatação
-refactor: refatoração
+feat:     new feature
+fix:      bug fix
+docs:     documentation
+style:    formatting
+refactor: refactor
 perf:     performance
-test:     testes
+test:     tests
 build:    build
 ci:       CI/CD
-chore:    manutenção
+chore:    maintenance
 ```
 
 ---
 
-**Configurado e pronto para uso!** 🚀
+**Configured and ready to use!** 🚀
 
-Para mais detalhes, veja [.github/README.md](.github/README.md)
+For more details, see [.github/README.md](.github/README.md)

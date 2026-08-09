@@ -13,22 +13,31 @@ class ProductInventoryService:
 
     async def restock_inventory(self, items: List[ProductInventorySchema]):
         """
-        Realiza a carga inicial ou reposição de estoque em lote.
+        Performs the initial load or bulk restocking of inventory.
         """
-        # Converte schemas em dicionários puros
-        data_list = [item.model_dump() for item in items]
+        # Converts schemas into plain dictionaries. The `attributes` field (JSONB) needs
+        # to be serialized separately in "json" mode — a plain model_dump() keeps native
+        # `date` values inside it, which asyncpg's default JSON encoder does not accept.
+        data_list = []
+        for item in items:
+            data = item.model_dump()
+            if item.attributes is not None:
+                data["attributes"] = item.attributes.model_dump(mode="json")
+            if data.get("inventory_id") is None:
+                data.pop("inventory_id", None)  # let the database autoincrement take over
+            data_list.append(data)
         await self.repository.bulk_upsert(data_list)
 
     async def update_stock(self, product_id: int, location_id: int, quantity_change: int):
         """
-        Atualiza o saldo de estoque para um produto em um local específico.
+        Updates the stock balance for a product at a specific location.
         """
         inventory = await self.repository.get_by_product_and_location(product_id, location_id)
         if not inventory:
-            raise ValueError(f"Estoque não encontrado para produto {product_id} no local {location_id}")
-        
+            raise ValueError(f"Inventory not found for product {product_id} at location {location_id}")
+
         new_qty = inventory.quantity + quantity_change
         if new_qty < 0:
-            raise ValueError("Saldo de estoque não pode ser negativo após a operação.")
+            raise ValueError("Stock balance cannot be negative after the operation.")
             
         await self.repository.update_quantity(inventory.inventory_id, new_qty)

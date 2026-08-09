@@ -27,16 +27,16 @@ uv run python api/tests/test_product_services.py
 
 **Start services — full stack (recommended):**
 ```bash
-make setup        # primeira vez: cria rede/volumes + builda imagens
-make up           # sobe toda a stack em ordem de dependência
-make down         # para tudo (dados preservados)
-make ps           # lista containers rodando
-make logs s=spark-master        # tail de logs de um container
-make restart s=trino-coordinator  # reinicia um container
-make clean        # ⚠️  remove containers + volumes (apaga dados)
+make setup        # first time only: creates network/volumes + builds images
+make up           # brings up the full stack in dependency order
+make down         # stops everything (data preserved)
+make ps           # lists running containers
+make logs s=spark-master        # tail logs for a container
+make restart s=trino-coordinator  # restart a container
+make clean        # ⚠️  removes containers + volumes (deletes data)
 ```
 
-**Start services — individuais:**
+**Start services — individually:**
 ```bash
 make up-postgres
 make up-minio
@@ -48,8 +48,8 @@ make up-airflow
 make up-dbapi
 ```
 
-**URLs após `make up`:**
-| Serviço | URL | Credenciais |
+**URLs after `make up`:**
+| Service | URL | Credentials |
 |---|---|---|
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
 | Spark UI | http://localhost:9090 | — |
@@ -102,145 +102,145 @@ For analytic fact seeders, derive revenue top-down: Impressions → CTR → Clic
 
 ### Data Volume Limits per Schema — Dynamic Ranges
 
-**IMPORTANTE**: Os volumes são **dinâmicos e randômicos** a cada execução da DAG do Airflow. Os seeders devem sortear um valor dentro do range mínimo/máximo especificado.
+**IMPORTANT**: Volumes are **dynamic and random** on every run of the Airflow DAG. Seeders must draw a value within the specified minimum/maximum range.
 
-| Schema | Tabelas Principais | Range Mínimo | Range Máximo | Observações |
+| Schema | Main Tables | Min Range | Max Range | Notes |
 |--------|-------------------|--------------|--------------|-------------|
-| `sales` | Pedidos, Devoluções | 100.000 | **50 milhões** | Simular desde dias normais até picos (Black Friday, Natal) |
-| `purchasing` | Ordens de Compra (Header + Detail) | 50.000 | **50 milhões** | Volume combinado header + detalhes |
-| `warehouse` | Transaction History, Inventário | 100.000 | **50 milhões** | Movimentações de estoque com variação alta |
-| `humanresources` | Employees, Departments, JobRoles | 50 | **100** | RH é dimensão pequena e estável |
-| `product` | Products, Models, Categories | 500 | **1.500** | **Limite absoluto 100k**. Seeder deve verificar antes de inserir. |
-| `person` | Customers, Addresses, Contacts | 10.000 | 5.000.000 | Baseado em volume de vendas (1:N) |
-| `marketing` | Campaigns, Ads, Performance | 1.000 | 500.000 | Derivado de SKUs e períodos de campanha |
+| `sales` | Orders, Returns | 100,000 | **50 million** | Simulate everything from normal days to peaks (Black Friday, Christmas) |
+| `purchasing` | Purchase Orders (Header + Detail) | 50,000 | **50 million** | Combined header + detail volume |
+| `warehouse` | Transaction History, Inventory | 100,000 | **50 million** | Stock movements with high variance |
+| `humanresources` | Employees, Departments, JobRoles | 50 | **100** | HR is a small, stable dimension |
+| `product` | Products, Models, Categories | 500 | **1,500** | **Absolute limit 100k**. Seeder must check before inserting. |
+| `person` | Customers, Addresses, Contacts | 10,000 | 5,000,000 | Based on sales volume (1:N) |
+| `marketing` | Campaigns, Ads, Performance | 1,000 | 500,000 | Derived from SKUs and campaign periods |
 
-**Chaos Rate também é dinâmico**: Entre 1% e 10% sorteado aleatoriamente a cada execução.
+**Chaos Rate is also dynamic**: Randomly drawn between 1% and 10% on every run.
 
-#### Implementação nos Seeders
+#### Implementation in Seeders
 
-Todos os seeders devem aceitar **ranges** via argparse e sortear um valor dentro do range:
+All seeders must accept **ranges** via argparse and draw a value within the range:
 
 ```python
 import random
 
-parser.add_argument("--min-count", type=int, default=100_000, help="Volume mínimo de registros")
-parser.add_argument("--max-count", type=int, default=50_000_000, help="Volume máximo de registros")
-parser.add_argument("--min-chaos", type=float, default=0.01, help="Chaos rate mínimo (1%)")
-parser.add_argument("--max-chaos", type=float, default=0.10, help="Chaos rate máximo (10%)")
+parser.add_argument("--min-count", type=int, default=100_000, help="Minimum record volume")
+parser.add_argument("--max-count", type=int, default=50_000_000, help="Maximum record volume")
+parser.add_argument("--min-chaos", type=float, default=0.01, help="Minimum chaos rate (1%)")
+parser.add_argument("--max-chaos", type=float, default=0.10, help="Maximum chaos rate (10%)")
 
 args = parser.parse_args()
 
-# Sortear valores dinâmicos
+# Draw dynamic values
 count = random.randint(args.min_count, args.max_count)
 chaos_rate = random.uniform(args.min_chaos, args.max_chaos)
 
-print(f"🎲 Valores sorteados: {count:,} registros | Chaos: {chaos_rate:.2%}")
+print(f"🎲 Values drawn: {count:,} records | Chaos: {chaos_rate:.2%}")
 ```
 
-**Validação de Limite Absoluto** (para `product`):
+**Absolute Limit Validation** (for `product`):
 
 ```python
-# Antes de inserir produtos
+# Before inserting products
 existing_count = await session.scalar(select(func.count(ProductModel.product_id)))
 
-# Limite absoluto: 100k
+# Absolute limit: 100k
 ABSOLUTE_MAX = 100_000
 
 if existing_count >= ABSOLUTE_MAX:
-    print(f"⚠️ Limite absoluto de produtos atingido ({existing_count}/{ABSOLUTE_MAX}).")
+    print(f"⚠️ Absolute product limit reached ({existing_count}/{ABSOLUTE_MAX}).")
     return
 
-# Ajustar count sorteado para não ultrapassar limite
+# Adjust drawn count so it doesn't exceed the limit
 count = min(count, ABSOLUTE_MAX - existing_count)
-print(f"✅ Inserindo {count:,} produtos (total final: {existing_count + count:,}/{ABSOLUTE_MAX:,})")
+print(f"✅ Inserting {count:,} products (final total: {existing_count + count:,}/{ABSOLUTE_MAX:,})")
 ```
 
-### Data Quality Rules — Chaos Engineering para Engenharia de Dados
+### Data Quality Rules — Chaos Engineering for Data Engineering
 
-**Objetivo**: Simular cenários reais de qualidade de dados para testar pipelines de limpeza, detecção de fraudes e governança.
+**Goal**: Simulate real-world data quality scenarios to test cleaning pipelines, fraud detection, and governance.
 
-Todos os seeders dos schemas `sales`, `purchasing`, `warehouse`, `person` devem injetar **entre 1% e 10%** das seguintes anomalias:
+All seeders for the `sales`, `purchasing`, `warehouse`, `person` schemas must inject **between 1% and 10%** of the following anomalies:
 
-#### 1. Anomalias de Qualidade de Dados (Data Quality Issues)
+#### 1. Data Quality Anomalies
 
-- **Duplicidade** (1-5%): Registros duplicados com pequenas variações (troca de letra maiúscula, espaços extras, caracteres especiais)
-  - Exemplos: `"João Silva"` vs `"JOÃO SILVA"` vs `"João  Silva "` (espaço duplo)
-  - CPF duplicado com formatações diferentes: `"123.456.789-00"` vs `"12345678900"`
+- **Duplication** (1-5%): Duplicate records with small variations (case swaps, extra spaces, special characters)
+  - Examples: `"João Silva"` vs `"JOÃO SILVA"` vs `"João  Silva "` (double space)
+  - Duplicate CPF with different formatting: `"123.456.789-00"` vs `"12345678900"`
 
-- **Dados Sujos** (2-10%): Campos com valores malformados que precisam de regexp/normalização
-  - Telefones: `"0000000"`, `"11111111111"`, `"(00) 0000-0000"`
-  - CEPs: `"00000-000"`, `"XXXXX-XXX"`, CEPs de estados diferentes do endereço
-  - CPF/CNPJ: `"000.000.000-00"`, `"111.111.111-11"`, com dígitos verificadores errados
-  - Emails: `"email@dominio"` (sem TLD), `"@dominio.com"` (sem usuário), `"email@@dominio.com"`
-  - Nomes: `"João123"`, `"Maria###"`, `"Cliente Teste"`, `"XXXX"`, strings vazias com espaços `"   "`
+- **Dirty Data** (2-10%): Fields with malformed values that need regexp/normalization
+  - Phones: `"0000000"`, `"11111111111"`, `"(00) 0000-0000"`
+  - Postal codes: `"00000-000"`, `"XXXXX-XXX"`, postal codes from a different state than the address
+  - CPF/CNPJ: `"000.000.000-00"`, `"111.111.111-11"`, with wrong check digits
+  - Emails: `"email@domain"` (no TLD), `"@domain.com"` (no user), `"email@@domain.com"`
+  - Names: `"John123"`, `"Mary###"`, `"Test Customer"`, `"XXXX"`, empty strings with whitespace `"   "`
 
-- **Valores Acima do Normal** (1-3%): Outliers estatísticos (não fraudulentos, mas atípicos)
-  - Pedidos com valores 5-10x acima da média (compras de luxo legítimas)
-  - Quantidades muito grandes mas justificáveis (compra empresarial)
-  - Tempo de entrega muito longo (importação, greve de transporte)
+- **Above-Normal Values** (1-3%): Statistical outliers (not fraudulent, just atypical)
+  - Orders 5-10x above average (legitimate luxury purchases)
+  - Very large but justifiable quantities (business purchase)
+  - Very long delivery times (import shipments, freight strikes)
 
-#### 2. Fraudes e Atividades Suspeitas (Fraud Detection Scenarios)
+#### 2. Fraud and Suspicious Activity (Fraud Detection Scenarios)
 
-- **Fraudes em Compras** (1-2%):
-  - Cliente com nome real mas CPF falso (`000.000.000-00`, sequências)
-  - Cliente com nome falso mas endereço verdadeiro (entregas em endereços conhecidos)
-  - Múltiplas compras com cartões diferentes no mesmo endereço em curto período
-  - Cartões clonados: padrão de compras geograficamente impossível (compra em SP às 10h, em RJ às 10h05)
-  - Compras de alto valor com dados cadastrais inconsistentes (email gratuito + endereço de luxo)
+- **Purchase Fraud** (1-2%):
+  - Customer with a real name but fake CPF (`000.000.000-00`, sequences)
+  - Customer with a fake name but a real address (deliveries to known addresses)
+  - Multiple purchases with different cards at the same address in a short time window
+  - Cloned cards: geographically impossible purchase pattern (purchase in São Paulo at 10am, in Rio de Janeiro at 10:05am)
+  - High-value purchases with inconsistent registration data (free email + luxury address)
 
-- **Cadastros Fraudulentos** (1-3%):
-  - CPFs válidos matematicamente mas não existentes (gerados por algoritmo)
-  - Múltiplos cadastros com mesmo telefone/email mas CPFs diferentes
-  - Endereços falsos ou inexistentes (Rua X, número 99999, CEP inválido para o bairro)
-  - Combinações impossíveis: nome brasileiro + telefone internacional não cadastrado
+- **Fraudulent Registrations** (1-3%):
+  - CPFs that are mathematically valid but don't actually exist (algorithm-generated)
+  - Multiple registrations with the same phone/email but different CPFs
+  - Fake or nonexistent addresses (Street X, number 99999, postal code invalid for the neighborhood)
+  - Impossible combinations: Brazilian name + unregistered international phone number
 
-- **Processos de Compra Incompletos/Fantasmas** (2-5%):
-  - Pedidos criados mas nunca pagos (`payment_status: "pending"` há mais de 30 dias)
-  - Pedidos pagos mas nunca enviados (`shipping_status: null` ou `"pending"` indefinidamente)
-  - Pedidos enviados mas nunca entregues (rastreamento parado há meses)
-  - Pedidos com produtos que não existem no catálogo (referência a `product_id` deletado/inexistente)
-  - Cliente recebeu produto mas há disputa de chargeback (`dispute_status: "open"`)
+- **Incomplete/Phantom Purchase Processes** (2-5%):
+  - Orders created but never paid (`payment_status: "pending"` for more than 30 days)
+  - Orders paid but never shipped (`shipping_status: null` or `"pending"` indefinitely)
+  - Orders shipped but never delivered (tracking stalled for months)
+  - Orders with products that don't exist in the catalog (reference to a deleted/nonexistent `product_id`)
+  - Customer received the product but there's a chargeback dispute (`dispute_status: "open"`)
 
-- **Fraudes em Purchasing** (1-2%):
-  - Ordens de compra duplicadas para mesmo fornecedor (possível erro ou suborno)
-  - Fornecedores fantasmas (CNPJ válido mas empresa sem atividade econômica)
-  - Preços muito acima do mercado (superfaturamento)
-  - Ordens aprovadas por funcionários sem autorização (employee_id sem permissão no sistema)
-  - Entregas de produtos em endereços pessoais ao invés de warehouses
+- **Purchasing Fraud** (1-2%):
+  - Duplicate purchase orders for the same vendor (possible error or bribery)
+  - Phantom vendors (valid CNPJ but a company with no economic activity)
+  - Prices well above market rate (overbilling)
+  - Orders approved by employees without authorization (employee_id lacking system permission)
+  - Product deliveries to personal addresses instead of warehouses
 
-#### 3. Anomalias em Warehouse (Logística e Estoque)
+#### 3. Warehouse Anomalies (Logistics and Inventory)
 
-- **Transferências Perdidas/Fantasmas** (2-5%):
-  - Transferência iniciada (`status: "in_transit"`) mas nunca concluída (há mais de 90 dias)
-  - Transferência concluída mas quantidade recebida diferente da enviada (quebra, roubo)
-  - Transferência entre locais impossíveis (de warehouse A para A)
-  - Transações sem rastreabilidade (`traceability_info: null` ou incompleto)
+- **Lost/Phantom Transfers** (2-5%):
+  - Transfer started (`status: "in_transit"`) but never completed (more than 90 days ago)
+  - Transfer completed but received quantity differs from shipped quantity (breakage, theft)
+  - Transfer between impossible locations (from warehouse A to A)
+  - Transactions without traceability (`traceability_info: null` or incomplete)
 
-- **Inventário com Divergências** (3-8%):
-  - Quantidade física diferente da quantidade no sistema (necessita contagem cíclica)
-  - Produtos com custo negativo ou zero (erro de cadastro/sistema)
-  - Produtos marcados como disponíveis mas sem localização física
-  - Estoque negativo (overselling)
-  - Movimentações sem ordem de origem (`reference_order_id: null` em transação de saída)
+- **Inventory Discrepancies** (3-8%):
+  - Physical quantity differs from system quantity (needs cycle count)
+  - Products with negative or zero cost (registration/system error)
+  - Products marked as available but with no physical location
+  - Negative stock (overselling)
+  - Movements with no originating order (`reference_order_id: null` on an outbound transaction)
 
-- **Problemas de Qualidade** (1-2%):
-  - Produtos com `quality_check_status: "fail"` ou `"hold"` mas ainda assim enviados para clientes
-  - Produtos com temperatura IoT fora do range permitido (cold chain quebrada)
-  - Produtos vencidos ainda em estoque ativo
+- **Quality Issues** (1-2%):
+  - Products with `quality_check_status: "fail"` or `"hold"` but still shipped to customers
+  - Products with IoT temperature readings outside the allowed range (broken cold chain)
+  - Expired products still in active inventory
 
-- **Valores Negativos** (2-4%):
-  - Custos negativos (erro de sistema, necessita estorno)
-  - Quantidades negativas em transações (bug de integração)
-  - Valores de frete negativos (ajuste de sistema mal implementado)
+- **Negative Values** (2-4%):
+  - Negative costs (system error, needs reversal)
+  - Negative quantities in transactions (integration bug)
+  - Negative freight values (poorly implemented system adjustment)
 
-#### 4. Implementação nos Seeders
+#### 4. Implementation in Seeders
 
-Os seeders devem injetar essas anomalias de forma **randômica** mas **controlada**:
+Seeders must inject these anomalies in a **randomized** but **controlled** way:
 
 ```python
 def apply_data_quality_chaos(batch: List[Dict], chaos_rate: float = 0.05) -> List[Dict]:
     """
-    Aplica chaos engineering (5% padrão) nos dados gerados.
+    Applies chaos engineering (5% default) to the generated data.
     """
     num_chaos = int(len(batch) * chaos_rate)
     chaos_indices = random.sample(range(len(batch)), num_chaos)
@@ -252,32 +252,32 @@ def apply_data_quality_chaos(batch: List[Dict], chaos_rate: float = 0.05) -> Lis
         ])
 
         if chaos_type == "duplicate":
-            # Duplicar registro com variação
+            # Duplicate the record with a variation
             batch.append({**batch[idx], "customer_name": batch[idx]["customer_name"].upper()})
 
         elif chaos_type == "dirty_data":
-            # Injetar CPF falso
+            # Inject a fake CPF
             batch[idx]["cpf"] = "000.000.000-00"
 
         elif chaos_type == "fraud":
-            # Cartão clonado: compras em locais impossíveis no mesmo dia
+            # Cloned card: purchases in impossible locations on the same day
             batch[idx]["shipping_city"] = "São Paulo"
             batch[idx]["billing_city"] = "Rio de Janeiro"
             batch[idx]["order_date"] = datetime.now()
             batch[idx]["payment_date"] = datetime.now() - timedelta(minutes=5)
 
-        # ... outros tipos de chaos
+        # ... other chaos types
 
     return batch
 ```
 
-**NOTA CRÍTICA**: Esses dados "sujos" são **intencionais** e devem ser **documentados em metadados** para permitir:
-1. Testes de pipelines de limpeza (dbt, Spark)
-2. Testes de detecção de fraudes (ML models)
-3. Auditorias de qualidade de dados (Great Expectations, Soda)
-4. Treinamento de analistas em cenários reais
+**CRITICAL NOTE**: This "dirty" data is **intentional** and must be **documented in metadata** to enable:
+1. Testing cleaning pipelines (dbt, Spark)
+2. Testing fraud detection (ML models)
+3. Data quality audits (Great Expectations, Soda)
+4. Training analysts on real-world scenarios
 
-Criar arquivo `dbapi/api/seeder/CHAOS_DOCUMENTATION.md` listando todos os tipos de anomalias injetadas por tabela.
+Create the file `dbapi/api/seeder/CHAOS_DOCUMENTATION.md` listing every type of anomaly injected, per table.
 
 ## Transactional ID Prefixes
 
@@ -290,52 +290,52 @@ Criar arquivo `dbapi/api/seeder/CHAOS_DOCUMENTATION.md` listando todos os tipos 
 
 9-digit random numeric sequences for `X`.
 
-## Workflow: Criando Novos Pipelines / Áreas Analíticas
+## Workflow: Creating New Pipelines / Analytical Areas
 
-Ao receber solicitação de criação de um novo pipeline (ex: Vendas, Logística), seguir **obrigatoriamente** esta hierarquia em ordem:
+When asked to create a new pipeline (e.g. Sales, Logistics), **always** follow this hierarchy in order:
 
-### Passo 1 — Model SQLAlchemy (`dbapi/api/models/<domain>/`)
-1. Criar o model estendendo `Base` e `AuditMixin`.
-2. Forçar `__tablename__` em minúsculo.
-3. Índices JSONB: declarar com casting e mapear chaves `snake_case` nativas.
+### Step 1 — SQLAlchemy Model (`dbapi/api/models/<domain>/`)
+1. Create the model extending `Base` and `AuditMixin`.
+2. Force `__tablename__` to lowercase.
+3. JSONB indexes: declare with casting and map native `snake_case` keys.
 
-### Passo 2 — Schema Pydantic (`dbapi/api/schemas/<domain>/`)
-1. Espelhar `1:1` as chaves do Model SQL.
-2. Enums devem herdar de `str` com restrições rigorosas.
-3. UUID e Booleans padrão.
-4. `@model_validator(mode='after')` para datas ou lógicas de negócio.
+### Step 2 — Pydantic Schema (`dbapi/api/schemas/<domain>/`)
+1. Mirror the SQL model's keys `1:1`.
+2. Enums must inherit from `str` with strict constraints.
+3. Standard UUID and Booleans.
+4. `@model_validator(mode='after')` for dates or business logic.
 
-### Passo 3 — Seeder Realístico (`dbapi/api/seeder/<domain>/`)
-1. Se herda dados de outro pipeline, importar o array do seeder anterior (ex: `get_person_customer_seeders()`).
-2. Cruzar com tabelas satélite em `dbapi/api/samples/`.
-3. Construir o gerador injetando payload JSON bruto via `PipelineSchema(**payload).model_dump()` para blindar o dado.
-4. Fatos numéricos (Time-Series): aplicar Matemática de Funil.
-5. Entidades (Dimensões): aplicar Chaos Engineering (5–10% erros sintáticos controlados).
+### Step 3 — Realistic Seeder (`dbapi/api/seeder/<domain>/`)
+1. If it inherits data from another pipeline, import the array from the upstream seeder (e.g. `get_person_customer_seeders()`).
+2. Cross-reference with satellite tables in `dbapi/api/samples/`.
+3. Build the generator by injecting the raw JSON payload via `PipelineSchema(**payload).model_dump()` to shield the data.
+4. Numeric facts (Time-Series): apply Funnel Math.
+5. Entities (Dimensions): apply Chaos Engineering (5–10% controlled syntactic errors).
 
-### Passo 4 — Tríade REST 3-Layer (Repository → Service → Router)
-**Obrigatório** ao concluir o Seeder:
-1. `_repository.py` em `dbapi/api/repositories/<domain>/` — `bulk_insert()` assíncrono via SQLAlchemy puro. **Zero for-loops.**
-2. `_service.py` abstrato com precondições analíticas em `dbapi/api/services/<domain>/`.
-3. Router em `dbapi/api/routers/<domain>_router.py` vinculado a `Depends(get_db)`.
+### Step 4 — REST 3-Layer Triad (Repository → Service → Router)
+**Required** once the Seeder is done:
+1. `_repository.py` in `dbapi/api/repositories/<domain>/` — async `bulk_insert()` via plain SQLAlchemy. **Zero for-loops.**
+2. Abstract `_service.py` with analytical preconditions in `dbapi/api/services/<domain>/`.
+3. Router in `dbapi/api/routers/<domain>_router.py` bound to `Depends(get_db)`.
 
-### Passo 5 — Integração CLI / Airflow
-1. Expor `argparse` no escopo `__main__` do Seeder (ex: `--count`, `--batch_size`) para disparo via `BashOperator`.
-2. Confirmar que nenhum for-loop envia queries individuais — todas as operações em lote pela Tríade.
-3. Testar no terminal e reportar ao usuário antes de declarar "concluído".
+### Step 5 — CLI / Airflow Integration
+1. Expose `argparse` in the Seeder's `__main__` scope (e.g. `--count`, `--batch_size`) so it can be triggered via `BashOperator`.
+2. Confirm no for-loop sends individual queries — all operations must be batched through the Triad.
+3. Test in the terminal and report back to the user before declaring it "done".
 
 ---
 
-## Configuração de Infraestrutura — Zero Hardcode
+## Infrastructure Configuration — Zero Hardcode
 
-**Regra de ouro**: nenhuma string de conexão (host, porta, nome de banco, credencial, endpoint de serviço) deve ser escrita literal em `docker-compose.yml`/config de serviço. Tudo vem de `configurations/secrets.env` (única fonte de verdade — nunca commitado, mas com `secrets.env.example` espelhando as chaves). Para adicionar um valor novo: declare a variável em `secrets.env` **e** em `secrets.env.example`, nunca hardcode um literal novo em nenhum arquivo de config.
+**Golden rule**: no connection string (host, port, database name, credential, service endpoint) may ever be written as a literal in `docker-compose.yml`/service configs. Everything comes from `configurations/secrets.env` (the single source of truth — never committed, but mirrored in `secrets.env.example`). To add a new value: declare the variable in `secrets.env` **and** in `secrets.env.example`, never hardcode a new literal in any config file.
 
-Três mecanismos de substituição, dependendo do tipo de arquivo — usar o certo para cada um:
+Three substitution mechanisms, depending on file type — use the right one for each:
 
-1. **Docker Compose** (`*/docker-compose.yml`): sintaxe nativa `${VAR}`. O `Makefile` já exporta `secrets.env` pro shell antes de qualquer `docker compose up` (target `up`/`up-*`), então `${VAR}` dentro do YAML resolve sozinho. Se o *container* também precisa enxergar a variável em runtime (não só na hora de montar o compose), adicione `env_file: ../configurations/secrets.env` ao serviço.
-2. **Catálogos do Trino** (`trino/catalog/*.properties`): sintaxe própria do Trino `${ENV:VAR}` (não é `${VAR}` puro). Os serviços `trino-coordinator`/`trino-worker` já carregam `secrets.env` via `env_file`.
-3. **Arquivos de config sem suporte nativo a variável** (Java `.properties` do Unity Catalog, `spark-defaults.conf`, XML do Hive): **nunca edite o arquivo final diretamente** — edite o `<arquivo>.template` correspondente (usa `${VAR}` estilo shell) e rode `make generate-confs` (ou já incluso em `make up`), que roda `envsubst` e gera o arquivo real. Editar o arquivo gerado é perdido no próximo `generate-confs`.
+1. **Docker Compose** (`*/docker-compose.yml`): native `${VAR}` syntax. The `Makefile` already exports `secrets.env` to the shell before any `docker compose up` (target `up`/`up-*`), so `${VAR}` inside the YAML resolves on its own. If the *container* also needs to see the variable at runtime (not just when the compose file is assembled), add `env_file: ../configurations/secrets.env` to the service.
+2. **Trino Catalogs** (`trino/catalog/*.properties`): Trino's own `${ENV:VAR}` syntax (not plain `${VAR}`). The `trino-coordinator`/`trino-worker` services already load `secrets.env` via `env_file`.
+3. **Config files with no native variable support** (Unity Catalog's Java `.properties`, `spark-defaults.conf`, Hive's XML): **never edit the final file directly** — edit the matching `<file>.template` (uses shell-style `${VAR}`) and run `make generate-confs` (already included in `make up`), which runs `envsubst` and generates the real file. Edits to the generated file are lost on the next `generate-confs`.
 
-Arquivos de config sem template e sem variável (`hive/conf/hive-site.xml`, `nessie/application.properties` — este último nem está montado em nenhum container, é código morto) ficam de fora deste padrão por ora; não hardcode neles sem necessidade, mas também não presuma que aceitam `${VAR}` sem testar.
+Config files with no template and no variable support (`hive/conf/hive-site.xml`, `nessie/application.properties` — the latter isn't even mounted in any container, it's dead code) fall outside this pattern for now; don't hardcode into them unnecessarily, but also don't assume they accept `${VAR}` without testing.
 
 ---
 

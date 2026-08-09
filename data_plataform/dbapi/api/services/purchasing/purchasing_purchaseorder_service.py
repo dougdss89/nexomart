@@ -6,7 +6,7 @@ from api.repositories.purchasing.purchasing_purchaseorder_repository import Purc
 logger = logging.getLogger(__name__)
 
 class PurchasingPurchaseOrderService:
-    """ Lógicas Financeiras/Logísticas de Ordem de Compra """
+    """ Financial/Logistical Logic for Purchase Orders """
     
     @staticmethod
     async def process_bulk_integration(db: AsyncSession, orders_data: List[Dict[str, Any]]) -> bool:

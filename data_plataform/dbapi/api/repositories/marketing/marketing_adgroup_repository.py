@@ -9,7 +9,7 @@ from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
 logger = logging.getLogger(__name__)
 
 class MarketingAdGroupRepository:
-    """ Exclusivo para operações de banco de dados do Marketing AdGroup """
+    """ Exclusively for Marketing AdGroup database operations """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, adgroups_data: List[Dict[str, Any]]) -> bool:
@@ -20,7 +20,7 @@ class MarketingAdGroupRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL Bulk Insert Marketing AdGroup: {e}")
+            logger.error(f"SQL Error Bulk Insert Marketing AdGroup: {e}")
             raise
             
     @staticmethod
@@ -30,5 +30,5 @@ class MarketingAdGroupRepository:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro ao buscar MarketingAdGroup ID={ad_group_id}: {e}")
+            logger.error(f"Error fetching MarketingAdGroup ID={ad_group_id}: {e}")
             raise

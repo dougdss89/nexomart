@@ -12,30 +12,32 @@ from api.models.marketing.marketing_campaign import MarketingCampaignModel
 from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
 from api.samples.person_demographics import INTERESTS_BANK, OCCUPATIONS
 from api.seeder.chaos import apply_adgroup_chaos
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args
 
-# Ajustar path para importar módulos da API
+# Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 fake = Faker('pt_BR')
 
-def generate_adgroup_payloads(campanhas_reais: list[dict]) -> list[dict]:
+def generate_adgroup_payloads(real_campaigns: list[dict], chaos_rate: float = 0.05, apply_chaos: bool = True) -> list[dict]:
     """
-    Gera payloads de AdGroups baseados em campanhas REAIS do banco.
+    Generates AdGroup payloads based on REAL campaigns from the database.
     """
     batch = []
-    for campanha in campanhas_reais:
+    ad_group_id_counter = 1
+    for campaign in real_campaigns:
         num_adgroups = random.randint(1, 4)
         for i in range(num_adgroups):
             adgroup_interests = random.sample(INTERESTS_BANK, k=random.randint(1, 3))
             adgroup_keywords = random.sample(OCCUPATIONS, k=random.randint(2, 4))
             adgroup_keywords.extend([f"comprar {fake.word()}", "oferta exclusiva"])
-            
+
             min_age = random.randint(18, 45)
-            
+
             payload = {
-                "ad_group_id": None, # Auto-increment
-                "campaign_id": campanha["campaign_id"],
-                "ad_group_name": f"AG_{i+1}_{campanha['campaign_name']}_{adgroup_interests[0][:5].upper()}",
+                "ad_group_id": ad_group_id_counter,  # placeholder for Pydantic validation (gt=0); removed before insert
+                "campaign_id": campaign["campaign_id"],
+                "ad_group_name": f"AG_{i+1}_{campaign['campaign_name']}_{adgroup_interests[0][:5].upper()}",
                 "external_id": f"EXT-ADG-{uuid.uuid4().hex[:8].upper()}",
                 "targeting_criteria": {
                     "geo_location": {"include": ["Brasil"], "exclude": []},
@@ -49,34 +51,45 @@ def generate_adgroup_payloads(campanhas_reais: list[dict]) -> list[dict]:
                 "is_active": True,
                 "row_guid": uuid.uuid4()
             }
-            batch.append(MarketingAdGroup(**payload).model_dump())
+            validated_adgroup = MarketingAdGroup(**payload).model_dump()
+            validated_adgroup.pop("ad_group_id", None)  # let the database's autoincrement take over
+            batch.append(validated_adgroup)
+            ad_group_id_counter += 1
 
-    return apply_adgroup_chaos(batch)
+    if apply_chaos:
+        batch = apply_adgroup_chaos(batch, chaos_rate=chaos_rate)
 
-async def seed_marketing_adgroups():
+    return batch
+
+async def seed_marketing_adgroups(chaos_rate: float = 0.05, apply_chaos: bool = True):
     """
-    Executa a carga dos AdGroups consumindo Campanhas REAIS do banco.
+    Runs the AdGroup load consuming REAL Campaigns from the database.
     """
     async with AsyncSessionLocal() as session:
-        # 1. Buscar Campanhas reais (Dimensional Integrity)
+        # 1. Fetch real Campaigns (Dimensional Integrity)
         result = await session.execute(select(MarketingCampaignModel.campaign_id, MarketingCampaignModel.campaign_name))
-        campanhas_reais = [{"campaign_id": row[0], "campaign_name": row[1]} for row in result.all()]
+        real_campaigns = [{"campaign_id": row[0], "campaign_name": row[1]} for row in result.all()]
 
-        if not campanhas_reais:
-            print("⚠️ Nenhuma campanha encontrada! Rode o seeder de MarketingCampaign primeiro.")
+        if not real_campaigns:
+            print("⚠️ No campaigns found! Run the MarketingCampaign seeder first.")
             return
 
-        print(f"📣 Semeando AdGroups para {len(campanhas_reais)} campanhas...")
-        adgroups = generate_adgroup_payloads(campanhas_reais)
-        
+        print(f"📣 Seeding AdGroups for {len(real_campaigns)} campaigns | chaos={chaos_rate:.2%}")
+        adgroups = generate_adgroup_payloads(real_campaigns, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+
         try:
             stmt = insert(MarketingAdGroupModel).values(adgroups)
             await session.execute(stmt)
             await session.commit()
-            print(f"✅ {len(adgroups)} AdGroups semeados com sucesso!")
+            print(f"✅ {len(adgroups)} AdGroups seeded successfully!")
         except Exception as e:
             await session.rollback()
-            print(f"❌ Erro ao semear AdGroups: {e}")
+            print(f"❌ Error seeding AdGroups: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(seed_marketing_adgroups())
+    parser = build_parser("Seeder for marketing.marketing_adgroup (fan-out of real campaigns)")
+    add_chaos_args(parser, default_chaos_rate=0.05)
+    args = parser.parse_args()
+    chaos_rate, apply_chaos = resolve_chaos_args(args, default_chaos_rate=0.05)
+
+    asyncio.run(seed_marketing_adgroups(chaos_rate=chaos_rate, apply_chaos=apply_chaos))

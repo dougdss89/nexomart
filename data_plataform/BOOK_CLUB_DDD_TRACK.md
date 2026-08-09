@@ -1,64 +1,67 @@
-# Theory Track / Clube do Livro — DDD (Khononov + Evans)
+# Theory Track / Book Club — DDD (Khononov + Evans)
 
-> Nota: este arquivo é novo (a versão anterior mencionada em sessões passadas não foi
-> encontrada em disco). Contém por ora só o plano de conteúdo do Clube T3 (DDD),
-> derivado e alinhado a `docs/CRONOGRAMA_LEITURA.md` (fonte de verdade dos capítulos e
-> páginas do plano de estudo pessoal). O restante da Estratégia Consolidada (personas,
-> Fast Track, Deep Track, NexoMart) pode ser reconstruído aqui depois, se fizer sentido.
+> Note: this file is new (the earlier version mentioned in past sessions wasn't
+> found on disk). For now it only contains the content plan for the T3 Book Club (DDD),
+> derived from and aligned with `docs/READING_SCHEDULE.md` (source of truth for the
+> chapters and pages of the personal study plan). The rest of the Consolidated
+> Strategy (personas, Fast Track, Deep Track, NexoMart) can be rebuilt here later if
+> it makes sense to.
 
-## Por que combinar os dois livros
+## Why Combine the Two Books
 
-- **Evans (Domain-Driven Design, 2003 — o Livro Azul)** — fonte original, mais densa e
-  filosófica. É a "base" teórica do Clube T3 no cronograma pessoal.
-- **Khononov (Learning Domain-Driven Design, 2021)** — mapa moderno, prático, cobre
-  padrões que não existiam formalizados em 2003 (Outbox, Saga, CQRS). É o próprio
-  "Clube T3" no cronograma.
+- **Evans (Domain-Driven Design, 2003 — the Blue Book)** — the original source, denser
+  and more philosophical. It's the theoretical "base" of the T3 Book Club in the
+  personal schedule.
+- **Khononov (Learning Domain-Driven Design, 2021)** — a modern, practical map, covering
+  patterns that weren't formalized yet in 2003 (Outbox, Saga, CQRS). It's the "T3 Book
+  Club" itself in the schedule.
 
-Decisão: em vez de um único episódio Clube T3 cobrindo os dois livros de uma vez,
-**expandir em 4 sub-episódios (T3.1–T3.4)**, pareando Evans + Khononov por tema. Mantém
-a numeração `T` já estabelecida no canal (T0 Kimball, T1 Fundamentos DE, T2 DDIA...) em
-vez de criar um prefixo novo.
+Decision: instead of a single T3 Book Club episode covering both books at once,
+**expand into 4 sub-episodes (T3.1–T3.4)**, pairing Evans + Khononov by theme. This
+keeps the `T` numbering already established on the channel (T0 Kimball, T1 DE
+Fundamentals, T2 DDIA...) instead of creating a new prefix.
 
-## Clube T3.1 — "Linguagem e Domínio"
+## Book Club T3.1 — "Language and Domain"
 
-- **Evans** — Parte I (caps 1–3): Ubiquitous Language + modelo para trabalhar (~60p)
-- **Khononov** — Caps 1–2: Analyzing Business Domains + Discovering Domain Knowledge (~40p)
-- **Tema central**: como nomear os domínios do NexoMart certo — `product`, `sales`,
-  `warehouse`, `purchasing`, `marketing`, `person`, `humanresources` — antes de escrever
-  qualquer código. Ubiquitous language como pré-requisito, não formalidade.
+- **Evans** — Part I (chaps 1–3): Ubiquitous Language + a model to work with (~60p)
+- **Khononov** — Chaps 1–2: Analyzing Business Domains + Discovering Domain Knowledge (~40p)
+- **Central theme**: how to name NexoMart's domains correctly — `product`, `sales`,
+  `warehouse`, `purchasing`, `marketing`, `person`, `humanresources` — before writing
+  a single line of code. Ubiquitous language as a prerequisite, not a formality.
 
-## Clube T3.2 — "Bounded Contexts"
+## Book Club T3.2 — "Bounded Contexts"
 
-- **Khononov** — Caps 3–4: Managing Domain Complexity + Integrating Bounded Contexts (~40p)
-- **Evans** — Parte IV (caps 14–15): Strategic Design — Context Map, Bounded Contexts (~70p)
-- **Tema central**: separar os domínios reais do projeto em bounded contexts de verdade —
-  onde as fronteiras do NexoMart hoje são só schemas do Postgres, e onde deveriam ser
-  fronteiras de serviço.
-- **Gancho**: prepara terreno para qualquer ADR futuro sobre decomposição de serviços.
+- **Khononov** — Chaps 3–4: Managing Domain Complexity + Integrating Bounded Contexts (~40p)
+- **Evans** — Part IV (chaps 14–15): Strategic Design — Context Map, Bounded Contexts (~70p)
+- **Central theme**: separating the project's real domains into true bounded contexts —
+  where NexoMart's boundaries today are just Postgres schemas, and where they should
+  actually be service boundaries.
+- **Hook**: sets up the ground for any future ADR about service decomposition.
 
-## Clube T3.3 — "Blocos Táticos: Aggregates"
+## Book Club T3.3 — "Tactical Building Blocks: Aggregates"
 
-- **Evans** — Parte II (caps 5–7): Entities, Value Objects, Aggregates, Repositories (~90p)
-  — a origem desses padrões
-- **Khononov** — Cap 5: Implementing Aggregates (~40p) — a versão moderna/prática
-- **Tema central**: candidato real a Aggregate no dbapi — `PurchaseOrderHeader` + detail
-  como estudo de caso.
-- **Conecta com ADR-007** (arquitetura 3-layer Repository/Service/Router) já documentada
-  no cronograma pessoal.
+- **Evans** — Part II (chaps 5–7): Entities, Value Objects, Aggregates, Repositories (~90p)
+  — the origin of these patterns
+- **Khononov** — Chap 5: Implementing Aggregates (~40p) — the modern/practical version
+- **Central theme**: a real Aggregate candidate in dbapi — `PurchaseOrderHeader` + detail
+  as a case study.
+- **Connects with ADR-007** (3-layer Repository/Service/Router architecture) already
+  documented in the personal schedule.
 
-## Clube T3.4 — "Padrões de Integração"
+## Book Club T3.4 — "Integration Patterns"
 
-- **Khononov** — Cap 10: Design Patterns — Outbox, Saga, CQRS (~60p)
-- **Evans**: sem capítulo correspondente — os padrões de integração assíncrona não
-  existiam formalizados no livro de 2003. Episódio praticamente 100% Khononov.
-- **Tema central**: como isso conecta com Kafka como buffer entre API e storage.
-- **Conecta com ADR-005** (Outbox Pattern para exactly-once com Kafka) já documentada
-  no cronograma pessoal.
+- **Khononov** — Chap 10: Design Patterns — Outbox, Saga, CQRS (~60p)
+- **Evans**: no corresponding chapter — asynchronous integration patterns weren't
+  formalized yet in the 2003 book. An episode that's practically 100% Khononov.
+- **Central theme**: how this connects with Kafka as a buffer between the API and storage.
+- **Connects with ADR-005** (Outbox Pattern for exactly-once with Kafka) already
+  documented in the personal schedule.
 
-## Próximos passos em aberto
+## Open Next Steps
 
-- Confirmar se os 4 sub-episódios saem todos na mesma semana (1 semana antes do Fast
-  Track de domínio/decomposição, como já é a regra pros outros Clubes) ou espaçados.
-- Roteirizar T3.1 primeiro — é o que depende só do Khononov + Evans Parte I, ambos já
-  disponíveis.
-- Reconstruir (ou não) o restante da Estratégia Consolidada neste arquivo.
+- Confirm whether the 4 sub-episodes all go out in the same week (1 week before the
+  domain/decomposition Fast Track episode, as is already the rule for the other Book
+  Clubs) or spread out.
+- Script T3.1 first — it's the one that only depends on Khononov + Evans Part I, both
+  already available.
+- Rebuild (or not) the rest of the Consolidated Strategy in this file.

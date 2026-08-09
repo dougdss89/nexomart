@@ -2,7 +2,7 @@ name: 'data_platform'
 version: '1.0.0'
 config-version: 2
 
-# Precisa bater com o profile em configurations/profiles.yml
+# Must match the profile in configurations/profiles.yml
 profile: 'data_platform'
 
 model-paths: ["models"]
@@ -15,11 +15,11 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
-# Materialização padrão: tabelas do Gold ficam no catálogo Iceberg (iceberglake.gold),
-# que é a "database"/"schema" default do profile. Modelos que precisam servir o Power BI
-# via Postgres sobrescrevem individualmente `database: postgres` (+ schema) no seu
-# próprio config() — Trino enxerga os dois catálogos na mesma conexão, então o CTAS
-# cross-catalog (Iceberg -> Postgres) funciona sem adapter extra.
+# Default materialization: Gold tables live in the Iceberg catalog (nexo.gold, via UC REST —
+# Spark writes to iceberglake, Trino/dbt reads from nexo, which is the profile's default
+# "database"/"schema". Models that need to serve Power BI via Postgres individually override
+# `database: postgres` (+ schema) in their own config() — Trino sees both catalogs on the
+# same connection, so the cross-catalog CTAS (Iceberg -> Postgres) works without an extra adapter.
 models:
   data_platform:
     gold:

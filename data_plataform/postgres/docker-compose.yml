@@ -16,8 +16,8 @@ services:
     networks:
       - hadoopcluster
 
-    cpus: "1.5"
-    mem_limit: 3g
+    cpus: "4.0"
+    mem_limit: 8g
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]

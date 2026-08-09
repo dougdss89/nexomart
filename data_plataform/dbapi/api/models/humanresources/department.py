@@ -16,6 +16,6 @@ class HumanResourcesDepartmentModel(Base, AuditMixin):
     
     subdepartments = relationship(
         "HumanResourcesDepartmentModel", 
-        backref="parent_department", # Cria o caminho reverso automaticamente
-        remote_side=[department_id]  # Diz ao SQLAlchemy que a chave "remota" é o próprio ID
+        backref="parent_department", # Creates the reverse path automatically
+        remote_side=[department_id]  # Tells SQLAlchemy that the "remote" key is the ID itself
     )

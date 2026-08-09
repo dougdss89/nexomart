@@ -21,7 +21,7 @@ class SalesChannelRepository:
 
     async def bulk_upsert(self, data_list: List[dict]):
         """
-        Inserção/Atualização massiva de canais de venda.
+        Bulk insert/update of sales channels.
         """
         if not data_list:
             return

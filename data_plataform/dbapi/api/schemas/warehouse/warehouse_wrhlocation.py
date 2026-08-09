@@ -20,7 +20,7 @@ class TemperatureRange(BaseModel):
     @model_validator(mode='after')
     def validate_temp_range(self):
         if self.max_temp < self.min_temp:
-            raise ValueError(f"Temperatura máxima ({self.max_temp}) não pode ser menor que a mínima ({self.min_temp})")
+            raise ValueError(f"Maximum temperature ({self.max_temp}) cannot be less than the minimum ({self.min_temp})")
         return self
 
 class LocationCapabilities(BaseModel):
@@ -28,9 +28,9 @@ class LocationCapabilities(BaseModel):
     temperature_range: Optional[TemperatureRange] = None
     is_secure_area: bool = False
     
-    aisle: Optional[str] = Field(None, description="Corredor")
-    shelf: Optional[str] = Field(None, description="Prateleira")
-    bin:   Optional[str] = Field(None, description="Box", alias= "bin")
+    aisle: Optional[str] = Field(None, description="Aisle")
+    shelf: Optional[str] = Field(None, description="Shelf")
+    bin:   Optional[str] = Field(None, description="Bin", alias= "bin")
     
     
 class GeoLocation(BaseModel):

@@ -1,6 +1,6 @@
 """
-Amostra estática de ofertas especiais (Promocionais).
-Simula campanhas de marketing, descontos por volume e limpa-estoque.
+Static sample of special offers (promotional).
+Simulates marketing campaigns, volume discounts, and clearance sales.
 """
 
 SPECIAL_OFFERS = [

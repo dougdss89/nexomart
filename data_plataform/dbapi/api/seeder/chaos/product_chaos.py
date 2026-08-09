@@ -1,19 +1,18 @@
 """
-Chaos engineering para os seeders de product (catalogo, categoria e embeddings).
-Ver dbapi/api/seeder/CHAOS_DOCUMENTATION.md secao 1 (Anomalias de Qualidade de Dados)
-para o catalogo completo. As anomalias ja existentes em api/samples/product.py
-(peso negativo, imposto zerado, brand em maiusculo, dimensao faltando, schema
-evolution) nao sao duplicadas aqui.
+Chaos engineering for the product seeders (catalog, category, and embeddings).
+See dbapi/api/seeder/CHAOS_DOCUMENTATION.md section 1 (Data Quality Anomalies)
+for the full catalog. The anomalies already present in api/samples/product.py
+(negative weight, zeroed tax, uppercase brand, missing dimension, schema
+evolution) are not duplicated here.
 """
 
-import math
 import random
 from datetime import datetime, timedelta
 from typing import Any
 
 
 def apply_product_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Margem negativa, peso sujo (string), nome quase-duplicado e datas de venda ilogicas."""
+    """Negative margin, dirty weight (string), near-duplicate name, and illogical sale dates."""
     if not batch:
         return batch
 
@@ -28,7 +27,7 @@ def apply_product_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -
         ])
 
         if chaos_type == "negative_margin":
-            # price (venda) fica abaixo de list_price (custo) ou zerado - "glitch" de promocao
+            # price (sale) ends up below list_price (cost) or zeroed out - promotion "glitch"
             if random.random() < 0.5:
                 details["price"] = 0.0
             else:
@@ -56,7 +55,7 @@ def apply_product_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -
 
 
 def apply_category_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Categoria orfa (parent_category_id apontando pra id inexistente) e ciclo entre duas categorias."""
+    """Orphan category (parent_category_id pointing to a nonexistent id) and a cycle between two categories."""
     if len(batch) < 2:
         return batch
 
@@ -80,7 +79,7 @@ def apply_category_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) 
 
 
 def apply_embedding_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Falha de extracao de imagem, vetor truncado (dimension mismatch) e valores NaN/Infinitos."""
+    """Image extraction failure, truncated vector (dimension mismatch), and NaN/Infinite values."""
     if not batch:
         return batch
 
@@ -96,11 +95,17 @@ def apply_embedding_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05)
             row["ai_metadata"]["image_model"] = "failed_extraction"
 
         elif chaos_type == "truncated_vector" and row.get("description_vector"):
-            row["description_vector"] = row["description_vector"][:-1]
+            # pgvector requires the exact dimension (Vector(1536)) — a truncated vector is
+            # never actually insertable, so the extraction failure is marked as a null
+            # vector + metadata (same pattern as failed_image_extraction), not as an
+            # array of the wrong size.
+            row["description_vector"] = None
+            row["ai_metadata"]["text_model"] = "truncated_vector_error"
 
         elif chaos_type == "nan_infinite_values" and row.get("description_vector"):
-            vector = row["description_vector"]
-            for _ in range(random.randint(1, 5)):
-                vector[random.randrange(len(vector))] = random.choice([math.nan, math.inf, -math.inf])
+            # pgvector rejects NaN/Infinity at the database level ("infinite value not allowed
+            # in vector") — same handling as the extraction failure in truncated_vector.
+            row["description_vector"] = None
+            row["ai_metadata"]["text_model"] = "nan_infinite_extraction_error"
 
     return batch

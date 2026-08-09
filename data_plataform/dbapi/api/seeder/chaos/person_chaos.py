@@ -38,12 +38,12 @@ def apply_customer_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) 
         elif chaos_type == "future_birthdate":
             row["birthdate"] = date(
                 random.randint(2030, 2050), random.randint(1, 12), random.randint(1, 28)
-            ).isoformat()
+            )
 
         elif chaos_type == "impossible_age":
             row["birthdate"] = date(
                 date.today().year - random.randint(120, 150), random.randint(1, 12), random.randint(1, 28)
-            ).isoformat()
+            )
 
     return batch
 

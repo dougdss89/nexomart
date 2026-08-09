@@ -17,9 +17,13 @@ from api.models.person.customer import CustomerModel
 from api.models.person.seller import SellerModel
 from api.models.product.product import Product
 from api.seeder.chaos import apply_sales_order_chaos
+from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
 
-# Ajustar path para importar módulos da API
+# Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+
+SCHEMA_NAME = "sales"
+TABLE_NAME = "sales.salesorder"
 
 def generate_order_items(order_number: str, product_ids: List[int], count: int = 3) -> List[Dict[str, Any]]:
     items = []
@@ -66,7 +70,6 @@ def generate_sales_order_payloads(
         )[0]
 
         batch.append({
-            "salesorder_id": None, # Auto-increment
             "salesordernumber": order_num,
             "customer_id": random.choice(customer_ids),
             "saleschannel_id": random.choice(channel_ids),
@@ -93,12 +96,12 @@ def generate_sales_order_payloads(
             "is_active": True,
             "row_guid": uuid.uuid4()
         })
-    return apply_sales_order_chaos(batch)
+    return batch
 
-async def seed_sales_orders(count: int = 50):
-    """Executa a carga de pedidos de venda com integridade dimensional total."""
+async def seed_sales_orders(count: int = 50, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True):
+    """Runs the sales order load with full dimensional integrity."""
     async with AsyncSessionLocal() as session:
-        # 1. Buscar Cadastros Base (Dimensional Integrity)
+        # 1. Fetch base records (Dimensional Integrity)
         customer_ids = (await session.execute(select(CustomerModel.customer_id))).scalars().all()
         channel_ids = (await session.execute(select(SalesChannelModel.saleschannel_id))).scalars().all()
         offer_ids = (await session.execute(select(SpecialOfferModel.special_offer_id))).scalars().all()
@@ -106,20 +109,36 @@ async def seed_sales_orders(count: int = 50):
         product_ids = (await session.execute(select(Product.product_id))).scalars().all()
 
         if not all([customer_ids, channel_ids, offer_ids, seller_ids, product_ids]):
-            print("⚠️ Tabelas base (Customers, Channels, Offers, Sellers, Products) vazias!")
+            print("⚠️ Base tables (Customers, Channels, Offers, Sellers, Products) are empty!")
             return
 
-        print(f"📣 Semeando {count} pedidos de venda (Fact Table)...")
-        orders = generate_sales_order_payloads(count, customer_ids, channel_ids, offer_ids, seller_ids, product_ids)
-        
-        try:
-            stmt = insert(SalesOrderModel).values(orders)
-            await session.execute(stmt)
-            await session.commit()
-            print(f"✅ {len(orders)} Pedidos de venda semeados com sucesso!")
-        except Exception as e:
-            await session.rollback()
-            print(f"❌ Erro ao semear pedidos: {e}")
+        print(f"📣 Seeding {count:,} sales orders (Fact Table) | batch={batch_size:,} | chaos={chaos_rate:.2%}")
+
+        total_inserted = 0
+        while total_inserted < count:
+            current_batch_size = min(batch_size, count - total_inserted)
+            orders = generate_sales_order_payloads(current_batch_size, customer_ids, channel_ids, offer_ids, seller_ids, product_ids)
+
+            if apply_chaos:
+                orders = apply_sales_order_chaos(orders, chaos_rate=chaos_rate)
+
+            try:
+                stmt = insert(SalesOrderModel).values(orders)
+                await session.execute(stmt)
+                await session.commit()
+                total_inserted += len(orders)
+                print(f"   ⏳ Progress: {total_inserted:,}/{count:,}")
+            except Exception as e:
+                await session.rollback()
+                print(f"❌ Error seeding orders: {e}")
+                break
+
+        print(f"✅ {total_inserted:,} sales orders seeded successfully!")
 
 if __name__ == "__main__":
-    asyncio.run(seed_sales_orders())
+    parser = build_parser(f"Dynamic seeder for {TABLE_NAME}")
+    add_volume_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
+    args = parser.parse_args()
+    count, chaos_rate, apply_chaos, batch_size = resolve_volume_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+
+    asyncio.run(seed_sales_orders(count=count, chaos_rate=chaos_rate, batch_size=batch_size, apply_chaos=apply_chaos))

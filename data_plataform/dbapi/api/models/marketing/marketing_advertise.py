@@ -1,19 +1,19 @@
 from sqlalchemy import Column, Integer, String, Index, text, ForeignKey, cast
 from sqlalchemy.dialects.postgresql import JSONB
-from api.config.base import Base, AuditMixin # [FIX] Adicionado AuditMixin p/ herdar created_at, update_at, etc.
+from api.config.base import Base, AuditMixin # [FIX] Added AuditMixin to inherit created_at, updated_at, etc.
 
-class MarketingAdvertiseModel(Base, AuditMixin): # [FIX] Herança adicionada
-    
+class MarketingAdvertiseModel(Base, AuditMixin): # [FIX] Inheritance added
+
     __tablename__= "advertise"
-    
-    # [FIX] Nomenclaturas alinhadas 1:1 com o Schema Pydantic
+
+    # [FIX] Naming aligned 1:1 with the Pydantic Schema
     ad_id = Column(Integer, primary_key=True, autoincrement=True)
     ad_group_id = Column(Integer, ForeignKey('marketing.marketingadgroup.ad_group_id'), nullable=False )
-    
+
     ad_name = Column(String(200), nullable=False)
     external_id = Column(String(200), nullable=False)
-    
-    utm_content = Column(String(200), nullable=True) # Pode ser opcional no schema (Optional[str])
+
+    utm_content = Column(String(200), nullable=True) # Can be optional in the schema (Optional[str])
     utm_medium = Column(String(200), nullable=True)  # [FIX] utm_term -> utm_medium
     
     ad_status = Column(String(20), nullable=False)   # [FIX] status -> ad_status

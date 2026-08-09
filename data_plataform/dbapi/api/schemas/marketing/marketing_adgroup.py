@@ -18,7 +18,7 @@ class AgeRange(BaseModel):
     @model_validator(mode='after')
     def validate_age_range(self):
         if self.max_age < self.min_age:
-            raise ValueError(f"Idade máxima {self.max_age} não pode ser menor que a idade mínima: {self.min_age}")
+            raise ValueError(f"Maximum age {self.max_age} cannot be less than the minimum age: {self.min_age}")
         return self
 
 class GeoLocation(BaseModel):

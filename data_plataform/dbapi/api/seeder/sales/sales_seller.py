@@ -18,31 +18,37 @@ from api.samples.sales_seller import (
     SELLER_TYPES, ADDRESS_STREETS, CITIES, STATES
 )
 from api.seeder.chaos import apply_seller_chaos
+from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
 
-# Ajustar path para importar módulos da API
+# Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-async def seed_sellers(count: int = 30):
-    """Executa a carga de vendedores com integridade dimensional total."""
+SCHEMA_NAME = "sales"
+TABLE_NAME = "sales.seller"
+
+async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True):
+    """Runs the sellers load with full dimensional integrity."""
     async with AsyncSessionLocal() as session:
-        # 1. Buscar IDs válidos (Dimensional Integrity)
+        # 1. Fetch valid IDs (Dimensional Integrity)
         country_ids = (await session.execute(select(CountryRegionModel.country_id))).scalars().all()
-        
+
         if not country_ids:
-            print("⚠️ Tabela CountryRegion vazia! Rode o seeder de países primeiro.")
+            print("⚠️ CountryRegion table is empty! Run the countries seeder first.")
             return
 
-        print(f"📣 Semeando {count} vendedores (Person.Seller)...")
+        print(f"📣 Seeding {count:,} sellers (Person.Seller) | chaos={chaos_rate:.2%}")
         sellers = []
-        
+
         for i in range(count):
             name = SELLER_NAMES[i % len(SELLER_NAMES)]
             trading = TRADING_NAMES[i % len(TRADING_NAMES)]
-            
-            # Gerar social_number realista (CNPJ ou CPF simulado)
+
+            # Generate a realistic social_number (simulated CNPJ or CPF)
             s_type = random.choice(SELLER_TYPES)
             if s_type == "business":
-                social = f"{random.randint(10, 99)}.{random.randint(100, 999)}.{random.randint(100, 999)}/0001-{random.randint(10, 99)}"
+                # CNPJ without punctuation (14 digits) — social_number is varchar(15); with
+                # punctuation ("99.999.999/0001-99") it exceeds 18 characters and overflows the column.
+                social = f"{random.randint(10, 99)}{random.randint(100, 999)}{random.randint(100, 999)}0001{random.randint(10, 99)}"
             else:
                 social = f"{random.randint(100, 999)}.{random.randint(100, 999)}.{random.randint(100, 999)}-{random.randint(10, 99)}"
             
@@ -93,16 +99,22 @@ async def seed_sellers(count: int = 30):
                 }
             })
 
-        sellers = apply_seller_chaos(sellers)
+        if apply_chaos:
+            sellers = apply_seller_chaos(sellers, chaos_rate=chaos_rate)
 
         try:
             stmt = insert(SellerModel).values(sellers)
             await session.execute(stmt)
             await session.commit()
-            print(f"✅ {len(sellers)} Vendedores semeados com sucesso!")
+            print(f"✅ {len(sellers)} sellers seeded successfully!")
         except Exception as e:
             await session.rollback()
-            print(f"❌ Erro ao semear vendedores: {e}")
+            print(f"❌ Error seeding sellers: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(seed_sellers())
+    parser = build_parser(f"Dynamic seeder for {TABLE_NAME}")
+    add_volume_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
+    args = parser.parse_args()
+    count, chaos_rate, apply_chaos, batch_size = resolve_volume_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+
+    asyncio.run(seed_sellers(count=count, chaos_rate=chaos_rate, batch_size=batch_size, apply_chaos=apply_chaos))

@@ -16,7 +16,7 @@ class SalesEventLogRepository:
 
     async def bulk_insert(self, data_list: List[dict]):
         """
-        Inserção massiva de logs de eventos.
+        Bulk insert of event logs.
         """
         if not data_list:
             return

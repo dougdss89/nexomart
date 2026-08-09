@@ -1,12 +1,12 @@
 """
-Chaos engineering para os seeders de marketing.
-Ver dbapi/api/seeder/CHAOS_DOCUMENTATION.md secao 3.6 para o catalogo completo
-(padrao, deteccao e correcao esperada) de cada anomalia.
+Chaos engineering for the marketing seeders.
+See dbapi/api/seeder/CHAOS_DOCUMENTATION.md section 3.6 for the full catalog
+(pattern, detection, and expected correction) of each anomaly.
 
-Os seeders de marketing validam o payload via Pydantic (`Model(**payload).model_dump()`)
-antes de montar o batch. Por isso estas funcoes operam sobre o `dict` ja serializado
-(pos model_dump), nunca sobre o payload cru antes da validacao — e assim contornam
-o "Guarda Pydantic" sem precisar afrouxar nenhum schema.
+The marketing seeders validate the payload via Pydantic (`Model(**payload).model_dump()`)
+before assembling the batch. That's why these functions operate on the already-serialized
+`dict` (post model_dump), never on the raw payload before validation — this way they bypass
+the "Pydantic Guard" without needing to loosen any schema.
 """
 
 import random
@@ -16,7 +16,7 @@ from typing import Any, Optional
 
 
 def apply_campaign_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """3.6.1 naming quebrado, 3.6.2 budget zerado com status ativo, 3.6.14 UTM duplicado."""
+    """3.6.1 broken naming, 3.6.2 zeroed budget with active status, 3.6.14 duplicate UTM."""
     if len(batch) < 2:
         return batch
 
@@ -44,7 +44,7 @@ def apply_campaign_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) 
 
 
 def apply_adgroup_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """3.6.4 targeting ausente/vazio, 3.6.5 inversao de faixa etaria."""
+    """3.6.4 missing/empty targeting, 3.6.5 inverted age range."""
     if not batch:
         return batch
 
@@ -66,7 +66,7 @@ def apply_adgroup_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -
 
 
 def apply_ads_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """3.6.6 links quebrados, 3.6.7 media_type incompativel com a extensao do asset."""
+    """3.6.6 broken links, 3.6.7 media_type incompatible with the asset extension."""
     if not batch:
         return batch
 
@@ -102,11 +102,11 @@ def apply_daily_performance_chaos(
     budget_by_campaign: Optional[dict[int, Decimal]] = None,
 ) -> list[dict[str, Any]]:
     """
-    3.6.8 vazamento de campo entre plataformas (requer platform_by_campaign),
-    3.6.9 clicks > impressions, 3.6.10 custo zero com conversao,
-    3.6.11 metricas retroativas (duplica a linha com valores revisados),
-    3.6.12 funil de video nao-monotono, 3.6.13 reach > impressions,
-    3.6.3 budget estourado (requer budget_by_campaign).
+    3.6.8 cross-platform field leak (requires platform_by_campaign),
+    3.6.9 clicks > impressions, 3.6.10 zero cost with conversion,
+    3.6.11 retroactive metrics (duplicates the row with revised values),
+    3.6.12 non-monotonic video funnel, 3.6.13 reach > impressions,
+    3.6.3 budget overspend (requires budget_by_campaign).
     """
     if not batch:
         return batch
@@ -149,7 +149,7 @@ def apply_daily_performance_chaos(
         elif chaos_type == "non_monotonic_video_funnel":
             metrics["video_views_25"] = 800
             metrics["video_views_50"] = 600
-            metrics["video_views_75"] = 750  # viola: 75% > 50%
+            metrics["video_views_75"] = 750  # violates: 75% > 50%
             metrics["video_views_100"] = 100
 
         elif chaos_type == "reach_exceeds_impressions":
@@ -173,7 +173,7 @@ def _apply_budget_overspend_chaos(
     budget_by_campaign: dict[int, Decimal],
     chaos_rate: float,
 ) -> None:
-    """3.6.3: infla o custo diario de campanhas sorteadas ate estourar o budget em ~300%."""
+    """3.6.3: inflates the daily cost of randomly chosen campaigns until the budget is blown by ~300%."""
     campaign_ids = list({
         row["campaign_id"] for row in batch if row.get("campaign_id") in budget_by_campaign
     })

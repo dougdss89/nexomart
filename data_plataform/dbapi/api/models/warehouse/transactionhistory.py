@@ -18,7 +18,7 @@ class TransactionHistoryModel(Base, AuditMixin):
     
     quantity = Column(Integer, nullable=False)
     
-    # Custo Histórico: O Numeric(19, 4) mapeia exatamente o Decimal(19,4) do Pydantic
+    # Historical Cost: Numeric(19, 4) maps exactly to Pydantic's Decimal(19,4)
     actual_cost = Column(Numeric(19, 4), nullable=False)
     
     traceability_info = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))

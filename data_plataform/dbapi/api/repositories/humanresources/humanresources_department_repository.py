@@ -9,7 +9,7 @@ from api.models.humanresources.department import HumanResourcesDepartmentModel
 logger = logging.getLogger(__name__)
 
 class HumanResourcesDepartmentRepository:
-    """ Exclusivo para operações de BD das árvores de Departamentos """
+    """ Exclusively for DB operations on the Department trees """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, depts_data: List[Dict[str, Any]]) -> bool:
@@ -20,7 +20,7 @@ class HumanResourcesDepartmentRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL Bulk Insert Departamentos: {e}")
+            logger.error(f"SQL Error Bulk Insert Departments: {e}")
             raise
             
     @staticmethod
@@ -30,5 +30,5 @@ class HumanResourcesDepartmentRepository:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro ao buscar Dept ID={department_id}: {e}")
+            logger.error(f"Error fetching Dept ID={department_id}: {e}")
             raise

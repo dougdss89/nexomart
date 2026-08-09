@@ -1,336 +1,336 @@
-# Planner de Estudo — Agenda Concreta
+# Study Planner — Concrete Schedule
 
-> **Início**: semana de 07/07/2026  
-> **Referência**: `CRONOGRAMA_LEITURA.md` (conceitos) — este arquivo é o calendário executável  
-> **Atualizar**: ao terminar cada semana, marque o que foi feito e ajuste o próximo bloco se necessário
-
----
-
-## Como usar este planner
-
-- **Dias úteis**: 15–20 min. Não é sessão de estudo — é manutenção do ritmo. Ler sem pressão.
-- **Sábado**: 2–3h. Sessão principal. Aqui acontece a leitura profunda + síntese.
-- **Domingo**: 1h opcional. Laboratório, exercício ou revisão de grifos.
-- **Entrega de fase**: ao final de cada bloco, você tem um produto concreto (roteiro do Clube, star schema desenhado, lab AWS concluído).
+> **Start**: week of 07/07/2026
+> **Reference**: `READING_SCHEDULE.md` (concepts) — this file is the executable calendar
+> **Update**: at the end of each week, mark what got done and adjust the next block if needed
 
 ---
 
-## MÊS 1 — JULHO 2026
-**Foco principal**: Kimball Caps 1–4 (Pilar 4 — Leituras)  
-**Foco secundário**: AWS Skill Builder — primeiros módulos (Pilar 1)  
-**Entrega do mês**: star schema do NexoMart desenhado + rascunho do roteiro do Clube T0
+## How to Use This Planner
+
+- **Weekdays**: 15–20 min. Not a study session — it's rhythm maintenance. Read without pressure.
+- **Saturday**: 2–3h. Main session. This is where the deep reading + synthesis happens.
+- **Sunday**: 1h optional. Lab, exercise, or review of highlights.
+- **Phase deliverable**: at the end of each block, you have a concrete output (Book Club script, star schema drawn, AWS lab completed).
 
 ---
 
-### SEMANA 1 — 07 a 13 de Julho
-**Kimball — Capítulo 1: Dimensional Modeling Primer (~35p)**  
-Objetivo: entender por que o modelo dimensional existe e o que são fatos e dimensões.
+## MONTH 1 — JULY 2026
+**Main focus**: Kimball Ch 1–4 (Pillar 4 — Reading)
+**Secondary focus**: AWS Skill Builder — first modules (Pillar 1)
+**Month deliverable**: NexoMart star schema drawn + Book Club T0 script draft
 
-| Dia | Sessão | O que fazer | Tempo |
+---
+
+### WEEK 1 — July 07 to 13
+**Kimball — Chapter 1: Dimensional Modeling Primer (~35p)**
+Goal: understand why the dimensional model exists and what facts and dimensions are.
+
+| Day | Session | What to do | Time |
 |-----|--------|-------------|-------|
-| Seg 07/07 | Dia útil | Kimball Cap 1 — ler até metade (~17p). Foco: o que é modelagem dimensional e por que não basta o OLTP | 20 min |
-| Ter 08/07 | Dia útil | Continuar Cap 1 — fatos, dimensões, granularidade. Grifo: a frase mais importante até agora | 20 min |
-| Qua 09/07 | Dia útil | Terminar Cap 1. Anotar: quais tabelas do NexoMart seriam fatos e quais seriam dimensões | 15 min |
-| Qui 10/07 | Dia útil | Reler grifos do Cap 1. Escrever a síntese do cap em 3 bullets | 15 min |
-| Sex 11/07 | — | Descanso — sem leitura obrigatória | — |
-| **Sáb 12/07** | **Sessão principal** | **Revisar Cap 1 (30min) → Iniciar Cap 2 (~20p, primeira metade) → Exercício: listar as 5 dimensões óbvias do NexoMart** | **2h** |
-| Dom 13/07 | Opcional | AWS Skill Builder: criar conta + completar módulo "AWS Cloud Practitioner Essentials" (vídeo intro) | 1h |
+| Mon 07/07 | Weekday | Kimball Ch 1 — read up to the halfway point (~17p). Focus: what dimensional modeling is and why OLTP alone isn't enough | 20 min |
+| Tue 08/07 | Weekday | Continue Ch 1 — facts, dimensions, grain. Highlight: the most important sentence so far | 20 min |
+| Wed 09/07 | Weekday | Finish Ch 1. Note: which NexoMart tables would be facts and which would be dimensions | 15 min |
+| Thu 10/07 | Weekday | Re-read Ch 1 highlights. Write the chapter synthesis in 3 bullets | 15 min |
+| Fri 11/07 | — | Rest — no required reading | — |
+| **Sat 12/07** | **Main session** | **Review Ch 1 (30min) → Start Ch 2 (~20p, first half) → Exercise: list NexoMart's 5 obvious dimensions** | **2h** |
+| Sun 13/07 | Optional | AWS Skill Builder: create an account + complete the "AWS Cloud Practitioner Essentials" module (intro video) | 1h |
 
-**Entrega da semana**: 5 dimensões do NexoMart identificadas + síntese do Cap 1 escrita
+**Week deliverable**: 5 NexoMart dimensions identified + Ch 1 synthesis written
 
 ---
 
-### SEMANA 2 — 14 a 20 de Julho
-**Kimball — Capítulo 2: Retail Sales (~35p)**  
-Objetivo: aplicar os conceitos em um case de varejo — análogo direto ao NexoMart.
+### WEEK 2 — July 14 to 20
+**Kimball — Chapter 2: Retail Sales (~35p)**
+Goal: apply the concepts to a retail case — directly analogous to NexoMart.
 
-| Dia | Sessão | O que fazer | Tempo |
+| Day | Session | What to do | Time |
 |-----|--------|-------------|-------|
-| Seg 14/07 | Dia útil | Terminar Cap 2 primeira metade (se não terminou no sábado). Foco: como o Kimball define grain no varejo | 20 min |
-| Ter 15/07 | Dia útil | Cap 2 segunda metade — dimensões conformadas, hierarquias, slowly changing preview | 20 min |
-| Qua 16/07 | Dia útil | Anotar: qual seria o grain da fact_sales do NexoMart? (1 linha por order_item? por pedido?) | 15 min |
-| Qui 17/07 | Dia útil | Escrever declaração de grain do NexoMart em 1 frase. Grifo 3 conceitos do Cap 2 | 15 min |
-| Sex 18/07 | — | Descanso | — |
-| **Sáb 19/07** | **Sessão principal** | **Revisar Cap 2 (30min) → Iniciar Cap 3 — Inventory (~25p, completo) → Exercício: rascunhar fact_sales com dimensões ao redor** | **2h30** |
-| Dom 20/07 | Opcional | AWS Skill Builder: módulo IAM — usuários, grupos, roles, policies (prático no console Free Tier) | 1h |
+| Mon 14/07 | Weekday | Finish the first half of Ch 2 (if not done Saturday). Focus: how Kimball defines grain in retail | 20 min |
+| Tue 15/07 | Weekday | Ch 2 second half — conformed dimensions, hierarchies, slowly changing preview | 20 min |
+| Wed 16/07 | Weekday | Note: what would the grain of NexoMart's fact_sales be? (1 row per order_item? per order?) | 15 min |
+| Thu 17/07 | Weekday | Write NexoMart's grain declaration in 1 sentence. Highlight 3 concepts from Ch 2 | 15 min |
+| Fri 18/07 | — | Rest | — |
+| **Sat 19/07** | **Main session** | **Review Ch 2 (30min) → Start Ch 3 — Inventory (~25p, full) → Exercise: sketch fact_sales with surrounding dimensions** | **2h30** |
+| Sun 20/07 | Optional | AWS Skill Builder: IAM module — users, groups, roles, policies (hands-on in the Free Tier console) | 1h |
 
-**Entrega da semana**: grain declaration da fact_sales escrita + rascunho da fact_sales com dimensões
+**Week deliverable**: fact_sales grain declaration written + fact_sales sketch with dimensions
 
 ---
 
-### SEMANA 3 — 21 a 27 de Julho
-**Kimball — Capítulo 4: Procurement + Síntese Geral (~25p + revisão)**  
-Objetivo: fechar Kimball, consolidar o star schema e preparar o Clube T0.
+### WEEK 3 — July 21 to 27
+**Kimball — Chapter 4: Procurement + General Synthesis (~25p + review)**
+Goal: wrap up Kimball, consolidate the star schema, and prepare Book Club T0.
 
-| Dia | Sessão | O que fazer | Tempo |
+| Day | Session | What to do | Time |
 |-----|--------|-------------|-------|
-| Seg 21/07 | Dia útil | Cap 4 — Procurement (~12p, primeira metade). Relacionar com o schema `purchasing` do NexoMart | 20 min |
-| Ter 22/07 | Dia útil | Terminar Cap 4. Anotar: o que o NexoMart tem em common com o case de procurement do Kimball | 20 min |
-| Qua 23/07 | Dia útil | Revisão geral: reler todos os grifos dos Caps 1–4. Responder as 3 perguntas de síntese | 20 min |
-| Qui 24/07 | Dia útil | Escrever a frase-âncora do Kimball (a que vai abrir o Clube T0) | 15 min |
-| Sex 25/07 | — | Descanso | — |
-| **Sáb 26/07** | **Sessão principal** | **Síntese final Kimball (30min) → Desenhar Bus Matrix NexoMart (5 fatos × 9 dimensões) → Rascunho completo do roteiro Clube T0** | **3h** |
-| Dom 27/07 | Opcional | Implementar no projeto: criar esboço das tabelas gold (fact_sales, dim_customer, dim_product) em SQL ou como comentário no código | 1h |
+| Mon 21/07 | Weekday | Ch 4 — Procurement (~12p, first half). Relate it to NexoMart's `purchasing` schema | 20 min |
+| Tue 22/07 | Weekday | Finish Ch 4. Note: what NexoMart has in common with Kimball's procurement case | 20 min |
+| Wed 23/07 | Weekday | General review: re-read all Ch 1–4 highlights. Answer the 3 synthesis questions | 20 min |
+| Thu 24/07 | Weekday | Write the Kimball anchor sentence (the one that opens Book Club T0) | 15 min |
+| Fri 25/07 | — | Rest | — |
+| **Sat 26/07** | **Main session** | **Final Kimball synthesis (30min) → Draw the NexoMart Bus Matrix (5 facts × 9 dimensions) → Full Book Club T0 script draft** | **3h** |
+| Sun 27/07 | Optional | Implement in the project: draft the gold tables (fact_sales, dim_customer, dim_product) in SQL or as code comments | 1h |
 
-**Entrega da semana**: Bus Matrix desenhada + roteiro Clube T0 rascunhado
+**Week deliverable**: Bus Matrix drawn + Book Club T0 script drafted
 
 ---
 
-### Resumo Julho
+### July Summary
 
-| Semana | Leitura | Lab/Prática | Entrega |
+| Week | Reading | Lab/Practice | Deliverable |
 |--------|---------|-------------|---------|
-| 1 (07–13/07) | Kimball Cap 1 | AWS: criar conta + intro | 5 dimensões NexoMart identificadas |
-| 2 (14–20/07) | Kimball Cap 2 + início Cap 3 | AWS: IAM no console | Grain declaration + rascunho fact_sales |
-| 3 (21–27/07) | Kimball Cap 3 + Cap 4 + síntese | Projeto: esboço tabelas gold | Bus Matrix + roteiro Clube T0 |
+| 1 (07/07–13/07) | Kimball Ch 1 | AWS: create account + intro | 5 NexoMart dimensions identified |
+| 2 (14/07–20/07) | Kimball Ch 2 + start Ch 3 | AWS: IAM in the console | Grain declaration + fact_sales sketch |
+| 3 (21/07–27/07) | Kimball Ch 3 + Ch 4 + synthesis | Project: gold table sketches | Bus Matrix + Book Club T0 script |
 
 ---
 
-## MÊS 2 — AGOSTO 2026
-**Foco principal**: Fundamentos de Engenharia de Dados — Reis & Housley (Pilar 4)  
-**Foco secundário**: AWS Fase A — S3 + VPC fundamentos (Pilar 1)  
-**Entrega do mês**: vocabulário do ciclo de vida consolidado + roteiro Clube T1 + labs S3 e VPC
+## MONTH 2 — AUGUST 2026
+**Main focus**: Fundamentals of Data Engineering — Reis & Housley (Pillar 4)
+**Secondary focus**: AWS Phase A — S3 + VPC fundamentals (Pillar 1)
+**Month deliverable**: lifecycle vocabulary consolidated + Book Club T1 script + S3 and VPC labs
 
 ---
 
-### SEMANA 4 — 28 Jul a 03 Ago
-**Fundamentos DE — Caps 1 + 2 (~60p)**  
-Objetivo: entender o ciclo de vida completo e os "undercurrents" que afetam tudo.
+### WEEK 4 — July 28 to Aug 03
+**Fundamentals of DE — Ch 1 + 2 (~60p)**
+Goal: understand the full lifecycle and the "undercurrents" that affect everything.
 
-| Dia | Sessão | O que fazer | Tempo |
+| Day | Session | What to do | Time |
 |-----|--------|-------------|-------|
-| Seg 28/07 | Dia útil | Cap 1 — ciclo de vida do engenheiro de dados. O NexoMart em que fase do ciclo está? | 20 min |
-| Ter 29/07 | Dia útil | Continuar Cap 1. Anotar: o que é "geração de dados" no NexoMart | 20 min |
-| Qua 30/07 | Dia útil | Cap 2 — Undercurrents (segurança, qualidade, observabilidade). Grifo: os que já estão no projeto | 20 min |
-| Qui 31/07 | Dia útil | Terminar Cap 2. Anotar: quais undercurrents o NexoMart ainda não tem implementados | 15 min |
-| Sex 01/08 | — | Descanso | — |
-| **Sáb 02/08** | **Sessão principal** | **Revisar Caps 1–2 (30min) → Iniciar Cap 3 (~20p) → Exercício: mapear o ciclo de vida completo do NexoMart (landing → gold)** | **2h** |
-| Dom 03/08 | Opcional | AWS: lab S3 — criar bucket, configurar versionamento, lifecycle rule, server-side encryption | 1h |
+| Mon 28/07 | Weekday | Ch 1 — the data engineer's lifecycle. What phase of the cycle is NexoMart in? | 20 min |
+| Tue 29/07 | Weekday | Continue Ch 1. Note: what "data generation" means for NexoMart | 20 min |
+| Wed 30/07 | Weekday | Ch 2 — Undercurrents (security, quality, observability). Highlight: which ones are already in the project | 20 min |
+| Thu 31/07 | Weekday | Finish Ch 2. Note: which undercurrents NexoMart still hasn't implemented | 15 min |
+| Fri 01/08 | — | Rest | — |
+| **Sat 02/08** | **Main session** | **Review Ch 1–2 (30min) → Start Ch 3 (~20p) → Exercise: map NexoMart's full lifecycle (landing → gold)** | **2h** |
+| Sun 03/08 | Optional | AWS: S3 lab — create a bucket, configure versioning, lifecycle rule, server-side encryption | 1h |
 
 ---
 
-### SEMANA 5 — 04 a 10 de Agosto
-**Fundamentos DE — Caps 3 + 8 (~90p)**  
-Objetivo: arquitetura de dados e transformações — conectar com a stack do NexoMart.
+### WEEK 5 — August 04 to 10
+**Fundamentals of DE — Ch 3 + 8 (~90p)**
+Goal: data architecture and transformations — connect to NexoMart's stack.
 
-| Dia | Sessão | O que fazer | Tempo |
+| Day | Session | What to do | Time |
 |-----|--------|-------------|-------|
-| Seg 04/08 | Dia útil | Terminar Cap 3 (se não terminou). Foco: o que define uma boa arquitetura de dados | 20 min |
-| Ter 05/08 | Dia útil | Cap 8 — Queries e Transformações. Como dbt se encaixa aqui | 20 min |
-| Qua 06/08 | Dia útil | Continuar Cap 8. Relacionar com os Spark jobs Silver → Gold do projeto | 20 min |
-| Qui 07/08 | Dia útil | Síntese do Cap 8. Como o Medallion Architecture aparece no livro | 15 min |
-| Sex 08/08 | — | Descanso | — |
-| **Sáb 09/08** | **Sessão principal** | **Revisar Caps 3 + 8 (30min) → Cap 9 — Ingestão completo (~40p) → Relacionar com FastAPI + Airflow do NexoMart** | **2h30** |
-| Dom 10/08 | Opcional | AWS: lab VPC — criar VPC com subnets públicas/privadas, NAT Gateway, Security Groups | 1h |
+| Mon 04/08 | Weekday | Finish Ch 3 (if not done). Focus: what defines good data architecture | 20 min |
+| Tue 05/08 | Weekday | Ch 8 — Queries and Transformations. Where dbt fits in here | 20 min |
+| Wed 06/08 | Weekday | Continue Ch 8. Relate it to the project's Silver → Gold Spark jobs | 20 min |
+| Thu 07/08 | Weekday | Ch 8 synthesis. How the Medallion Architecture shows up in the book | 15 min |
+| Fri 08/08 | — | Rest | — |
+| **Sat 09/08** | **Main session** | **Review Ch 3 + 8 (30min) → Full Ch 9 — Ingestion (~40p) → Relate it to NexoMart's FastAPI + Airflow** | **2h30** |
+| Sun 10/08 | Optional | AWS: VPC lab — create a VPC with public/private subnets, NAT Gateway, Security Groups | 1h |
 
 ---
 
-### SEMANA 6 — 11 a 17 de Agosto
-**Fundamentos DE — Cap 9 (conclusão) + síntese + Clube T1**
+### WEEK 6 — August 11 to 17
+**Fundamentals of DE — Ch 9 (wrap-up) + synthesis + Book Club T1**
 
-| Dia | Sessão | O que fazer | Tempo |
+| Day | Session | What to do | Time |
 |-----|--------|-------------|-------|
-| Seg 11/08 | Dia útil | Terminar Cap 9. Comparar os padrões de ingestão do livro com o que você implementou | 20 min |
-| Ter 12/08 | Dia útil | Revisão geral Fundamentos DE: reler todos os grifos | 20 min |
-| Qua 13/08 | Dia útil | Responder as 3 perguntas de síntese do livro completo | 15 min |
-| Qui 14/08 | Dia útil | Escrever a frase-âncora do Fundamentos DE (abre o Clube T1) | 15 min |
-| Sex 15/08 | — | Descanso | — |
-| **Sáb 16/08** | **Sessão principal** | **Síntese final Fundamentos DE (30min) → Roteiro completo Clube T1 → Atualizar o ciclo de vida do NexoMart com o vocabulário do livro** | **2h** |
-| Dom 17/08 | Opcional | Databricks: criar conta Community Edition + completar "Databricks Fundamentals Accreditation" (gratuito, ~2h) | 1h30 |
+| Mon 11/08 | Weekday | Finish Ch 9. Compare the book's ingestion patterns with what you implemented | 20 min |
+| Tue 12/08 | Weekday | General review of Fundamentals of DE: re-read all highlights | 20 min |
+| Wed 13/08 | Weekday | Answer the 3 synthesis questions for the whole book | 15 min |
+| Thu 14/08 | Weekday | Write the Fundamentals of DE anchor sentence (opens Book Club T1) | 15 min |
+| Fri 15/08 | — | Rest | — |
+| **Sat 16/08** | **Main session** | **Final Fundamentals of DE synthesis (30min) → Full Book Club T1 script → Update NexoMart's lifecycle with the book's vocabulary** | **2h** |
+| Sun 17/08 | Optional | Databricks: create a Community Edition account + complete "Databricks Fundamentals Accreditation" (free, ~2h) | 1h30 |
 
-### Resumo Agosto
+### August Summary
 
-| Semana | Leitura | Lab/Prática | Entrega |
+| Week | Reading | Lab/Practice | Deliverable |
 |--------|---------|-------------|---------|
-| 4 (28/07–03/08) | Fund. DE Caps 1–2 | AWS: S3 lab | Ciclo de vida NexoMart mapeado |
-| 5 (04–10/08) | Fund. DE Caps 3 + 8 | AWS: VPC lab | Ligação Medallion ↔ projeto |
-| 6 (11–17/08) | Fund. DE Cap 9 + síntese | Databricks: Fundamentals Accreditation | Roteiro Clube T1 + certificado Fundamentals |
+| 4 (28/07–03/08) | Fund. of DE Ch 1–2 | AWS: S3 lab | NexoMart lifecycle mapped |
+| 5 (04–10/08) | Fund. of DE Ch 3 + 8 | AWS: VPC lab | Medallion ↔ project connection |
+| 6 (11–17/08) | Fund. of DE Ch 9 + synthesis | Databricks: Fundamentals Accreditation | Book Club T1 script + Fundamentals certificate |
 
 ---
 
-## MÊS 3 — SETEMBRO 2026
-**Foco principal**: DDIA — Kleppmann Caps 3–4 + 11 (Pilar 4)  
-**Foco secundário**: AWS Skill Builder — Glue + EMR + Athena introdução (Pilar 1)  
-**Entrega do mês**: roteiro Clube T2 + compreensão de por que Iceberg existe
+## MONTH 3 — SEPTEMBER 2026
+**Main focus**: DDIA — Kleppmann Ch 3–4 + 11 (Pillar 4)
+**Secondary focus**: AWS Skill Builder — Glue + EMR + Athena intro (Pillar 1)
+**Month deliverable**: Book Club T2 script + understanding of why Iceberg exists
 
 ---
 
-### SEMANA 7 — 18 a 24 de Agosto (transição)
-**DDIA — Capítulo 3: Storage and Retrieval (~35p)**  
-Objetivo: entender B-Tree vs LSM-Tree e por que Parquet + Iceberg são a escolha certa.
+### WEEK 7 — August 18 to 24 (transition)
+**DDIA — Chapter 3: Storage and Retrieval (~35p)**
+Goal: understand B-Tree vs LSM-Tree and why Parquet + Iceberg are the right choice.
 
-| Dia | Sessão | O que fazer | Tempo |
+| Day | Session | What to do | Time |
 |-----|--------|-------------|-------|
-| Seg 18/08 | Dia útil | DDIA Cap 3 — primeira parte: B-Tree (índices do PostgreSQL) vs LSM-Tree (Parquet/Iceberg) | 20 min |
-| Ter 19/08 | Dia útil | Continuar Cap 3 — column-oriented storage (por que Parquet é mais rápido para analytics) | 20 min |
-| Qua 20/08 | Dia útil | Terminar Cap 3. Anotar: por que Iceberg é LSM-Tree em essência | 20 min |
-| Qui 21/08 | Dia útil | Síntese Cap 3 + 3 bullets de conexão com o projeto | 15 min |
-| Sex 22/08 | — | Descanso | — |
-| **Sáb 23/08** | **Sessão principal** | **Revisar Cap 3 (30min) → Cap 4 — Encoding and Evolution completo (~25p) → Relacionar com schema evolution no Iceberg** | **2h** |
-| Dom 24/08 | Opcional | AWS: lab Glue — criar Data Catalog, crawler sobre S3, schema evolution | 1h |
+| Mon 18/08 | Weekday | DDIA Ch 3 — first part: B-Tree (PostgreSQL indexes) vs LSM-Tree (Parquet/Iceberg) | 20 min |
+| Tue 19/08 | Weekday | Continue Ch 3 — column-oriented storage (why Parquet is faster for analytics) | 20 min |
+| Wed 20/08 | Weekday | Finish Ch 3. Note: why Iceberg is essentially an LSM-Tree | 20 min |
+| Thu 21/08 | Weekday | Ch 3 synthesis + 3 bullets connecting it to the project | 15 min |
+| Fri 22/08 | — | Rest | — |
+| **Sat 23/08** | **Main session** | **Review Ch 3 (30min) → Full Ch 4 — Encoding and Evolution (~25p) → Relate to schema evolution in Iceberg** | **2h** |
+| Sun 24/08 | Optional | AWS: Glue lab — create a Data Catalog, crawler over S3, schema evolution | 1h |
 
 ---
 
-### SEMANA 8 — 25 a 31 de Agosto
-**DDIA — Capítulo 11: Stream Processing (~45p)**  
-Objetivo: entender por que Kafka é o centro da arquitetura orientada a eventos.
+### WEEK 8 — August 25 to 31
+**DDIA — Chapter 11: Stream Processing (~45p)**
+Goal: understand why Kafka is at the center of event-driven architecture.
 
-| Dia | Sessão | O que fazer | Tempo |
+| Day | Session | What to do | Time |
 |-----|--------|-------------|-------|
-| Seg 25/08 | Dia útil | DDIA Cap 11 — primeira parte: o que é processamento de streams vs batch | 20 min |
-| Ter 26/08 | Dia útil | Cap 11 — message brokers, log-based (Kafka) vs traditional MQ | 20 min |
-| Qua 27/08 | Dia útil | Cap 11 — stream joins, exactly-once semantics | 20 min |
-| Qui 28/08 | Dia útil | Terminar Cap 11. Anotar: por que o Outbox Pattern resolve o "dual write problem" | 15 min |
-| Sex 29/08 | — | Descanso | — |
-| **Sáb 30/08** | **Sessão principal** | **Síntese completa DDIA (30min) → Responder as 3 perguntas de síntese → Rascunho roteiro Clube T2** | **2h** |
-| Dom 31/08 | Opcional | AWS: lab Kinesis vs MSK — subir um producer/consumer simples no Free Tier | 1h |
+| Mon 25/08 | Weekday | DDIA Ch 11 — first part: what stream processing is vs batch | 20 min |
+| Tue 26/08 | Weekday | Ch 11 — message brokers, log-based (Kafka) vs traditional MQ | 20 min |
+| Wed 27/08 | Weekday | Ch 11 — stream joins, exactly-once semantics | 20 min |
+| Thu 28/08 | Weekday | Finish Ch 11. Note: why the Outbox Pattern solves the "dual write problem" | 15 min |
+| Fri 29/08 | — | Rest | — |
+| **Sat 30/08** | **Main session** | **Full DDIA synthesis (30min) → Answer the 3 synthesis questions → Book Club T2 script draft** | **2h** |
+| Sun 31/08 | Optional | AWS: Kinesis vs MSK lab — spin up a simple producer/consumer on the Free Tier | 1h |
 
 ---
 
-### Semanas 9–10 — Setembro (02 a 14/09)
-**Buffer + AWS Fase A finalização + início Databricks prático**
+### Weeks 9–10 — September (02 to 14/09)
+**Buffer + AWS Phase A wrap-up + start of hands-on Databricks**
 
-| Semana | Foco | O que fazer |
+| Week | Focus | What to do |
 |--------|------|-------------|
-| 9 (02–07/09) | AWS Fase A | Completar labs CloudWatch + CloudTrail + KMS. Revisar IAM, S3, VPC na prática |
-| 10 (08–14/09) | Databricks | Notebook Databricks Community: reproduzir os jobs Silver → Gold do projeto em Databricks. Comparar com o código local |
+| 9 (02–07/09) | AWS Phase A | Complete CloudWatch + CloudTrail + KMS labs. Review IAM, S3, VPC hands-on |
+| 10 (08–14/09) | Databricks | Databricks Community notebook: reproduce the project's Silver → Gold jobs in Databricks. Compare with the local code |
 
-### Resumo Setembro
+### September Summary
 
-| Período | Leitura | Lab/Prática | Entrega |
+| Period | Reading | Lab/Practice | Deliverable |
 |---------|---------|-------------|---------|
-| 18–24/08 | DDIA Cap 3 + 4 | AWS: Glue lab | Conexão Parquet/Iceberg ↔ teoria storage |
-| 25–31/08 | DDIA Cap 11 | AWS: Kinesis lab | Roteiro Clube T2 |
-| 01–14/09 | — buffer — | AWS: fechar Fase A / Databricks: jobs no Community | AWS Fase A concluída |
+| 18–24/08 | DDIA Ch 3 + 4 | AWS: Glue lab | Parquet/Iceberg ↔ storage theory connection |
+| 25–31/08 | DDIA Ch 11 | AWS: Kinesis lab | Book Club T2 script |
+| 01–14/09 | — buffer — | AWS: close out Phase A / Databricks: jobs in Community | AWS Phase A complete |
 
 ---
 
-## MÊS 4 — OUTUBRO 2026
-**Foco principal**: DDD Evans (Pilar 4) + início AWS Fase B  
-**Foco secundário**: Databricks — Spark Core avançado  
-**Entrega do mês**: bounded contexts do NexoMart documentados
+## MONTH 4 — OCTOBER 2026
+**Main focus**: DDD Evans (Pillar 4) + start of AWS Phase B
+**Secondary focus**: Databricks — advanced Spark Core
+**Month deliverable**: NexoMart's bounded contexts documented
 
 ---
 
-### Semanas 11–13 — Outubro (05 a 25/10)
-**DDD Evans — Partes I + II + IV (~220p)**
+### Weeks 11–13 — October (05 to 25/10)
+**DDD Evans — Parts I + II + IV (~220p)**
 
-| Semana | Foco | Capítulos | Entrega |
+| Week | Focus | Chapters | Deliverable |
 |--------|------|-----------|---------|
-| 11 (05–11/10) | Evans Parte I | Caps 1–3: Ubiquitous Language | Glossário de domínio do NexoMart |
-| 12 (12–18/10) | Evans Parte II | Caps 5–6: Entities, Value Objects, Aggregates | Identificar aggregate roots dos 7 schemas |
-| 13 (19–25/10) | Evans Parte II + IV | Cap 7: Repositories + Caps 14–15: Bounded Contexts | Context Map do NexoMart desenhado |
+| 11 (05–11/10) | Evans Part I | Ch 1–3: Ubiquitous Language | NexoMart domain glossary |
+| 12 (12–18/10) | Evans Part II | Ch 5–6: Entities, Value Objects, Aggregates | Identify aggregate roots across the 7 schemas |
+| 13 (19–25/10) | Evans Part II + IV | Ch 7: Repositories + Ch 14–15: Bounded Contexts | NexoMart Context Map drawn |
 
-**Paralelo AWS semanas 11–13**: AWS Skill Builder — Glue Studio + EMR fundamentos  
-**Paralelo Databricks**: Spark avançado — Catalyst optimizer, EXPLAIN, AQE
-
----
-
-## MÊS 5 — NOVEMBRO 2026
-**Foco principal**: Learning DDD — Khononov Caps 1–6 + 10 (Pilar 4)  
-**Foco secundário**: AWS Fase B — Athena + Lake Formation + Redshift  
-**Entrega do mês**: roteiro Clube T3 + implementação do Outbox Pattern no projeto
+**Parallel AWS weeks 11–13**: AWS Skill Builder — Glue Studio + EMR fundamentals
+**Parallel Databricks**: Advanced Spark — Catalyst optimizer, EXPLAIN, AQE
 
 ---
 
-### Semanas 14–16 — Novembro (02 a 22/11)
+## MONTH 5 — NOVEMBER 2026
+**Main focus**: Learning DDD — Khononov Ch 1–6 + 10 (Pillar 4)
+**Secondary focus**: AWS Phase B — Athena + Lake Formation + Redshift
+**Month deliverable**: Book Club T3 script + Outbox Pattern implemented in the project
 
-| Semana | Foco | Capítulos | Entrega |
+---
+
+### Weeks 14–16 — November (02 to 22/11)
+
+| Week | Focus | Chapters | Deliverable |
 |--------|------|-----------|---------|
-| 14 (02–08/11) | Khononov Caps 1–2 | Business Domains + Domain Knowledge | Refinar Context Map com vocabulário atualizado |
-| 15 (09–15/11) | Khononov Caps 3–5 | Bounded Contexts + Aggregates | Rascunho de implementação do Aggregate em Python |
-| 16 (16–22/11) | Khononov Cap 6 + 10 | Cap 6 (eventos) + Cap 10 (Outbox, Saga, CQRS) | Roteiro Clube T3 + esboço Outbox no projeto |
+| 14 (02–08/11) | Khononov Ch 1–2 | Business Domains + Domain Knowledge | Refine Context Map with updated vocabulary |
+| 15 (09–15/11) | Khononov Ch 3–5 | Bounded Contexts + Aggregates | Aggregate implementation sketch in Python |
+| 16 (16–22/11) | Khononov Ch 6 + 10 | Ch 6 (events) + Ch 10 (Outbox, Saga, CQRS) | Book Club T3 script + Outbox sketch in the project |
 
-**Paralelo AWS**: Athena v3 lab (Iceberg nativo), Lake Formation fine-grained access  
-**Paralelo Databricks**: Delta Live Tables introdução
-
----
-
-## MÊS 6 — DEZEMBRO 2026
-**Foco principal**: Hard Parts + GoF (Pilar 4)  
-**Foco secundário**: AWS Fase B conclusão — DMS + MWAA + MSK  
-**Entrega do mês**: roteiro Clube T4 + T5
+**Parallel AWS**: Athena v3 lab (native Iceberg), Lake Formation fine-grained access
+**Parallel Databricks**: Delta Live Tables intro
 
 ---
 
-### Semanas 17–20 — Dezembro
+## MONTH 6 — DECEMBER 2026
+**Main focus**: Hard Parts + GoF (Pillar 4)
+**Secondary focus**: AWS Phase B wrap-up — DMS + MWAA + MSK
+**Month deliverable**: Book Club T4 + T5 scripts
 
-| Semana | Foco | O que estudar | Entrega |
+---
+
+### Weeks 17–20 — December
+
+| Week | Focus | What to study | Deliverable |
 |--------|------|--------------|---------|
-| 17 (30/11–06/12) | Hard Parts Caps 1–2 | As partes difíceis + encontrando limites | Identificar os trade-offs do NexoMart |
-| 18 (07–13/12) | Hard Parts Caps 3–4 + 6 + 9 | Decomposição + CQRS + data access | Roteiro Clube T4 |
-| 19 (14–20/12) | GoF — Intro + padrões | Intro + Repository + Factory + Observer | Nomear os padrões no código do projeto |
-| 20 (21–27/12) | GoF — síntese | Revisão + síntese + roteiro | Roteiro Clube T5 |
+| 17 (30/11–06/12) | Hard Parts Ch 1–2 | The hard parts + finding boundaries | Identify NexoMart's trade-offs |
+| 18 (07–13/12) | Hard Parts Ch 3–4 + 6 + 9 | Decomposition + CQRS + data access | Book Club T4 script |
+| 19 (14–20/12) | GoF — Intro + patterns | Intro + Repository + Factory + Observer | Name the patterns in the project's code |
+| 20 (21–27/12) | GoF — synthesis | Review + synthesis + script | Book Club T5 script |
 
-**Dezembro paralelo AWS**: completar DEA-C01 study plan (Maarek). Agendar exame para Jan/Fev 2027  
-**Dezembro paralelo Databricks**: Databricks Spark Developer study plan (Spark: The Definitive Guide + exercícios)
+**December parallel AWS**: complete the DEA-C01 study plan (Maarek). Schedule the exam for Jan/Feb 2027
+**December parallel Databricks**: Databricks Spark Developer study plan (Spark: The Definitive Guide + exercises)
 
 ---
 
-## 2027 — Consolidação e Certificações
+## 2027 — Consolidation and Certifications
 
 ### Jan–Mar 2027
-| Foco | O que fazer | Meta |
+| Focus | What to do | Goal |
 |------|-------------|------|
-| Leituras | Fluent Python (Caps 13 + 17 + 21) + Clube T6 | Roteiro Clube T6 |
-| AWS | Agendar e fazer DEA-C01 (exame) | **Certificação DEA-C01** |
-| Databricks | Agendar e fazer Spark Developer (exame) | **Certificação Spark Developer** |
-| Projeto | Async generators nos seeders + refatoração com protocolos | Código mais Pythônico |
+| Reading | Fluent Python (Ch 13 + 17 + 21) + Book Club T6 | Book Club T6 script |
+| AWS | Schedule and take DEA-C01 (exam) | **DEA-C01 certification** |
+| Databricks | Schedule and take Spark Developer (exam) | **Spark Developer certification** |
+| Project | Async generators in the seeders + refactoring with protocols | More Pythonic code |
 
 ### Apr–Jun 2027
-| Foco | O que fazer | Meta |
+| Focus | What to do | Goal |
 |------|-------------|------|
-| AWS | AIF-C01 study plan (Maarek + AWS Skill Builder AI path) | Estudo AIF-C01 |
-| Databricks | Data Engineer Associate study plan (Databricks Academy) | Estudo Associate |
-| Projeto | Reproduzir pipeline NexoMart completo no Community Edition | Pipeline Databricks funcionando |
-| AWS Lab | Bedrock Workshop + RAG sobre catálogo NexoMart | Projeto AIF-C01 concreto |
+| AWS | AIF-C01 study plan (Maarek + AWS Skill Builder AI path) | AIF-C01 study |
+| Databricks | Data Engineer Associate study plan (Databricks Academy) | Associate study |
+| Project | Reproduce the full NexoMart pipeline in Community Edition | Databricks pipeline working |
+| AWS Lab | Bedrock Workshop + RAG over the NexoMart catalog | Concrete AIF-C01 project |
 
-### Jul–Set 2027
-| Foco | O que fazer | Meta |
+### Jul–Sep 2027
+| Focus | What to do | Goal |
 |------|-------------|------|
-| AWS | Agendar e fazer AIF-C01 (exame) | **Certificação AIF-C01** |
-| Databricks | Agendar e fazer Data Engineer Associate (exame) | **Certificação Data Engineer Associate** |
-| Projeto | SageMaker: treinar modelo de recomendação sobre fact_sales | Pipeline ML rodando |
+| AWS | Schedule and take AIF-C01 (exam) | **AIF-C01 certification** |
+| Databricks | Schedule and take Data Engineer Associate (exam) | **Data Engineer Associate certification** |
+| Project | SageMaker: train a recommendation model over fact_sales | ML pipeline running |
 
-### Out–Dez 2027
-| Foco | O que fazer | Meta |
+### Oct–Dec 2027
+| Focus | What to do | Goal |
 |------|-------------|------|
-| AWS | MLA-C01 study plan (AWS Skill Builder ML Engineer path) | Estudo MLA-C01 |
-| Databricks | Data Engineer Professional study plan (labs avançados) | Estudo Professional |
-| Projeto AWS | NexoMart na AWS — Fase C (Terraform completo) | Deploy AWS real |
-| Projeto Databricks | DLT + Workflows + DAB — pipeline NexoMart em Professional | Pipeline prod-ready |
+| AWS | MLA-C01 study plan (AWS Skill Builder ML Engineer path) | MLA-C01 study |
+| Databricks | Data Engineer Professional study plan (advanced labs) | Professional study |
+| AWS Project | NexoMart on AWS — Phase C (full Terraform) | Real AWS deploy |
+| Databricks Project | DLT + Workflows + DAB — NexoMart pipeline at Professional level | Prod-ready pipeline |
 
 ---
 
-## 2028 — Nível Profissional Completo
+## 2028 — Full Professional Level
 
 ### Jan–Mar 2028
-| Foco | O que fazer | Meta |
+| Focus | What to do | Goal |
 |------|-------------|------|
-| AWS | Agendar e fazer MLA-C01 (exame) | **Certificação MLA-C01** |
-| Databricks | Agendar e fazer Data Engineer Professional (exame) | **Certificação Data Engineer Professional** |
-| Projeto | SageMaker endpoint consumido pela FastAPI do NexoMart | Plataforma AI-ready completa |
+| AWS | Schedule and take MLA-C01 (exam) | **MLA-C01 certification** |
+| Databricks | Schedule and take Data Engineer Professional (exam) | **Data Engineer Professional certification** |
+| Project | SageMaker endpoint consumed by NexoMart's FastAPI | Full AI-ready platform |
 
 ---
 
-## Mapa de Certificações
+## Certification Map
 
 ```
 AWS
 ────────────────────────────────────────────────────────────
-CLF-C02  (opcional)
+CLF-C02  (optional)
     ↓
-SAA-C03  ──── Fundação arquitetural (Q1 2027)
+SAA-C03  ──── Architectural foundation (Q1 2027)
     ↓
-DEA-C01  ──── Dados em AWS: Glue, EMR, Athena, MSK (Q1 2027)
+DEA-C01  ──── Data on AWS: Glue, EMR, Athena, MSK (Q1 2027)
     ↓
-AIF-C01  ──── IA Practitioner: Bedrock, SageMaker overview (Q3 2027)
+AIF-C01  ──── AI Practitioner: Bedrock, SageMaker overview (Q3 2027)
     ↓
-MLA-C01  ──── ML Engineer: SageMaker profundo, MLOps (Q1 2028)
+MLA-C01  ──── ML Engineer: deep SageMaker, MLOps (Q1 2028)
 
 DATABRICKS
 ────────────────────────────────────────────────────────────
-Fundamentals Accreditation  (gratuito — faz logo)
+Fundamentals Accreditation  (free — do it early)
     ↓
 Spark Developer Associate  ──── Spark Core, joins, UI (Q1 2027)
     ↓
@@ -341,122 +341,122 @@ Data Engineer Professional ──── Prod-grade, MLflow, DAB (Q1 2028)
 
 ---
 
-## Marcador de Progresso
+## Progress Tracker
 
-Copie e atualize esta seção toda semana:
+Copy and update this section every week:
 
 ```
 KIMBALL
-[ ] Cap 1 — lido
-[ ] Cap 2 — lido
-[ ] Cap 3 — lido
-[ ] Cap 4 — lido
-[ ] Síntese escrita
-[ ] Bus Matrix NexoMart desenhada
-[ ] Roteiro Clube T0 rascunhado
+[ ] Ch 1 — read
+[ ] Ch 2 — read
+[ ] Ch 3 — read
+[ ] Ch 4 — read
+[ ] Synthesis written
+[ ] NexoMart Bus Matrix drawn
+[ ] Book Club T0 script drafted
 
-FUNDAMENTOS DE
-[ ] Caps 1–2 — lidos
-[ ] Cap 3 — lido
-[ ] Cap 8 — lido
-[ ] Cap 9 — lido
-[ ] Síntese escrita
-[ ] Roteiro Clube T1 rascunhado
+FUNDAMENTALS OF DE
+[ ] Ch 1–2 — read
+[ ] Ch 3 — read
+[ ] Ch 8 — read
+[ ] Ch 9 — read
+[ ] Synthesis written
+[ ] Book Club T1 script drafted
 
 DDIA
-[ ] Cap 3 — lido
-[ ] Cap 4 — lido
-[ ] Cap 11 — lido
-[ ] Síntese escrita
-[ ] Roteiro Clube T2 rascunhado
+[ ] Ch 3 — read
+[ ] Ch 4 — read
+[ ] Ch 11 — read
+[ ] Synthesis written
+[ ] Book Club T2 script drafted
 
 DDD EVANS
-[ ] Parte I (Caps 1–3) — lida
-[ ] Parte II (Caps 5–7) — lida
-[ ] Parte IV (Caps 14–15) — lida
-[ ] Context Map NexoMart desenhado
+[ ] Part I (Ch 1–3) — read
+[ ] Part II (Ch 5–7) — read
+[ ] Part IV (Ch 14–15) — read
+[ ] NexoMart Context Map drawn
 
 KHONONOV
-[ ] Caps 1–2 — lidos
-[ ] Caps 3–5 — lidos
-[ ] Cap 6 + 10 — lidos
-[ ] Roteiro Clube T3 rascunhado
+[ ] Ch 1–2 — read
+[ ] Ch 3–5 — read
+[ ] Ch 6 + 10 — read
+[ ] Book Club T3 script drafted
 
 HARD PARTS
-[ ] Caps 1–4 — lidos
-[ ] Caps 6 + 9 — lidos
-[ ] Roteiro Clube T4 rascunhado
+[ ] Ch 1–4 — read
+[ ] Ch 6 + 9 — read
+[ ] Book Club T4 script drafted
 
 GOF
-[ ] Intro — lida
-[ ] Repository + Factory + Observer — lidos
-[ ] Roteiro Clube T5 rascunhado
+[ ] Intro — read
+[ ] Repository + Factory + Observer — read
+[ ] Book Club T5 script drafted
 
 FLUENT PYTHON
-[ ] Cap 13 — lido
-[ ] Cap 17 — lido
-[ ] Cap 21 — lido
-[ ] Roteiro Clube T6 rascunhado
+[ ] Ch 13 — read
+[ ] Ch 17 — read
+[ ] Ch 21 — read
+[ ] Book Club T6 script drafted
 
-AWS — FUNDAMENTOS
-[ ] Conta criada + Free Tier ativo
-[ ] IAM — lab concluído (users, roles, policies, STS)
-[ ] S3 — lab concluído (lifecycle, versionamento, encryption)
-[ ] VPC — lab concluído (subnets, SGs, NAT, VPC endpoints)
-[ ] CloudWatch + CloudTrail — lab concluído
-[ ] KMS — lab concluído
+AWS — FUNDAMENTALS
+[ ] Account created + Free Tier active
+[ ] IAM — lab completed (users, roles, policies, STS)
+[ ] S3 — lab completed (lifecycle, versioning, encryption)
+[ ] VPC — lab completed (subnets, SGs, NAT, VPC endpoints)
+[ ] CloudWatch + CloudTrail — lab completed
+[ ] KMS — lab completed
 
-AWS — DADOS (DEA-C01)
-[ ] Glue — lab concluído (crawler, catalog, ETL job)
-[ ] EMR — lab concluído (Spark job no cluster)
-[ ] Athena — lab concluído (Iceberg nativo, workgroup)
-[ ] Lake Formation — lab concluído (fine-grained access)
-[ ] Kinesis / MSK — lab concluído (producer + consumer)
-[ ] DMS — lab concluído (CDC do PostgreSQL)
-[ ] MWAA — lab concluído (DAG no Airflow gerenciado)
-[ ] Cantrill SAA-C03 — curso completo
-[ ] Maarek DEA-C01 — curso completo
-[ ] SAA-C03 — aprovado ✓
-[ ] DEA-C01 — aprovado ✓
+AWS — DATA (DEA-C01)
+[ ] Glue — lab completed (crawler, catalog, ETL job)
+[ ] EMR — lab completed (Spark job on the cluster)
+[ ] Athena — lab completed (native Iceberg, workgroup)
+[ ] Lake Formation — lab completed (fine-grained access)
+[ ] Kinesis / MSK — lab completed (producer + consumer)
+[ ] DMS — lab completed (CDC from PostgreSQL)
+[ ] MWAA — lab completed (DAG on managed Airflow)
+[ ] Cantrill SAA-C03 — course completed
+[ ] Maarek DEA-C01 — course completed
+[ ] SAA-C03 — passed [x]
+[ ] DEA-C01 — passed [x]
 
-AWS — IA (AIF-C01 → MLA-C01)
-[ ] Bedrock Workshop — lab concluído (RAG sobre catálogo)
-[ ] SageMaker Immersion Day — lab concluído
-[ ] SageMaker Feature Store — lab concluído
-[ ] SageMaker Pipelines — lab concluído
-[ ] RAG NexoMart com Bedrock Knowledge Bases — implementado
-[ ] Modelo de recomendação no SageMaker — treinado e deployado
-[ ] Maarek AIF-C01 — curso completo
-[ ] AWS Skill Builder ML Engineer path — completo
-[ ] AIF-C01 — aprovado ✓
-[ ] MLA-C01 — aprovado ✓
+AWS — AI (AIF-C01 → MLA-C01)
+[ ] Bedrock Workshop — lab completed (RAG over the catalog)
+[ ] SageMaker Immersion Day — lab completed
+[ ] SageMaker Feature Store — lab completed
+[ ] SageMaker Pipelines — lab completed
+[ ] NexoMart RAG with Bedrock Knowledge Bases — implemented
+[ ] Recommendation model in SageMaker — trained and deployed
+[ ] Maarek AIF-C01 — course completed
+[ ] AWS Skill Builder ML Engineer path — completed
+[ ] AIF-C01 — passed [x]
+[ ] MLA-C01 — passed [x]
 
-AWS — PROJETO
-[ ] NexoMart na AWS — Terraform completo (Fase C)
+AWS — PROJECT
+[ ] NexoMart on AWS — full Terraform (Phase C)
 
 DATABRICKS
-[ ] Community Edition — conta criada
-[ ] Fundamentals Accreditation — obtido ✓ (gratuito)
-[ ] Pipeline NexoMart reproduzido no Community Edition
-[ ] Catalyst + EXPLAIN EXTENDED — estudado
-[ ] Broadcast join vs Sort-Merge join — dominado
-[ ] AQE (Adaptive Query Execution) — estudado
-[ ] Spark UI — consegue ler DAG e identificar gargalos
-[ ] Structured Streaming avançado — estudado
-[ ] Delta Live Tables — pipeline implementado
-[ ] Unity Catalog — fine-grained access configurado
-[ ] Databricks Workflows — orquestração implementada
-[ ] Liquid Clustering — aplicado no projeto
-[ ] Databricks Asset Bundles — pipeline deployado via DAB
-[ ] MLflow — experimento registrado + modelo no registry
-[ ] "Spark: The Definitive Guide" — caps críticos lidos
-[ ] "Delta Lake: The Definitive Guide" — caps críticos lidos
-[ ] Spark Developer Associate — aprovado ✓
-[ ] Data Engineer Associate — aprovado ✓
-[ ] Data Engineer Professional — aprovado ✓
+[ ] Community Edition — account created
+[ ] Fundamentals Accreditation — obtained [x] (free)
+[ ] NexoMart pipeline reproduced in Community Edition
+[ ] Catalyst + EXPLAIN EXTENDED — studied
+[ ] Broadcast join vs Sort-Merge join — mastered
+[ ] AQE (Adaptive Query Execution) — studied
+[ ] Spark UI — can read the DAG and spot bottlenecks
+[ ] Advanced Structured Streaming — studied
+[ ] Delta Live Tables — pipeline implemented
+[ ] Unity Catalog — fine-grained access configured
+[ ] Databricks Workflows — orchestration implemented
+[ ] Liquid Clustering — applied in the project
+[ ] Databricks Asset Bundles — pipeline deployed via DAB
+[ ] MLflow — experiment logged + model in the registry
+[ ] "Spark: The Definitive Guide" — critical chapters read
+[ ] "Delta Lake: The Definitive Guide" — critical chapters read
+[ ] Spark Developer Associate — passed [x]
+[ ] Data Engineer Associate — passed [x]
+[ ] Data Engineer Professional — passed [x]
 ```
 
 ---
 
-*Criado em 2026-07-04 | Atualizar semanalmente*  
-*Referência: `CRONOGRAMA_LEITURA.md`*
+*Created 2026-07-04 | Update weekly*
+*Reference: `READING_SCHEDULE.md`*

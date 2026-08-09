@@ -4,7 +4,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 class InventoryAttributes(BaseModel):
-    lot_number: Optional[str] = Field(None, description="Lote de fabricação")
+    lot_number: Optional[str] = Field(None, description="Manufacturing lot")
     manufacturing_date: Optional[date] = None
     expiration_date: Optional[date] = None
     
@@ -12,13 +12,13 @@ class InventoryAttributes(BaseModel):
     def validate_dates(self):
         if self.manufacturing_date and self.expiration_date:
             if self.expiration_date < self.manufacturing_date:
-                raise ValueError("A data de validade não pode ser anterior à data de fabricação.")
+                raise ValueError("The expiration date cannot be earlier than the manufacturing date.")
         return self
 
 class ProductInventorySchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
-    inventory_id: Optional[int] = Field(None, gt=0, description="None = auto-increment no banco")
+    inventory_id: Optional[int] = Field(None, gt=0, description="None = auto-increment in the database")
     product_id: int = Field(gt=0)
     warehouselocation_id: int = Field(gt=0)
     

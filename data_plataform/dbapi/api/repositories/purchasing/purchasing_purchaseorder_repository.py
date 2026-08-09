@@ -9,7 +9,7 @@ from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel a
 logger = logging.getLogger(__name__)
 
 class PurchasingPurchaseOrderRepository:
-    """ Exclusivo para operações Fato (Orders e Details) de B2B """
+    """ Exclusively for B2B Fact operations (Orders and Details) """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, orders_data: List[Dict[str, Any]]) -> bool:
@@ -20,7 +20,7 @@ class PurchasingPurchaseOrderRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL Bulk Insert Purchase Orders: {e}")
+            logger.error(f"SQL Error Bulk Insert Purchase Orders: {e}")
             raise
             
     @staticmethod
@@ -30,5 +30,5 @@ class PurchasingPurchaseOrderRepository:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro ao buscar Purchase Order ID={purchase_order_id}: {e}")
+            logger.error(f"Error fetching Purchase Order ID={purchase_order_id}: {e}")
             raise

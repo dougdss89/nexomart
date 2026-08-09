@@ -5,7 +5,7 @@ from traceback import print_exc
 
 def load_source_connections():
     """ load source connections from .env file """
-    spark = None # Inicializa para evitar NameError no finally
+    spark = None # Initialize to avoid NameError in finally
     try:
         config = load_config()
     except(FileNotFoundError, KeyError) as e:
@@ -13,17 +13,17 @@ def load_source_connections():
         return None, None, None, None, None
     
     try:
-        # Obter as configurações
+        # Get the configurations
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
         hadoop_config = config.get("hadoop_paths", {})
-        
-        # Validações essenciais
+
+        # Essential validations
         validate_required_keys(mssql_adventureworks, ["url", "database"], "mssql_adventureworks")
         validate_required_keys(hadoop_config, ["minio_landing"], "hadoop_paths")
-        
-        # Criar SparkSession LIMPA
-        # O Spark 4.1.1 lerá os pacotes e configurações do spark-defaults.conf automaticamente
+
+        # Create a CLEAN SparkSession
+        # Spark 4.1.1 will read the packages and settings from spark-defaults.conf automatically
         spark = (SparkSession.builder
                 .appName('extract_buyer_raw')
                 .enableHiveSupport()
@@ -97,19 +97,19 @@ def spark_stop(spark):
 
 if __name__ == '__main__':
     try:
-        # Carregar conexões
+        # Load connections
         spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
-        
+
         if not all([spark, mssql_properties, mssql_adventureworks, minio_landing]):
             raise RuntimeError("Failed to load required connections")
-            
-        # Extrair dados
+
+        # Extract data
         df_buyer = extract_raw_buyer(spark, mssql_adventureworks, mssql_properties)
-        
+
         if df_buyer is None:
             raise RuntimeError("Failed to extract buyer data")
-            
-        # Escrever dados
+
+        # Write data
         df_buyer.repartition(1).write.mode('overwrite').parquet(f"{minio_landing}/buyer")
         
         print("Job completed successfully")

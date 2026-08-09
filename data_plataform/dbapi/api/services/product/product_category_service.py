@@ -9,29 +9,29 @@ logger = logging.getLogger(__name__)
 
 class ProductCategoryService:
     """
-    Camada de Regras de Negócio e Orquestração (Abstrata).
-    Consome o Repository para acessar os dados.
-    NUNCA deve importar sintaxes SQL como 'select' ou 'insert' e não pode conter manipulação do BD diretamente.
+    Business Rules and Orchestration Layer (Abstract).
+    Consumes the Repository to access data.
+    MUST NEVER import SQL syntax such as 'select' or 'insert' and cannot manipulate the DB directly.
     """
 
     @staticmethod
     async def process_bulk_insert(db: AsyncSession, categories_data: List[Dict[str, Any]]) -> bool:
         """
-        Garante as validações lógicas e repassa o bulk para o BD.
-        (Exemplo: Checa permissões, valida anomalias nos dicionários lógicos).
+        Ensures logical validations and forwards the bulk operation to the DB.
+        (Example: Checks permissions, validates anomalies in the logical dictionaries).
         """
         if not categories_data:
-            logger.info("Nenhuma categoria fornecida para inserção no lote.")
+            logger.info("No category provided for batch insertion.")
             return False
-            
-        # Orquestration rule: Chamar a classe puramente estruturada de BD 
+
+        # Orchestration rule: call the purely structured DB class
         return await ProductCategoryRepository.bulk_insert(db=db, categories_data=categories_data)
 
     @staticmethod
     async def verify_category_exists(db: AsyncSession, category_id: int) -> bool:
         """
-        Regra de Negócio: Verifica se a hierarquia existe no banco de dados.
-        Retorna boolean abstraindo o Modelo, o Router não precisa ler o Modelo SQL, apenas saber se Válido ou não.
+        Business Rule: Checks whether the hierarchy exists in the database.
+        Returns a boolean abstracting the Model — the Router doesn't need to read the SQL Model, just know if it's Valid or not.
         """
         category: Optional[ProductCategoryModel] = await ProductCategoryRepository.get_by_id(db, category_id)
         return category is not None

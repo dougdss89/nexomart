@@ -9,7 +9,7 @@ from api.models.humanresources.employee import HumanResourcesEmployeeModel
 logger = logging.getLogger(__name__)
 
 class HumanResourcesEmployeeRepository:
-    """ Operações puras do BD (SQL) mapeando os Colaboradores Físicos """
+    """ Pure DB (SQL) operations mapping the physical Employees """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, employees_data: List[Dict[str, Any]]) -> bool:
@@ -20,7 +20,7 @@ class HumanResourcesEmployeeRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL Bulk Insert Employees: {e}")
+            logger.error(f"SQL Error Bulk Insert Employees: {e}")
             raise
             
     @staticmethod
@@ -30,5 +30,5 @@ class HumanResourcesEmployeeRepository:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro ao buscar Employee ID={employee_id}: {e}")
+            logger.error(f"Error fetching Employee ID={employee_id}: {e}")
             raise

@@ -6,14 +6,14 @@ from api.repositories.warehouse.warehouse_location_repository import WarehouseLo
 logger = logging.getLogger(__name__)
 
 class WarehouseLocationService:
-    """ Orquestração Lógica de Localizações e Pontos de Inventário """
-    
+    """ Logical Orchestration of Locations and Inventory Points """
+
     @staticmethod
     async def process_bulk_integration(db: AsyncSession, locations_data: List[Dict[str, Any]]) -> bool:
         if not locations_data:
             return False
-        
-        # Aqui poderiam entrar validações de capacidade ou regras de negócio geográficas
+
+        # Capacity validations or geographic business rules could go here
         return await WarehouseLocationRepository.bulk_insert(db=db, locations_data=locations_data)
 
     @staticmethod

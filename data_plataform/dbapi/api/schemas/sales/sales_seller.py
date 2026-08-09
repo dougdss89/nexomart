@@ -33,7 +33,7 @@ class SellerBankAccount(BaseModel):
     
 class SellerAddress(BaseModel):
     
-    address_type: AddressType = Field(alias="address_type") # Mapeia 'type' do JSON para 'address_type' no Python se quiser evitar conflito com palavra reservada
+    address_type: AddressType = Field(alias="address_type") # Maps 'type' from JSON to 'address_type' in Python if you want to avoid a conflict with a reserved word
     address_line: str = Field(max_length=150)
     postal_code: str = Field(max_length=20)
     street_number: str = Field(max_length=20)
@@ -46,15 +46,15 @@ class SellerMetrics(BaseModel):
     average_rating: Decimal = Field(default=0.0, ge=0.0, decimal_places=1)
     total_gross_revenue: Decimal = Field(default=0.00, ge=0.0, decimal_places=2)
     total_items_sold: int = Field(ge=0)
-    count_orders: int = Field(default=0, ge=0) # Nome corrigido para bater com a tabela
+    count_orders: int = Field(default=0, ge=0) # Name fixed to match the table
     chargeback_rate: Decimal = Field(default=0.00, ge=0.0, decimal_places=2)
     date_first_sale: date = Field(default_factory=date.today)
     date_last_sale: date = Field(default_factory=date.today)
 
 class SellerDemographics(BaseModel):
-    information: dict = Field(default_factory=dict, description="Ex: {'sellertype': 'business'}")
+    information: dict = Field(default_factory=dict, description="E.g.: {'sellertype': 'business'}")
     bank_account: SellerBankAccount
-    address: List[SellerAddress] = Field(default_factory=list, description="Lista de endereços (Billing, Shipping, etc)")
+    address: List[SellerAddress] = Field(default_factory=list, description="List of addresses (Billing, Shipping, etc)")
     metrics: SellerMetrics
     
     

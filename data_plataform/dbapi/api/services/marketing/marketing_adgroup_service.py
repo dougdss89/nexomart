@@ -6,7 +6,7 @@ from api.repositories.marketing.marketing_adgroup_repository import MarketingAdG
 logger = logging.getLogger(__name__)
 
 class MarketingAdGroupService:
-    """ Lógica para Conjuntos de Anúncios e Segmentações Ocultas """
+    """ Logic for Ad Groups and Hidden Targeting Segments """
     
     @staticmethod
     async def process_bulk_integration(db: AsyncSession, adgroups_data: List[Dict[str, Any]]) -> bool:

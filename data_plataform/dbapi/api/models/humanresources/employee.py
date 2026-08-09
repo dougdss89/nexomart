@@ -23,7 +23,7 @@ class HumanResourcesEmployeeModel(Base, AuditMixin):
     department_id = Column(Integer, ForeignKey('humanresources.department.department_id'), nullable=False)
     manager_id = Column(Integer, ForeignKey('humanresources.employee.employee_id'), nullable=True) 
     
-    # --- Geografia e Expansão Internacional ---
+    # --- Geography and International Expansion ---
     country_id = Column(Integer, ForeignKey("person.countryregion.country_id"), nullable=False)
     state_province_id = Column(Integer, ForeignKey("person.stateprovince.state_province_id"), nullable=False)
     local_currency = Column(String(3), nullable=False, default="BRL")

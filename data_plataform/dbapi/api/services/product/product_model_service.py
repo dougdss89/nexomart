@@ -6,12 +6,12 @@ from api.repositories.product.product_model_repository import ProductModelReposi
 logger = logging.getLogger(__name__)
 
 class ProductModelService:
-    """ Regras de Negócio para Modelos de Produto (Orquestrador) """
-    
+    """ Business Rules for Product Models (Orchestrator) """
+
     @staticmethod
     async def process_bulk_insert(db: AsyncSession, models_data: List[Dict[str, Any]]) -> bool:
         if not models_data:
-            logger.info("Nenhum modelo (Product Model) fornecido para inserção lótica.")
+            logger.info("No model (Product Model) provided for batch insertion.")
             return False
             
         return await ProductModelRepository.bulk_insert(db=db, models_data=models_data)

@@ -68,44 +68,44 @@ def load_source_connections():
 spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
 
 def run_stress_test(spark = spark, minio_landing = minio_landing):
-    print("Iniciando o Teste de Estresse de Rede (MinIO/S3A)...")
-    
-    # 1. Carrega as conexões usando o seu módulo arrumado (4 variáveis)
+    print("Starting the Network Stress Test (MinIO/S3A)...")
+
+    # 1. Loads the connections using your tidied-up module (4 variables)
     # spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
-    
+
     if not spark or not minio_landing:
-        print("Erro ao carregar conexões. Abortando teste.")
+        print("Failed to load connections. Aborting test.")
         return
 
     try:
         start_time = time.time()
-        
-        # 2. Gera 50 Milhões de linhas (Aproximadamente 10GB de dados em memória)
-        print("Gerando 50 milhões de linhas de dados sintéticos pesados...")
-        
+
+        # 2. Generates 50 million rows (approximately 10GB of data in memory)
+        print("Generating 50 million rows of heavy synthetic data...")
+
         df_heavy = spark.range(0, 50000000) \
             .withColumn("uuid_aleatorio", expr("uuid()")) \
             .withColumn("metrica_teste", rand() * 1000) \
             .withColumn("texto_pesado", expr("repeat('EngenhariaDeDados_ApacheSpark_', 20)"))
 
-        # 3. Força 100 partições para criar 100 conexões simultâneas no MinIO
+        # 3. Forces 100 partitions to create 100 simultaneous connections to MinIO
         df_repartitioned = df_heavy.repartition(100)
 
-        # 4. Grava no MinIO 
-        destino = f"{minio_landing}/stress_test/heavy_payload"
-        print(f"Iniciando gravação paralela em: {destino}")
-        
+        # 4. Writes to MinIO
+        destination = f"{minio_landing}/stress_test/heavy_payload"
+        print(f"Starting parallel write to: {destination}")
+
         df_repartitioned.write \
             .mode("overwrite") \
-            .parquet(destino)
+            .parquet(destination)
 
         end_time = time.time()
-        
-        print("SUCESSO ABSOLUTO! Gravou 50 milhões de linhas sem IncompleteBody.")
-        print(f"Tempo total: {round((end_time - start_time) / 60, 2)} minutos.")
+
+        print("ABSOLUTE SUCCESS! Wrote 50 million rows without IncompleteBody.")
+        print(f"Total time: {round((end_time - start_time) / 60, 2)} minutes.")
 
     except Exception as e:
-        print(f"O teste falhou! A rede não aguentou: {str(e)}")
+        print(f"The test failed! The network couldn't handle it: {str(e)}")
         import traceback
         traceback.print_exc()
         

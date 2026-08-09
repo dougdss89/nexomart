@@ -11,11 +11,11 @@ from api.routers import (
 
 app = FastAPI(
     title="Data Platform API",
-    description="API para orquestração e ingestão de dados do Data Platform (Silver/Gold Layers)",
+    description="API for orchestration and data ingestion of the Data Platform (Silver/Gold Layers)",
     version="1.0.0"
 )
 
-# Registrando os roteadores de domínio (3-Layer Arch)
+# Registering the domain routers (3-Layer Arch)
 app.include_router(warehouse_router.router)
 app.include_router(marketing_router.router)
 app.include_router(person_router.router)

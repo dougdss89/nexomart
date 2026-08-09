@@ -1,28 +1,28 @@
-# Guia de Randomização Dinâmica — Seeders Imprevisíveis
+# Dynamic Randomization Guide — Unpredictable Seeders
 
-Este documento explica como usar os seeders com **randomização dinâmica** de volumes e chaos rates, tornando cada execução da DAG do Airflow única e imprevisível.
+This document explains how to use the seeders with **dynamic randomization** of volumes and chaos rates, making every Airflow DAG run unique and unpredictable.
 
-## 🎯 Objetivo
+## 🎯 Goal
 
-Criar um ambiente de dados realista onde:
-- **Volumes variam** a cada execução (dias normais vs picos de demanda)
-- **Chaos rates variam** a cada execução (1% a 10% de anomalias)
-- **Tudo é configurável** via ranges min/max por schema
-- **Totalmente integrado** com Airflow (BashOperator)
+Create a realistic data environment where:
+- **Volumes vary** on every run (normal days vs demand spikes)
+- **Chaos rates vary** on every run (1% to 10% anomalies)
+- **Everything is configurable** via min/max ranges per schema
+- **Fully integrated** with Airflow (BashOperator)
 
 ---
 
-## 📦 Arquivos Criados
+## 📦 Files Created
 
 ### 1. [api/config/seeder_config.py](../config/seeder_config.py)
-**Configuração centralizada de ranges dinâmicos**
+**Centralized configuration of dynamic ranges**
 
-Define ranges min/max para cada schema/tabela:
+Defines min/max ranges for each schema/table:
 
 ```python
 from api.config.seeder_config import get_ranges
 
-# Obter ranges para sales
+# Get ranges for sales
 ranges = get_ranges(table="sales.salesorder")
 print(ranges.min_count)  # 100_000
 print(ranges.max_count)  # 50_000_000
@@ -30,219 +30,219 @@ print(ranges.min_chaos)  # 0.01
 print(ranges.max_chaos)  # 0.10
 ```
 
-**Ranges configurados:**
+**Configured ranges:**
 
-| Schema | Volume Min | Volume Max | Chaos Min | Chaos Max |
+| Schema | Min Volume | Max Volume | Min Chaos | Max Chaos |
 |--------|------------|------------|-----------|-----------|
-| sales | 100k | 50kk | 1% | 10% |
-| purchasing | 50k | 50kk | 1% | 10% |
-| warehouse | 100k | 50kk | 2% | 10% |
-| person | 10k | 5kk | 3% | 10% |
-| product | 500 | 1.500 | 2% | 5% |
+| sales | 100k | 50M | 1% | 10% |
+| purchasing | 50k | 50M | 1% | 10% |
+| warehouse | 100k | 50M | 2% | 10% |
+| person | 10k | 5M | 3% | 10% |
+| product | 500 | 1,500 | 2% | 5% |
 | humanresources | 50 | 100 | 0% | 0% |
 | marketing | 1k | 500k | 1% | 8% |
 
 ### 2. [sales/sales_order_EXAMPLE_WITH_CHAOS.py](./sales/sales_order_EXAMPLE_WITH_CHAOS.py)
-**Seeder de exemplo com randomização dinâmica**
+**Example seeder with dynamic randomization**
 
-Características:
-- ✅ Importa ranges de `seeder_config.py`
-- ✅ Aceita `--random` para randomizar valores
-- ✅ Aceita `--min-count` / `--max-count` customizados
-- ✅ Aceita `--min-chaos` / `--max-chaos` customizados
-- ✅ Validação de limites absolutos (para product)
-- ✅ Tipos de chaos recomendados automaticamente
+Features:
+- ✅ Imports ranges from `seeder_config.py`
+- ✅ Accepts `--random` to randomize values
+- ✅ Accepts custom `--min-count` / `--max-count`
+- ✅ Accepts custom `--min-chaos` / `--max-chaos`
+- ✅ Absolute limit validation (for product)
+- ✅ Automatically recommended chaos types
 
-**Uso:**
+**Usage:**
 
 ```bash
-# 1. Modo randômico (recomendado para Airflow)
+# 1. Random mode (recommended for Airflow)
 uv run python sales_order_EXAMPLE_WITH_CHAOS.py --random
 
-# 2. Ranges customizados
+# 2. Custom ranges
 uv run python sales_order_EXAMPLE_WITH_CHAOS.py \
     --min-count 100000 --max-count 1000000 \
     --min-chaos 0.01 --max-chaos 0.05 \
     --random
 
-# 3. Valores fixos (desenvolvimento)
+# 3. Fixed values (development)
 uv run python sales_order_EXAMPLE_WITH_CHAOS.py \
     --count 1000 --chaos-rate 0.05
 
-# 4. Sem chaos
+# 4. No chaos
 uv run python sales_order_EXAMPLE_WITH_CHAOS.py \
     --count 1000 --no-chaos
 ```
 
 ### 3. [airflow/dags/EXAMPLE_seeder_dag_with_randomization.py](../../airflow/dags/EXAMPLE_seeder_dag_with_randomization.py)
-**DAG do Airflow com randomização**
+**Airflow DAG with randomization**
 
-Características:
-- ✅ Executa todos os seeders com `--random`
-- ✅ Respeita dependências (dimensões → fatos → analytics)
-- ✅ Execução paralela quando possível
-- ✅ Logs detalhados de valores sorteados
-- ✅ Retries e alertas configurados
+Features:
+- ✅ Runs every seeder with `--random`
+- ✅ Respects dependencies (dimensions → facts → analytics)
+- ✅ Parallel execution when possible
+- ✅ Detailed logs of the values drawn
+- ✅ Retries and alerts configured
 
-**Schedule:** Diariamente às 02:00
+**Schedule:** Daily at 02:00
 
 ---
 
-## 🚀 Como Funciona
+## 🚀 How It Works
 
-### Fluxo de Randomização
+### Randomization Flow
 
 ```
 ┌─────────────────────────────────────┐
-│  DAG do Airflow (diária às 02:00)  │
+│  Airflow DAG (daily at 02:00)       │
 └──────────────┬──────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────┐
-│  BashOperator chama seeder com:    │
+│  BashOperator calls the seeder with:│
 │  --random --min-count X --max-count Y│
 └──────────────┬──────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────┐
-│  Seeder sorteia valores:            │
+│  Seeder draws values:               │
 │  count = random.randint(min, max)   │
 │  chaos = random.uniform(min, max)   │
 └──────────────┬──────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────┐
-│  Gera dados limpos (count registros)│
+│  Generates clean data (count records)│
 └──────────────┬──────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────┐
-│  Aplica chaos engineering (chaos %) │
+│  Applies chaos engineering (chaos %)│
 └──────────────┬──────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────┐
-│  Insere em lote no banco (bulk)     │
+│  Bulk inserts into the database     │
 └─────────────────────────────────────┘
 ```
 
-### Exemplo de Execução
+### Example Run
 
-**Execução 1 (dia normal):**
+**Run 1 (normal day):**
 ```
-🎲 MODO RANDÔMICO ATIVADO
-   📊 Range de volume: 100,000 a 50,000,000
-   📊 Range de chaos: 1.00% a 10.00%
+🎲 RANDOM MODE ENABLED
+   📊 Volume range: 100,000 to 50,000,000
+   📊 Chaos range: 1.00% to 10.00%
 
-   🎯 Valores sorteados:
-      - Volume: 150,000 registros
+   🎯 Values drawn:
+      - Volume: 150,000 records
       - Chaos rate: 3.45%
 
-📣 Semeando 150,000 pedidos de venda
+📣 Seeding 150,000 sales orders
    - Batch size: 10,000
    - Chaos rate: 3.45%
-   - Registros existentes: 0
+   - Existing records: 0
 
-   ⏳ Progresso: 10,000/150,000 (6.7%)
-   ⏳ Progresso: 20,000/150,000 (13.3%)
+   ⏳ Progress: 10,000/150,000 (6.7%)
+   ⏳ Progress: 20,000/150,000 (13.3%)
    ...
-   ⏳ Progresso: 150,000/150,000 (100.0%)
+   ⏳ Progress: 150,000/150,000 (100.0%)
 
-✅ Seeder finalizado!
-   - Registros inseridos: 150,000
-   - Total na tabela: 150,000
-   - Anomalias injetadas: ~5,175 (3.45%)
+✅ Seeder finished!
+   - Records inserted: 150,000
+   - Total in table: 150,000
+   - Anomalies injected: ~5,175 (3.45%)
 ```
 
-**Execução 2 (Black Friday simulada):**
+**Run 2 (simulated Black Friday):**
 ```
-🎲 MODO RANDÔMICO ATIVADO
-   🎯 Valores sorteados:
-      - Volume: 35,000,000 registros
+🎲 RANDOM MODE ENABLED
+   🎯 Values drawn:
+      - Volume: 35,000,000 records
       - Chaos rate: 8.92%
 
-✅ Seeder finalizado!
-   - Registros inseridos: 35,000,000
-   - Total na tabela: 35,150,000
-   - Anomalias injetadas: ~3,122,000 (8.92%)
+✅ Seeder finished!
+   - Records inserted: 35,000,000
+   - Total in table: 35,150,000
+   - Anomalies injected: ~3,122,000 (8.92%)
 ```
 
 ---
 
-## 🔧 Migração de Seeders Existentes
+## 🔧 Migrating Existing Seeders
 
-### Passo 1: Importar Configurações
+### Step 1: Import Configuration
 
-No início do seeder:
+At the top of the seeder:
 
 ```python
 from api.config.seeder_config import get_ranges, get_recommended_chaos_types
 
-# Obter ranges configurados
+# Get configured ranges
 SCHEMA_NAME = "sales"
 TABLE_NAME = "sales.salesorder"
 RANGES = get_ranges(table=TABLE_NAME)
 ```
 
-### Passo 2: Adicionar Argumentos CLI
+### Step 2: Add CLI Arguments
 
 ```python
 parser.add_argument(
     "--random",
     action="store_true",
-    help="Sorteia valores dentro dos ranges configurados"
+    help="Draws values within the configured ranges"
 )
 parser.add_argument(
     "--min-count",
     type=int,
     default=RANGES.min_count,
-    help=f"Volume mínimo (padrão: {RANGES.min_count:,})"
+    help=f"Minimum volume (default: {RANGES.min_count:,})"
 )
 parser.add_argument(
     "--max-count",
     type=int,
     default=RANGES.max_count,
-    help=f"Volume máximo (padrão: {RANGES.max_count:,})"
+    help=f"Maximum volume (default: {RANGES.max_count:,})"
 )
 parser.add_argument(
     "--min-chaos",
     type=float,
     default=RANGES.min_chaos,
-    help=f"Chaos rate mínimo (padrão: {RANGES.min_chaos:.2%})"
+    help=f"Minimum chaos rate (default: {RANGES.min_chaos:.2%})"
 )
 parser.add_argument(
     "--max-chaos",
     type=float,
     default=RANGES.max_chaos,
-    help=f"Chaos rate máximo (padrão: {RANGES.max_chaos:.2%})"
+    help=f"Maximum chaos rate (default: {RANGES.max_chaos:.2%})"
 )
 ```
 
-### Passo 3: Implementar Lógica de Randomização
+### Step 3: Implement the Randomization Logic
 
 ```python
 if args.random:
-    # MODO RANDÔMICO: sortear valores
+    # RANDOM MODE: draw values
     count = random.randint(args.min_count, args.max_count)
     chaos_rate = random.uniform(args.min_chaos, args.max_chaos) if not args.no_chaos else 0.0
 
-    print("🎲 MODO RANDÔMICO ATIVADO")
-    print(f"   🎯 Valores sorteados:")
-    print(f"      - Volume: {count:,} registros")
+    print("🎲 RANDOM MODE ENABLED")
+    print(f"   🎯 Values drawn:")
+    print(f"      - Volume: {count:,} records")
     print(f"      - Chaos rate: {chaos_rate:.2%}")
 else:
-    # MODO FIXO: usar valores especificados
+    # FIXED MODE: use the specified values
     count = args.count
     chaos_rate = args.chaos_rate
 ```
 
-### Passo 4: Usar Tipos de Chaos Recomendados
+### Step 4: Use the Recommended Chaos Types
 
 ```python
-# Obter tipos de chaos recomendados automaticamente
+# Automatically get the recommended chaos types
 chaos_types = get_recommended_chaos_types(SCHEMA_NAME)
 
-# Aplicar chaos
+# Apply chaos
 if apply_chaos and chaos_types:
     orders_with_chaos = apply_data_quality_chaos(
         orders,
@@ -254,25 +254,25 @@ if apply_chaos and chaos_types:
 
 ---
 
-## 📋 Checklist de Migração
+## 📋 Migration Checklist
 
-Para cada seeder:
+For each seeder:
 
-- [ ] Importar `get_ranges` e `get_recommended_chaos_types`
-- [ ] Definir `SCHEMA_NAME` e `TABLE_NAME`
-- [ ] Obter `RANGES = get_ranges(table=TABLE_NAME)`
-- [ ] Adicionar argumentos CLI (`--random`, `--min-count`, etc.)
-- [ ] Implementar lógica de randomização (`if args.random:`)
-- [ ] Usar `get_recommended_chaos_types(SCHEMA_NAME)`
-- [ ] Testar com `--random`
-- [ ] Testar com valores fixos (`--count`)
-- [ ] Adicionar à DAG do Airflow
+- [ ] Import `get_ranges` and `get_recommended_chaos_types`
+- [ ] Define `SCHEMA_NAME` and `TABLE_NAME`
+- [ ] Get `RANGES = get_ranges(table=TABLE_NAME)`
+- [ ] Add CLI arguments (`--random`, `--min-count`, etc.)
+- [ ] Implement the randomization logic (`if args.random:`)
+- [ ] Use `get_recommended_chaos_types(SCHEMA_NAME)`
+- [ ] Test with `--random`
+- [ ] Test with fixed values (`--count`)
+- [ ] Add to the Airflow DAG
 
 ---
 
-## 🎲 Exemplo Completo de Migração
+## 🎲 Full Migration Example
 
-### Antes (seeder antigo):
+### Before (old seeder):
 ```python
 parser.add_argument("--count", type=int, default=1000)
 
@@ -281,7 +281,7 @@ orders = generate_sales_order_payloads(count, ...)
 stmt = insert(SalesOrderModel).values(orders)
 ```
 
-### Depois (seeder com randomização):
+### After (seeder with randomization):
 ```python
 from api.config.seeder_config import get_ranges, get_recommended_chaos_types
 
@@ -298,7 +298,7 @@ parser.add_argument("--max-chaos", type=float, default=RANGES.max_chaos)
 if args.random:
     count = random.randint(args.min_count, args.max_count)
     chaos_rate = random.uniform(args.min_chaos, args.max_chaos)
-    print(f"🎲 Sorteado: {count:,} registros | Chaos: {chaos_rate:.2%}")
+    print(f"🎲 Drawn: {count:,} records | Chaos: {chaos_rate:.2%}")
 else:
     count = args.count
     chaos_rate = args.chaos_rate
@@ -313,87 +313,87 @@ stmt = insert(SalesOrderModel).values(orders_with_chaos)
 
 ## 🐛 Troubleshooting
 
-### Problema 1: Valores não estão randomizando
-**Causa**: Esqueceu de passar `--random` na CLI ou DAG
+### Problem 1: Values aren't being randomized
+**Cause**: Forgot to pass `--random` on the CLI or in the DAG
 
-**Solução**:
+**Solution**:
 ```bash
-# ❌ Errado (usa valores fixos)
+# ❌ Wrong (uses fixed values)
 python seeder.py --count 1000
 
-# ✅ Correto (randomiza)
+# ✅ Correct (randomizes)
 python seeder.py --random
 ```
 
-### Problema 2: Chaos rate sempre zero
-**Causa**: `--no-chaos` está ativo ou range min/max é 0.0
+### Problem 2: Chaos rate is always zero
+**Cause**: `--no-chaos` is active, or the min/max range is 0.0
 
-**Solução**:
+**Solution**:
 ```bash
-# Verificar ranges
+# Check ranges
 python -c "from api.config.seeder_config import get_ranges; print(get_ranges('sales'))"
 
-# Forçar chaos
+# Force chaos
 python seeder.py --random --min-chaos 0.05 --max-chaos 0.10
 ```
 
-### Problema 3: Volume ultrapassou limite absoluto (product)
-**Causa**: Não está validando `absolute_max`
+### Problem 3: Volume exceeded the absolute limit (product)
+**Cause**: Not validating `absolute_max`
 
-**Solução**:
+**Solution**:
 ```python
 if RANGES.absolute_max:
     existing = await session.scalar(select(func.count(ProductModel.product_id)))
     count = min(count, RANGES.absolute_max - existing)
 ```
 
-### Problema 4: DAG do Airflow não randomiza
-**Causa**: Comando no BashOperator sem `--random`
+### Problem 4: Airflow DAG isn't randomizing
+**Cause**: BashOperator command missing `--random`
 
-**Solução**:
+**Solution**:
 ```python
-# ❌ Errado
+# ❌ Wrong
 bash_command="python seeder.py --count 1000"
 
-# ✅ Correto
+# ✅ Correct
 bash_command=f"python seeder.py --random --min-count {min} --max-count {max}"
 ```
 
 ---
 
-## 📊 Monitoramento e Auditoria
+## 📊 Monitoring and Auditing
 
-### Logs Importantes
+### Important Logs
 
-Cada seeder deve gerar logs com:
+Each seeder should produce logs with:
 
 ```
-🎲 MODO RANDÔMICO ATIVADO
-   📊 Range de volume: 100,000 a 50,000,000
-   📊 Range de chaos: 1.00% a 10.00%
+🎲 RANDOM MODE ENABLED
+   📊 Volume range: 100,000 to 50,000,000
+   📊 Chaos range: 1.00% to 10.00%
 
-   🎯 Valores sorteados:
-      - Volume: 1,234,567 registros
+   🎯 Values drawn:
+      - Volume: 1,234,567 records
       - Chaos rate: 5.67%
 
-📣 Semeando 1,234,567 pedidos de venda (Fact Table)
+📣 Seeding 1,234,567 sales orders (Fact Table)
    - Batch size: 10,000
    - Chaos rate: 5.67%
-   - Registros existentes: 0
+   - Existing records: 0
 
-   ⏳ Progresso: 10,000/1,234,567 (0.8%)
+   ⏳ Progress: 10,000/1,234,567 (0.8%)
    ...
 
-✅ Seeder finalizado!
-   - Registros inseridos: 1,234,567
-   - Total na tabela: 1,234,567
-   - Anomalias injetadas: ~70,000 (5.67%)
+✅ Seeder finished!
+   - Records inserted: 1,234,567
+   - Total in table: 1,234,567
+   - Anomalies injected: ~70,000 (5.67%)
 ```
 
-### Queries de Auditoria
+### Audit Queries
 
 ```sql
--- Total de registros por tabela
+-- Total records per table
 SELECT
     schemaname,
     tablename,
@@ -402,7 +402,7 @@ FROM pg_stat_user_tables
 WHERE schemaname IN ('sales', 'purchasing', 'warehouse', 'person')
 ORDER BY n_live_tup DESC;
 
--- Distribuição de anomalias (exemplo: CPFs inválidos)
+-- Anomaly distribution (example: invalid CPFs)
 SELECT
     'Invalid CPF' as anomaly_type,
     COUNT(*) as count,
@@ -413,30 +413,30 @@ WHERE cpf IN ('000.000.000-00', '111.111.111-11', '123.456.789-00');
 
 ---
 
-## 🔄 Customização de Ranges
+## 🔄 Customizing Ranges
 
-### Por Schema
+### By Schema
 
-Editar [`api/config/seeder_config.py`](../config/seeder_config.py):
+Edit [`api/config/seeder_config.py`](../config/seeder_config.py):
 
 ```python
 SCHEMA_RANGES = {
     "sales": SchemaRanges(
-        min_count=100_000,      # ← Ajustar aqui
-        max_count=50_000_000,   # ← Ajustar aqui
-        min_chaos=0.01,         # ← Ajustar aqui
-        max_chaos=0.10,         # ← Ajustar aqui
+        min_count=100_000,      # ← Adjust here
+        max_count=50_000_000,   # ← Adjust here
+        min_chaos=0.01,         # ← Adjust here
+        max_chaos=0.10,         # ← Adjust here
         description="..."
     ),
 }
 ```
 
-### Por Tabela Específica
+### By Specific Table
 
 ```python
 TABLE_RANGES = {
     "sales.salesorder": SchemaRanges(
-        min_count=200_000,      # Override para esta tabela
+        min_count=200_000,      # Override for this table
         max_count=60_000_000,
         min_chaos=0.02,
         max_chaos=0.12,
@@ -445,10 +445,10 @@ TABLE_RANGES = {
 }
 ```
 
-### Via CLI (Override Temporário)
+### Via CLI (Temporary Override)
 
 ```bash
-# Forçar ranges específicos para uma execução
+# Force specific ranges for a single run
 python seeder.py --random \
     --min-count 500000 \
     --max-count 1000000 \
@@ -458,27 +458,27 @@ python seeder.py --random \
 
 ---
 
-## 📚 Referências
+## 📚 References
 
-- **Configuração de Ranges**: [api/config/seeder_config.py](../config/seeder_config.py)
-- **Exemplo de Seeder**: [sales/sales_order_EXAMPLE_WITH_CHAOS.py](./sales/sales_order_EXAMPLE_WITH_CHAOS.py)
-- **Exemplo de DAG**: [airflow/dags/EXAMPLE_seeder_dag_with_randomization.py](../../airflow/dags/EXAMPLE_seeder_dag_with_randomization.py)
+- **Range Configuration**: [api/config/seeder_config.py](../config/seeder_config.py)
+- **Example Seeder**: [sales/sales_order_EXAMPLE_WITH_CHAOS.py](./sales/sales_order_EXAMPLE_WITH_CHAOS.py)
+- **Example DAG**: [airflow/dags/EXAMPLE_seeder_dag_with_randomization.py](../../airflow/dags/EXAMPLE_seeder_dag_with_randomization.py)
 - **Chaos Engineering**: [CHAOS_DOCUMENTATION.md](./CHAOS_DOCUMENTATION.md)
-- **Migração Geral**: [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)
-- **Regras Gerais**: [CLAUDE.md](../../CLAUDE.md)
+- **General Migration**: [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)
+- **General Rules**: [CLAUDE.md](../../CLAUDE.md)
 
 ---
 
-## ✅ Conclusão
+## ✅ Conclusion
 
-Com randomização dinâmica, cada execução da DAG do Airflow é **única e imprevisível**, simulando cenários realistas de produção:
+With dynamic randomization, every Airflow DAG run is **unique and unpredictable**, simulating realistic production scenarios:
 
-- 📊 **Dias normais**: 100k registros, 1% chaos
-- 🔥 **Picos de demanda**: 50kk registros, 10% chaos
-- 🎲 **Totalmente randômico**: valores diferentes a cada execução
+- 📊 **Normal days**: 100k records, 1% chaos
+- 🔥 **Demand spikes**: 50M records, 10% chaos
+- 🎲 **Fully random**: different values on every run
 
-Isso permite:
-- Testar pipelines de limpeza com volumes variados
-- Treinar modelos de detecção de fraudes com diferentes taxas de anomalias
-- Validar escalabilidade do sistema (dias normais vs picos)
-- Simular ambientes realistas de produção
+This enables:
+- Testing cleaning pipelines with varied volumes
+- Training fraud detection models with different anomaly rates
+- Validating system scalability (normal days vs spikes)
+- Simulating realistic production environments

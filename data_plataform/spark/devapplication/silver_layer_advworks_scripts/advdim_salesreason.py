@@ -167,7 +167,7 @@ def main():
         return "UnexpectedError"
     
     finally:
-        # Garante que a sessão do Spark seja encerrada, mesmo em caso de erro
+        # Ensures the Spark session is stopped, even in case of error
         if 'spark' in locals():
             sparkStop(spark)
             

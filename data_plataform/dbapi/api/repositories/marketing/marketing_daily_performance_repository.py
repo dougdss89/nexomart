@@ -9,7 +9,7 @@ from api.models.marketing.marketing_dailyperformance import MarketingDailyPerfor
 logger = logging.getLogger(__name__)
 
 class MarketingDailyPerformanceRepository:
-    """ Exclusivo para Tabela Fato de Performance Analítica Diária """
+    """ Exclusively for the Daily Analytical Performance Fact Table """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, perf_data: List[Dict[str, Any]]) -> bool:
@@ -20,5 +20,5 @@ class MarketingDailyPerformanceRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL Bulk Insert DailyPerformance Fato: {e}")
+            logger.error(f"SQL Error Bulk Insert DailyPerformance Fact: {e}")
             raise

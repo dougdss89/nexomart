@@ -100,10 +100,10 @@ def update_dimdate(spark, dataframe):
     
     dataframe.createOrReplaceTempView('dimdate')
     
-    # Registra o DataFrame como uma view temporária
+    # Registers the DataFrame as a temporary view
     # dataframe_date.createOrReplaceTempView("dimdate")
-    
-    # Executa a consulta SQL
+
+    # Executes the SQL query
     tempdataframe = spark.sql("""
         SELECT
             CAST(orderdate AS DATE) AS datekey,
@@ -168,10 +168,10 @@ def update_dimdate(spark, dataframe):
         FROM dimdate
     """)
 
-    # Remove a view temporária
+    # Removes the temporary view
     spark.sql("DROP VIEW dimdate")
 
-    # Retorna o novo DataFrame
+    # Returns the new DataFrame
     dataframe = tempdataframe
     return dataframe
     

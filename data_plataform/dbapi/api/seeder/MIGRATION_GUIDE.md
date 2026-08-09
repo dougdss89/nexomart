@@ -1,54 +1,54 @@
-# Guia de Migração — Seeders com Chaos Engineering
+# Migration Guide — Seeders with Chaos Engineering
 
-Este documento explica como migrar os seeders existentes para o novo padrão com chaos engineering e limites de volume.
+This document explains how to migrate existing seeders to the new pattern with chaos engineering and volume limits.
 
-## Resumo das Mudanças
+## Summary of Changes
 
-### 1. Novos Arquivos Criados
+### 1. New Files Created
 
-| Arquivo | Descrição |
+| File | Description |
 |---------|-----------|
-| [`CHAOS_DOCUMENTATION.md`](./CHAOS_DOCUMENTATION.md) | Documentação completa de todas as anomalias injetadas |
-| [`api/utils/chaos_engineering.py`](../utils/chaos_engineering.py) | Módulo utilitário com funções de chaos engineering |
-| [`sales/sales_order_EXAMPLE_WITH_CHAOS.py`](./sales/sales_order_EXAMPLE_WITH_CHAOS.py) | Exemplo de seeder com novas regras aplicadas |
+| [`CHAOS_DOCUMENTATION.md`](./CHAOS_DOCUMENTATION.md) | Full documentation of every injected anomaly |
+| [`api/utils/chaos_engineering.py`](../utils/chaos_engineering.py) | Utility module with chaos engineering functions |
+| [`sales/sales_order_EXAMPLE_WITH_CHAOS.py`](./sales/sales_order_EXAMPLE_WITH_CHAOS.py) | Example seeder with the new rules applied |
 
-### 2. Atualizações no CLAUDE.md
+### 2. Updates to CLAUDE.md
 
-O arquivo [`CLAUDE.md`](../../CLAUDE.md) foi atualizado com:
-- **Limites de volume por schema** (seção "Data Volume Limits per Schema")
-- **Regras de qualidade de dados** (seção "Data Quality Rules — Chaos Engineering")
-- **Implementação de chaos engineering** nos seeders
+The [`CLAUDE.md`](../../CLAUDE.md) file was updated with:
+- **Volume limits per schema** (section "Data Volume Limits per Schema")
+- **Data quality rules** (section "Data Quality Rules — Chaos Engineering")
+- **Chaos engineering implementation** in the seeders
 
-## Mudanças Necessárias nos Seeders Existentes
+## Required Changes to Existing Seeders
 
-### Passo 1: Adicionar Validação de Limites
+### Step 1: Add Limit Validation
 
-Para seeders dos schemas `product`, adicionar validação **antes** de inserir:
+For seeders in the `product` schema, add validation **before** inserting:
 
 ```python
 from sqlalchemy import func
 
-# Exemplo: seeder de products
+# Example: product seeder
 MAX_PRODUCTS = 100_000
 
 existing_count = await session.scalar(select(func.count(ProductModel.product_id)))
 if existing_count + count > MAX_PRODUCTS:
-    print(f"⚠️ Limite de produtos atingido ({existing_count}/{MAX_PRODUCTS}).")
-    print(f"   Só é possível inserir mais {MAX_PRODUCTS - existing_count} registros.")
+    print(f"⚠️ Product limit reached ({existing_count}/{MAX_PRODUCTS}).")
+    print(f"   Only {MAX_PRODUCTS - existing_count} more records can be inserted.")
     return
 ```
 
-### Passo 2: Importar Módulo de Chaos Engineering
+### Step 2: Import the Chaos Engineering Module
 
-Adicionar no início do arquivo:
+Add at the top of the file:
 
 ```python
 from api.utils.chaos_engineering import apply_data_quality_chaos, generate_chaos_metadata
 ```
 
-### Passo 3: Aplicar Chaos Engineering Antes da Inserção
+### Step 3: Apply Chaos Engineering Before Insertion
 
-**ANTES** (código antigo):
+**BEFORE** (old code):
 ```python
 orders = generate_sales_order_payloads(count, customer_ids, ...)
 
@@ -56,12 +56,12 @@ stmt = insert(SalesOrderModel).values(orders)
 await session.execute(stmt)
 ```
 
-**DEPOIS** (novo código):
+**AFTER** (new code):
 ```python
-# 1. Gerar dados limpos
+# 1. Generate clean data
 orders = generate_sales_order_payloads(count, customer_ids, ...)
 
-# 2. Aplicar chaos engineering (5% de anomalias)
+# 2. Apply chaos engineering (5% anomalies)
 orders_with_chaos = apply_data_quality_chaos(
     orders,
     chaos_rate=0.05,
@@ -71,23 +71,23 @@ orders_with_chaos = apply_data_quality_chaos(
     verbose=True
 )
 
-# 3. Inserir com anomalias
+# 3. Insert with anomalies
 stmt = insert(SalesOrderModel).values(orders_with_chaos)
 await session.execute(stmt)
 ```
 
-### Passo 4: Adicionar Argumentos CLI
+### Step 4: Add CLI Arguments
 
-Atualizar `argparse` para permitir controle de chaos rate:
+Update `argparse` to allow controlling the chaos rate:
 
 ```python
-parser.add_argument("--chaos-rate", type=float, default=0.05, help="Percentual de anomalias (0.01 a 0.10)")
-parser.add_argument("--no-chaos", action="store_true", help="Desabilita chaos engineering")
+parser.add_argument("--chaos-rate", type=float, default=0.05, help="Anomaly percentage (0.01 to 0.10)")
+parser.add_argument("--no-chaos", action="store_true", help="Disables chaos engineering")
 ```
 
-### Passo 5: Gerar Metadados (Opcional)
+### Step 5: Generate Metadata (Optional)
 
-Para documentação, gerar metadados de chaos:
+For documentation purposes, generate chaos metadata:
 
 ```python
 if apply_chaos:
@@ -99,166 +99,166 @@ if apply_chaos:
     print(f"\n📊 Chaos Metadata: {metadata}")
 ```
 
-## Tipos de Chaos por Schema
+## Chaos Types by Schema
 
 ### Sales
 
-Tipos de chaos recomendados:
-- `duplicate` — Registros duplicados
-- `dirty_cpf` — CPF inválido
-- `dirty_email` — Email malformado
-- `fraud_fake_cpf` — CPF falso com nome real
-- `fraud_cloned_card` — Compras geograficamente impossíveis
-- `fraud_high_value_suspicious` — Alto valor com dados suspeitos
-- `incomplete_payment` — Pagamento pendente > 30 dias
-- `incomplete_shipping` — Pago mas não enviado > 15 dias
-- `incomplete_delivery` — Enviado mas não entregue > 90 dias
+Recommended chaos types:
+- `duplicate` — Duplicate records
+- `dirty_cpf` — Invalid CPF
+- `dirty_email` — Malformed email
+- `fraud_fake_cpf` — Fake CPF with a real name
+- `fraud_cloned_card` — Geographically impossible purchases
+- `fraud_high_value_suspicious` — High value with suspicious data
+- `incomplete_payment` — Payment pending > 30 days
+- `incomplete_shipping` — Paid but not shipped > 15 days
+- `incomplete_delivery` — Shipped but not delivered > 90 days
 
 ### Purchasing
 
-Tipos de chaos recomendados:
-- `duplicate` — Registros duplicados
-- `fraud_duplicate_order` — Ordens duplicadas para mesmo fornecedor
-- `fraud_phantom_vendor` — Fornecedores fantasmas
-- `fraud_overpriced` — Superfaturamento (3-8x acima)
-- `negative_cost` — Custos negativos
-- `missing_vendor_ref` — Compra sem fornecedor
+Recommended chaos types:
+- `duplicate` — Duplicate records
+- `fraud_duplicate_order` — Duplicate orders for the same vendor
+- `fraud_phantom_vendor` — Phantom vendors
+- `fraud_overpriced` — Overpricing (3-8x above market)
+- `negative_cost` — Negative costs
+- `missing_vendor_ref` — Purchase without a vendor
 
 ### Warehouse
 
-Tipos de chaos recomendados:
-- `warehouse_lost_transfer` — Transferências perdidas (> 90 dias)
-- `warehouse_quantity_mismatch` — Divergência de quantidade
-- `warehouse_negative_stock` — Estoque negativo
-- `warehouse_missing_location` — Produto sem localização física
-- `warehouse_quality_fail` — Produto reprovado mas enviado
-- `warehouse_cold_chain_break` — Cold chain quebrada
-- `warehouse_same_location_transfer` — Transferência para mesmo local
-- `warehouse_missing_traceability` — Sem rastreabilidade
-- `missing_order_ref` — Movimentação sem ordem de origem
+Recommended chaos types:
+- `warehouse_lost_transfer` — Lost transfers (> 90 days)
+- `warehouse_quantity_mismatch` — Quantity mismatch
+- `warehouse_negative_stock` — Negative stock
+- `warehouse_missing_location` — Product without a physical location
+- `warehouse_quality_fail` — Product failed QC but still shipped
+- `warehouse_cold_chain_break` — Broken cold chain
+- `warehouse_same_location_transfer` — Transfer to the same location
+- `warehouse_missing_traceability` — Missing traceability
+- `missing_order_ref` — Movement without a source order
 
 ### Person
 
-Tipos de chaos recomendados:
-- `duplicate` — Registros duplicados
-- `dirty_cpf` — CPF inválido
-- `dirty_phone` — Telefone inválido
-- `dirty_email` — Email malformado
-- `dirty_cep` — CEP inválido
-- `dirty_name` — Nome inválido
-- `fraud_fake_address` — Nome falso com endereço real
+Recommended chaos types:
+- `duplicate` — Duplicate records
+- `dirty_cpf` — Invalid CPF
+- `dirty_phone` — Invalid phone
+- `dirty_email` — Malformed email
+- `dirty_cep` — Invalid postal code (CEP)
+- `dirty_name` — Invalid name
+- `fraud_fake_address` — Fake name with a real address
 
 ### HumanResources
 
-**Não aplicar chaos engineering** — Volume muito baixo (100 linhas) e dados críticos para RH.
+**Do not apply chaos engineering** — Volume is too low (100 rows) and the data is critical for HR.
 
 ### Product
 
-**Aplicar chaos moderado** (2-3%) — Volume controlado (máx 100k):
-- `duplicate` — Produtos duplicados
-- `outlier_value` — Preços muito altos/baixos
+**Apply moderate chaos** (2-3%) — Controlled volume (max 100k):
+- `duplicate` — Duplicate products
+- `outlier_value` — Prices way too high/low
 
-## Exemplo Completo de Migração
+## Full Migration Example
 
-Veja o arquivo [`sales/sales_order_EXAMPLE_WITH_CHAOS.py`](./sales/sales_order_EXAMPLE_WITH_CHAOS.py) para um exemplo completo de seeder migrado.
+See [`sales/sales_order_EXAMPLE_WITH_CHAOS.py`](./sales/sales_order_EXAMPLE_WITH_CHAOS.py) for a full example of a migrated seeder.
 
-## Testes Recomendados
+## Recommended Tests
 
-Após migrar um seeder, execute testes para validar:
+After migrating a seeder, run tests to validate:
 
-1. **Teste com dados limpos** (sem chaos):
+1. **Test with clean data** (no chaos):
    ```bash
    uv run python api/seeder/sales/sales_order.py --count 100 --no-chaos
    ```
 
-2. **Teste com chaos baixo** (1%):
+2. **Test with low chaos** (1%):
    ```bash
    uv run python api/seeder/sales/sales_order.py --count 100 --chaos-rate 0.01
    ```
 
-3. **Teste com chaos alto** (10%):
+3. **Test with high chaos** (10%):
    ```bash
    uv run python api/seeder/sales/sales_order.py --count 100 --chaos-rate 0.10
    ```
 
-4. **Verificar anomalias injetadas**:
+4. **Verify injected anomalies**:
    ```sql
-   -- CPFs inválidos
+   -- Invalid CPFs
    SELECT COUNT(*) FROM person.customer WHERE cpf IN ('000.000.000-00', '111.111.111-11');
 
-   -- Duplicatas (case-insensitive)
+   -- Duplicates (case-insensitive)
    SELECT UPPER(customer_name), COUNT(*) FROM person.customer GROUP BY UPPER(customer_name) HAVING COUNT(*) > 1;
 
-   -- Estoque negativo
+   -- Negative stock
    SELECT COUNT(*) FROM warehouse.product_inventory WHERE quantity_on_hand < 0;
    ```
 
-## Priorização de Migração
+## Migration Priority
 
-### Alta Prioridade (Schemas Críticos)
+### High Priority (Critical Schemas)
 
-1. **`sales/sales_order.py`** — Fato principal de vendas
-2. **`purchasing/purchase_purchaseorderheader.py`** — Fato principal de compras
-3. **`warehouse/transaction_history.py`** — Fato principal de movimentações
-4. **`person/person_customer.py`** — Dimensão crítica de clientes
+1. **`sales/sales_order.py`** — Main sales fact
+2. **`purchasing/purchase_purchaseorderheader.py`** — Main purchasing fact
+3. **`warehouse/transaction_history.py`** — Main movement fact
+4. **`person/person_customer.py`** — Critical customer dimension
 
-### Média Prioridade
+### Medium Priority
 
-5. **`sales/sales_return_order.py`** — Devoluções (importante para análise de qualidade)
-6. **`warehouse/product_inventory.py`** — Estoque atual
-7. **`purchasing/purchase_purchaseorderdetail.py`** — Detalhes de compras
+5. **`sales/sales_return_order.py`** — Returns (important for quality analysis)
+6. **`warehouse/product_inventory.py`** — Current stock
+7. **`purchasing/purchase_purchaseorderdetail.py`** — Purchase details
 
-### Baixa Prioridade
+### Low Priority
 
-8. Seeders de dimensões estáveis (marketing, product categories, etc.)
-9. Seeders de lookup tables (channels, transaction types, etc.)
+8. Stable dimension seeders (marketing, product categories, etc.)
+9. Lookup table seeders (channels, transaction types, etc.)
 
-## Checklist de Migração
+## Migration Checklist
 
-Para cada seeder migrado:
+For each migrated seeder:
 
-- [ ] Adicionar validação de limites (se aplicável)
-- [ ] Importar `apply_data_quality_chaos` e `generate_chaos_metadata`
-- [ ] Aplicar chaos engineering antes da inserção
-- [ ] Adicionar argumentos CLI (`--chaos-rate`, `--no-chaos`)
-- [ ] Escolher tipos de chaos apropriados para o domínio
-- [ ] Testar com dados limpos e com chaos
-- [ ] Verificar anomalias injetadas no banco
-- [ ] Atualizar documentação (comentários no código)
-- [ ] Gerar metadados de chaos (opcional)
+- [ ] Add limit validation (if applicable)
+- [ ] Import `apply_data_quality_chaos` and `generate_chaos_metadata`
+- [ ] Apply chaos engineering before insertion
+- [ ] Add CLI arguments (`--chaos-rate`, `--no-chaos`)
+- [ ] Choose chaos types appropriate to the domain
+- [ ] Test with clean data and with chaos
+- [ ] Verify anomalies injected into the database
+- [ ] Update documentation (code comments)
+- [ ] Generate chaos metadata (optional)
 
-## Próximos Passos
+## Next Steps
 
-1. **Migrar seeders prioritários** (sales, purchasing, warehouse, person)
-2. **Criar dashboards de data quality** (Trino + queries analíticas)
-3. **Implementar pipelines de limpeza** (dbt models)
-4. **Treinar modelos de detecção de fraudes** (ML)
-5. **Integrar com ferramentas de validação** (Great Expectations, Soda)
+1. **Migrate priority seeders** (sales, purchasing, warehouse, person)
+2. **Create data quality dashboards** (Trino + analytical queries)
+3. **Implement cleaning pipelines** (dbt models)
+4. **Train fraud detection models** (ML)
+5. **Integrate with validation tools** (Great Expectations, Soda)
 
-## Dúvidas Frequentes
+## FAQ
 
-### 1. Por que injetar dados ruins intencionalmente?
+### 1. Why intentionally inject bad data?
 
-Para simular cenários reais de engenharia de dados e testar pipelines de limpeza, detecção de fraudes e governança.
+To simulate real-world data engineering scenarios and test cleaning pipelines, fraud detection, and governance.
 
-### 2. Posso desabilitar chaos engineering?
+### 2. Can I disable chaos engineering?
 
-Sim, use `--no-chaos` para gerar apenas dados limpos (útil para testes ou ambientes de produção sem necessidade de chaos).
+Yes, use `--no-chaos` to generate clean data only (useful for tests or production environments that don't need chaos).
 
-### 3. Como escolher o chaos_rate ideal?
+### 3. How do I choose the ideal chaos_rate?
 
-- **1-3%**: Ambientes de produção ou validação final
-- **5%** (padrão): Desenvolvimento e testes de pipelines
-- **10%**: Testes de stress de sistemas de limpeza
+- **1-3%**: Production environments or final validation
+- **5%** (default): Development and pipeline testing
+- **10%**: Stress testing cleaning systems
 
-### 4. Como documentar as anomalias injetadas?
+### 4. How do I document the injected anomalies?
 
-Use `generate_chaos_metadata()` e salve em arquivo JSON ou banco de dados de metadados.
+Use `generate_chaos_metadata()` and save it to a JSON file or a metadata database.
 
-### 5. Como validar que o chaos foi aplicado corretamente?
+### 5. How do I validate that chaos was applied correctly?
 
-Execute queries de detecção (veja seção "Testes Recomendados") e verifique se as contagens estão próximas do chaos_rate esperado.
+Run detection queries (see the "Recommended Tests" section) and check that the counts are close to the expected chaos_rate.
 
 ---
 
-**Documentação**: Para mais detalhes sobre tipos de anomalias, veja [`CHAOS_DOCUMENTATION.md`](./CHAOS_DOCUMENTATION.md).
+**Documentation**: For more details on anomaly types, see [`CHAOS_DOCUMENTATION.md`](./CHAOS_DOCUMENTATION.md).

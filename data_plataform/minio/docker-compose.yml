@@ -30,16 +30,16 @@ services:
       timeout: 20s
       retries: 3
 
-  # Provisiona os buckets assim que o MinIO fica saudável. Roda uma vez e finaliza
-  # (mesmo padrão do airflow-init em airflow/docker-compose.yaml) — idempotente via
-  # `mc mb --ignore-existing`, então é seguro rodar em todo `make up`/`make up-minio`.
+  # Provisions the buckets as soon as MinIO becomes healthy. Runs once and finishes
+  # (same pattern as airflow-init in airflow/docker-compose.yaml) — idempotent via
+  # `mc mb --ignore-existing`, so it's safe to run on every `make up`/`make up-minio`.
   #
-  # - "spark-events" é OBRIGATÓRIO e fixo aqui: o Spark History Server lê
+  # - "spark-events" is REQUIRED and fixed here: the Spark History Server reads
   #   spark.eventLog.dir=s3a://spark-events/apps (spark/conf/spark-defaults.conf.template)
-  #   e crasha no boot se o bucket/prefixo não existir. Não mover para a lista abaixo.
-  # - Todo o resto vem de MINIO_EXTRA_BUCKETS em configurations/secrets.env — uma lista
-  #   separada por vírgula. Ao adicionar um pipeline/camada nova que grava em um bucket
-  #   novo, basta acrescentar o nome nessa variável; nenhum arquivo de código muda.
+  #   and crashes on boot if the bucket/prefix doesn't exist. Do not move it to the list below.
+  # - Everything else comes from MINIO_EXTRA_BUCKETS in configurations/secrets.env — a
+  #   comma-separated list. When adding a new pipeline/layer that writes to a new bucket,
+  #   just append the name to that variable; no code file changes.
   minio-init:
     image: minio/mc:latest
     container_name: minio-init
@@ -57,11 +57,11 @@ services:
 
         mc mb --ignore-existing local/spark-events >/dev/null
         mc mb --ignore-existing local/spark-events/apps >/dev/null
-        echo "✅  Bucket obrigatório pronto: spark-events (com prefixo apps/)"
+        echo "✅  Required bucket ready: spark-events (with apps/ prefix)"
 
         for bucket in $$(echo "$${MINIO_EXTRA_BUCKETS:-}" | tr ',' ' '); do
           mc mb --ignore-existing "local/$$bucket" >/dev/null
-          echo "✅  Bucket pronto: $$bucket"
+          echo "✅  Bucket ready: $$bucket"
         done
     networks:
       - hadoopcluster

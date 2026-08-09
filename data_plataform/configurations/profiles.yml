@@ -1,11 +1,11 @@
-# database/schema aqui são só o default da conexão (Iceberg/Gold). Modelos que
-# precisam servir o Power BI via Postgres sobrescrevem `database: postgres` no
-# próprio config() do model — mesma conexão Trino enxerga os dois catálogos
-# (ver trino/catalog/postgres.properties).
+# database/schema here are just the connection default (Iceberg/Gold). Models that
+# need to serve Power BI via Postgres override `database: postgres` in the
+# model's own config() — the same Trino connection sees both catalogs
+# (see trino/catalog/postgres.properties).
 #
-# Todos os valores vêm de configurations/secrets.env (já carregado como env do
-# container do Airflow via env_file) — nada fica hardcoded aqui. Os defaults do
-# env_var() só existem pra não quebrar se a var não estiver setada.
+# All values come from configurations/secrets.env (already loaded as env in the
+# Airflow container via env_file) — nothing is hardcoded here. The env_var()
+# defaults only exist so it doesn't break if the var isn't set.
 data_platform:
   target: dev
   outputs:
@@ -15,7 +15,7 @@ data_platform:
       host: "{{ env_var('TRINO_HOST', 'trino-coordinator') }}"
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       user: airflow
-      database: "{{ env_var('TRINO_CATALOG', 'iceberglake') }}"
+      database: "{{ env_var('TRINO_CATALOG', 'nexo') }}"
       schema: "{{ env_var('TRINO_SCHEMA', 'gold') }}"
       threads: 4
       prepared_statements_enabled: false

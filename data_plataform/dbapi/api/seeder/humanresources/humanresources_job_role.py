@@ -1,88 +1,110 @@
 import uuid
 import random
+import asyncio
+import sys
+import os
 from datetime import datetime, timedelta
+from sqlalchemy import insert
+from api.database import AsyncSessionLocal
 
-from api.samples.job_roles import CARGOS_OPERACAO
+from api.samples.job_roles import JOB_ROLES
+from api.models.humanresources.jobrole import HumanResourcesJobRoleModel
+from api.seeder.cli_common import build_parser
+
+# Adjust path to import API modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 def get_job_role_seeders() -> list[dict]:
 
     """
-    Gera seeders de cargos (job roles) com base salarial e histórico dos profissionais.
+    Generates job role seeders with salary base and professional history.
     """
-    
+
     batch = []
 
     job_role_id_counter = 1
 
-    data_hoje = datetime.now()
-    
-    for titulo, salario_minimo, salario_maximo in CARGOS_OPERACAO:
-        
-        reajuste = random.choice([True, False, False])
+    today = datetime.now()
 
-        if reajuste:
-            #gera registro antigo ou inativo
-            #vigencia de 3 anos ou 1 ano
-            #salario minimo e maximo com reajuste de 20%
+    for title, min_salary, max_salary in JOB_ROLES:
 
-            start_antigo = data_hoje - timedelta(days=random.randint(700, 1500))
-            end_antigo = start_antigo + timedelta(days=random.randint(180, 600))
+        has_raise = random.choice([True, False, False])
 
-            # Ajuste Lógico: O antigo salário era menor que o atual,
-            # variando de 10 a 25% de diferença.
-            fator_crescimento = random.uniform(0.75, 0.90)
-            salario_minimo_antigo = round(salario_minimo * fator_crescimento, 2)
-            salario_maximo_antigo = round(salario_maximo * fator_crescimento, 2)
+        if has_raise:
+            #generates an old or inactive record
+            #valid for 3 years or 1 year
+            #min and max salary with a 20% raise
+
+            old_start = today - timedelta(days=random.randint(700, 1500))
+            old_end = old_start + timedelta(days=random.randint(180, 600))
+
+            # Logical adjustment: the old salary was lower than the current one,
+            # ranging from a 10 to 25% difference.
+            growth_factor = random.uniform(0.75, 0.90)
+            old_min_salary = round(min_salary * growth_factor, 2)
+            old_max_salary = round(max_salary * growth_factor, 2)
 
             batch.append({
                 "jobrole_id": job_role_id_counter,
-                "job_title": titulo,
-                "min_salary": salario_minimo_antigo,
-                "max_salary": salario_maximo_antigo,
-                "effective_start_date": start_antigo,
-                "effective_end_date": end_antigo,
+                "job_title": title,
+                "min_salary": old_min_salary,
+                "max_salary": old_max_salary,
+                "effective_start_date": old_start,
+                "effective_end_date": old_end,
                 "is_current": False,
 
-                "created_at": data_hoje,
-                "updated_at": data_hoje,
+                "created_at": today,
+                "updated_at": today,
                 "is_active": True,
                 "row_guid": uuid.uuid4()
             })
 
             job_role_id_counter += 1
 
-            start_atual = end_antigo + timedelta(seconds=1)
+            current_start = old_end + timedelta(seconds=1)
 
         else:
-            start_atual = data_hoje - timedelta(days = random.randint(500, 1000))
+            current_start = today - timedelta(days = random.randint(500, 1000))
 
 
-        #registro atual
+        #current record
         batch.append({
             "jobrole_id": job_role_id_counter,
-            "job_title": titulo,
-            "min_salary": salario_minimo,
-            "max_salary": salario_maximo,
-            "effective_start_date": start_atual,
+            "job_title": title,
+            "min_salary": min_salary,
+            "max_salary": max_salary,
+            "effective_start_date": current_start,
             "effective_end_date": None,
             "is_current": True,
 
-            "created_at": data_hoje,
-            "updated_at": data_hoje,
+            "created_at": today,
+            "updated_at": today,
             "is_active": True,
             "row_guid": uuid.uuid4()
         })
 
-        job_role_id_counter += 1    
+        job_role_id_counter += 1
 
     return batch
 
+
+async def seed_job_roles():
+    """Runs the job role load with salary history (Master Data — fixed list, no chaos)."""
+    async with AsyncSessionLocal() as session:
+        roles = get_job_role_seeders()
+        print(f"📣 Seeding {len(roles)} job role records (including history)...")
+        try:
+            stmt = insert(HumanResourcesJobRoleModel).values(roles)
+            await session.execute(stmt)
+            await session.commit()
+            print("✅ Job roles seeded successfully!")
+        except Exception as e:
+            await session.rollback()
+            print(f"❌ Error seeding job roles: {e}")
+
+
 if __name__ == "__main__":
-    cargos_mock = get_job_role_seeders()
-    
-    print(f"Total de registros de cargo gerados (incluindo histórico): {len(cargos_mock)}")
-    print("-" * 50)
-    
-    import json
-    # Exibe os dois primeiros registros para você validar a matemática das datas
-    print(json.dumps(cargos_mock[:10], indent=2, default=str))
+    parser = build_parser("Seeder for humanresources.jobrole (fixed master data, no chaos)")
+    parser.parse_args()
+
+    asyncio.run(seed_job_roles())

@@ -1,6 +1,6 @@
-# Data Platform — NexoMart
+# Data Platform — IcebergLake
 
-Open-source data platform built from scratch for the **NexoMart** case study — a multi-channel Brazilian marketplace processing between 100 thousand and 50 million orders per cycle. The goal is to separate the transactional layer (OLTP) from the analytical layer (OLAP) without depending on any proprietary cloud.
+Open-source data platform built from scratch for the **IcebergLake** case study — a multi-channel Brazilian marketplace processing between 100 thousand and 50 million orders per cycle. The goal is to separate the transactional layer (OLTP) from the analytical layer (OLAP) without depending on any proprietary cloud.
 
 ---
 
@@ -53,7 +53,7 @@ PostgreSQL (OLTP)
       │  spark/jobs/gold_layer_scripts/
       │  catalog: iceberglake (HiveCatalog → HMS)
       ▼
- Trino ──► dbt (analytical views/marts in the iceberglake.gold catalog)
+ Trino ──► dbt (analytical views/marts in the nexo.gold catalog)
 ```
 
 **Format per layer:**
@@ -63,8 +63,8 @@ PostgreSQL (OLTP)
 | Landing | Raw Parquet | — | `minio` |
 | Bronze | Delta Lake | `spark_catalog` | `delta` |
 | Silver | Delta Lake | `spark_catalog` | `delta` |
-| Gold | Apache Iceberg | `iceberglake` | `iceberglake` |
-| dbt marts | Trino views | — | `iceberglake` |
+| Gold | Apache Iceberg | `iceberglake` | `nexo` |
+| dbt marts | Trino views | — | `nexo` |
 
 ---
 
@@ -91,14 +91,14 @@ spark.sql("SELECT * FROM nexo.gold.gold_dim_productcategory")
 | Catalog | Connector | Use |
 |---------|-----------|-----|
 | `delta` | `delta_lake` + HMS | Bronze and Silver |
-| `iceberglake` | `iceberg` + HMS | Gold (reads and dbt) |
-| `nexo` | `iceberg` + UC REST | Unity Catalog OSS |
+| `iceberglake` | `iceberg` + HMS | Gold direct access (ops/debug) |
+| `nexo` | `iceberg` + UC REST | Gold (reads and dbt) — official read path |
 | `minio` | `delta_lake` + HMS | Landing / raw exploration |
 
 ```sql
 -- Query Gold via Trino
-SELECT * FROM iceberglake.gold.gold_dim_productcategory LIMIT 10;
-SHOW TABLES IN iceberglake.gold;
+SELECT * FROM nexo.gold.gold_dim_productcategory LIMIT 10;
+SHOW TABLES IN nexo.gold;
 ```
 
 ### Unity Catalog OSS — via REST API
@@ -160,12 +160,12 @@ data_plataform/
 │       └── spark-defaults.conf.template  # generated via envsubst
 ├── hive/                   # Hive Metastore 4.0 (PostgreSQL backend)
 ├── trino/
-│   └── catalog/             # delta.properties, iceberglake.properties, nexo.properties, minio.properties
+│   └── catalog/             # delta.properties, iceberglake.properties, nexomart.properties, nexo.properties, minio.properties
 ├── unitycatalog/           # Unity Catalog OSS (REST API + Iceberg REST catalog)
 ├── configurations/
 │   ├── .env                # Job paths, MinIO buckets, connections
 │   ├── secrets.env         # Credentials (not committed)
-│   ├── profiles.yml        # dbt target: iceberglake.gold via Trino
+│   ├── profiles.yml        # dbt target: nexo.gold via Trino
 │   ├── dbt/                # dbt-trino project (gold models)
 │   └── configconnections_loader.py
 └── Makefile                # Stack operation commands
@@ -357,7 +357,7 @@ spark.hadoop.fs.s3a.endpoint         http://minio:9000
 
 ### dbt — Gold Models
 
-Target: `iceberglake.gold` via Trino (`configurations/profiles.yml`).
+Target: `nexo.gold` via Trino (`configurations/profiles.yml`).
 
 ```yaml
 data_platform:
@@ -365,14 +365,14 @@ data_platform:
   outputs:
     dev:
       type: trino
-      database: iceberglake
+      database: nexo
       schema: gold
 ```
 
 Use `materialized='view'` for marts that are direct projections — no S3 writes, no `__dbt_tmp` / `__dbt_backup` leftovers.
 
 Sources declared in `configurations/dbt/models/gold/sources.yml`:
-- `gold` → `iceberglake.gold` (Iceberg tables written by Spark)
+- `gold` → `nexo.gold` (Iceberg tables written by Spark via iceberglake, read by Trino via nexo/UC REST)
 - `gold_iceberg` → alias for future domains (buyer)
 
 ---
@@ -495,7 +495,7 @@ docker compose --env-file configurations/secrets.env -f <service>/docker-compose
 **Cleanup:**
 ```bash
 docker exec trino-coordinator trino --server http://localhost:8080 --user admin \
-  --execute "DROP TABLE IF EXISTS iceberglake.gold.gold_mart_productcategory__dbt_backup"
+  --execute "DROP TABLE IF EXISTS nexo.gold.gold_mart_productcategory__dbt_backup"
 ```
 
 **Prevention:** use `materialized='view'` for marts that are direct projections.
@@ -568,11 +568,11 @@ docker exec pgprojeto psql -U admin -d metastore -c '\dt' | grep -iE "lock|txn"
 ```bash
 # Gold (Iceberg)
 docker exec trino-coordinator trino \
-  --execute "SHOW TABLES IN iceberglake.gold" \
+  --execute "SHOW TABLES IN nexo.gold" \
   --server http://localhost:8080 --user admin
 
 docker exec trino-coordinator trino \
-  --execute "SELECT count(*) FROM iceberglake.gold.gold_dim_productcategory" \
+  --execute "SELECT count(*) FROM nexo.gold.gold_dim_productcategory" \
   --server http://localhost:8080 --user admin
 
 # Bronze / Silver (Delta)

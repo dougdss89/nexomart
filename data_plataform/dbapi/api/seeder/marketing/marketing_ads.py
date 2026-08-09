@@ -11,18 +11,20 @@ from api.schemas.marketing.marketing_ads import MarketingAd, MarketingStatus, Ma
 from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
 from api.models.marketing.marketing_advertise import MarketingAdvertiseModel
 from api.seeder.chaos import apply_ads_chaos
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args
 
-# Ajustar path para importar módulos da API
+# Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 fake = Faker('pt_BR')
 
-def generate_ad_payloads(adgroups_reais: list[dict]) -> list[dict]:
+def generate_ad_payloads(real_adgroups: list[dict], chaos_rate: float = 0.05, apply_chaos: bool = True) -> list[dict]:
     """
-    Gera payloads de Anúncios baseados em AdGroups REAIS do banco.
+    Generates Ad payloads based on REAL AdGroups from the database.
     """
     batch = []
-    for adgroup in adgroups_reais:
+    ad_id_counter = 1
+    for adgroup in real_adgroups:
         num_ads = random.randint(1, 3)
         adgroup_name = adgroup["ad_group_name"]
         
@@ -45,7 +47,7 @@ def generate_ad_payloads(adgroups_reais: list[dict]) -> list[dict]:
 
             status = random.choice(list(MarketingStatus))
             payload = {
-                "ad_id": None, # Auto-increment
+                "ad_id": ad_id_counter,  # placeholder for Pydantic validation (gt=0); removed before insert
                 "ad_group_id": adgroup["ad_group_id"],
                 "ad_name": f"AD_{i+1}_{adgroup_name}",
                 "external_id": f"EXT-AD-{uuid.uuid4().hex[:10].upper()}",
@@ -64,34 +66,48 @@ def generate_ad_payloads(adgroups_reais: list[dict]) -> list[dict]:
                 "is_active": status == MarketingStatus.ACTIVE,
                 "row_guid": uuid.uuid4()
             }
-            batch.append(MarketingAd(**payload).model_dump())
+            ad_obj = MarketingAd(**payload)
+            validated_ad = ad_obj.model_dump()
+            # creative_data is JSONB — HttpUrl/AnyUrl need to become strings (JSON-safe type)
+            validated_ad["creative_data"] = ad_obj.creative_data.model_dump(mode="json")
+            validated_ad.pop("ad_id", None)  # let the database's autoincrement take over
+            batch.append(validated_ad)
+            ad_id_counter += 1
 
-    return apply_ads_chaos(batch)
+    if apply_chaos:
+        batch = apply_ads_chaos(batch, chaos_rate=chaos_rate)
 
-async def seed_marketing_ads():
+    return batch
+
+async def seed_marketing_ads(chaos_rate: float = 0.05, apply_chaos: bool = True):
     """
-    Executa a carga dos Anúncios consumindo AdGroups REAIS do banco.
+    Runs the Ads load consuming REAL AdGroups from the database.
     """
     async with AsyncSessionLocal() as session:
-        # 1. Buscar AdGroups reais (Dimensional Integrity)
+        # 1. Fetch real AdGroups (Dimensional Integrity)
         result = await session.execute(select(MarketingAdGroupModel.ad_group_id, MarketingAdGroupModel.ad_group_name))
-        adgroups_reais = [{"ad_group_id": row[0], "ad_group_name": row[1]} for row in result.all()]
+        real_adgroups = [{"ad_group_id": row[0], "ad_group_name": row[1]} for row in result.all()]
 
-        if not adgroups_reais:
-            print("⚠️ Nenhum AdGroup encontrado! Rode o seeder de MarketingAdGroup primeiro.")
+        if not real_adgroups:
+            print("⚠️ No AdGroup found! Run the MarketingAdGroup seeder first.")
             return
 
-        print(f"📣 Semeando Anúncios para {len(adgroups_reais)} grupos ativos...")
-        ads = generate_ad_payloads(adgroups_reais)
-        
+        print(f"📣 Seeding Ads for {len(real_adgroups)} active groups | chaos={chaos_rate:.2%}")
+        ads = generate_ad_payloads(real_adgroups, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+
         try:
             stmt = insert(MarketingAdvertiseModel).values(ads)
             await session.execute(stmt)
             await session.commit()
-            print(f"✅ {len(ads)} Anúncios semeados com sucesso!")
+            print(f"✅ {len(ads)} Ads seeded successfully!")
         except Exception as e:
             await session.rollback()
-            print(f"❌ Erro ao semear Anúncios: {e}")
+            print(f"❌ Error seeding Ads: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(seed_marketing_ads())
+    parser = build_parser("Seeder for marketing.marketing_advertise (fan-out of real adgroups)")
+    add_chaos_args(parser, default_chaos_rate=0.05)
+    args = parser.parse_args()
+    chaos_rate, apply_chaos = resolve_chaos_args(args, default_chaos_rate=0.05)
+
+    asyncio.run(seed_marketing_ads(chaos_rate=chaos_rate, apply_chaos=apply_chaos))

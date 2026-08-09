@@ -30,7 +30,7 @@ services:
       - trino-coordinator
     cpus: "4.0"
     mem_limit: 10g
-    # Comando de inicialização com geração de ID dinâmico
+    # Startup command with dynamic ID generation
     command: sh -c "echo -e '\nnode.id='`cat /proc/sys/kernel/random/uuid` >> /etc/trino/node.properties && /usr/lib/trino/bin/launcher run --etc-dir=/etc/trino"
 
 networks:

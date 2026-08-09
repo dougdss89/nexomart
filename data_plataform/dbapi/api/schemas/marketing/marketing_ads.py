@@ -22,28 +22,28 @@ class MarketingMediaType(str, Enum):
     TEXT = "text"
     
 class MediaAsset(BaseModel):
-    # HttpUrl valida se é um link real (começa com http/https)
-    # AnyUrl aceita s3://, gs://, etc.
-    url: AnyUrl = Field(description="URL do S3 ou CDN") 
-    
-    # Opcionais, pois uma imagem não tem duração
-    duration_seconds: Optional[int] = Field(None, ge=0, description="Duração em segundos (para vídeos)")
-    file_size_mb: Optional[float] = Field(None, ge=0, description="Tamanho do arquivo em MB")
-    width: Optional[int] = Field(None, description="Largura em pixels")
-    height: Optional[int] = Field(None, description="Altura em pixels")
-    
+    # HttpUrl validates that it is a real link (starts with http/https)
+    # AnyUrl accepts s3://, gs://, etc.
+    url: AnyUrl = Field(description="S3 or CDN URL")
+
+    # Optional, since an image has no duration
+    duration_seconds: Optional[int] = Field(None, ge=0, description="Duration in seconds (for videos)")
+    file_size_mb: Optional[float] = Field(None, ge=0, description="File size in MB")
+    width: Optional[int] = Field(None, description="Width in pixels")
+    height: Optional[int] = Field(None, description="Height in pixels")
+
 class MarketingCreativeData(BaseModel):
-    
+
     headline: str = Field(max_length=150)
     description: str = Field(max_length=200)
-    
-    # Validação de URL real para o destino do anúncio
-    final_url: HttpUrl 
-    
+
+    # Real URL validation for the ad destination
+    final_url: HttpUrl
+
     media_type: MarketingMediaType
-    
-    # AQUI ESTÁ A CORREÇÃO DE TIPAGEM:
-    # Em vez de List[Dict], usamos List[MediaAsset]
+
+    # THIS IS THE TYPING FIX:
+    # Instead of List[Dict], we use List[MediaAsset]
     media_assets: List[MediaAsset] = Field(default_factory=list)
     
 

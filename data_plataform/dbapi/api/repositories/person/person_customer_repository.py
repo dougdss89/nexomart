@@ -9,9 +9,9 @@ from api.models.person.customer import CustomerModel as PersonCustomerModel
 logger = logging.getLogger(__name__)
 
 class PersonCustomerRepository:
-    """ 
-    Camada de Acesso a Dados (SQLAlchemy). 
-    Todas as interações diretas com o PostgreSQL de Clientes ficam restritas aqui. 
+    """
+    Data Access Layer (SQLAlchemy).
+    All direct interactions with the Customers PostgreSQL are restricted to here.
     """
     
     @staticmethod
@@ -23,7 +23,7 @@ class PersonCustomerRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL no bulk_insert de Customers: {e}")
+            logger.error(f"SQL Error in bulk_insert of Customers: {e}")
             raise
 
     @staticmethod
@@ -33,19 +33,19 @@ class PersonCustomerRepository:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro SQL ao buscar Customer {customer_id}: {e}")
+            logger.error(f"SQL Error fetching Customer {customer_id}: {e}")
             raise
 
     @staticmethod
     async def create_single(db: AsyncSession, customer_data: Dict[str, Any]) -> PersonCustomerModel:
-        """ Cria e retorna a própria Entidade originada persistindo no banco (Útil para APIs transacionais). """
+        """ Creates and returns the originated Entity persisted in the database (Useful for transactional APIs). """
         try:
-            novo_cliente = PersonCustomerModel(**customer_data)
-            db.add(novo_cliente)
+            new_customer = PersonCustomerModel(**customer_data)
+            db.add(new_customer)
             await db.commit()
-            await db.refresh(novo_cliente)
-            return novo_cliente
+            await db.refresh(new_customer)
+            return new_customer
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL ao criar cliente único: {e}")
+            logger.error(f"SQL Error creating single customer: {e}")
             raise

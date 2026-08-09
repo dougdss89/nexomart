@@ -17,13 +17,13 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .getOrCreate()
 
-# Cria o namespace (database) se não existir
+# Creates the namespace (database) if it doesn't exist
 # spark.sql("CREATE BRANCH IF NOT EXISTS dev IN nessie")
 # spark.sql("USE REFERENCE dev IN nessie")
 
 spark.sql("CREATE DATABASE IF NOT EXISTS nessie.db")
 
-# Dados de exemplo
+# Sample data
 data = [("Data Engineer", 1), ("Data Scientist", 2), ("Analyst", 3)]
 schema = StructType([
     StructField("role", StringType(), True),
@@ -32,13 +32,13 @@ schema = StructType([
 
 dataframe = spark.createDataFrame(data, schema)
 
-# Escreve os dados
+# Writes the data
 dataframe.write.format("iceberg").mode("overwrite").saveAsTable("nessie.db.testefim")
 
-# Cria e usa um branch
+# Creates and uses a branch
 
 
-# Consulta
+# Query
 spark.sql("SELECT * FROM nessie.db.testefim").show()
 
 spark.stop()

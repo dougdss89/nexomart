@@ -14,33 +14,37 @@ from api.models.marketing.marketing_campaign import MarketingCampaignModel
 from api.models.marketing.marketing_channel import MarketingChannelModel
 from api.models.marketing.marketing_dailyperformance import MarketingDailyPerformanceModel
 from api.seeder.chaos import apply_daily_performance_chaos
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args
 
-# Ajustar path para importar módulos da API
+# Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 def generate_performance_payloads(
-    ads_reais: list[dict],
+    real_ads: list[dict],
     platform_by_campaign: dict[int, str] | None = None,
     budget_by_campaign: dict[int, Decimal] | None = None,
+    chaos_rate: float = 0.05,
+    apply_chaos: bool = True,
 ) -> list[dict]:
     """
-    Gera a Tabela Fato de Performance Diária com funil matemático.
+    Generates the Daily Performance Fact Table with a mathematical funnel.
     """
     batch = []
-    data_hoje = datetime.now().date()
-    
-    for an in ads_reais:
-        # Gera de 7 a 30 dias de histórico
-        dias_historico = random.randint(7, 30)
-        data_inicio = data_hoje - timedelta(days=dias_historico)
-        
-        is_gsn = "GSN" in an["ad_name"].upper()
-        media_type = an["creative_data"].get("media_type", "image")
+    today = datetime.now().date()
+    performance_id_counter = 1
 
-        for j in range(dias_historico + 1):
-            dia_ref = data_inicio + timedelta(days=j)
-            
-            # --- Funil Matemático ---
+    for ad in real_ads:
+        # Generates 7 to 30 days of history
+        history_days = random.randint(7, 30)
+        start_date = today - timedelta(days=history_days)
+
+        is_gsn = "GSN" in ad["ad_name"].upper()
+        media_type = ad["creative_data"].get("media_type", "image")
+
+        for j in range(history_days + 1):
+            ref_date = start_date + timedelta(days=j)
+
+            # --- Mathematical Funnel ---
             impressions = random.randint(100, 5000)
             ctr = random.uniform(0.015, 0.05) if is_gsn else random.uniform(0.008, 0.03)
             clicks = int(impressions * ctr)
@@ -64,11 +68,11 @@ def generate_performance_payloads(
                 metrics_payload["search_impression_share"] = round(random.uniform(0.5, 0.9), 4)
 
             payload = {
-                "performance_id": None, # Auto-increment
-                "campaign_id": an["campaign_id"],
-                "ad_group_id": an["ad_group_id"],
-                "ad_id": an["ad_id"],
-                "date_ref": dia_ref,
+                "performance_id": performance_id_counter,  # placeholder for Pydantic validation (gt=0); removed before insert
+                "campaign_id": ad["campaign_id"],
+                "ad_group_id": ad["ad_group_id"],
+                "ad_id": ad["ad_id"],
+                "date_ref": ref_date,
                 "cost": cost,
                 "impressions": impressions,
                 "clicks": clicks,
@@ -80,20 +84,30 @@ def generate_performance_payloads(
                 "is_active": True,
                 "row_guid": uuid.uuid4()
             }
-            batch.append(MarketingDailyPerformance(**payload).model_dump())
+            performance_obj = MarketingDailyPerformance(**payload)
+            validated_performance = performance_obj.model_dump()
+            # metrics is JSONB and has an internal datetime (created_at) — needs to become a JSON-safe type
+            validated_performance["metrics"] = performance_obj.metrics.model_dump(mode="json")
+            validated_performance.pop("performance_id", None)  # let the database's autoincrement take over
+            batch.append(validated_performance)
+            performance_id_counter += 1
 
-    return apply_daily_performance_chaos(
-        batch,
-        platform_by_campaign=platform_by_campaign,
-        budget_by_campaign=budget_by_campaign,
-    )
+    if apply_chaos:
+        batch = apply_daily_performance_chaos(
+            batch,
+            chaos_rate=chaos_rate,
+            platform_by_campaign=platform_by_campaign,
+            budget_by_campaign=budget_by_campaign,
+        )
 
-async def seed_marketing_performance():
+    return batch
+
+async def seed_marketing_performance(chaos_rate: float = 0.05, apply_chaos: bool = True):
     """
-    Executa a carga de performance consumindo a hierarquia REAL do banco.
+    Runs the performance load consuming the REAL hierarchy from the database.
     """
     async with AsyncSessionLocal() as session:
-        # 1. Buscar a malha de anúncios -> adgroups -> campaigns
+        # 1. Fetch the ads -> adgroups -> campaigns mesh
         query = (
             select(
                 MarketingAdvertiseModel.ad_id,
@@ -105,7 +119,7 @@ async def seed_marketing_performance():
             .join(MarketingAdGroupModel, MarketingAdvertiseModel.ad_group_id == MarketingAdGroupModel.ad_group_id)
         )
         result = await session.execute(query)
-        ads_reais = [
+        real_ads = [
             {
                 "ad_id": row[0],
                 "ad_name": row[1],
@@ -116,12 +130,12 @@ async def seed_marketing_performance():
             for row in result.all()
         ]
 
-        if not ads_reais:
-            print("⚠️ Nenhum Anúncio encontrado! Rode os seeders de marketing anteriores primeiro.")
+        if not real_ads:
+            print("⚠️ No Ad found! Run the previous marketing seeders first.")
             return
 
-        # 2. Buscar plataforma e budget por campanha (necessário para o chaos de
-        # vazamento de campo entre plataformas e de estouro de orçamento)
+        # 2. Fetch platform and budget per campaign (needed for the cross-platform
+        # field leak and budget overspend chaos)
         campaign_query = (
             select(
                 MarketingCampaignModel.campaign_id,
@@ -137,27 +151,34 @@ async def seed_marketing_performance():
             budget_by_campaign[row[0]] = row[1]
             platform_by_campaign[row[0]] = row[2]
 
-        print(f"📣 Semeando performance diária para {len(ads_reais)} anúncios...")
+        print(f"📣 Seeding daily performance for {len(real_ads)} ads | chaos={chaos_rate:.2%}")
         performances = generate_performance_payloads(
-            ads_reais,
+            real_ads,
             platform_by_campaign=platform_by_campaign,
             budget_by_campaign=budget_by_campaign,
+            chaos_rate=chaos_rate,
+            apply_chaos=apply_chaos,
         )
-        
-        # Inserção em lotes de 1000 para evitar timeout ou estouro de buffer
+
+        # Insert in batches of 1000 to avoid timeouts or buffer overflow
         batch_size = 1000
         for i in range(0, len(performances), batch_size):
             current_batch = performances[i:i+batch_size]
             try:
                 stmt = insert(MarketingDailyPerformanceModel).values(current_batch)
                 await session.execute(stmt)
-                print(f"✅ Inserindo lote {i//batch_size + 1} ({len(current_batch)} linhas)...")
+                print(f"✅ Inserting batch {i//batch_size + 1} ({len(current_batch)} rows)...")
             except Exception as e:
-                print(f"❌ Erro no lote: {e}")
+                print(f"❌ Error in batch: {e}")
                 break
-        
+
         await session.commit()
-        print(f"🚀 Seeder de Performance finalizado com sucesso!")
+        print(f"🚀 Performance seeder finished successfully!")
 
 if __name__ == "__main__":
-    asyncio.run(seed_marketing_performance())
+    parser = build_parser("Seeder for marketing.marketing_dailyperformance (fan-out of real ads)")
+    add_chaos_args(parser, default_chaos_rate=0.05)
+    args = parser.parse_args()
+    chaos_rate, apply_chaos = resolve_chaos_args(args, default_chaos_rate=0.05)
+
+    asyncio.run(seed_marketing_performance(chaos_rate=chaos_rate, apply_chaos=apply_chaos))

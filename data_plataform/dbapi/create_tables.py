@@ -1,6 +1,6 @@
 """
-Script de setup: cria schemas e todas as tabelas no nexomarket_db.
-Uso: uv run python dbapi/create_tables.py
+Setup script: creates schemas and all tables in nexomarket_db.
+Usage: uv run python dbapi/create_tables.py
 """
 import asyncio
 import sys
@@ -55,21 +55,21 @@ async def setup():
     engine = create_async_engine(DATABASE_URL, echo=False)
 
     async with engine.begin() as conn:
-        # 1. Criar schemas
+        # 1. Create schemas
         for schema in SCHEMAS:
             await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
-        print(f"✅ {len(SCHEMAS)} schemas criados")
+        print(f"✅ {len(SCHEMAS)} schemas created")
 
-        # 2. Criar extensões
+        # 2. Create extensions
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\""))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        print("✅ Extensões: uuid-ossp, vector")
+        print("✅ Extensions: uuid-ossp, vector")
 
-        # 3. Criar todas as tabelas
+        # 3. Create all tables
         await conn.run_sync(Base.metadata.create_all)
-        print(f"✅ Tabelas criadas")
+        print(f"✅ Tables created")
 
-    # 4. Contar tabelas criadas
+    # 4. Count created tables
     async with engine.connect() as conn:
         result = await conn.execute(text("""
             SELECT schemaname, COUNT(*) as n
@@ -81,8 +81,8 @@ async def setup():
         rows = result.fetchall()
         total = sum(r.n for r in rows)
         for r in rows:
-            print(f"   {r.schemaname}: {r.n} tabelas")
-        print(f"\n✅ Total: {total} tabelas em {len(rows)} schemas")
+            print(f"   {r.schemaname}: {r.n} tables")
+        print(f"\n✅ Total: {total} tables across {len(rows)} schemas")
 
     await engine.dispose()
 

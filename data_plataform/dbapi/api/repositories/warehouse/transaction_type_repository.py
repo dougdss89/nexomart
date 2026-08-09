@@ -27,7 +27,7 @@ class TransactionTypeRepository:
         return result.scalar_one_or_none()
 
     async def create(self, data: dict) -> WarehouseTransactionType:
-        # Usando o utilitário from_pydantic ou apenas dict mapping dependendo da camada
+        # Using the from_pydantic utility or just dict mapping depending on the layer
         new_type = WarehouseTransactionType(**data)
         self.session.add(new_type)
         await self.session.flush()
@@ -35,7 +35,7 @@ class TransactionTypeRepository:
 
     async def bulk_upsert(self, data_list: List[dict]):
         """
-        Insere múltiplos registros em lote.
+        Inserts multiple records in batch.
         """
         if not data_list:
             return

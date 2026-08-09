@@ -59,7 +59,7 @@ spark.sql.catalog.nexo.format-version     3
 spark.sql.catalog.nexo.io-impl            org.apache.iceberg.hadoop.HadoopFileIO
 
 # --- ICEBERGLAKE (IcebergHiveCatalog — escrita Iceberg via Hive Metastore) ---
-# Catálogo Iceberg que usa Hive Metastore para registrar tabelas.
+# Catálogo do pipeline AdventureWorks (spark/jobs/advworks/). Não mexer — projeto legado.
 # Spark escreve aqui → Trino lê via connector iceberg + hive metastore (iceberglake catalog).
 # Coexiste com spark_catalog (Delta) porque usa databases distintos no Hive Metastore.
 spark.sql.catalog.iceberglake                            org.apache.iceberg.spark.SparkCatalog
@@ -70,6 +70,16 @@ spark.sql.catalog.iceberglake.io-impl                    org.apache.iceberg.hado
 # HMS standalone não tem tabelas ACID (TXN_COMPONENTS etc.) — locking via Thrift falha.
 # Pipeline tem escritor único (Airflow sequencial), locking desnecessário.
 spark.sql.catalog.iceberglake.hive.lock-enabled          false
+
+# --- NEXOMART (IcebergHiveCatalog — escrita Iceberg via Hive Metastore) ---
+# Catálogo do projeto NexoMart (dbapi: product/sales/purchasing/warehouse/marketing/person/humanresources).
+# Mesmo padrão do iceberglake, database próprio no Hive Metastore e warehouse próprio no MinIO.
+spark.sql.catalog.nexomart                            org.apache.iceberg.spark.SparkCatalog
+spark.sql.catalog.nexomart.catalog-impl               org.apache.iceberg.hive.HiveCatalog
+spark.sql.catalog.nexomart.uri                        ${HIVE_METASTORE_URI}
+spark.sql.catalog.nexomart.warehouse                  s3a://deltadw/nexomart
+spark.sql.catalog.nexomart.io-impl                    org.apache.iceberg.hadoop.HadoopFileIO
+spark.sql.catalog.nexomart.hive.lock-enabled          false
 
 # --- Adaptive Query Execution ---
 spark.sql.adaptive.enabled true

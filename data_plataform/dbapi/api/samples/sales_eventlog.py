@@ -7,7 +7,7 @@ SALES_EVENT_LOG_TEMPLATES = [
         "description": "Transação financeira concluída com sucesso."
     },
     {
-        "event_type": SalesEventType.IN_SEPARATING,
+        "event_type": SalesEventType.IN_SEPARATION,
         "reason": "Pedido enviado para o WMS",
         "description": "O armazém iniciou a coleta dos itens."
     },

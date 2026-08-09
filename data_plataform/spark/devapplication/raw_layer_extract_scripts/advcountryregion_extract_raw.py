@@ -5,7 +5,7 @@ import pyspark.sql.functions as f
 from sys import exit
 from traceback import print_exc
 
-# Configuração de logs
+# Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 

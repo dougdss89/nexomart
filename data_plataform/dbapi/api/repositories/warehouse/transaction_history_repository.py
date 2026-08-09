@@ -21,12 +21,12 @@ class TransactionHistoryRepository:
 
     async def bulk_insert(self, data_list: List[dict]):
         """
-        Inserção massiva via SQLAlchemy 2.0 core para performance.
+        Bulk insert via SQLAlchemy 2.0 core for performance.
         """
         if not data_list:
             return
-        
+
         stmt = insert(TransactionHistoryModel).values(data_list)
         await self.session.execute(stmt)
-        # Flush é necessário para disparar erros de constraint se houver
+        # Flush is necessary to trigger constraint errors, if any
         await self.session.flush()

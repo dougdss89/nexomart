@@ -6,7 +6,7 @@ from api.repositories.humanresources.humanresources_department_repository import
 logger = logging.getLogger(__name__)
 
 class HumanResourcesDepartmentService:
-    """ Orquestração Lógica de Departamentos Operacionais """
+    """ Logical Orchestration of Operational Departments """
     
     @staticmethod
     async def process_bulk_integration(db: AsyncSession, depts_data: List[Dict[str, Any]]) -> bool:

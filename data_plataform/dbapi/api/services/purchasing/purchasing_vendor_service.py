@@ -6,7 +6,7 @@ from api.repositories.purchasing.purchasing_vendor_repository import PurchasingV
 logger = logging.getLogger(__name__)
 
 class PurchasingVendorService:
-    """ Controle Analítico sobre Fornecedores de B2B """
+    """ Analytical Control over B2B Vendors """
     
     @staticmethod
     async def process_bulk_integration(db: AsyncSession, vendors_data: List[Dict[str, Any]]) -> bool:

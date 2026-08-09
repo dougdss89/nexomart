@@ -18,7 +18,7 @@ class SalesOrderService:
         return await self.repository.create(order_data)
 
     async def bulk_ingest_orders(self, orders: List[dict]):
-        """Ingestão massiva de ordens de venda."""
+        """Bulk ingestion of sales orders."""
         await self.repository.bulk_create(orders)
 
     async def update_order_status(self, salesorder_id: int, status: str):

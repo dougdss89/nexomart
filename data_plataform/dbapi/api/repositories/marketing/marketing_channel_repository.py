@@ -9,7 +9,7 @@ from api.models.marketing.marketing_channel import MarketingChannelModel
 logger = logging.getLogger(__name__)
 
 class MarketingChannelRepository:
-    """ Exclusivo para operações de banco de dados do Wide Dimension (Canal/Platform) """
+    """ Exclusively for database operations on the Wide Dimension (Channel/Platform) """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, channels_data: List[Dict[str, Any]]) -> bool:
@@ -20,7 +20,7 @@ class MarketingChannelRepository:
             return True
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Erro SQL Bulk Insert Marketing Channel: {e}")
+            logger.error(f"SQL Error Bulk Insert Marketing Channel: {e}")
             raise
             
     @staticmethod
@@ -30,5 +30,5 @@ class MarketingChannelRepository:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.error(f"Erro ao buscar MarketingChannel ID={channel_id}: {e}")
+            logger.error(f"Error fetching MarketingChannel ID={channel_id}: {e}")
             raise

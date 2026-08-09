@@ -40,7 +40,7 @@ class CampaignSettings(BaseModel):
 class MarketingCampaign(BaseModel):
     
     campaign_id: int = Field(gt=0)
-    channel_id: int = Field(gt=0) # [FIX] Adicionado FK
+    channel_id: int = Field(gt=0) # [FIX] Added FK
     campaign_name: str = Field(max_length=100)
     utm_campaign: str = Field(max_length=100)
     
@@ -52,7 +52,7 @@ class MarketingCampaign(BaseModel):
     
     status: CampaignStatus
     
-    mktsettings: CampaignSettings # [FIX] Alinhamento com Model SQLAlchemy
+    mktsettings: CampaignSettings # [FIX] Alignment with the SQLAlchemy Model
 
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None
@@ -60,13 +60,13 @@ class MarketingCampaign(BaseModel):
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
 
     
-    #validação temporal de campanha
+    #temporal validation of the campaign
     @model_validator(mode='after')
     def validate_dates(self):
-        # Só valida se tiver data final
+        # Only validate if there is an end date
         if self.end_date and self.start_date:
             if self.end_date < self.start_date:
-                raise ValueError(f"A data final ({self.end_date}) não pode ser anterior à data inicial.")
+                raise ValueError(f"The end date ({self.end_date}) cannot be earlier than the start date.")
         return self
     
     class Config:
