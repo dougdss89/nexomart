@@ -3,7 +3,7 @@ services:
     image: redis:7.2-bookworm
     container_name: redis
     env_file:
-      - ../configurations/secrets.env
+      - ../configs/secrets.env
     command: redis-server --requirepass ${REDIS_PASSWORD}
     networks:
       - hadoopcluster
@@ -17,7 +17,7 @@ services:
     depends_on:
       - redis
     env_file:
-      - ../configurations/secrets.env
+      - ../configs/secrets.env
     environment: &airflow_env
       - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_AIRFLOW_DB}
@@ -25,7 +25,7 @@ services:
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_AIRFLOW_DB}
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
-      - PYTHONPATH=/usr/local/airflow/dags:/dockervol/configurations
+      - PYTHONPATH=/usr/local/airflow/dags:/dockervol/configs
       - AIRFLOW__LOGGING__BASE_LOG_FOLDER=/dockervol/airflow-logs
       - AIRFLOW__LOGGING__REMOTE_LOGGING=False
       - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8181
@@ -45,7 +45,7 @@ services:
         airflow users create --username admin --password "${AIRFLOW_ADMIN_PASSWORD}" --firstname Admin --lastname User --role Admin --email admin@example.com
     volumes:
       - ./dags:/usr/local/airflow/dags
-      - ../configurations:/dockervol/configurations
+      - ../configs:/dockervol/configs
       - ../dbt:/dockervol/dbt
       - dockervol:/dockervol
       - spark-logs:/opt/spark/spark-events
@@ -62,7 +62,7 @@ services:
     environment: *airflow_env
     volumes:
       - ./dags:/usr/local/airflow/dags
-      - ../configurations:/dockervol/configurations
+      - ../configs:/dockervol/configs
       - ../dbt:/dockervol/dbt
       - dockervol:/dockervol
       - spark-logs:/opt/spark/spark-events
@@ -91,7 +91,7 @@ services:
     environment: *airflow_env
     volumes:
       - ./dags:/usr/local/airflow/dags
-      - ../configurations:/dockervol/configurations
+      - ../configs:/dockervol/configs
       - ../dbt:/dockervol/dbt
       - dockervol:/dockervol
       - spark-logs:/opt/spark/spark-events
@@ -114,7 +114,7 @@ services:
     environment: *airflow_env
     volumes:
       - ./dags:/usr/local/airflow/dags
-      - ../configurations:/dockervol/configurations
+      - ../configs:/dockervol/configs
       - ../dbt:/dockervol/dbt
       - dockervol:/dockervol
       - spark-logs:/opt/spark/spark-events
@@ -135,6 +135,12 @@ services:
       - hadoopcluster
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # SYS_PTRACE: lets py-spy (or gdb) attach to a running seeder/ingestion subprocess for a
+    # live stack trace — added 2026-09-04 debugging an ingest_sales hang that showed real,
+    # continuous CPU usage with no output, which ruled out a network-level stall (already fixed
+    # separately in configs/api/minio.py) but needed to see the actual Python frame to diagnose.
+    cap_add:
+      - SYS_PTRACE
 
     cpus: "2.0"
     mem_limit: 6g
