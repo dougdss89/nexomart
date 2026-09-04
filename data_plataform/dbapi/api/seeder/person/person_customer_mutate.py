@@ -14,7 +14,14 @@ from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, 
 
 SCHEMA_NAME = "person"
 TABLE_NAME = "person.customer"
-HARD_DELETE_ALLOWED = True  # e.g. right-to-be-forgotten style deletions are realistic here
+HARD_DELETE_ALLOWED = False  # customer_email fans out from customer (CLAUDE.md's fan-out
+# seeder list) with no DB-level FK anymore — partitioning customer (composite PK) dropped
+# that constraint, so a hard delete here leaves customer_email rows orphaned with no error at
+# all, and later frees the customer_id for reuse by a new row, which can then collide with the
+# orphaned email's own uniqueness/PK assumptions. Confirmed live 2026-09-04: 968 orphaned
+# person.customer_email rows already accumulated in well under an hour of the mutator DAG's
+# hourly schedule. Soft-delete (is_active=false) is also the more realistic "right to be
+# forgotten" scenario in practice — deactivate, don't physically erase, while dependents exist.
 
 CUSTOMER_TYPES = ["individual", "business", "vip"]
 

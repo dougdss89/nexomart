@@ -119,9 +119,78 @@ real DELETE). It's also the more realistic chaos scenario either way — an empl
 vendor relationship that ended, a campaign that's over — soft-deleting instead of hard-deleting
 matches what a real system would do for a still-referenced master-data row.
 
+## Bug 4 — hard-delete on a fan-out *parent* silently orphans its children, then collides on ID reuse
+
+Bug 3 covered tables that are FK targets *today* (the constraint still exists, so Postgres
+catches it). Two tables are logical fan-out parents (CLAUDE.md's fan-out seeder list:
+`person_customer_email.py`, `purchase_purchaseorderdetail.py`, `purchase_purchaseorderaudit.py`)
+whose FK **no longer exists at the DB level at all** — the partitioning migration
+(`configs/postgresql/README.md`) dropped it from `purchasing.purchaseorderheader` and
+`person.customer` when both were converted to composite-PK partitioned tables ("enforced by the
+seeders only" was already a documented tradeoff there). That means a hard `DELETE` on either
+table succeeds with **zero error**, leaving `purchaseorderdetail`/`purchaseorderaudit`/
+`customer_email` rows pointing at a header/customer ID that no longer exists — and later, when a
+seeder randomly generates a *new* row that happens to reuse that same business ID, the fan-out
+seeder tries to insert detail/audit rows for the "new" header and hits a real `UniqueViolation`
+on the old orphaned rows' PK:
+
+```
+asyncpg.exceptions.UniqueViolationError: duplicate key value violates unique constraint
+"purchaseorderdetail_pkey"
+DETAIL:  Key (purchaseorderdetail_id)=(PO-368334211-01) already exists.
+```
+
+Found live 2026-09-04 via `nexomart_seeder_dag`'s `derived.purchase_detail` task failing on
+exactly this. Confirmed the mechanism precisely: header `PO-368334211` had
+`created_at=2026-09-04 18:46:05` while its 3 "existing" detail rows had
+`created_at=2026-08-25 17:07:12` — impossible unless the original header was hard-deleted and a
+new one later landed on the same ID. Quantified the damage with anti-join queries: **1,508**
+orphaned `purchaseorderdetail` rows, **9,667** orphaned `purchaseorderaudit` rows, **968**
+orphaned `person.customer_email` rows (parent genuinely gone, not reused) — plus **2 specific
+ID-reuse collisions** (`PO-368334211`, `PO-114221573`) where the parent ID *was* reused, so a
+plain "parent missing" anti-join doesn't even catch them (a header now exists at that ID — it's
+just not the same header the orphaned children belong to). Cross-checked every other partitioned
+table (`sales.salesorder`, `warehouse.transactionhistory`, `marketing.dailyperformance`) has no
+fan-out children, so this exposure is unique to these two tables.
+
+Fix, same shape as Bug 3: `HARD_DELETE_ALLOWED = False` on `person/person_customer_mutate.py` and
+`purchasing/purchase_purchaseorderheader_mutate.py`. Soft-delete matches the treatment
+`purchaseorderaudit` already gets for a different reason, and is the more realistic "employee
+left" / "right to be forgotten" scenario anyway — deactivate, don't physically erase, while
+dependents exist. Verified live with `--delete-ratio 1.0 --count 5` on both scripts: clean
+`UPDATE ... SET is_active=false` with a real bound `WHERE`, no more `DELETE`.
+
+**Cleanup of the already-orphaned data** needed two passes, not one:
+1. Plain anti-join (`NOT EXISTS` on the parent) caught the 1,508 / 9,667 / 968 rows whose parent
+   is genuinely gone — safe to delete outright.
+2. The 2 ID-reuse collisions needed a *different* test (`child.created_at < parent.created_at`,
+   since detail/audit rows are always created in the same seeder run as their header, so a child
+   older than its own header's `created_at` is impossible otherwise) — and critically, this test
+   had to be scoped to the specific header IDs it flagged (2 of them), not run broadly. Running
+   `child.created_at < parent.created_at` unscoped against the full `purchaseorderaudit` table
+   matched **42 million** rows — audit rows are legitimately backdated to track the order's
+   business lifecycle (`order_date`), not insert time, so most of the table trivially satisfies
+   that condition with no bug involved. Scoping the delete to just the 2 flagged header IDs
+   (`PO-368334211`, `PO-114221573`) removed exactly 5 stale detail rows + 146 stale audit rows —
+   the real fix — instead of nearly wiping the table.
+
 ## Result
 
 All 16 mutate tasks + `start`/`end` — clean `success`, full DAG run in 11 seconds (2026-09-04,
 run `manual__2026-09-04T19:23:54`). Verify any specific script still concerns you with a forced
 delete: `--delete-ratio 1.0 --count 5` reliably exercises the delete path (`--random`/default
 delete ratios can be too low to hit it in a quick manual check).
+
+`nexomart_seeder_dag` had backed up 42 `queued` `DagRun`s while Bug 4 was live (every run's
+`derived.purchase_detail`/`purchase_audit` hit the same 2 collisions, and `max_active_runs=1`
+means the next tick can't start until the current one finishes). Considered raising
+`max_active_runs` to the platform default (16) or `max_active_tasks` beyond its current 8 to
+drain the backlog faster; rejected both — `max_active_runs=1` is load-bearing (prevents seeder
+runs from racing each other and guarantees `nexomart_ingestion_dag` reads a stable snapshot, see
+`nexomart_seeder_dag.py`'s docstring), and `max_active_tasks=8` is already at the real ceiling
+(`airflow-worker`'s Celery `worker_concurrency=8`) — raising it without also raising
+`worker_concurrency` would do nothing, and raising `worker_concurrency` would reopen the I/O
+contention `docs/SEEDER_MICROBATCHING.md`'s Problem 6 already fixed once. Left both settings
+alone; the scheduler's own backlog handling resolved the 42 stale runs as `failed` (no
+`start_date` — they never actually executed) once the underlying data was cleaned up, and fresh
+ticks resumed normally.

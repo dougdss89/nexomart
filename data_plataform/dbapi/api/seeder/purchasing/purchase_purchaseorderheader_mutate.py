@@ -15,7 +15,17 @@ from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, 
 
 SCHEMA_NAME = "purchasing"
 TABLE_NAME = "purchasing.purchaseorderheader"
-HARD_DELETE_ALLOWED = True  # not itself an audit table (purchaseorderaudit is the sibling that is)
+HARD_DELETE_ALLOWED = False  # purchaseorderdetail AND purchaseorderaudit both fan out from
+# this table (CLAUDE.md's fan-out seeder list) with no DB-level FK anymore — partitioning
+# purchaseorderheader (composite PK) dropped that constraint, so a hard delete here leaves
+# both children orphaned with no error at all, and later frees the purchaseorderheader_id for
+# reuse by a new row, which then collides with the orphaned children's PKs
+# ("<header_id>-01" etc). Confirmed live 2026-09-04: 1,508 orphaned purchaseorderdetail rows
+# and 9,667 orphaned purchaseorderaudit rows already accumulated in well under an hour of the
+# mutator DAG's hourly schedule, and one specific ID-reuse collision
+# (PO-368334211) that broke nexomart_seeder_dag's derived.purchase_detail task. Soft-delete
+# (is_active=false) matches the treatment purchaseorderaudit — the sibling this comment used
+# to say wasn't like — already gets, for exactly this reason.
 
 STATUS_TRANSITIONS = ["Approved", "Shipped", "Completed", "Cancelled"]
 
