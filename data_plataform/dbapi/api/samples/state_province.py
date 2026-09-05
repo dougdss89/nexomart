@@ -26,6 +26,21 @@ STATES_BY_COUNTRY = {
         ("11", "Lisboa"), # In Portugal, districts use numbers in ISO 3166-2
         ("13", "Porto"),
         ("03", "Braga")
+    ],
+    "CL": [
+        ("RM", "Región Metropolitana"),
+        ("VS", "Valparaíso"),
+        ("BI", "Biobío")
+    ],
+    "PE": [
+        ("LIM", "Lima"),
+        ("ARE", "Arequipa"),
+        ("CUS", "Cusco")
+    ],
+    "IT": [
+        ("LOM", "Lombardia"),
+        ("LAZ", "Lazio"),
+        ("CAM", "Campania")
     ]
     # You can expand to other countries later...
 }

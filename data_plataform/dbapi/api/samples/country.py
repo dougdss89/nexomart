@@ -8,6 +8,8 @@ OPERATING_COUNTRIES = [
     ("BR", "South America", "BRL"),
     ("AR", "South America", "ARS"),
     ("CO", "South America", "COP"),
+    ("CL", "South America", "CLP"),
+    ("PE", "South America", "PEN"),
     ("US", "North America", "USD"),
     ("CA", "North America", "CAD"),
     ("MX", "North America", "MXN"),
@@ -15,6 +17,7 @@ OPERATING_COUNTRIES = [
     ("ES", "Europe", "EUR"),
     ("FR", "Europe", "EUR"),
     ("DE", "Europe", "EUR"),
+    ("IT", "Europe", "EUR"),
     ("JP", "Asia", "JPY"),
     ("AU", "Oceania", "AUD")
 ]
