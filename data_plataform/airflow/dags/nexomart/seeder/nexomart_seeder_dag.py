@@ -8,8 +8,7 @@ called without flags (see dbapi/api/seeder/cli_common.py and
 configs/seeders/config.py) — this DAG only orchestrates the TRIGGER
 ORDER, respecting the FKs that each seeder queries via a real select()
 against the database before generating data. No fact/derived seeder makes up
-customer_id, product_id, category_id, etc. — they all fetch from the
-database first (see CLAUDE.md and the two categories below).
+customer_id, product_id, category_id, etc. 
 
 Once seeding for a run is fully done, the final `trigger_ingestion` task triggers the separate
 `nexomart_ingestion_dag` (airflow/dags/nexomart/ingestion/), which lands every table of all 7
@@ -37,20 +36,24 @@ airflow-worker container (see airflow/dockerfile and airflow/docker-compose.yaml
 conflicting with the SQLAlchemy that Airflow itself uses internally.
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import Any
 
-from airflow import DAG
 from airflow.operators.bash import BashOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.task_group import TaskGroup
-from airflow.operators.dummy import DummyOperator
 
-SEEDER_ROOT = "/dockervol/dbapi/api/seeder"
-UV_PROJECT = "/dockervol"
+from airflow import DAG
+
+# Values come from configs/secrets.env (SEEDER_ROOT/UV_PROJECT), injected via the
+# &airflow_env anchor in airflow/docker-compose.yaml — CLAUDE.md's "Zero Hardcode" rule.
+SEEDER_ROOT = os.environ["SEEDER_ROOT"]
+UV_PROJECT = os.environ["UV_PROJECT"]
 
 DEFAULT_ARGS: dict[str, Any] = {
-    "owner": "data-engineering",
+    "owners": "data-engineering",
     "depends_on_past": False,
     "start_date": datetime(2025, 1, 1),
     "retries": 1,
@@ -97,11 +100,17 @@ with DAG(
     # Problem 6 found several heavy bulk_copy() tasks (purchase_detail, purchase_audit,
     # person_customer) fighting for the same disk when scheduled concurrently, inflating
     # person_customer from an isolated 5m28s to 12m49s in the one full clean run measured so far.
+    # TEMPORARY 2026-09-05: raised 8 -> 12 to re-test that contention now that Postgres data
+    # moved to a dedicated SSD-backed disk and effective_io_concurrency/random_page_cost were
+    # tuned (both happened after the Problem 6 measurement above) — must match
+    # AIRFLOW_WORKER_CONCURRENCY in configs/secrets.env, since worker_concurrency is the real
+    # ceiling regardless of this value. Revert to 8 if purchase_detail/purchase_audit/
+    # person_customer durations inflate again under this run.
     # 8 is a starting point (half the implicit default) — the ~28 lightweight tasks don't need much
     # concurrency to stay fast, so this mainly caps how many heavy tasks can overlap at once.
     # Re-tune once a few more real runs establish steady-state timing (see that doc's "what's
     # still open").
-    max_active_tasks=8,
+    max_active_tasks=12,
     # dagrun_timeout removed 2026-08-21: a 15min (then 45min) cap kept killing runs mid-flight
     # before the real bottleneck (I/O contention under concurrent heavy COPY tasks — see
     # docs/SEEDER_MICROBATCHING.md) could even be measured. Worse, the SIGTERM only kills the
@@ -113,58 +122,58 @@ with DAG(
     tags=["seeder", "nexomart", "chaos-engineering"],
 ) as dag:
 
-    start_seeder = DummyOperator(task_id="start")
+    start_seeder: DummyOperator = DummyOperator(task_id="start")
 
     # ==================== MASTER DATA (category 3 — fixed lists, chaos-only) ====================
     with TaskGroup(group_id="master_data") as master_data:
-        hr_department = seeder_task("hr_department", "humanresources/humanresources_department.py")
-        hr_job_role = seeder_task("hr_job_role", "humanresources/humanresources_job_role.py")
-        product_category = seeder_task("product_category", "product/product_category.py")
-        product_model = seeder_task("product_model", "product/product_model.py")
-        person_country = seeder_task("person_country", "person/person_country.py")
-        person_state_province = seeder_task("person_state_province", "person/person_state_province.py")
-        marketing_channel = seeder_task("marketing_channel", "marketing/marketing_channel.py")
-        sales_special_offer = seeder_task("sales_special_offer", "sales/sales_special_offer.py")
-        warehouse_transaction_type = seeder_task("warehouse_transaction_type", "warehouse/transaction_type.py")
-        sales_channel = seeder_task("sales_channel", "sales/sales_channel.py")
+        hr_department: BashOperator = seeder_task("hr_department", "humanresources/humanresources_department.py")
+        hr_job_role: BashOperator = seeder_task("hr_job_role", "humanresources/humanresources_job_role.py")
+        product_category: BashOperator = seeder_task("product_category", "product/product_category.py")
+        product_model: BashOperator = seeder_task("product_model", "product/product_model.py")
+        person_country: BashOperator = seeder_task("person_country", "person/person_country.py")
+        person_state_province: BashOperator = seeder_task("person_state_province", "person/person_state_province.py")
+        marketing_channel: BashOperator = seeder_task("marketing_channel", "marketing/marketing_channel.py")
+        sales_special_offer: BashOperator = seeder_task("sales_special_offer", "sales/sales_special_offer.py")
+        warehouse_transaction_type: BashOperator = seeder_task("warehouse_transaction_type", "warehouse/transaction_type.py")
+        sales_channel: BashOperator = seeder_task("sales_channel", "sales/sales_channel.py")
 
         person_country >> person_state_province
 
     # ==================== DIMENSIONS (category 1 root — random volume, no flags) ====================
     with TaskGroup(group_id="dimensions") as dimensions:
-        product = seeder_task("product", "product/product.py")
-        person_customer = seeder_task("person_customer", "person/person_customer.py")
-        purchase_vendor = seeder_task("purchase_vendor", "purchasing/purchase_purchaseorder_vendor.py")
-        hr_employee = seeder_task("hr_employee", "humanresources/humanresources_employee.py")
-        warehouse_location = seeder_task("warehouse_location", "warehouse/warehouse_location.py")
-        sales_seller = seeder_task("sales_seller", "sales/sales_seller.py")
+        product: BashOperator = seeder_task("product", "product/product.py")
+        person_customer: BashOperator = seeder_task("person_customer", "person/person_customer.py")
+        purchase_vendor: BashOperator = seeder_task("purchase_vendor", "purchasing/purchase_purchaseorder_vendor.py")
+        hr_employee: BashOperator = seeder_task("hr_employee", "humanresources/humanresources_employee.py")
+        warehouse_location: BashOperator = seeder_task("warehouse_location", "warehouse/warehouse_location.py")
+        sales_seller: BashOperator = seeder_task("sales_seller", "sales/sales_seller.py")
 
     # ==================== FACTS (category 1 fact — random volume, no flags) ====================
     with TaskGroup(group_id="facts") as facts:
-        sales_order = seeder_task("sales_order", "sales/sales_order.py")
-        sales_return_order = seeder_task("sales_return_order", "sales/sales_return_order.py")
-        purchase_header = seeder_task("purchase_header", "purchasing/purchase_purchaseorderheader.py")
-        product_inventory = seeder_task("product_inventory", "warehouse/product_inventory.py")
-        transaction_history = seeder_task("transaction_history", "warehouse/transaction_history.py")
+        sales_order: BashOperator = seeder_task("sales_order", "sales/sales_order.py")
+        sales_return_order: BashOperator = seeder_task("sales_return_order", "sales/sales_return_order.py")
+        purchase_header: BashOperator = seeder_task("purchase_header", "purchasing/purchase_purchaseorderheader.py")
+        product_inventory: BashOperator = seeder_task("product_inventory", "warehouse/product_inventory.py")
+        transaction_history: BashOperator = seeder_task("transaction_history", "warehouse/transaction_history.py")
 
         sales_order >> sales_return_order
 
     # ==================== DERIVED (category 2 — fan-out from existing data, chaos-only) ====================
     with TaskGroup(group_id="derived") as derived:
-        purchase_detail = seeder_task("purchase_detail", "purchasing/purchase_purchaseorderdetail.py")
-        purchase_audit = seeder_task("purchase_audit", "purchasing/purchase_purchaseorderaudit.py")
-        marketing_campaign = seeder_task("marketing_campaign", "marketing/marketing_campaign.py")
-        marketing_adgroup = seeder_task("marketing_adgroup", "marketing/marketing_adgroup.py")
-        marketing_ads = seeder_task("marketing_ads", "marketing/marketing_ads.py")
-        marketing_daily_performance = seeder_task(
+        purchase_detail: BashOperator = seeder_task("purchase_detail", "purchasing/purchase_purchaseorderdetail.py")
+        purchase_audit: BashOperator = seeder_task("purchase_audit", "purchasing/purchase_purchaseorderaudit.py")
+        marketing_campaign: BashOperator = seeder_task("marketing_campaign", "marketing/marketing_campaign.py")
+        marketing_adgroup: BashOperator = seeder_task("marketing_adgroup", "marketing/marketing_adgroup.py")
+        marketing_ads: BashOperator = seeder_task("marketing_ads", "marketing/marketing_ads.py")
+        marketing_daily_performance: BashOperator = seeder_task(
             "marketing_daily_performance", "marketing/marketing_daily_performance.py"
         )
-        sales_special_offer_product = seeder_task(
+        sales_special_offer_product: BashOperator = seeder_task(
             "sales_special_offer_product", "sales/sales_special_offer_product.py"
         )
-        sales_eventlog = seeder_task("sales_eventlog", "sales/sales_eventlog.py")
-        product_embedding = seeder_task("product_embedding", "product/product_embedding.py")
-        person_customer_email = seeder_task("person_customer_email", "person/person_customer_email.py")
+        sales_eventlog: BashOperator = seeder_task("sales_eventlog", "sales/sales_eventlog.py")
+        product_embedding: BashOperator = seeder_task("product_embedding", "product/product_embedding.py")
+        person_customer_email: BashOperator = seeder_task("person_customer_email", "person/person_customer_email.py")
 
         marketing_campaign >> marketing_adgroup >> marketing_ads >> marketing_daily_performance
 
@@ -178,14 +187,14 @@ with DAG(
     # DAG run's own success/failure genuinely reflects whether ingestion landed cleanly, and so
     # `max_active_runs=1` on this DAG blocks the next seeder tick from starting until ingestion
     # for this one has actually finished — see this file's docstring for why that matters.
-    trigger_ingestion = TriggerDagRunOperator(
+    trigger_ingestion: TriggerDagRunOperator = TriggerDagRunOperator(
         task_id="trigger_ingestion",
         trigger_dag_id="nexomart_ingestion_dag",
         wait_for_completion=True,
         poke_interval=30,
     )
 
-    end_seeder = DummyOperator(task_id="end")
+    end_seeder: DummyOperator = DummyOperator(task_id="end")
 
     # ==================== FINE-GRAINED DEPENDENCIES BETWEEN GROUPS ====================
     # Each edge below mirrors a real select() that the destination seeder performs before

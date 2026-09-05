@@ -30,6 +30,9 @@ services:
       - AIRFLOW__LOGGING__REMOTE_LOGGING=False
       - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8181
       - AIRFLOW__CELERY__WORKER_HOSTNAME=airflow-worker@airflow-worker
+      - AIRFLOW__CELERY__WORKER_CONCURRENCY=${AIRFLOW_WORKER_CONCURRENCY}
+      - SEEDER_ROOT=${SEEDER_ROOT}
+      - UV_PROJECT=${UV_PROJECT}
     networks:
       - hadoopcluster
     entrypoint: /bin/bash

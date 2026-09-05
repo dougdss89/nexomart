@@ -13,16 +13,20 @@ Runs in the same isolated venv as the seeders, via `uv run --project /dockervol`
 `nexomart_seeder_dag.py`'s docstring for why (SQLAlchemy version conflict with Airflow's own).
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import Any, cast
 
-from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 
-SEEDER_ROOT = "/dockervol/dbapi/api/seeder"
-UV_PROJECT = "/dockervol"
+from airflow import DAG
+
+# Values come from configs/secrets.env (SEEDER_ROOT/UV_PROJECT), injected via the
+# &airflow_env anchor in airflow/docker-compose.yaml — CLAUDE.md's "Zero Hardcode" rule.
+SEEDER_ROOT = os.environ["SEEDER_ROOT"]
+UV_PROJECT = os.environ["UV_PROJECT"]
 
 DEFAULT_ARGS: dict[str, Any] = {
     "owner": "data-engineering",
@@ -32,15 +36,15 @@ DEFAULT_ARGS: dict[str, Any] = {
     "retry_delay": timedelta(minutes=5),
     "email_on_failure": False,
 }
-def start_ingestions (taks_id: str) -> BaseOperator:
+def start_ingestions(task_id: str) -> DummyOperator:
     """DummyOperator that marks the start of the DAG, for visual clarity in the Airflow UI."""
-    return cast(BaseOperator, DummyOperator(task_id=taks_id))
+    return DummyOperator(task_id=task_id)
 
-def end_ingestions (taks_id: str) -> BaseOperator:
+def end_ingestions(task_id: str) -> DummyOperator:
     """DummyOperator that marks the end of the DAG, for visual clarity in the Airflow UI."""
-    return cast(BaseOperator, DummyOperator(task_id=taks_id))
+    return DummyOperator(task_id=task_id)
 
-def ingestion_task(task_id: str, relative_path: str) -> BaseOperator:
+def ingestion_task(task_id: str, relative_path: str) -> BashOperator:
     """BashOperator that runs a nexomart ingestion script via uv, same PYTHONPATH convention as
     `seeder_task()` in `nexomart_seeder_dag.py` — see that function's docstring for why
     `/dockervol/configs` is deliberately left out of PYTHONPATH.
@@ -49,7 +53,7 @@ def ingestion_task(task_id: str, relative_path: str) -> BaseOperator:
         f"PYTHONPATH=/dockervol:/dockervol/dbapi "
         f"uv run --project {UV_PROJECT} python {SEEDER_ROOT}/{relative_path}"
     )
-    return cast(BaseOperator, BashOperator(task_id=task_id, bash_command=command))
+    return BashOperator(task_id=task_id, bash_command=command)
 
 
 with DAG(
@@ -64,15 +68,16 @@ with DAG(
     max_active_runs=1,
     tags=["ingestion", "nexomart", "landing"]
 ) as dag:
-    start_ingestion = start_ingestions("start_ingestion")
-    ingest_humanresources = ingestion_task("ingest_humanresources", "ingestions/humanresources_ingestion.py")
-    ingest_marketing = ingestion_task("ingest_marketing", "ingestions/marketing_ingestion.py")
-    ingest_person = ingestion_task("ingest_person", "ingestions/person_ingestion.py")
-    ingest_product = ingestion_task("ingest_product", "ingestions/product_ingestion.py")
-    ingest_purchasing = ingestion_task("ingest_purchasing", "ingestions/purchasing_ingestion.py")
-    ingest_sales = ingestion_task("ingest_sales", "ingestions/sales_ingestion.py")
-    ingest_warehouse = ingestion_task("ingest_warehouse", "ingestions/warehouse_ingestion.py")
-    end_ingestion = end_ingestions  ("end_ingestion")
+
+    start_ingestion: DummyOperator = start_ingestions("start_ingestion")
+    ingest_humanresources: BashOperator = ingestion_task("ingest_humanresources", "ingestions/humanresources_ingestion.py")
+    ingest_marketing: BashOperator = ingestion_task("ingest_marketing", "ingestions/marketing_ingestion.py")
+    ingest_person: BashOperator = ingestion_task("ingest_person", "ingestions/person_ingestion.py")
+    ingest_product: BashOperator = ingestion_task("ingest_product", "ingestions/product_ingestion.py")
+    ingest_purchasing: BashOperator = ingestion_task("ingest_purchasing", "ingestions/purchasing_ingestion.py")
+    ingest_sales: BashOperator = ingestion_task("ingest_sales", "ingestions/sales_ingestion.py")
+    ingest_warehouse: BashOperator = ingestion_task("ingest_warehouse", "ingestions/warehouse_ingestion.py")
+    end_ingestion: DummyOperator = end_ingestions("end_ingestion")
 
     # No dependencies were declared at all before this: start_ingestion/end_ingestion ran as
     # disconnected no-ops (both completing instantly, start_date==end_date, regardless of
