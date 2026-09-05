@@ -100,17 +100,13 @@ with DAG(
     # Problem 6 found several heavy bulk_copy() tasks (purchase_detail, purchase_audit,
     # person_customer) fighting for the same disk when scheduled concurrently, inflating
     # person_customer from an isolated 5m28s to 12m49s in the one full clean run measured so far.
-    # TEMPORARY 2026-09-05: raised 8 -> 12 to re-test that contention now that Postgres data
-    # moved to a dedicated SSD-backed disk and effective_io_concurrency/random_page_cost were
-    # tuned (both happened after the Problem 6 measurement above) — must match
-    # AIRFLOW_WORKER_CONCURRENCY in configs/secrets.env, since worker_concurrency is the real
-    # ceiling regardless of this value. Revert to 8 if purchase_detail/purchase_audit/
-    # person_customer durations inflate again under this run.
     # 8 is a starting point (half the implicit default) — the ~28 lightweight tasks don't need much
     # concurrency to stay fast, so this mainly caps how many heavy tasks can overlap at once.
     # Re-tune once a few more real runs establish steady-state timing (see that doc's "what's
-    # still open").
-    max_active_tasks=12,
+    # still open"). See the `person_customer >> purchase_audit >> purchase_detail` resource-
+    # serialization edge below in the `derived` TaskGroup for the specific fix targeting these
+    # three tasks — that edge, not this global cap, is what's being re-tested 2026-09-05.
+    max_active_tasks=8,
     # dagrun_timeout removed 2026-08-21: a 15min (then 45min) cap kept killing runs mid-flight
     # before the real bottleneck (I/O contention under concurrent heavy COPY tasks — see
     # docs/SEEDER_MICROBATCHING.md) could even be measured. Worse, the SIGTERM only kills the
@@ -224,14 +220,18 @@ with DAG(
     # -> trigger_ingestion (seeder -> ingestion: only once every seeder in this run has finished)
     start_seeder >>[master_data, dimensions, facts, derived] >> trigger_ingestion >> end_seeder
 
-    # ==================== RESOURCE SERIALIZATION (NOT an FK dependency) ====================
+    # ==================== RESOURCE SERIALIZATION — REMOVED 2026-09-05, was NOT an FK dependency ====================
     # person_customer, purchase_audit, and purchase_detail are the three heaviest bulk_copy()
     # tasks (docs/SEEDER_MICROBATCHING.md, Problem 6) — nothing in their actual seeder code
     # reads from or depends on either of the other two (verified: neither purchasing seeder
-    # references customer data at all). Left alone, Airflow schedules all three as soon as their
-    # real FK dependencies are satisfied, which is what caused them to overlap and fight for I/O
-    # in the one full clean run measured so far (person_customer: 5m28s isolated vs 12m49s
-    # concurrent). This edge forces them to run one at a time instead, purely to avoid that
-    # contention — unlike every edge above, it does not mirror a select() the destination seeder
-    # performs. Order is arbitrary among the three (no real relationship to break ties by).
-    person_customer >> purchase_audit >> purchase_detail
+    # references customer data at all). An artificial edge here
+    # (`person_customer >> purchase_audit >> purchase_detail`) used to force them to run one at a
+    # time to avoid I/O contention (person_customer: 5m28s isolated vs 12m49s concurrent,
+    # measured 2026-08-21). Re-tested 2026-09-05 after two changes made since that measurement —
+    # Postgres data moved to a dedicated SSD-backed disk, and effective_io_concurrency/
+    # random_page_cost were tuned — by removing the edge and watching a live run
+    # (scheduled__2026-09-05T11:40:00+00:00): person_customer (55s), purchase_audit (40s) and
+    # purchase_detail (14s) all genuinely overlapped in wall-clock time with no inflation. Edge
+    # left removed based on this. See docs/SEEDER_MICROBATCHING.md for the full write-up — watch
+    # the next several scheduled runs for any resurgence before fully trusting this on one
+    # measurement, and restore the edge if any of these three inflate again.
