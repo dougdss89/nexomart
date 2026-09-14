@@ -123,7 +123,7 @@ services:
       - spark-logs:/opt/spark/spark-events
       - spark-ivy-cache:/home/spark/.ivy2
       - ../spark/jobs:/usr/local/airflow/spark_jobs
-      - /home/doug/project/data_plataform/spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+      - ../spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
       # dbapi seeders run here via `uv run --project /dockervol` in an isolated venv
       # (see airflow/dockerfile) — same lockfile already validated on the host, without
       # conflicting with Airflow's own deps.
