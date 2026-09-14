@@ -1,0 +1,8 @@
+default-jdk
+krb5-user
+krb5-config
+sudo
+wget
+vim
+net-tools
+iputils-ping

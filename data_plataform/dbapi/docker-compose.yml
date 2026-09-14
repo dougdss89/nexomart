@@ -1,0 +1,19 @@
+services:
+  dbapi:
+    build: .
+    container_name: dbapi
+    ports:
+      - "8001:8000"
+    volumes:
+      - .:/workspace
+      - ../configs:/workspace/configs
+    networks:
+      - hadoopcluster
+
+    cpus: "0.5"
+    mem_limit: 512m
+
+networks:
+  hadoopcluster:
+    external: true
+

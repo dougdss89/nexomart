@@ -1,0 +1,7 @@
+api/__pycache__/
+api/**/__pycache__/
+api/**/*.pyc
+api/**/*.pyo
+api/.env
+api/uv.lock
+.venv/

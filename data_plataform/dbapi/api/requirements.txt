@@ -1,0 +1,34 @@
+# Web Framework
+fastapi==0.135.1
+uvicorn[standard]==0.41.0
+
+# Database & ORM
+sqlmodel==0.0.38
+alembic==1.18.4
+asyncpg==0.31.0
+psycopg2-binary==2.9.11
+
+# Object Storage
+minio==7.2.20
+aioboto3==15.5.0
+
+# Data Validation & Settings
+pydantic==2.12.5
+pydantic-settings==2.13.1
+python-multipart==0.0.22
+httpx==0.28.1
+
+# Utilities
+pandas==2.3.3
+aiofiles==25.1.0
+anyio==4.12.1
+asgiref==3.11.1
+click==8.3.1
+hll==3.0.0
+idna==3.11
+sniffio==1.3.1
+starlette==0.52.1
+typing_extensions==4.15.0
+pycountry==26.2.16
+pgvector==0.4.2
+sqlalchemy==2.0.48

@@ -1,0 +1,55 @@
+# 🤖 Antigravity Data Platform Agent Rules
+# Este arquivo rege o comportamento de todos os LLMs e Agentes integrados neste repositório.
+
+## 🏛️ 1. Princípios Arquiteturais (Obrigatórios)
+- **Divisão Estrita de Camadas:** Nunca misture o Modelo de Banco de Dados (`SQLAlchemy`) com a Validação (`Pydantic`).
+- **AuditMixin Global:** Toda nova tabela criada via SQLAlchemy em `api/models/` DEVE obrigatoriamente importar e herdar de `AuditMixin` (importado diretamente de `api/config/base.py`) garantindo `created_at`, `updated_at`, `is_active` e `row_guid`.
+- **Naming Conventions (PostgreSQL):** Sempre use `snake_case` em colunas do banco de dados (ex: `conversion_value`). Nunca use CamelCase/PascalCase para Models.
+- **Tipagem Enums:** Ao usar `Enum`, faça-o herdar de `str` (ex: `class Status(str, Enum):`) para serialização limpa no JSONB/PostgreSQL e ative `use_enum_values = True` no Pydantic `Config`.
+
+## 🛡️ 2. Validação Pydantic (Camada de Aplicação)
+- **Decimais e Precisão:** Para Valores Monetários (`Numeric(19,4)` ou `19,2` no DB), o Pydantic deve usar `Decimal` e forçar limite com `Field(decimal_places=2, ge=0.0)`.
+- **Validação Cruzada:** Utilize `@model_validator(mode='after')` para regras de negócio (ex: Garantir que `end_date` seja SEMPRE maior ou igual ao `start_date`).
+
+## 🌪️ 3. Seeders e Chaos Engineering (Data Engineering)
+- **Realismo Absoluto:** Todo gerador Python em `api/seeder/` deve ser projetado para simular o mundo real imprevisível. Valores randômicos que não são buscados no banco devem ser contextualmente autênticos (evite "dummy", "test", "foo").
+- **Integridade Dimensional (Mandatório):** Todo seeder deve, obrigatoriamente, utilizar dados que **já existem nas tabelas de referência** (ex: buscar `customer_id` ou `product_id` reais via SQL `select`) em vez de gerar IDs randômicos sem vínculo. Nunca crie dados órfãos ou desconexos.
+- **Chaos Injection (Silver/Bronze Layer Test):** Ejete intencionalmente 5% a 10% de dados nulos nas chaves não-primárias (ex: falsificar telefones "0000000", omitir pontuações em CPFs/CNPJs) para testar a resiliência dos dutos de Data Engineering.
+- **Chaos em Recursos Humanos (`humanresources.employee`):** Injete 1-3% de: salário fora da faixa de `jobrole.min_salary`/`max_salary`, vendedor sem `comission_pct` (ou `= 0`), vendedor sem `territory_codes`. Como o seeder não fecha versões SCD2 (`is_current` nunca é encerrado), a correção em Silver não deve depender do histórico do funcionário — usar dado de referência (`jobrole` atual), mediana de pares ou regra determinística. Catálogo completo, queries de detecção e exemplos em `dbapi/api/seeder/CHAOS_DOCUMENTATION.md#35-anomalias-em-recursos-humanos-1-3`.
+- **Chaos em Marketing (`marketing.*`):** Injete 1-5% de: naming/budget inconsistentes em `campaign`, targeting/idade inválidos em `adgroup`, links/media type quebrados em `ads`, cliques > impressões, custo zero com conversão, métricas retroativas e funil de vídeo não-monótono em `daily_performance`. **Atenção**: ao contrário dos demais domínios, os 4 seeders de `marketing` validam o payload via Pydantic (`Model(**payload).model_dump()`) antes do insert — várias regras exigem contornar essa validação de propósito (ex: `AgeRange` tem `model_validator` bloqueando idade invertida; `HttpUrl`/`AnyUrl` bloqueiam link malformado), outras passam normalmente porque o schema não cobre o cenário (ex: clicks > impressions). Catálogo completo com a tabela "precisa bypass?" em `dbapi/api/seeder/CHAOS_DOCUMENTATION.md#36-anomalias-em-marketing-1-5`.
+- **Dimensional Truth:** Evite Snowflake Schemas para Atribuições (ex: Canais e Plataformas). Crie Tabelas-Verdade Dimensionais Largas (`Wide Tables`).
+- **Mapeamento Semântico:** Ao gerar eventos analíticos (AdGroups, Sales), aplique Injeção Cruzada lendo Arrays fixos (`person_demographics.py` ou `job_roles.py`) para amarrar interesses e criar cubos autênticos para o Data Warehouse.
+- **Funis Matemáticos:** Os seeders analíticos (Diários/Fato) nunca devem sortear Revenue diretamente. Sorteie de Cima para Baixo: *Impressions -> CTR -> Clicks -> CPC -> Cost -> CVR -> Conversions -> AOV -> Revenue*. 
+
+## ⚙️ 4. Fluxo de Trabalho, CLI e Airflow 
+- **Carga via Airflow (CLI):** O banco de dados operará via CLI invocada pelo BashOperator do Apache Airflow. Portanto, **todo Seeder (`api/seeder/`) deve OBRIGATORIAMENTE implementar `argparse`** no escopo `__main__` para receber do terminal a quantidade de itens a gerar (ex: `parser.add_argument("--count", type=int)`).
+- **Proibido For-Loops no Banco:** É estritamente proibido utilizar laços `for x in itens: session.add(x)` nas Camadas de Dados. Como o Airflow pode disparar cargas de 10 milhões+ de linhas, exija sempre a injeção em lote nativa tipo array/numpy dependendo do Repo (`insert(Model).values(matriz)`).
+- **Uso do UV:** Execute scripts utilizando `uv run python caminho/do/arquivo.py --count 10000`.
+- Sempre imprima a quantidade de itens gerados (Length do Batch) e as exceções via Logs, essenciais para debug no Airflow.
+
+## 🏛️ 5. Padronização Obrigatória de APIs (3 Camadas)
+**REGRA DE OURO:** Sempre que o Cientista/Engenheiro (USER) solicitar a criação de um Novo Modelo, Novo Schema ou NOVO SEEDER, você deve obrigatoriamente (automático) gerar toda a malha arquitetural de 3 Camadas Assíncronas para ele:
+- **Bulk Operations**: Proibição total de `for-loop` para inserções em banco. Use sempre SQLAlchemy 2.0 `insert().values()`.
+- **Sample Data Management**: Sempre que precisar de dados de exemplo (samples/mock), adicione-os na pasta `dbapi/api/samples/` com o nome do arquivo relacionado ao schema modelado. Os Seeders devem importar os dados desta pasta.
+
+## Codebase Architecture
+- Standardize on a 3-Layer Architecture:
+  1. **Repositories**: Async data access using SQLAlchemy.
+  2. **Services**: Domain business logic and orchestration.
+  3. **Routers**: FastAPI routes, HTTP validation, and schema mapping.
+
+---
+
+## 🏛️ 6. Padronização Obrigatória de IDs Transactionais
+Todo e qualquer novo seeder ou modelo transactional DEVE seguir rigorosamente os padrões de prefixos alfanuméricos:
+- **Sales (Header and Items)**: `SO-XXXXXXXXX` (Header) e `SO-XXXXXXXXX-XX` (Item).
+- **Purchasing (Header and Details)**: `PO-XXXXXXXXX` (Header) e `PO-XXXXXXXXX-XX` (Detail).
+- **Warehouse (Transactions)**: `TR-XXXXXXXXX` e `TR-XXXXXXXXX-XX`.
+- **Return Orders (Header)**: `RO-XXXXXXXXX`.
+- Os valores binários (X) devem ser baseados em sequências numéricas aleatórias de 9 dígitos para garantir o realismo e a unicidade visual.
+
+## 🔌 7. Configuração de Infraestrutura — Zero Hardcode
+Nenhuma string de conexão (host, porta, banco, credencial, endpoint) pode ser literal em `docker-compose.yml` ou config de serviço. Fonte única: `configurations/secrets.env` (+ `secrets.env.example` espelhando as chaves, nunca com o valor real). Variável nova = adiciona nos dois arquivos, nunca hardcode.
+- **Docker Compose**: `${VAR}` nativo (o `Makefile` exporta `secrets.env` antes de subir); `env_file: ../configurations/secrets.env` no serviço se o *container* também precisar da var em runtime.
+- **Catálogos Trino** (`trino/catalog/*.properties`): `${ENV:VAR}` (sintaxe própria do Trino).
+- **Configs sem suporte nativo a variável** (`.properties` do Unity Catalog, `spark-defaults.conf`, XML do Hive): edite o `<arquivo>.template`, nunca o arquivo final — `make generate-confs` (parte do `make up`) roda `envsubst` e gera o real. Ver seção "Configuração de Infraestrutura — Zero Hardcode" do `CLAUDE.md` para o detalhamento completo.

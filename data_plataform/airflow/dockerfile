@@ -1,0 +1,36 @@
+FROM quay.io/astronomer/astro-runtime:11.4.0-python-3.12
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      openjdk-17-jre-headless \
+      curl \
+      tar && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    useradd -m -s /bin/bash spark && \
+    echo 'spark ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/spark
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV SPARK_VERSION=3.5.8
+ENV SPARK_HOME=/opt/spark
+ENV PATH=$SPARK_HOME/bin:$SPARK_HOME/sbin:$PATH
+
+RUN curl -fSL https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3-scala2.13.tgz -o spark.tgz \
+    && mkdir -p /opt/spark \
+    && tar -xzf spark.tgz -C /opt/spark --strip-components 1 \
+    && rm spark.tgz \
+    && chown -R astro:astro /opt/spark
+
+USER astro
+
+RUN pip install --no-cache-dir --upgrade pip -r requirements.txt
+RUN pip install --no-cache-dir "trino>=0.321.0" "dbt-core>=1.9.0" "dbt-trino>=1.9.0"
+
+# uv roda os seeders do dbapi numa venv isolada (ver /dockervol montado no worker),
+# sem tocar no site-packages do Airflow — dbapi usa SQLAlchemy 2.x async, incompatível
+# com o SQLAlchemy que o Airflow 2.9 pina internamente.
+RUN pip install --no-cache-dir uv
+
+COPY --chown=astro:astro airflow.cfg ${AIRFLOW_HOME}/airflow.cfg

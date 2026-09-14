@@ -1,0 +1,31 @@
+# Credenciais — nunca commitar
+configs/secrets.env
+
+# Arquivos gerados a partir de templates (contêm credenciais)
+spark/conf/spark-defaults.conf
+unitycatalog/conf/hibernate.properties
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Ambientes
+.env
+dbapi/api/.env
+airflow/dags/.env
+
+# Symlink for local dev (Docker uses volume mount instead)
+dbapi/configs
+
+# IDEs
+.idea/
+.vscode/
+
+*.jar
+.venv/
+.claude/
+_agent/
+.github/
+
