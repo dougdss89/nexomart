@@ -5,14 +5,15 @@ import uuid
 import random
 from datetime import datetime, date
 from typing import List, Dict, Any
-from sqlalchemy import select, insert
+from sqlalchemy import select, func
 from api.database import AsyncSessionLocal
 from api.samples.customer import generate_mock_customer
 from api.models.person.country_region import CountryRegionModel
 from api.models.person.state_province import StateProvinceModel
 from api.models.person.customer import CustomerModel
 from api.seeder.chaos import apply_customer_chaos, apply_false_foreigner_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
+from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args, bulk_copy
+from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -60,7 +61,23 @@ async def seed_person_customers(count: int = 100, chaos_rate: float = 0.05, batc
             print("⚠️ Country or StateProvince tables are empty! Run the geography seeders first.")
             return
 
-        print(f"📣 Seeding {count:,} customers | chaos={chaos_rate:.2%}")
+        ranges = get_ranges(schema=SCHEMA_NAME, table=TABLE_NAME)
+        existing_count = None
+        if ranges.absolute_max:
+            # COUNT(*) on this table scales with total accumulated history, not this run's
+            # work — measured 11+ minutes against ~2M rows on a LIST-partitioned table, all
+            # spent here before a single row of this run's actual work started. Only pay for
+            # it when absolute_max is actually set (currently None for person.customer,
+            # making the check a no-op) — same fix already applied to
+            # purchase_purchaseorderdetail.py for the same reason.
+            existing_count = await session.scalar(select(func.count(CustomerModel.customer_id))) or 0
+            if existing_count >= ranges.absolute_max:
+                print(f"⚠️ Absolute customer limit reached ({existing_count:,}/{ranges.absolute_max:,}).")
+                return
+            count = min(count, ranges.absolute_max - existing_count)
+
+        final_total = f"{existing_count + count:,}" if existing_count is not None else "n/a"
+        print(f"📣 Seeding {count:,} customers (final total: {final_total}) | chaos={chaos_rate:.2%}")
 
         total_inserted = 0
         while total_inserted < count:
@@ -72,15 +89,13 @@ async def seed_person_customers(count: int = 100, chaos_rate: float = 0.05, batc
                 customers = apply_false_foreigner_chaos(customers, states_by_country, chaos_rate=chaos_rate)
 
             try:
-                stmt = insert(CustomerModel).values(customers)
-                await session.execute(stmt)
-                await session.commit()
+                await bulk_copy(session, CustomerModel, customers)
                 total_inserted += len(customers)
                 print(f"   ⏳ Progress: {total_inserted:,}/{count:,}")
             except Exception as e:
                 await session.rollback()
                 print(f"❌ Error seeding customers: {e}")
-                break
+                raise RuntimeError(f"Customer seeding aborted ({total_inserted:,}/{count:,} inserted): {e}") from e
 
         print(f"✅ {total_inserted:,} customers seeded successfully!")
 

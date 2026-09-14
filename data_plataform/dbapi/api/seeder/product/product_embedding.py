@@ -91,6 +91,7 @@ async def seed_product_embeddings(chaos_rate: float = 0.05, apply_chaos: bool = 
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding embeddings: {e}")
+            raise RuntimeError(f"Product embedding seeding aborted: {e}") from e
 
 
 if __name__ == "__main__":

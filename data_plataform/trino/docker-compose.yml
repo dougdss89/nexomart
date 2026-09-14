@@ -5,7 +5,7 @@ services:
     ports:
       - "8070:8080"
     env_file:
-      - ../configurations/secrets.env
+      - ../configs/secrets.env
     volumes:
       - ./coordinator:/etc/trino
       - ./catalog:/etc/trino/catalog
@@ -18,7 +18,7 @@ services:
   trino-worker:
     image: trinodb/trino:latest
     env_file:
-      - ../configurations/secrets.env
+      - ../configs/secrets.env
     volumes:
       - ./worker:/etc/trino
       - ./catalog:/etc/trino/catalog

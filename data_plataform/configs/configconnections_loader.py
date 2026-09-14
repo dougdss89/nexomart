@@ -10,37 +10,39 @@ def find_env_file(start_path: str = None) -> str:
     :return: Full path to the .env file
     :raises FileNotFoundError: If the .env file is not found
     """
-    # First, check if there's an environment variable pointing to the base directory
     base_dir = os.getenv('PROJECT_BASE_DIR')
     module_dir = os.getenv('MODULE_DIR')
-
+    
     search_paths = []
-
-    # Add search paths in priority order
+    
     if start_path:
         search_paths.append(start_path)
     if module_dir:
         search_paths.append(module_dir)
     if base_dir:
         search_paths.append(base_dir)
-
-    # Add the current module's directory
+    
+    # Adds the current module's directory
     current_module_dir = os.path.dirname(os.path.abspath(__file__))
     search_paths.append(current_module_dir)
 
-    # Add the current working directory
+    # Adds the current working directory
     search_paths.append(os.getcwd())
+
+    # === THE OFFICIAL VOLUME PATH (added exactly once) ===
+    search_paths.append('/dockervol/configs')
 
     print(f"Current directory: {os.getcwd()}")
     print(f"Module directory: {current_module_dir}")
     print("Configured search paths:")
+    
     for path in search_paths:
         print(f"- {path}")
 
-    # Look for the .env file in each path and its parent directories
+    # Looks for the .env file in each path and its parent directories
     for base_path in search_paths:
         current_dir = base_path
-        while current_dir != os.path.dirname(current_dir):  # While not at the root
+        while current_dir != os.path.dirname(current_dir):  # Until it reaches the root
             potential_path = os.path.join(current_dir, '.env')
             print(f"Checking: {potential_path}")
 
@@ -54,17 +56,17 @@ def find_env_file(start_path: str = None) -> str:
 
 def load_config(env_path: str = None) -> Dict[str, Any]:
     """
-    Loads and prepares the settings from the .env file, replacing dynamic placeholders.
+    Loads and prepares the configuration from the .env file, replacing dynamic placeholders.
 
-    :param env_path: Path to the .env file. If None, the file is looked up automatically.
-    :return: A dictionary containing the processed settings
+    :param env_path: Path to the .env file. If None, the file is searched for automatically.
+    :return: A dictionary containing the processed configuration
     :raises FileNotFoundError: If the .env file is not found or is empty
     """
-    # If no path is given, look up the .env file in the current or parent directory
+    # If no path is passed, look for the .env file in the current or parent directory
     if not env_path:
         env_path = find_env_file()
 
-    # Load the variables from the .env file
+    # Loads the variables from the .env file
     config = dotenv_values(env_path)
     if not config:
         raise FileNotFoundError(f"Error loading .env file from {env_path}. Check the path and format.")
@@ -78,12 +80,12 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
             return value
 
         for var_name, var_value in config.items():
-            if var_value:  # Avoid replacing with null values
+            if var_value:  # Avoids replacing with null values
                 value = value.replace(f"${{{var_name}}}", var_value)
                 value = value.replace(f"${var_name}", var_value)
         return value
 
-    # Process all variables from the .env file
+    # Processes all variables from the .env file
     processed_config = {
         key: replace_env_vars(value)
         for key, value in config.items()
@@ -131,6 +133,11 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
             "iceberg_catalog": processed_config.get("ICEBERG_MAIN_CATALOG"),
         },
         
+        "delta_path":{
+          "raw_icebergdb": processed_config.get("raw_icebergdb"), 
+          "silver_layer": processed_config.get("SILVER_LAYER"), 
+          "gold_layer": processed_config.get("GOLD_LAYER"),  
+        },
         
         "spark_jars": {
             "mssql_spark_jars": processed_config.get("MSSQLSPARKJAR"),
@@ -139,6 +146,8 @@ def load_config(env_path: str = None) -> Dict[str, Any]:
         "job_dag_folder": {
             "airflow_landing_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_LANDING_SCRIPT"),
             "airflow_rawlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_RAW_SCRIPT"),
+            "airflow_silverlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_SILVER_SCRIPT"),
+            "airflow_goldlayer_folder": processed_config.get("AIRFLOW_SPARK_JOBS_FOLDER_GOLD_SCRIPT"),
             "spark_landing_folder": processed_config.get("SPARK_LANDING_FOLDER"),
             "spark_rawlayer_folder": processed_config.get("SPARK_RAW_LAYER_SCRIPT"),
             "airflow_dag_folder": processed_config.get("DAGSFOLDER")
@@ -172,9 +181,9 @@ def validate_required_keys(config: Dict[str, str], required_keys: list, config_n
 
 def print_pretty_config(config: Dict[str, Any]) -> None:
     """
-    Prints the settings in a readable format.
+    Prints the configuration in a readable format.
 
-    :param config: Settings dictionary returned by load_config
+    :param config: Configuration dictionary returned by load_config
     """
     import json
     print(json.dumps(config, indent=2))
@@ -183,15 +192,16 @@ def print_pretty_config(config: Dict[str, Any]) -> None:
 if __name__ == "__main__":
     try:
         config = load_config()
-        print("Settings loaded successfully:")
+        print("Configuration loaded successfully:")
         print("End of import")
         print_pretty_config(config)
 
-        # Section validations
+        # Validate sections
         validate_required_keys(config["hadoop_paths"], ["landing", "raw", "iceberg", "gold", "warehouse"], "Hadoop Paths")
         validate_required_keys(config["spark_jars"], ["mssql_spark_jars", "postgresql_jar"], "Spark JARs")
 
     except Exception as e:
-        print(f"Error loading settings: {str(e)}")
+        print(f"Error loading configuration: {str(e)}")
         import traceback
         traceback.print_exc()
+

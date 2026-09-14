@@ -3,6 +3,17 @@ from sqlalchemy.dialects.postgresql import JSONB
 from api.config.base import Base, AuditMixin
 
 class PurchaseOrderHeaderModel(Base, AuditMixin):
+    """purchasing.purchaseorderheader is RANGE-partitioned by order_date (2026-08-13, monthly
+    partitions purchasing.purchaseorderheader_2025_08..._2026_09 plus a DEFAULT catch-all —
+    the seeder draws order_date up to 365 days back, so this one spans a full year unlike
+    salesorder/transactionhistory). Postgres requires the partition key in every unique/PK
+    constraint, so the PK became (purchaseorderheader_id, order_date).
+
+    purchaseorderdetail.purchaseorderheader_id and purchaseorderaudit.purchaseorderheader_id
+    (the tables that used to FK *into* this one) lost their FKs for the mirror reason —
+    order_date isn't on either. Enforced by the seeders (always insert real, just-fetched
+    values), not by the database.
+    """
 
     __tablename__ = "purchaseorderheader"
 
@@ -11,7 +22,7 @@ class PurchaseOrderHeaderModel(Base, AuditMixin):
     vendor_id = Column(Integer, ForeignKey('purchasing.vendor.vendor_id'), nullable=False)
     employee_id = Column(Integer, ForeignKey('humanresources.employee.employee_id'), nullable=False)
 
-    order_date = Column(DateTime(timezone=True), nullable=False)
+    order_date = Column(DateTime(timezone=True), primary_key=True, nullable=False)
     ship_date = Column(DateTime(timezone=True), nullable=True)
     orderfinished_date = Column(DateTime(timezone=True), nullable=True)
     

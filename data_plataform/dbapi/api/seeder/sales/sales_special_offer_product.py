@@ -27,8 +27,16 @@ async def seed_special_offer_products(avg_products_per_offer: int = 5):
 
         print(f"📣 Seeding links between {len(offer_ids)} offers and products...")
 
+        # Root-cause fix: every re-run used to draw a fresh random subset of products per
+        # offer with no awareness of what was already linked, so on any DAG run after the
+        # first it was near-certain to re-pick an already-existing (special_offer_id,
+        # product_id) pair and hit the composite unique constraint. Seeding seen_pairs from
+        # what's already in the DB means only genuinely new pairs get generated.
+        seen_pairs = set(
+            (await session.execute(select(SpecialOfferProductModel.special_offer_id, SpecialOfferProductModel.product_id))).all()
+        )
+
         mappings = []
-        seen_pairs = set()
 
         for offer_id in offer_ids:
             # Select a random number of products for each offer
@@ -44,6 +52,10 @@ async def seed_special_offer_products(avg_products_per_offer: int = 5):
                     })
                     seen_pairs.add(pair)
 
+        if not mappings:
+            print("✅ No new offer/product links to add — all combinations already seeded.")
+            return
+
         try:
             # Bulk Insert for performance
             stmt = insert(SpecialOfferProductModel).values(mappings)
@@ -53,6 +65,7 @@ async def seed_special_offer_products(avg_products_per_offer: int = 5):
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding links: {e}")
+            raise RuntimeError(f"Special offer/product link seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for sales.specialofferproduct (M:N fan-out of real offers x products, no chaos)")

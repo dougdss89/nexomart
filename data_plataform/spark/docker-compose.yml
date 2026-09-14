@@ -16,7 +16,7 @@ services:
       - spark-jobs:/workspace/jobs
       - ./devapplication:/opt/spark/development
       - spark-logs:/opt/spark/spark-events
-      - configurations:/dockervol/configurations
+      - configs:/dockervol/configs
       - dockervol:/dockervol
       - spark-ivy-cache:/home/spark/.ivy2
 
@@ -26,7 +26,7 @@ services:
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configurations
+      - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configs
 
     cpus: "1.0"
     mem_limit: 2g
@@ -54,13 +54,13 @@ services:
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configurations
+      - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configs
 
     volumes:
       - spark-jobs:/opt/spark/jobs
       - ./devapplication:/opt/spark/development
       - spark-logs:/opt/spark/spark-events
-      - configurations:/dockervol/configurations
+      - configs:/dockervol/configs
       - dockervol:/dockervol
       - spark-ivy-cache:/home/spark/.ivy2
 
@@ -90,14 +90,14 @@ services:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_CORES=${SPARK_WORKER_CORES}
       - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}
-      - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configurations
+      - PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-*.zip:/opt/spark/jobs:/dockervol/configs
 
     # Sized to fit 3 replicas (docker compose up -d --scale spark-worker=3) within a
     # 24-core / 54GB Docker budget, leaving room for the rest of the stack (Postgres,
     # MinIO, Hive Metastore, Trino, Airflow, dbapi). Smaller, more numerous workers are
     # also better for tuning exercises: they force real shuffle/spill instead of a
     # single giant worker solving everything in local memory.
-    # Adjust SPARK_WORKER_CORES/MEMORY in configurations/secrets.env, not here.
+    # Adjust SPARK_WORKER_CORES/MEMORY in configs/secrets.env, not here.
     cpus: "${SPARK_WORKER_CORES}"
     mem_limit: ${SPARK_WORKER_MEM_LIMIT}
 
@@ -133,9 +133,9 @@ volumes:
       type: none
       o: bind
       device: ./jobs
-  configurations:
+  configs:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ../configurations
+      device: ../configs

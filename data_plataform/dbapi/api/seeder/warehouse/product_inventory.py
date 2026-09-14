@@ -74,7 +74,7 @@ async def seed_product_inventory(count: int, chaos_rate: float = 0.05, batch_siz
             except Exception as e:
                 await session.rollback()
                 print(f"❌ Error during load: {e}")
-                break
+                raise RuntimeError(f"Product inventory seeding aborted ({total_inserted:,}/{count:,} inserted): {e}") from e
 
         try:
             await session.commit()
@@ -82,6 +82,7 @@ async def seed_product_inventory(count: int, chaos_rate: float = 0.05, batch_siz
         except Exception as e:
             await session.rollback()
             print(f"❌ Error committing: {e}")
+            raise
 
 if __name__ == "__main__":
     parser = build_parser(f"Dynamic seeder for {TABLE_NAME}")

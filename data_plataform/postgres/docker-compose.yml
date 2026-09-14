@@ -3,21 +3,37 @@ services:
     image: pgvector/pgvector:pg16
     container_name: pgprojeto
     env_file:
-      - ../configurations/secrets.env
+      - ../configs/secrets.env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    command: >
+      postgres
+      -c shared_buffers=${PG_SHARED_BUFFERS}
+      -c work_mem=${PG_WORK_MEM}
+      -c maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM}
+      -c effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE}
+      -c max_wal_size=${PG_MAX_WAL_SIZE}
+      -c checkpoint_completion_target=${PG_CHECKPOINT_COMPLETION_TARGET}
+      -c wal_compression=${PG_WAL_COMPRESSION}
+      -c synchronous_commit=${PG_SYNCHRONOUS_COMMIT}
+      -c fsync=${PG_FSYNC}
+      -c full_page_writes=${PG_FULL_PAGE_WRITES}
+      -c effective_io_concurrency=${PG_EFFECTIVE_IO_CONCURRENCY}
+      -c maintenance_io_concurrency=${PG_MAINTENANCE_IO_CONCURRENCY}
+      -c random_page_cost=${PG_RANDOM_PAGE_COST}
     volumes:
-      - pgprojeto_data:/var/lib/postgresql/data
+      - /mnt/wsl/postgres-ssd/pgdata:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d
     ports:
       - "5433:5432"
     networks:
       - hadoopcluster
 
-    cpus: "4.0"
-    mem_limit: 8g
+    cpus: "2.0"
+    mem_limit: 6g
+    shm_size: 2gb
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
@@ -30,4 +46,4 @@ networks:
     external: true
 
 volumes:
-  pgprojeto_data:
+  pgprojeto_data: # old volume kept as rollback backup, unused since data moved to /mnt/wsl/postgres-ssd

@@ -162,7 +162,7 @@ data_plataform/
 ├── trino/
 │   └── catalog/             # delta.properties, iceberglake.properties, nexomart.properties, nexo.properties, minio.properties
 ├── unitycatalog/           # Unity Catalog OSS (REST API + Iceberg REST catalog)
-├── configurations/
+├── configs/
 │   ├── .env                # Job paths, MinIO buckets, connections
 │   ├── secrets.env         # Credentials (not committed)
 │   ├── profiles.yml        # dbt target: nexo.gold via Trino
@@ -188,7 +188,7 @@ data_plataform/
 
 ```bash
 # 1. Set up credentials (never committed)
-cp configurations/secrets.env.example configurations/secrets.env
+cp configs/secrets.env.example configs/secrets.env
 # edit secrets.env with real values
 
 # 2. Create network, volumes, and build images
@@ -215,7 +215,7 @@ make clean       # ⚠️  removes containers AND volumes (destroys data)
 
 `make down` removes containers, but it **does not** delete data — everything that matters (Postgres, MinIO, `dockervol`, Spark caches) lives in named Docker volumes (`postgres_pgprojeto_data`, `minio_minio_data`, etc.), which are only removed with an explicit `-v`/`--volumes` flag — something no target other than `clean` (⚠️ intentionally destructive) does. Use `make down`/`make up` when you edit a `docker-compose.yml` (the container needs to be recreated to pick up the change); use `make stop`/`make start` for day-to-day work (e.g. pausing before shutting down your machine) — faster to resume, same data-preservation guarantee.
 
-`spark-worker` (`spark/docker-compose.yml`) is sized at 4 cores / 8GB per replica (`SPARK_WORKER_CORES`/`SPARK_WORKER_MEMORY`/`SPARK_WORKER_MEM_LIMIT` in `configurations/secrets.env`) specifically so it can scale to 3 replicas — 12 cores / 24GB total — without starving the rest of the stack. `WORKERS` defaults to `1` for normal day-to-day use; pass `WORKERS=N` to `make start` or `make scale-spark` to scale out for heavier jobs, then scale back down (`make scale-spark WORKERS=1`) when done. `docker compose start` can't create new replicas (it only restarts containers that already exist), so both targets use `up -d --scale` under the hood instead — which also means they're safe to call any time, not just after a `make stop`.
+`spark-worker` (`spark/docker-compose.yml`) is sized at 4 cores / 8GB per replica (`SPARK_WORKER_CORES`/`SPARK_WORKER_MEMORY`/`SPARK_WORKER_MEM_LIMIT` in `configs/secrets.env`) specifically so it can scale to 3 replicas — 12 cores / 24GB total — without starving the rest of the stack. `WORKERS` defaults to `1` for normal day-to-day use; pass `WORKERS=N` to `make start` or `make scale-spark` to scale out for heavier jobs, then scale back down (`make scale-spark WORKERS=1`) when done. `docker compose start` can't create new replicas (it only restarts containers that already exist), so both targets use `up -d --scale` under the hood instead — which also means they're safe to call any time, not just after a `make stop`.
 
 ### Individual services
 
@@ -237,7 +237,7 @@ make up-dbapi
 Buckets are provisioned automatically by the `minio-init` service (`minio/docker-compose.yml`) every time MinIO comes up (`make up` or `make up-minio`) — there's no need to create them manually. It's a one-shot container that runs `mc mb --ignore-existing` for each bucket and exits (same pattern as `airflow-init`); idempotent, so running it again against buckets that already exist doesn't error.
 
 - **`spark-events`** is mandatory and hardcoded in `minio-init` (it does not live in the list below): the Spark History Server reads `spark.eventLog.dir=s3a://spark-events/apps` (`spark/conf/spark-defaults.conf.template`) and fails on boot if the bucket/prefix doesn't exist.
-- **Everything else comes from `MINIO_EXTRA_BUCKETS`** in `configurations/secrets.env` — a comma-separated list, no spaces. Currently:
+- **Everything else comes from `MINIO_EXTRA_BUCKETS`** in `configs/secrets.env` — a comma-separated list, no spaces. Currently:
 
   ```bash
   MINIO_EXTRA_BUCKETS=landing,bronze,silver,iceberg,deltadw
@@ -290,6 +290,30 @@ docker exec airflow_scheduler airflow tasks states-for-dag-run \
 
 ---
 
+## NexoMart Production Pipeline
+
+Three independent Airflow DAGs simulate a live OLTP workload against the `nexomart_db` schemas (see [Business Domains](#business-domains)). They run on separate schedules and are not chained together by triggers:
+
+| DAG | Schedule | Purpose |
+|-----|----------|---------|
+| `nexomart_seeder_dag` | every 15 minutes (`*/15 * * * *`) | Inserts new rows across all 7 domains, with chaos engineering (see [Chaos Engineering](#chaos-engineering)) |
+| `nexomart_mutator_dag` | hourly (`0 * * * *`) | Applies UPDATE and, where safe, DELETE to rows the seeder already inserted, to give a future CDC pipeline realistic update/delete events, not just inserts |
+| `nexomart_ingestion_dag` | manual only (`schedule=None`) | Reads from `nexomart_db` and lands raw Parquet into MinIO's `landing` bucket, one file per table per run. Trigger it by hand, or put it on its own schedule sized to how long it actually takes |
+
+Both `nexomart_seeder_dag` and `nexomart_mutator_dag` use `max_active_runs=1` so a slow run can never overlap with the next tick. `nexomart_seeder_dag` also caps `max_active_tasks=8` to avoid disk I/O contention between the heaviest bulk-insert tasks.
+
+`nexomart_ingestion_dag` used to be triggered automatically at the end of every seeder run. That was removed: ingestion runs could take much longer than the seeder's 15-minute cadence, so triggers piled up as queued runs behind each other. Trigger it manually or schedule it independently.
+
+Ingestion reads only rows that are new or changed since the last successful run, using a `COALESCE(updated_at, created_at) > watermark` filter per table, not a full table scan every time. Watermarks live in `ingestion_control.watermarks` inside `nexomart_db`. Full details, including the two real bugs found chasing a stuck backfill (a MinIO client with no timeout, and an unnecessary JSON decode/re-encode round trip in the Postgres read path): [`docs/INGESTION_INCREMENTAL.md`](docs/INGESTION_INCREMENTAL.md).
+
+`nexomart_mutator_dag` never issues a hard DELETE against a row that is still a foreign-key target, or against the two fan-out parent tables (`person.customer`, `purchasing.purchaseorderheader`) whose FK no longer exists at the database level after partitioning. Those get a soft delete (`is_active = false`) instead. Full postmortem: [`docs/MUTATOR_DAG_FIXES.md`](docs/MUTATOR_DAG_FIXES.md).
+
+Per-run volumes were originally sized for a daily cron and had to be rescaled for a 10-15 minute cadence; three seeders that scaled with total accumulated history (not with the work needed that run) also had to be rewritten. Full analysis and measurements: [`docs/SEEDER_MICROBATCHING.md`](docs/SEEDER_MICROBATCHING.md).
+
+`SEEDER_ROOT` and `UV_PROJECT` (the paths each DAG uses to shell out to a seeder script via `uv run`) are read from `configs/secrets.env`, not hardcoded in the DAG files.
+
+---
+
 ## Spark Query Monitoring
 
 ### DataFlint — enriched execution plans
@@ -326,7 +350,7 @@ While the shell is open, `localhost:4040/dataflint` stays reachable.
 Generated by `make up` via `envsubst` from the template. **Never edit the `.conf` directly** — edit the `.template` and regenerate:
 
 ```bash
-export $(grep -v '^#' configurations/secrets.env | xargs)
+export $(grep -v '^#' configs/secrets.env | xargs)
 envsubst < spark/conf/spark-defaults.conf.template > spark/conf/spark-defaults.conf
 ```
 
@@ -357,7 +381,7 @@ spark.hadoop.fs.s3a.endpoint         http://minio:9000
 
 ### dbt — Gold Models
 
-Target: `nexo.gold` via Trino (`configurations/profiles.yml`).
+Target: `nexo.gold` via Trino (`configs/profiles.yml`).
 
 ```yaml
 data_platform:
@@ -371,9 +395,13 @@ data_platform:
 
 Use `materialized='view'` for marts that are direct projections — no S3 writes, no `__dbt_tmp` / `__dbt_backup` leftovers.
 
-Sources declared in `configurations/dbt/models/gold/sources.yml`:
+Sources declared in `configs/dbt/models/gold/sources.yml`:
 - `gold` → `nexo.gold` (Iceberg tables written by Spark via iceberglake, read by Trino via nexo/UC REST)
 - `gold_iceberg` → alias for future domains (buyer)
+
+### PostgreSQL tuning and partitioning
+
+`pgprojeto` runs with 13 non-default GUCs (memory, WAL, and I/O settings tuned for the container's resource limits and the WSL2-virtualized disk) set via `postgres/docker-compose.yml` and `configs/secrets.env`, so they survive a container recreation instead of living only in the data volume. Five of the largest tables (`person.customer`, `sales.salesorder`, `warehouse.transactionhistory`, `purchasing.purchaseorderheader`, `marketing.dailyperformance`) are natively partitioned to keep each partition's working set cache-resident. Partitioning migrations live in `configs/postgresql/migrations/` and are safe to re-run against an empty or a populated database. Full detail: [`configs/postgresql/README.md`](configs/postgresql/README.md).
 
 ---
 
@@ -397,7 +425,7 @@ docker exec pgprojeto psql -U admin -d postgres -c \
   "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='metastore' AND pid <> pg_backend_pid();"
 docker exec pgprojeto psql -U admin -d postgres -c "DROP DATABASE metastore;"
 docker exec pgprojeto psql -U admin -d postgres -c "CREATE DATABASE metastore;"
-docker compose --env-file configurations/secrets.env -f hive/docker-compose.yml up -d --force-recreate
+docker compose --env-file configs/secrets.env -f hive/docker-compose.yml up -d --force-recreate
 ```
 
 With this fix in place, a fresh environment (new `metastore` DB) will self-initialize correctly on first `make up` — this was previously a silent trap that only surfaced the first time an Iceberg write actually attempted a commit lock.
@@ -456,24 +484,24 @@ ORDER BY duration DESC;"
 
 **Symptom:** `docker restart <container>` fails with `OCI runtime create failed: unable to start container process: error mounting "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/..."`.
 
-**Cause:** Docker Desktop on WSL2 uses hashes for bind mounts; a `restart` tries to reuse the old (now-stale) hash. This isn't limited to `docker restart` — it can also surface as `error mounting ... flags: 0x1000: no such file or directory` on a fresh `up` after a Docker Desktop/WSL2 restart, for any volume using a `local` driver with `type: none, o: bind` (e.g. `spark-jobs`, `spark-configurations`).
+**Cause:** Docker Desktop on WSL2 uses hashes for bind mounts; a `restart` tries to reuse the old (now-stale) hash. This isn't limited to `docker restart` — it can also surface as `error mounting ... flags: 0x1000: no such file or directory` on a fresh `up` after a Docker Desktop/WSL2 restart, for any volume using a `local` driver with `type: none, o: bind` (e.g. `spark-jobs`, `spark-configs`).
 
 **Fix:**
 ```bash
 # Never use `docker restart` on containers with WSL2 bind mounts
 docker rm -f <container>
-docker compose --env-file configurations/secrets.env -f <service>/docker-compose.yml up -d <service>
+docker compose --env-file configs/secrets.env -f <service>/docker-compose.yml up -d <service>
 
 # Example for airflow_worker (critical: loads spark-defaults.conf via bind mount)
 docker rm -f airflow_worker
-docker compose --env-file configurations/secrets.env -f airflow/docker-compose.yaml up -d --force-recreate airflow-worker
+docker compose --env-file configs/secrets.env -f airflow/docker-compose.yaml up -d --force-recreate airflow-worker
 ```
 
 If the stale-mount error happens on a bind-mounted named volume (not a live container) instead, remove and let Compose recreate the volume itself:
 ```bash
 docker rm -f <containers using the volume>
 docker volume rm <volume-name>
-docker compose --env-file configurations/secrets.env -f <service>/docker-compose.yml up -d
+docker compose --env-file configs/secrets.env -f <service>/docker-compose.yml up -d
 ```
 
 ---
@@ -484,7 +512,7 @@ docker compose --env-file configurations/secrets.env -f <service>/docker-compose
 
 **Cause:** dbt compiles all models before running any of them — any source not declared in `sources.yml` breaks the run even when `--select` points at a different model.
 
-**Fix:** `gold_iceberg` declared as a source in `configurations/dbt/models/gold/sources.yml`.
+**Fix:** `gold_iceberg` declared as a source in `configs/dbt/models/gold/sources.yml`.
 
 ---
 
@@ -508,7 +536,7 @@ docker exec trino-coordinator trino --server http://localhost:8080 --user admin 
 
 **Fix:** always use the Makefile:
 ```bash
-make up-airflow   # uses: docker compose --env-file configurations/secrets.env
+make up-airflow   # uses: docker compose --env-file configs/secrets.env
 ```
 
 ---
@@ -522,7 +550,7 @@ make up-airflow   # uses: docker compose --env-file configurations/secrets.env
 **Fix:**
 ```bash
 # If something else on the host owns the port, free it, then:
-docker compose --env-file configurations/secrets.env -f minio/docker-compose.yml up -d --force-recreate minio
+docker compose --env-file configs/secrets.env -f minio/docker-compose.yml up -d --force-recreate minio
 ```
 
 ---
@@ -584,7 +612,7 @@ docker exec trino-coordinator trino \
 ### Regenerating spark-defaults.conf
 
 ```bash
-export $(grep -v '^#' configurations/secrets.env | xargs)
+export $(grep -v '^#' configs/secrets.env | xargs)
 envsubst < spark/conf/spark-defaults.conf.template > spark/conf/spark-defaults.conf
 ```
 
@@ -627,7 +655,7 @@ Seeders inject between **1% and 10%** of controlled anomalies per run:
 | Incomplete processes | Orders paid but never shipped, open chargeback disputes |
 | Inventory anomalies | Negative quantities, expired products in active stock |
 
-Full documentation: [`dbapi/api/seeder/CHAOS_DOCUMENTATION.md`](dbapi/api/seeder/CHAOS_DOCUMENTATION.md)
+Full documentation: [`docs/CHAOS_DOCUMENTATION.md`](docs/CHAOS_DOCUMENTATION.md)
 
 ---
 
@@ -683,8 +711,18 @@ Full documentation: [`dbapi/api/seeder/CHAOS_DOCUMENTATION.md`](dbapi/api/seeder
 | File | Description |
 |------|--------------|
 | [`docs/nexomart_requisitos.md`](docs/nexomart_requisitos.md) | NexoMart functional and non-functional requirements |
-| [`docs/CICLO_01_CRONOGRAMA.md`](docs/CICLO_01_CRONOGRAMA.md) | Cycle 1 video schedule and scripts |
+| [`docs/CYCLE_01_SCHEDULE.md`](docs/CYCLE_01_SCHEDULE.md) | Cycle 1 video schedule and scripts |
 | [`docs/ENGINEERING_DEBATE_AND_ROADMAP.md`](docs/ENGINEERING_DEBATE_AND_ROADMAP.md) | Engineering decisions and technical roadmap |
 | [`docs/AI_ML_ROADMAP.md`](docs/AI_ML_ROADMAP.md) | AI/ML use-case roadmap (demand forecasting, semantic search) |
 | [`docs/INCIDENTS.md`](docs/INCIDENTS.md) | Postmortems for bugs found in production-ish operation |
-| [`dbapi/walkthrough.md`](dbapi/walkthrough.md) | Implementation walkthrough for the product domain |
+| [`docs/SEEDER_MICROBATCHING.md`](docs/SEEDER_MICROBATCHING.md) | Rescaling the seeders and their DAG for a 10-15 minute cadence |
+| [`docs/INGESTION_INCREMENTAL.md`](docs/INGESTION_INCREMENTAL.md) | Watermark-based incremental ingestion, and the bugs found building it |
+| [`docs/MUTATOR_DAG_FIXES.md`](docs/MUTATOR_DAG_FIXES.md) | Bugs found and fixed in the UPDATE/DELETE mutation DAG |
+| [`docs/MIGRATION_GUIDE.md`](docs/MIGRATION_GUIDE.md) | Migrating a seeder to the chaos engineering + volume limits pattern |
+| [`docs/DYNAMIC_RANDOMIZATION_GUIDE.md`](docs/DYNAMIC_RANDOMIZATION_GUIDE.md) | Using dynamic volume and chaos-rate ranges in a seeder |
+| [`docs/CHAOS_DOCUMENTATION.md`](docs/CHAOS_DOCUMENTATION.md) | Every anomaly type injected by the seeders, per table |
+| [`docs/CICD_SETUP.md`](docs/CICD_SETUP.md) | GitHub Actions CI/CD pipeline setup |
+| [`configs/postgresql/README.md`](configs/postgresql/README.md) | PostgreSQL GUC tuning and table partitioning notes |
+| [`docs/AIRFLOW.md`](docs/AIRFLOW.md) | Airflow DAGs, schedules, and operational notes |
+| [`docs/MINIO.md`](docs/MINIO.md) | MinIO buckets, provisioning, and client configuration |
+| [`docs/walkthrough.md`](docs/walkthrough.md) | Implementation walkthrough for the product domain |

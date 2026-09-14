@@ -1,5 +1,5 @@
 # Credenciais — nunca commitar
-configurations/secrets.env
+configs/secrets.env
 
 # Arquivos gerados a partir de templates (contêm credenciais)
 spark/conf/spark-defaults.conf
@@ -17,8 +17,15 @@ dbapi/api/.env
 airflow/dags/.env
 
 # Symlink for local dev (Docker uses volume mount instead)
-dbapi/configurations
+dbapi/configs
 
 # IDEs
 .idea/
 .vscode/
+
+*.jar
+.venv/
+.claude/
+_agent/
+.github/
+

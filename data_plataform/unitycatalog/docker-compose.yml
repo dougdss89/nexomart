@@ -12,7 +12,7 @@ services:
       - uc-data:/opt/unitycatalog/etc/db
       - dockervol:/dockervol
     env_file:
-      - ../configurations/secrets.env
+      - ../configs/secrets.env
     environment:
       # Storage: MinIO as S3-compatible backend
       - AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}

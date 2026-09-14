@@ -3,7 +3,7 @@
 # model's own config() — the same Trino connection sees both catalogs
 # (see trino/catalog/postgres.properties).
 #
-# All values come from configurations/secrets.env (already loaded as env in the
+# All values come from configs/secrets.env (already loaded as env in the
 # Airflow container via env_file) — nothing is hardcoded here. The env_var()
 # defaults only exist so it doesn't break if the var isn't set.
 data_platform:

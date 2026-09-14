@@ -30,7 +30,7 @@ def find_env_file(start_path: str = None) -> str:
     search_paths.append(os.getcwd())
 
     # === THE OFFICIAL VOLUME PATH (Added only once) ===
-    search_paths.append('/dockervol/configurations')
+    search_paths.append('/dockervol/configs')
 
     print(f"Current directory: {os.getcwd()}")
     print(f"Module directory: {current_module_dir}")

@@ -1,0 +1,190 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: raw.person.customer
+name: "Customer landing (raw)"
+version: 1.0.0
+status: active
+domain: person
+
+description:
+  purpose: >
+    Incremental snapshot of person.customer landed as parquet in MinIO,
+    produced by dbapi/api/seeder/ingestions/person_ingestion.py.
+
+tags: [pii, customer, dimension, incremental]
+
+team:
+  name: data-engineering
+  members:
+    - username: data-engineering@nexomart.internal
+      role: Owner
+
+servers:
+  - server: landing-minio
+    type: s3
+    location: "s3://landing/person/customer/{run_date}/part-{run_ts}-{part:05d}.parquet"
+    format: parquet
+
+schema:
+  - id: customer_raw
+    name: customer
+    physicalType: file
+    description: >
+      Incremental snapshot of person.customer landed as parquet in MinIO.
+    dataGranularityDescription: >
+      One row per person.customer row as of the extraction watermark —
+      incremental by COALESCE(updated_at, created_at), not full-refresh.
+
+    customProperties:
+      - property: extractionStrategy
+        value: incremental_watermark
+      - property: watermarkColumn
+        value: "COALESCE(updated_at, created_at)"
+      - property: watermarkTable
+        value: ingestion_control.watermarks
+      - property: fullBackfillCondition
+        value: "first watermark run for this table, or a manual reset"
+      - property: ingestionScript
+        value: dbapi/api/seeder/ingestions/person_ingestion.py
+
+    properties:
+      - name: customer_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+        description: "Same value as in Postgres — not rewritten/transformed at this layer."
+
+      - name: customer_name
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "Raw copy — may contain CLAUDE.md's chaos engineering anomalies (e.g. 'John123', double spaces)."
+        tags: [pii]
+        classification: confidential
+
+      - name: last_name
+        logicalType: string
+        physicalType: string
+        required: true
+        tags: [pii]
+        classification: confidential
+
+      - name: social_number
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "Raw copy, including intentionally malformed tax IDs — cleaning is silver's job, not raw's."
+        tags: [pii]
+        classification: restricted
+
+      - name: birthdate
+        logicalType: date
+        physicalType: timestamp
+        required: true
+        tags: [pii]
+        classification: confidential
+
+      - name: customer_type
+        logicalType: string
+        physicalType: string
+        required: true
+
+      - name: credit_limit
+        logicalType: number
+        physicalType: decimal
+        required: true
+
+      - name: demographics
+        logicalType: object
+        physicalType: string
+        required: true
+        description: >
+          IMPORTANT: arrives as a raw JSON STRING, not a parquet struct.
+          Deliberate decision in ingestion_common.py — psycopg2 auto-decodes
+          JSONB into a dict, and re-serializing it to JSON before writing
+          parquet was an expensive, pointless round-trip (found via py-spy,
+          see docs/INGESTION_INCREMENTAL.md). Real parsing (typed struct)
+          happens in silver.
+        tags: [pii]
+        classification: restricted
+        customProperties:
+          - property: rawType
+            value: json_string
+
+      - name: country_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+        relationships:
+          - to: person.countryregion.country_id
+
+      - name: state_province_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+        description: >
+          Present here and in the database, but ABSENT from the
+          api_contract/person/customer.yml payload (not in the Pydantic
+          Customer model) — it's populated by the seeder directly, not by
+          the API. A real divergence between the two layers, exactly the
+          kind of thing a data contract exists to surface instead of
+          discovering it in production.
+        relationships:
+          - to: person.stateprovince.state_province_id
+
+      - name: created_at
+        logicalType: date
+        physicalType: timestamp
+        required: true
+
+      - name: updated_at
+        logicalType: date
+        physicalType: timestamp
+        required: true
+        description: "Used as the watermark column (combined with created_at via COALESCE)."
+
+      - name: is_active
+        logicalType: boolean
+        physicalType: boolean
+        required: true
+
+      - name: row_guid
+        logicalType: string
+        physicalType: uuid
+        required: true
+
+    quality:
+      - id: valid_parquet
+        type: text
+        description: "The file must open as valid parquet — a write failure aborts the run (see the MinIO timeout fix)."
+        severity: error
+      - id: no_schema_drift
+        type: text
+        description: "Same column list as Postgres on every cut — a new/removed database column must be reflected here before the next DAG run."
+        severity: warning
+
+slaProperties:
+  - property: latency
+    value: 15
+    unit: m
+    element: customer.updated_at
+
+support:
+  - channel: data-engineering@nexomart.internal
+    tool: email
+
+customProperties:
+  - property: lineageUpstream
+    value: [api_contract/person/customer.yml]
+  - property: lineageDownstream
+    value: [silver_contract/person/customer.yml]
+  - property: freshnessNotes
+    value: "landed within 15min of the Postgres commit — matches nexomart_seeder_dag's cadence (5-15min schedule) plus trigger_ingestion at the end of the run"
+  - property: changelog
+    value:
+      - version: 1.0.0
+        date: "2026-09-05"
+        change: "Initial version, aligned with the incremental ingestion pipeline (docs/INGESTION_INCREMENTAL.md)."
+      - version: 1.1.0
+        date: "2026-09-06"
+        change: "Converted from the project's ODCS-inspired custom format to real ODCS v3.1.0 (apiVersion/servers/schema.properties/relationships/quality). Non-native concepts (extraction strategy, lineage, changelog) moved into customProperties."

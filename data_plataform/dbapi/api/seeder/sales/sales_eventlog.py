@@ -8,14 +8,18 @@ from datetime import datetime, timedelta
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-from sqlalchemy import select
 from api.database import AsyncSessionLocal
 from api.services.sales.sales_event_log_service import SalesEventLogService
 from api.schemas.sales.sales_eventlog import SalesOrderEventLogSchema, SalesEventContext, GPSLocation
 from api.samples.sales_eventlog import SALES_EVENT_LOG_TEMPLATES
 from api.models.sales.salesorder import SalesOrderModel
 from api.seeder.chaos import apply_eventlog_chaos
-from api.seeder.cli_common import add_chaos_args, resolve_chaos_args
+from api.seeder.cli_common import add_chaos_args, resolve_chaos_args, sample_fk_ids
+
+# Widened 2026-09-05 (was 1-15 days back) so event_date spans multiple years, matching
+# the wider order_date range in sales_order.py.
+EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
+
 
 async def seed_sales_eventlogs(count_orders: int, chaos_rate: float = 0.05, apply_chaos: bool = True):
     """
@@ -23,10 +27,14 @@ async def seed_sales_eventlogs(count_orders: int, chaos_rate: float = 0.05, appl
     Generates realistic event trails linked to REAL orders from the database.
     """
     async with AsyncSessionLocal() as session:
-        # 1. Fetch real orders to link the events to
-        order_ids = (await session.execute(select(SalesOrderModel.salesorder_id))).scalars().all()
+        # 1. Fetch real orders to link the events to. sales.salesorder is unbounded/partitioned
+        # (past 1M rows) — a full-column load here scales with total order history, not this
+        # run's work, same class of bug as sales_order.py's customer_ids (fixed 2026-08-17
+        # with this same helper). sample_fk_ids already returns a bounded random sample, so
+        # no further random.sample() is needed on top of it.
+        selected_orders = await sample_fk_ids(session, SalesOrderModel.salesorder_id, limit=count_orders)
 
-        if not order_ids:
+        if not selected_orders:
             print("⚠️ No order (SalesOrder) found in the database! Run the SalesOrder seeder first.")
             return
 
@@ -34,17 +42,14 @@ async def seed_sales_eventlogs(count_orders: int, chaos_rate: float = 0.05, appl
 
         all_events = []
 
-        # Selects a subset or all orders depending on the requested count_orders
-        selected_orders = random.sample(order_ids, min(len(order_ids), count_orders))
-
         now = datetime.now()
 
         for order_id in selected_orders:
             # Decide how many events this order had (1 to 5 stages)
             stages = random.randint(1, len(SALES_EVENT_LOG_TEMPLATES))
 
-            # Base date going back 1 to 15 days
-            base_date = now - timedelta(days=random.randint(1, 15))
+            # Base date going back 1 day up to EARLIEST_TRANSACTION_DATE
+            base_date = now - timedelta(days=random.randint(1, (now - EARLIEST_TRANSACTION_DATE).days))
 
             for i in range(stages):
                 template = SALES_EVENT_LOG_TEMPLATES[i]
@@ -83,6 +88,7 @@ async def seed_sales_eventlogs(count_orders: int, chaos_rate: float = 0.05, appl
         except Exception as e:
             await session.rollback()
             print(f"❌ Error during load: {e}")
+            raise RuntimeError(f"Sales event log seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seeder for Sales Event Logs (fan-out of real orders)")

@@ -1,0 +1,152 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: gold.person.customer
+name: "dim_customer"
+version: 1.0.0
+status: draft
+domain: person
+
+description:
+  purpose: >
+    Customer dimension, current state, ready for consumption via Trino/BI.
+  limitations: >
+    NOT YET IMPLEMENTED — contract written before the job (contract-first),
+    same rationale as silver_contract/person/customer.yml.
+
+tags: [pii, customer, dimension, not-yet-implemented]
+
+team:
+  name: data-engineering
+  members:
+    - username: data-engineering@nexomart.internal
+      role: Owner
+
+servers:
+  - server: nexomart-trino
+    type: trino
+    host: trino-coordinator
+    port: 8080
+    catalog: nexomart          # see trino/catalog/nexomart.properties
+    schema: gold_person
+    customProperties:
+      - property: table
+        value: dim_customer
+      - property: job
+        value: "spark/jobs/nexomart/gold/person/dim_customer.py  # does not exist yet"
+
+schema:
+  - id: dim_customer
+    name: dim_customer
+    physicalType: table
+    description: "Customer dimension, current state, ready for consumption via Trino/BI."
+    dataGranularityDescription: "one row per customer_id, current state (is_current=true from silver's SCD2)"
+
+    customProperties:
+      - property: businessDefinitions
+        value:
+          - term: is_current
+            definition: >
+              true for the customer's most recent state; full history
+              lives in silver (SCD2), not here. Note: this term is defined
+              in the source docs but there is no matching is_current
+              column in the schema below — flagged here rather than
+              silently dropped.
+      - property: maskingPolicy
+        value: "full_name masked (e.g. 'J*** D****') for roles outside data-team; other columns are safe for general BI."
+
+    properties:
+      - name: customer_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "Customer key. Stable — same customer_id as the source across every layer."
+
+      - name: full_name
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "customer_name + last_name concatenated (gold joins what silver keeps separate)."
+        tags: [pii]
+        classification: restricted
+
+      - name: customer_type
+        logicalType: string
+        physicalType: string
+        required: true
+        businessName: "Customer type"
+        description: "SC = physical store contact; VC = vendor contact. Not to be confused with a marketing segment (not modeled in this table)."
+
+      - name: credit_limit
+        logicalType: number
+        physicalType: decimal
+        required: true
+        businessName: "Credit limit"
+        description: "Credit limit in BRL — not converted to the customer's country currency (country_code tells you the country, not the billing currency)."
+
+      - name: country_code
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "Alpha-2 (e.g. BR, CL, PE, IT) — resolved via join against person.countryregion, not the internal country_id."
+
+      - name: state_name
+        logicalType: string
+        physicalType: string
+        required: false
+
+      - name: total_purchased
+        logicalType: number
+        physicalType: decimal
+        required: false
+        description: "From demographics.metrics.total_purchased at the source."
+
+      - name: count_orders
+        logicalType: integer
+        physicalType: integer
+        required: false
+
+      - name: is_active
+        logicalType: boolean
+        physicalType: boolean
+        required: true
+
+      - name: updated_at
+        logicalType: date
+        physicalType: timestamp
+        required: true
+
+    quality:
+      - id: no_orphan_country
+        type: text
+        description: "country_code always resolves to an existing country — a broken join here is directly visible on a dashboard, high priority."
+        severity: error
+      - id: row_count_variance
+        type: text
+        description: "Row count should not vary by more than N% between refreshes without explanation (catches duplicate backfills or an incomplete cut)."
+        severity: warning
+
+support:
+  - channel: data-engineering@nexomart.internal
+    tool: email
+  - channel: "Trino ad-hoc queries (trino/catalog/nexomart.properties)"
+    description: "Primary consumer channel today."
+  - channel: "BI dashboards"
+    description: "Consumer channel — to be defined."
+
+customProperties:
+  - property: lineageUpstream
+    value: [silver_contract/person/customer.yml]
+  - property: lineageDownstream
+    value: []
+  - property: refreshCadence
+    value: "aligned with the silver -> gold cycle, to be defined once the jobs exist"
+  - property: changelog
+    value:
+      - version: 1.0.0
+        date: "2026-09-05"
+        change: "Initial version — contract written before the Spark job exists (contract-first)."
+      - version: 1.1.0
+        date: "2026-09-06"
+        change: "Converted from the project's ODCS-inspired custom format to real ODCS v3.1.0. business_definitions folded into property description/businessName where a column exists, and into customProperties.businessDefinitions where it doesn't (is_current); access_control expressed via tags/classification on full_name plus a customProperties.maskingPolicy note."

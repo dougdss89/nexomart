@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-SECRETS       := configurations/secrets.env
+SECRETS       := configs/secrets.env
 COMPOSE       := docker compose --env-file $(SECRETS)
 WORKERS       ?= 1
 
@@ -69,7 +69,7 @@ up: init generate-confs build ## Sobe toda a stack em ordem de dependência (gen
 	$(COMPOSE) -f hive/docker-compose.yml up -d
 
 	@echo "▶  [4/8] Unity Catalog OSS..."
-	$(COMPOSE) -f unitycatalog/docker-compose.yml up -d
+	$(COMPOSE) -f unitycatalog/docker-compose.yml up -d --wait
 
 	@echo "▶  [5/8] Spark (aguardando master healthy)..."
 	$(COMPOSE) -f spark/docker-compose.yml up -d --wait
@@ -169,7 +169,7 @@ up-hive: init ## Builda e sobe apenas o Hive Metastore
 	$(COMPOSE) -f hive/docker-compose.yml up -d
 
 up-unitycatalog: init ## Sobe apenas Unity Catalog OSS
-	$(COMPOSE) -f unitycatalog/docker-compose.yml up -d
+	$(COMPOSE) -f unitycatalog/docker-compose.yml up -d --wait
 
 up-spark: init ## Builda e sobe apenas o cluster Spark
 	$(COMPOSE) -f spark/docker-compose.yml build

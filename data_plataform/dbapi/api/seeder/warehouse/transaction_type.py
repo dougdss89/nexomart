@@ -9,7 +9,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 from api.database import AsyncSessionLocal
 from api.services.warehouse.transaction_type_service import TransactionTypeService
 from api.schemas.warehouse.warehouse_transaction_type import TransactionTypeSchema, ActionEffect
-from api.seeder.cli_common import build_parser
+from api.models.warehouse.transactiontype import WarehouseTransactionType
+from api.seeder.cli_common import build_parser, skip_if_already_seeded
 
 async def seed_transaction_types(count: int):
     """
@@ -47,6 +48,9 @@ async def seed_transaction_types(count: int):
         # For Master Data, we generally keep only the real codes.
         to_seed = primary_types[:count] if count < len(primary_types) else primary_types
 
+        if await skip_if_already_seeded(session, WarehouseTransactionType, label="Transaction types"):
+            return
+
         print(f"🚀 Starting load of {len(to_seed)} transaction types into the database...")
 
         try:
@@ -56,6 +60,7 @@ async def seed_transaction_types(count: int):
         except Exception as e:
             await session.rollback()
             print(f"❌ Error during load: {e}")
+            raise RuntimeError(f"Transaction type seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for warehouse.transactiontype (fixed master data, no chaos)")

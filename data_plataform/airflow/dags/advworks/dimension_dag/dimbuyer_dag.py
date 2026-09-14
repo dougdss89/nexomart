@@ -73,8 +73,8 @@ def extract_dimbuyer_data():
         Start_load = EmptyOperator(task_id="Start_load")
 
         spark_env_vars = {
-            "PROJECT_BASE_DIR": "/dockervol/configurations",
-            "PYTHONPATH": "/dockervol/configurations"
+            "PROJECT_BASE_DIR": "/dockervol/configs",
+            "PYTHONPATH": "/dockervol/configs"
         }
 
         # --- THE MAGIC HAPPENS HERE ---

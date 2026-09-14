@@ -6,14 +6,15 @@ import os
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Dict, Any
-from sqlalchemy import select, insert
+from sqlalchemy import select, func
 from api.database import AsyncSessionLocal
 from api.schemas.purchasing.purchasing_orderheader import Status, AuditAction, PurchaseOrderHeader
 from api.models.purchasing.vendor import PurchaseVendorModel
 from api.models.humanresources.employee import HumanResourcesEmployeeModel
 from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
 from api.seeder.chaos import apply_purchaseorderheader_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
+from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args, generate_unique_business_ids, bulk_copy
+from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -21,20 +22,27 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 SCHEMA_NAME = "purchasing"
 TABLE_NAME = "purchasing.purchaseorderheader"
 
-def generate_po_header_payloads(vendor_ids: List[int], employee_ids: List[int], num_records: int = 50) -> List[Dict[str, Any]]:
-    """Generates purchase order header payloads linked to REAL entities."""
+# Widened 2026-09-05 (was 1-365 days back) so order_date spans multiple years.
+EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
+
+def generate_po_header_payloads(vendor_ids: List[int], employee_ids: List[int], header_ids: List[str]) -> List[Dict[str, Any]]:
+    """Generates purchase order header payloads linked to REAL entities.
+
+    `header_ids` must be pre-generated, collision-checked IDs (see generate_unique_business_ids)
+    — one per record.
+    """
     batch = []
-    for i in range(1, num_records + 1):
-        order_date = datetime.now() - timedelta(days=random.randint(1, 365))
+    for header_id in header_ids:
+        order_date = datetime.now() - timedelta(days=random.randint(1, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
         status = random.choice(list(Status))
-        
+
         sub_total = Decimal(random.uniform(1000.0, 50000.0)).quantize(Decimal("0.0001"))
         tax_amt = (sub_total * Decimal("0.12")).quantize(Decimal("0.0001"))
         freight = Decimal(random.uniform(50.0, 500.0)).quantize(Decimal("0.0001"))
         total_due = sub_total + tax_amt + freight
 
         batch.append({
-            "purchaseorderheader_id": f"PO-{random.randint(100000000, 999999999)}",
+            "purchaseorderheader_id": header_id,
             "vendor_id": random.choice(vendor_ids),
             "employee_id": random.choice(employee_ids),
             "order_date": order_date,
@@ -62,26 +70,41 @@ async def seed_purchase_orders(count: int = 50, chaos_rate: float = 0.05, batch_
             print("⚠️ Vendor or Employee tables are empty! Run the base seeders first.")
             return
 
-        print(f"📣 Seeding {count:,} purchase orders | chaos={chaos_rate:.2%}")
+        ranges = get_ranges(schema=SCHEMA_NAME, table=TABLE_NAME)
+        existing_count = None
+        if ranges.absolute_max:
+            # COUNT(*) scales with total accumulated history, not this run's work — only pay
+            # for it when absolute_max is actually set (currently None for this table, making
+            # the check a no-op). Same fix as purchase_purchaseorderdetail.py/person_customer.py.
+            existing_count = await session.scalar(select(func.count(PurchaseOrderHeaderModel.purchaseorderheader_id))) or 0
+            if existing_count >= ranges.absolute_max:
+                print(f"⚠️ Absolute purchase order limit reached ({existing_count:,}/{ranges.absolute_max:,}).")
+                return
+            count = min(count, ranges.absolute_max - existing_count)
+
+        final_total = f"{existing_count + count:,}" if existing_count is not None else "n/a"
+        print(f"📣 Seeding {count:,} purchase orders (final total: {final_total}) | chaos={chaos_rate:.2%}")
 
         total_inserted = 0
         while total_inserted < count:
             current_batch_size = min(batch_size, count - total_inserted)
-            pos = generate_po_header_payloads(vendor_ids, employee_ids, current_batch_size)
+            header_ids = await generate_unique_business_ids(
+                session, PurchaseOrderHeaderModel.purchaseorderheader_id,
+                prefix="PO", count=current_batch_size,
+            )
+            pos = generate_po_header_payloads(vendor_ids, employee_ids, header_ids)
 
             if apply_chaos:
                 pos = apply_purchaseorderheader_chaos(pos, chaos_rate=chaos_rate)
 
             try:
-                stmt = insert(PurchaseOrderHeaderModel).values(pos)
-                await session.execute(stmt)
-                await session.commit()
+                await bulk_copy(session, PurchaseOrderHeaderModel, pos)
                 total_inserted += len(pos)
                 print(f"   ⏳ Progress: {total_inserted:,}/{count:,}")
             except Exception as e:
                 await session.rollback()
                 print(f"❌ Error seeding orders: {e}")
-                break
+                raise RuntimeError(f"Purchase order seeding aborted ({total_inserted:,}/{count:,} inserted): {e}") from e
 
         print(f"✅ {total_inserted:,} purchase orders seeded successfully!")
 

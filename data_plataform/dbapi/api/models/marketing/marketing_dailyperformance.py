@@ -3,9 +3,23 @@ from sqlalchemy.dialects.postgresql import JSONB
 from api.config.base import AuditMixin, Base # [FIX] AuditMixin included
 
 class MarketingDailyPerformanceModel(Base, AuditMixin): # [FIX] Inheritance
-    
+    """marketing.dailyperformance is RANGE-partitioned by date_ref (2026-08-13, monthly
+    partitions marketing.dailyperformance_2026_07..._09 plus a DEFAULT catch-all). Postgres
+    requires the partition key in every unique/PK constraint, so the PK became
+    (performance_id, date_ref).
+
+    This migration also durably fixed real page-level corruption discovered in the old table
+    (blocks 38717-38911, first detected 2026-08-13 11:52 UTC, root cause unresolved) — the
+    rewrite-and-swap this migration does (copy readable rows into a new table, drop the old
+    one) discards the corrupted physical file; a plain VACUUM under zero_damaged_pages doesn't
+    persist because Postgres treats an all-zero page as "mid-extension" and never marks it
+    dirty. 2,136 rows were unrecoverable in the corrupted region and are gone.
+
+    No table FKs *into* dailyperformance (leaf fact table), so no dependent model needed updating.
+    """
+
     __tablename__ = "dailyperformance"
-    
+
     # [FIX] Naming aligned with Schema and addition of the Group level
     performance_id = Column(Integer, primary_key=True, autoincrement=True)
     campaign_id = Column(Integer, ForeignKey('marketing.marketingcampaign.campaign_id'), nullable=False)
@@ -13,7 +27,7 @@ class MarketingDailyPerformanceModel(Base, AuditMixin): # [FIX] Inheritance
     ad_id = Column(Integer, ForeignKey('marketing.advertise.ad_id'), nullable=False) # [FIX] advertise_id -> ad_id
 
     # [CRITICAL FIX] Added missing daily timestamp marker (Time-Series DW Requirement)
-    date_ref = Column(Date, nullable=False)
+    date_ref = Column(Date, primary_key=True, nullable=False)
     
     cost = Column(Numeric(19,4), nullable=False, default= 0.0)
     impressions = Column(Integer, nullable=False, default=0)

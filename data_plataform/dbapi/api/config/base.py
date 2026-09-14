@@ -1,3 +1,3 @@
-from configurations.api.base import AuditMixin, Base
+from configs.api.base import AuditMixin, Base
 
 __all__ = ["Base", "AuditMixin"]

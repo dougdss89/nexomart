@@ -6,7 +6,7 @@ services:
     container_name: hive-metastore
     hostname: hive-metastore
     env_file:
-      - ../configurations/secrets.env
+      - ../configs/secrets.env
     environment:
       SERVICE_NAME: metastore
       DB_DRIVER: postgres

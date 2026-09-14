@@ -40,23 +40,26 @@ spark.sql.extensions             io.delta.sql.DeltaSparkSessionExtension,org.apa
 # --- DELTA (default catalog) ---
 # spark_catalog is the default catalog used by unqualified table references.
 # DeltaCatalog wraps the built-in Hive catalog, adding Delta Lake support.
+# NOTE: DeltaCatalog only works registered as "spark_catalog" — Spark wires the built-in
+# session catalog in as its delegate exclusively for that reserved name. Registering it under
+# any other catalog name (e.g. "nexo"/"nexomart") leaves delegate null and breaks DDL with an
+# internal analyzer NPE. That's why both nexo and NexoMart's Delta tables live here too, as
+# their own databases (nexo_bronze/nexo_silver/nexo_gold, nexomart_bronze/nexomart_silver/
+# nexomart_gold), not as separate catalogs — same pattern already used by the AdventureWorks
+# Delta reference (spark_catalog.gold).
+#
+# nexo was tried first as a native Unity Catalog OSS catalog (UCSingleCatalog connector,
+# Delta nativo — mesmo modelo do Databricks). Ficou barrado: UC OSS (confirmado na v0.6.0,
+# a mais recente) só vende credenciais temporárias pra S3 real — o S3StorageConfig do server
+# não tem campo de endpoint customizável, então qualquer storage S3-compatible (MinIO aqui)
+# falha com "Unsupported URI scheme" / erro de credential vending. Nessie também não serve de
+# substituto — só tem suporte de catálogo pra Iceberg, não pra Delta. Sem AWS S3 de verdade,
+# Hive Metastore é o único backend que dá Delta + escrita via Spark + leitura via Trino ao
+# mesmo tempo neste stack. Migrar nexo pra um catálogo governado de verdade (UC ou outro) fica
+# pra quando isso apontar pra um bucket AWS real.
 spark.sql.catalog.spark_catalog           org.apache.spark.sql.delta.catalog.DeltaCatalog
 spark.sql.catalog.spark_catalog.warehouse s3a://deltadw/
 spark.hadoop.hive.metastore.uris          ${HIVE_METASTORE_URI}
-
-# --- NEXO (Iceberg REST Catalog via Unity Catalog OSS) ---
-# Catálogo oficial da plataforma — gerenciado pelo Unity Catalog OSS.
-# Use para LEITURA: spark.table("nexo.<schema>.<table>") / USE CATALOG nexo.
-# Para ESCRITA use o catálogo iceberglake (HadoopCatalog) e registre via UC REST API.
-# Schemas disponíveis: bronze | silver | gold | product | sales | purchasing | ...
-spark.sql.catalog.nexo                    org.apache.iceberg.spark.SparkCatalog
-spark.sql.catalog.nexo.catalog-impl       org.apache.iceberg.rest.RESTCatalog
-spark.sql.catalog.nexo.uri                ${UNITYCATALOG_REST_URI}
-spark.sql.catalog.nexo.token              not-used
-spark.sql.catalog.nexo.warehouse          unity
-spark.sql.catalog.nexo.format-version     3
-# HadoopFileIO reusa credenciais S3A já configuradas (evita conflito AWS SDK v1/v2 com MinIO)
-spark.sql.catalog.nexo.io-impl            org.apache.iceberg.hadoop.HadoopFileIO
 
 # --- ICEBERGLAKE (IcebergHiveCatalog — escrita Iceberg via Hive Metastore) ---
 # Catálogo do pipeline AdventureWorks (spark/jobs/advworks/). Não mexer — projeto legado.
@@ -71,15 +74,18 @@ spark.sql.catalog.iceberglake.io-impl                    org.apache.iceberg.hado
 # Pipeline tem escritor único (Airflow sequencial), locking desnecessário.
 spark.sql.catalog.iceberglake.hive.lock-enabled          false
 
-# --- NEXOMART (IcebergHiveCatalog — escrita Iceberg via Hive Metastore) ---
-# Catálogo do projeto NexoMart (dbapi: product/sales/purchasing/warehouse/marketing/person/humanresources).
-# Mesmo padrão do iceberglake, database próprio no Hive Metastore e warehouse próprio no MinIO.
-spark.sql.catalog.nexomart                            org.apache.iceberg.spark.SparkCatalog
-spark.sql.catalog.nexomart.catalog-impl               org.apache.iceberg.hive.HiveCatalog
-spark.sql.catalog.nexomart.uri                        ${HIVE_METASTORE_URI}
-spark.sql.catalog.nexomart.warehouse                  s3a://deltadw/nexomart
-spark.sql.catalog.nexomart.io-impl                    org.apache.iceberg.hadoop.HadoopFileIO
-spark.sql.catalog.nexomart.hive.lock-enabled          false
+# --- NEXO e NEXOMART (databases dentro do spark_catalog, não catálogos à parte) ---
+# nexo: catálogo "oficial da plataforma" (bronze | silver | gold | product | sales | ...).
+# nexomart: projeto NexoMart (dbapi: product/sales/purchasing/warehouse/marketing/person/
+# humanresources). Nenhum dos dois tem catálogo Spark próprio (ver nota acima sobre
+# DeltaCatalog) — cada um usa databases dedicados no spark_catalog, com location própria no
+# MinIO para não colidir com o warehouse padrão:
+#   CREATE DATABASE IF NOT EXISTS spark_catalog.nexo_<layer>     LOCATION 's3a://deltadw/nexo/<layer>.db/'
+#   CREATE DATABASE IF NOT EXISTS spark_catalog.nexomart_<layer> LOCATION 's3a://deltadw/nexomart/<layer>.db/'
+# Trino lê ambos via connector delta_lake (trino/catalog/nexo.properties e
+# trino/catalog/nexomart.properties), mesmo Hive Metastore — o nome do catálogo Trino é só um
+# alias local, não precisa bater com nomes de database. Ver spark/jobs/common/delta.py
+# (write_delta) para o helper que já implementa esse padrão.
 
 # --- Adaptive Query Execution ---
 spark.sql.adaptive.enabled true
@@ -108,7 +114,7 @@ spark.hadoop.fs.s3a.attempts.maximum 10
 spark.plugins                                          io.dataflint.spark.SparkDataflintPlugin
 spark.sql.maxMetadataStringLength                      1000
 
-# Iceberg: descobre todos os catálogos automaticamente (nexo)
+# Iceberg: descobre todos os catálogos automaticamente (iceberglake — pipeline AdventureWorks legado)
 spark.dataflint.iceberg.autoCatalogDiscovery           true
 
 # Delta Lake: coleta metadados e detecta Z-Order
@@ -124,10 +130,9 @@ spark.dataflint.instrument.spark.mapInPandas.enabled   true
 spark.dataflint.telemetry.enabled                      false
 
 # --- Packages (Spark 3.5 / Scala 2.13) ---
-# delta-spark       : Delta Lake core
+# delta-spark       : Delta Lake core (spark_catalog, nexo, nexomart)
 # hadoop-aws        : S3A FileSystem
-# unitycatalog-spark: Unity Catalog OSS Spark connector
-# iceberg           : Iceberg REST catalog (nexo)
+# iceberg           : Iceberg Spark runtime (iceberglake — pipeline AdventureWorks legado)
 # postgresql        : JDBC driver
 # dataflint         : JAR já em $SPARK_HOME/jars/ via Dockerfile — não listar aqui
 spark.jars.packages  io.delta:delta-spark_2.13:3.2.1,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.7.1,org.postgresql:postgresql:42.7.5,com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11,io.dataflint:spark_2.13:0.9.9

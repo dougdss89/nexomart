@@ -10,7 +10,7 @@ from api.database import AsyncSessionLocal
 from api.samples.country import OPERATING_COUNTRIES
 from api.models.person.country_region import CountryRegionModel
 from api.seeder.chaos import apply_geography_code_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -39,6 +39,8 @@ async def seed_person_countries(chaos_rate: float = 0.05, apply_chaos: bool = Tr
     """Runs the countries load into the database."""
     async with AsyncSessionLocal() as session:
         countries = get_country_seeders(chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+        if await skip_if_already_seeded(session, CountryRegionModel, label="Countries"):
+            return
         print(f"📣 Seeding {len(countries)} countries | chaos={chaos_rate:.2%}")
         try:
             stmt = insert(CountryRegionModel).values(countries)
@@ -48,6 +50,7 @@ async def seed_person_countries(chaos_rate: float = 0.05, apply_chaos: bool = Tr
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding countries: {e}")
+            raise RuntimeError(f"Country seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for person.country_region (fixed master data)")

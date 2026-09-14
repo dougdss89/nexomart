@@ -102,19 +102,21 @@ For analytic fact seeders, derive revenue top-down: Impressions → CTR → Clic
 
 ### Data Volume Limits per Schema — Dynamic Ranges
 
-**IMPORTANT**: Volumes are **dynamic and random** on every run of the Airflow DAG. Seeders must draw a value within the specified minimum/maximum range.
+**IMPORTANT**: Volumes are **dynamic and random** on every run of the Airflow DAG. Seeders must draw a value within the specified minimum/maximum range. Ranges are **per DAG run**, calibrated for `nexomart_seeder_dag` running every 10-15 minutes (~100 runs/day) — not per day. Single source of truth is `configs/seeders/config.py` (`SCHEMA_RANGES`/`TABLE_RANGES`); the table below mirrors it and must be kept in sync if those change. See `docs/SEEDER_MICROBATCHING.md` for why this is sized this way and how to rescale it if the schedule interval changes.
 
 | Schema | Main Tables | Min Range | Max Range | Notes |
 |--------|-------------------|--------------|--------------|-------------|
-| `sales` | Orders, Returns | 100,000 | **50 million** | Simulate everything from normal days to peaks (Black Friday, Christmas) |
-| `purchasing` | Purchase Orders (Header + Detail) | 50,000 | **50 million** | Combined header + detail volume |
-| `warehouse` | Transaction History, Inventory | 100,000 | **50 million** | Stock movements with high variance |
-| `humanresources` | Employees, Departments, JobRoles | 50 | **100** | HR is a small, stable dimension |
-| `product` | Products, Models, Categories | 500 | **1,500** | **Absolute limit 100k**. Seeder must check before inserting. |
-| `person` | Customers, Addresses, Contacts | 10,000 | 5,000,000 | Based on sales volume (1:N) |
-| `marketing` | Campaigns, Ads, Performance | 1,000 | 500,000 | Derived from SKUs and campaign periods |
+| `sales` | Orders, Returns | 1,000 | **50,000** | Per run — no absolute ceiling |
+| `purchasing` | Purchase Orders (Header + Detail) | 1,000 | **50,000** | Combined header + detail volume, per run |
+| `warehouse` | Transaction History, Inventory | 1,000 | **50,000** | Stock movements, per run |
+| `humanresources` | Employees, Departments, JobRoles | 50 | **100** | HR is a small, stable dimension — not scaled by cadence |
+| `product` | Products, Models, Categories | 500 | **1,500** | **Absolute limit 100k**. Seeder must check before inserting. Not scaled by cadence. |
+| `person` | Customers, Addresses, Contacts | 1,000 | 50,000 | Based on sales volume (1:N), per run |
+| `marketing` | Campaigns, Ads, Performance | 10 | 5,000 | Derived from SKUs and campaign periods, per run |
 
-**Chaos Rate is also dynamic**: Randomly drawn between 1% and 10% on every run.
+**Chaos Rate is also dynamic**: Randomly drawn between 5% and 8-10% on every run (per-schema/table max varies — see `configs/seeders/config.py`).
+
+**Fan-out seeders** (`person_customer_email.py`, `purchase_purchaseorderdetail.py`, `purchase_purchaseorderaudit.py`) don't draw from a range here at all — their count is "however many parent rows (customers/headers) are still pending," found via a SQL anti-join and capped by the parent table's own `max_count` above as a per-run LIMIT. See `docs/SEEDER_MICROBATCHING.md`.
 
 #### Implementation in Seeders
 
@@ -327,11 +329,11 @@ When asked to create a new pipeline (e.g. Sales, Logistics), **always** follow t
 
 ## Infrastructure Configuration — Zero Hardcode
 
-**Golden rule**: no connection string (host, port, database name, credential, service endpoint) may ever be written as a literal in `docker-compose.yml`/service configs. Everything comes from `configurations/secrets.env` (the single source of truth — never committed, but mirrored in `secrets.env.example`). To add a new value: declare the variable in `secrets.env` **and** in `secrets.env.example`, never hardcode a new literal in any config file.
+**Golden rule**: no connection string (host, port, database name, credential, service endpoint) may ever be written as a literal in `docker-compose.yml`/service configs. Everything comes from `configs/secrets.env` (the single source of truth — never committed, but mirrored in `secrets.env.example`). To add a new value: declare the variable in `secrets.env` **and** in `secrets.env.example`, never hardcode a new literal in any config file.
 
 Three substitution mechanisms, depending on file type — use the right one for each:
 
-1. **Docker Compose** (`*/docker-compose.yml`): native `${VAR}` syntax. The `Makefile` already exports `secrets.env` to the shell before any `docker compose up` (target `up`/`up-*`), so `${VAR}` inside the YAML resolves on its own. If the *container* also needs to see the variable at runtime (not just when the compose file is assembled), add `env_file: ../configurations/secrets.env` to the service.
+1. **Docker Compose** (`*/docker-compose.yml`): native `${VAR}` syntax. The `Makefile` already exports `secrets.env` to the shell before any `docker compose up` (target `up`/`up-*`), so `${VAR}` inside the YAML resolves on its own. If the *container* also needs to see the variable at runtime (not just when the compose file is assembled), add `env_file: ../configs/secrets.env` to the service.
 2. **Trino Catalogs** (`trino/catalog/*.properties`): Trino's own `${ENV:VAR}` syntax (not plain `${VAR}`). The `trino-coordinator`/`trino-worker` services already load `secrets.env` via `env_file`.
 3. **Config files with no native variable support** (Unity Catalog's Java `.properties`, `spark-defaults.conf`, Hive's XML): **never edit the final file directly** — edit the matching `<file>.template` (uses shell-style `${VAR}`) and run `make generate-confs` (already included in `make up`), which runs `envsubst` and generates the real file. Edits to the generated file are lost on the next `generate-confs`.
 
@@ -345,5 +347,5 @@ Config files with no template and no variable support (`hive/conf/hive-site.xml`
 - `dbapi/api/config/settings.py` — env-based configuration
 - `dbapi/api/database/database.py` — `AsyncSessionLocal` factory
 - `dbapi/api/samples/` — mock data templates imported by seeders
-- `configurations/.env` — shared env vars for PostgreSQL, MinIO, Spark, etc.
-- `dbapi/walkthrough.md` — implementation walkthrough for the product domain (reference example)
+- `configs/.env` — shared env vars for PostgreSQL, MinIO, Spark, etc.
+- `docs/walkthrough.md` — implementation walkthrough for the product domain (reference example)

@@ -6,12 +6,13 @@ import os
 from datetime import datetime
 from typing import List, Dict, Any
 from faker import Faker
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, func
 from api.database import AsyncSessionLocal
 from api.models.person.customer import CustomerModel
 from api.models.person.customer_email import CustomerEmailModel
 from api.seeder.chaos import apply_customer_email_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, insert_in_batches
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -80,30 +81,47 @@ def get_customer_email_seeders(customers: List[Dict[str, Any]], chaos_rate: floa
     Receives REAL customers from the database (with customer_id/customer_name/customer_type
     already populated) and generates the emails linked to them.
     """
-    try:
-        batch = []
-        for customer in customers:
-            batch.extend(generate_mock_emails(customer))
+    batch = []
+    for customer in customers:
+        batch.extend(generate_mock_emails(customer))
 
-        if apply_chaos:
-            batch = apply_customer_email_chaos(batch, chaos_rate=chaos_rate)
+    if apply_chaos:
+        batch = apply_customer_email_chaos(batch, chaos_rate=chaos_rate)
 
-        return batch
-
-    except Exception as e:
-        print(f"Error generating email seeders: {e}")
-        return []
+    return batch
 
 
 async def seed_customer_emails(chaos_rate: float = 0.05, apply_chaos: bool = True):
-    """Generates emails for REAL customers in the database that don't have any email registered yet."""
-    async with AsyncSessionLocal() as session:
-        already_have_email = set((await session.execute(select(CustomerEmailModel.customer_id))).scalars().all())
+    """Generates emails for REAL customers in the database that don't have any email registered yet.
 
-        result = await session.execute(select(CustomerModel.customer_id, CustomerModel.customer_name, CustomerModel.customer_type))
+    Root-cause fix (2026-08-17, revised same day): first attempt used an anti-join
+    (`LEFT JOIN ... WHERE customer_email.customer_id IS NULL`) instead of loading both full
+    columns into Python — correct, but still measured at 3m+ against ~2M accumulated
+    customers: Postgres has no index that identifies *which* customers lack an email, so a
+    Nested Loop Anti Join still has to walk customer rows roughly in physical/insertion order
+    until it accumulates enough misses, i.e. it still scans through most of the *matched*
+    rows first. Since customer_id is a simple increasing integer and every run only ever
+    processes customers created at-or-before that run, "pending" is always exactly "customer_id
+    greater than the highest customer_id that already has an email" — a plain indexed range
+    scan (see ix_customer_email_customer_id, used here for the MAX()), no join needed at all.
+    Correct as long as a run either fully commits its email batch or rolls back entirely on
+    error (true here — see the `except`/`raise` below), so the high-water mark never advances
+    past a customer that didn't actually get an email.
+    """
+    fan_out_limit = get_ranges(schema="person", table="person.customer").max_count
+
+    async with AsyncSessionLocal() as session:
+        watermark = await session.scalar(select(func.max(CustomerEmailModel.customer_id))) or 0
+        pending_stmt = (
+            select(CustomerModel.customer_id, CustomerModel.customer_name, CustomerModel.customer_type)
+            .where(CustomerModel.customer_id > watermark)
+            .order_by(CustomerModel.customer_id)
+            .limit(fan_out_limit)
+        )
+        result = await session.execute(pending_stmt)
         customers = [
             {"customer_id": r[0], "customer_name": r[1], "customer_type": r[2]}
-            for r in result.all() if r[0] not in already_have_email
+            for r in result.all()
         ]
 
         if not customers:
@@ -114,11 +132,12 @@ async def seed_customer_emails(chaos_rate: float = 0.05, apply_chaos: bool = Tru
         emails = get_customer_email_seeders(customers, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
 
         try:
-            total = await insert_in_batches(session, CustomerEmailModel, emails)
+            total = await bulk_copy(session, CustomerEmailModel, emails)
             print(f"✅ {total} emails seeded successfully!")
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding emails: {e}")
+            raise RuntimeError(f"Customer email seeding aborted: {e}") from e
 
 
 if __name__ == "__main__":

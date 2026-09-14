@@ -110,6 +110,7 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding sellers: {e}")
+            raise RuntimeError(f"Seller seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = build_parser(f"Dynamic seeder for {TABLE_NAME}")

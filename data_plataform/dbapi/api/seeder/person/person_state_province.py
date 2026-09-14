@@ -10,7 +10,7 @@ from api.samples.state_province import STATES_BY_COUNTRY
 from api.models.person.country_region import CountryRegionModel
 from api.models.person.state_province import StateProvinceModel
 from api.seeder.chaos import apply_geography_code_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -49,8 +49,12 @@ async def seed_person_states(chaos_rate: float = 0.05, apply_chaos: bool = True)
             print("⚠️ No country found! Run the PersonCountry seeder first.")
             return
 
-        print(f"📣 Seeding states for {len(country_map)} active countries | chaos={chaos_rate:.2%}")
         states = generate_state_payloads(country_map, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+
+        if await skip_if_already_seeded(session, StateProvinceModel, label="States"):
+            return
+
+        print(f"📣 Seeding states for {len(country_map)} active countries | chaos={chaos_rate:.2%}")
 
         try:
             stmt = insert(StateProvinceModel).values(states)
@@ -60,6 +64,7 @@ async def seed_person_states(chaos_rate: float = 0.05, apply_chaos: bool = True)
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding states: {e}")
+            raise RuntimeError(f"State seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for person.state_province (fan-out of real countries)")

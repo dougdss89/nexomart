@@ -9,7 +9,7 @@ from api.database import AsyncSessionLocal
 
 from api.samples.job_roles import JOB_ROLES
 from api.models.humanresources.jobrole import HumanResourcesJobRoleModel
-from api.seeder.cli_common import build_parser
+from api.seeder.cli_common import build_parser, skip_if_already_seeded
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -25,6 +25,7 @@ def get_job_role_seeders() -> list[dict]:
     job_role_id_counter = 1
 
     today = datetime.now()
+    EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
 
     for title, min_salary, max_salary in JOB_ROLES:
 
@@ -35,7 +36,8 @@ def get_job_role_seeders() -> list[dict]:
             #valid for 3 years or 1 year
             #min and max salary with a 20% raise
 
-            old_start = today - timedelta(days=random.randint(700, 1500))
+            # Widened 2026-09-05 (was 700-1500 days back) so the oldest history reaches 2020.
+            old_start = today - timedelta(days=random.randint(700, (today - EARLIEST_TRANSACTION_DATE).days))
             old_end = old_start + timedelta(days=random.randint(180, 600))
 
             # Logical adjustment: the old salary was lower than the current one,
@@ -92,6 +94,8 @@ async def seed_job_roles():
     """Runs the job role load with salary history (Master Data — fixed list, no chaos)."""
     async with AsyncSessionLocal() as session:
         roles = get_job_role_seeders()
+        if await skip_if_already_seeded(session, HumanResourcesJobRoleModel, label="Job roles"):
+            return
         print(f"📣 Seeding {len(roles)} job role records (including history)...")
         try:
             stmt = insert(HumanResourcesJobRoleModel).values(roles)
@@ -101,6 +105,7 @@ async def seed_job_roles():
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding job roles: {e}")
+            raise RuntimeError(f"Job role seeding aborted: {e}") from e
 
 
 if __name__ == "__main__":

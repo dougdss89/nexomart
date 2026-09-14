@@ -77,8 +77,8 @@ def generate_mock_customer() -> Dict[str, Any]:
         "address_info": random.choice(["Apto 101", "Casa 2", "Fundos", ""])
     }
     
-    # Purchase dates
-    first_purchase = fake.date_between(start_date='-5y', end_date='today')
+    # Purchase dates — widened 2026-09-05 (was -5y) so it reaches back to 2020.
+    first_purchase = fake.date_between(start_date=datetime(2020, 1, 1).date(), end_date='today')
     last_purchase = fake.date_between(start_date=first_purchase, end_date='today')
     
     metrics = {

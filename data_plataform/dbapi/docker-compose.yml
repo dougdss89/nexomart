@@ -6,7 +6,7 @@ services:
       - "8001:8000"
     volumes:
       - .:/workspace
-      - ../configurations:/workspace/configurations
+      - ../configs:/workspace/configs
     networks:
       - hadoopcluster
 

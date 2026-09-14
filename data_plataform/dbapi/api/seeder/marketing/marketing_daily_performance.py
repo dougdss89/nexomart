@@ -5,7 +5,7 @@ import sys
 import os
 from datetime import datetime, timedelta, date
 from decimal import Decimal
-from sqlalchemy import select, insert
+from sqlalchemy import select
 from api.database import AsyncSessionLocal
 from api.schemas.marketing.marketing_daily_performance import MarketingDailyPerformance, MarketingMetrics
 from api.models.marketing.marketing_advertise import MarketingAdvertiseModel
@@ -14,10 +14,21 @@ from api.models.marketing.marketing_campaign import MarketingCampaignModel
 from api.models.marketing.marketing_channel import MarketingChannelModel
 from api.models.marketing.marketing_dailyperformance import MarketingDailyPerformanceModel
 from api.seeder.chaos import apply_daily_performance_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+
+# Widened 2026-09-05 so history spans back to 2020 instead of just 7-30 days.
+EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1).date()
+
+# This function has no watermark of its own — every run regenerates a fresh history window
+# per ad with no memory of what a previous run already inserted, so volume has been growing
+# unbounded (349M rows measured 2026-09-05). Real fix (giving this a watermark like the fan-out
+# seeders have) is tracked as a follow-up; this cap only bounds the damage per run in the
+# meantime, it does not fix the underlying duplication.
+MAX_ROWS_PER_RUN = 5_000
+
 
 def generate_performance_payloads(
     real_ads: list[dict],
@@ -34,14 +45,19 @@ def generate_performance_payloads(
     performance_id_counter = 1
 
     for ad in real_ads:
-        # Generates 7 to 30 days of history
-        history_days = random.randint(7, 30)
+        if len(batch) >= MAX_ROWS_PER_RUN:
+            break
+
+        # Generates 7 days up to the full 2020-today range of history
+        history_days = random.randint(7, (today - EARLIEST_TRANSACTION_DATE).days)
         start_date = today - timedelta(days=history_days)
 
         is_gsn = "GSN" in ad["ad_name"].upper()
         media_type = ad["creative_data"].get("media_type", "image")
 
         for j in range(history_days + 1):
+            if len(batch) >= MAX_ROWS_PER_RUN:
+                break
             ref_date = start_date + timedelta(days=j)
 
             # --- Mathematical Funnel ---
@@ -165,14 +181,13 @@ async def seed_marketing_performance(chaos_rate: float = 0.05, apply_chaos: bool
         for i in range(0, len(performances), batch_size):
             current_batch = performances[i:i+batch_size]
             try:
-                stmt = insert(MarketingDailyPerformanceModel).values(current_batch)
-                await session.execute(stmt)
+                await bulk_copy(session, MarketingDailyPerformanceModel, current_batch)
                 print(f"✅ Inserting batch {i//batch_size + 1} ({len(current_batch)} rows)...")
             except Exception as e:
+                await session.rollback()
                 print(f"❌ Error in batch: {e}")
-                break
+                raise RuntimeError(f"Marketing daily performance seeding aborted at batch {i//batch_size + 1}: {e}") from e
 
-        await session.commit()
         print(f"🚀 Performance seeder finished successfully!")
 
 if __name__ == "__main__":

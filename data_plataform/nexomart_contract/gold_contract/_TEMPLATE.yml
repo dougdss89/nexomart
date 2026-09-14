@@ -1,0 +1,94 @@
+# ============================================================================
+# TEMPLATE — gold layer contract (dimensional, consumed by Trino/BI)
+# Real ODCS v3.1.0 (https://bitol-io.github.io/open-data-contract-standard/v3.1.0/).
+# Copy to <schema>/<table>.yml and fill in.
+# ============================================================================
+
+apiVersion: v3.1.0
+kind: DataContract
+id: gold.<schema>.<table>
+name: "<Readable name>"
+version: 1.0.0
+status: draft
+domain: <schema>
+
+description:
+  purpose: >
+    Final business shape: what a consumer (BI, analyst, another team) sees
+    when querying this table via Trino. This is the layer with the highest
+    cost of breaking contract — it has consumers outside the data team.
+
+tags: []
+
+team:
+  name: data-engineering
+  members:
+    - username: <your email or channel>
+      role: Owner
+
+servers:
+  - server: nexomart-trino
+    type: trino
+    host: trino-coordinator
+    port: 8080
+    catalog: <Trino catalog — see trino/catalog/*.properties>
+    schema: gold_<schema>
+    customProperties:
+      - property: table
+        value: <table>
+      - property: job
+        value: spark/jobs/nexomart/gold/<schema>/<file>.py
+
+schema:
+  - id: <table>_gold
+    name: <table>
+    physicalType: table
+    description: "<what a business consumer would call this dataset>"
+    dataGranularityDescription: "<one sentence: one row per what? e.g. 'one row per customer, current state'>"
+
+    customProperties:
+      # Terms/definitions that only make sense explained here, not in the
+      # column name. Prefer businessName/description on the property below
+      # when the term maps to exactly one column; use this list only for
+      # terms that don't map to any single column.
+      - property: businessDefinitions
+        value:
+          - term: <e.g. some_derived_flag>
+            definition: "<what it means in business terms>"
+      - property: maskingPolicy
+        value: "<e.g. column X masked for roles outside 'data-team'>"
+
+    properties:
+      - name: <field>
+        logicalType: string | integer | number | boolean | date
+        physicalType: "<engine-specific type>"
+        required: true | false
+        businessName: "<term a business consumer would recognize, if different from the column name>"
+        description: "Name and description as a business consumer would understand it, not as an engineer would."
+        # tags: [pii]                             # + classification below for any column needing masking/RLS
+        # classification: public | internal | confidential | restricted
+
+    quality:
+      - id: <name>
+        type: text
+        description: "A quality rule that, if it fails, directly impacts a business consumer."
+        severity: error
+
+support:
+  - channel: <your email or channel>
+    tool: email
+  - channel: "<e.g. Trino ad-hoc queries, BI dashboard name>"
+    description: "Consumer channel."
+
+customProperties:
+  - property: lineageUpstream
+    value: [silver_contract/<schema>/<table>.yml]
+  - property: lineageDownstream
+    value: []                           # gold is usually a leaf in the tree
+  - property: refreshCadence
+    value: "<e.g. every X min/hours>"
+  - property: changelog
+    value:
+      - version: 1.0.0
+        date: "<YYYY-MM-DD>"
+        change: "Initial version."

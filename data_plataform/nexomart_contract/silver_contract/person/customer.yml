@@ -1,0 +1,205 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: silver.person.customer
+name: "Customer (silver, cleaned/conformed)"
+version: 1.0.0
+status: draft
+domain: person
+
+description:
+  purpose: >
+    Cleaned and typed version of person.customer.
+  limitations: >
+    NOT YET IMPLEMENTED in spark/jobs/nexomart/silver/person/ — this
+    contract documents the expected shape before the job exists
+    (contract-first), so the job gets written against an already-defined
+    target instead of improvised.
+
+tags: [pii, customer, dimension, scd2, not-yet-implemented]
+
+team:
+  name: data-engineering
+  members:
+    - username: data-engineering@nexomart.internal
+      role: Owner
+
+servers:
+  - server: nexomart-trino
+    type: trino
+    host: trino-coordinator
+    port: 8080
+    catalog: nexomart
+    schema: silver_person
+    customProperties:
+      - property: table
+        value: customer
+      - property: format
+        value: iceberg
+      - property: job
+        value: "spark/jobs/nexomart/silver/person/customer_silver.py  # does not exist yet"
+
+schema:
+  - id: customer_silver
+    name: customer
+    physicalType: table
+    description: "Cleaned and typed version of person.customer."
+
+    customProperties:
+      - property: transformations
+        value:
+          - "demographics (json_string in raw) parsed into a typed struct: social, marketing_consent, address, metrics"
+          - "social_number: validates the tax ID check digit; failures go to quarantine, they are not dropped"
+          - "customer_name/last_name: trim + collapse double spaces (chaos engineering injects 'John  Doe ')"
+          - "duplicates by (normalized social_number, upper-cased customer_name) resolved keeping the row with the most recent updated_at"
+      - property: scdStrategy
+        value: scd_type_2
+      - property: scdNaturalKey
+        value: [social_number]
+      - property: scdEffectiveColumns
+        value: [updated_at, is_active]
+      - property: scdNotes
+        value: >
+          SCD2 because credit_limit/customer_type change over time (see
+          dbapi/api/seeder/person/person_customer_mutate.py) and gold may
+          need to reconstruct a customer's state as of a past date.
+
+    properties:
+      - name: customer_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+
+      - name: customer_name
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "Cleaned: trimmed + collapsed spaces. Does not fix names like 'John123'/'XXXX' — that is a quality flag, not an automatic correction."
+        transformDescription: "Trim + collapse double spaces."
+        tags: [pii]
+        classification: confidential
+
+      - name: last_name
+        logicalType: string
+        physicalType: string
+        required: true
+        tags: [pii]
+        classification: confidential
+
+      - name: social_number
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "Normalized to digits only (no punctuation). See quality.valid_cpf_check_digit below for what happens to invalid values."
+        transformDescription: "Normalized to digits only (no punctuation); check-digit validated (see the valid_cpf_check_digit quality rule)."
+        tags: [pii]
+        classification: restricted
+
+      - name: birthdate
+        logicalType: date
+        physicalType: timestamp
+        required: true
+        tags: [pii]
+        classification: confidential
+
+      - name: customer_type
+        logicalType: string
+        physicalType: string
+        required: true
+
+      - name: credit_limit
+        logicalType: number
+        physicalType: decimal
+        required: true
+
+      - name: social
+        logicalType: object
+        physicalType: struct
+        required: false
+        description: "From demographics.social — gender, marital_status, interests, occupation, company_name, tax_regime, buying_contact."
+
+      - name: marketing_consent
+        logicalType: object
+        physicalType: struct
+        required: false
+        description: "From demographics.marketing_consent — email, sms (booleans)."
+
+      - name: address
+        logicalType: object
+        physicalType: struct
+        required: false
+        description: "From demographics.address."
+
+      - name: metrics
+        logicalType: object
+        physicalType: struct
+        required: false
+        description: "From demographics.metrics — minimum/maximum_year_income, total_purchased, dates and order count."
+
+      - name: country_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+        relationships:
+          - to: person.countryregion.country_id
+
+      - name: state_province_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+        relationships:
+          - to: person.stateprovince.state_province_id
+
+      - name: created_at
+        logicalType: date
+        physicalType: timestamp
+        required: true
+
+      - name: updated_at
+        logicalType: date
+        physicalType: timestamp
+        required: true
+
+      - name: is_active
+        logicalType: boolean
+        physicalType: boolean
+        required: true
+
+    quality:
+      - id: valid_cpf_check_digit
+        type: text
+        description: >
+          Validates the tax ID check digit. Rows that fail go to a
+          quarantine table (silver_person.customer_quarantine), they are
+          not dropped and do not block loading the valid rows — Spark +
+          Great Expectations approach, with an initial prototype already
+          underway in the marketing domain (see the project's silver
+          corrections architecture memory).
+        severity: warning
+      - id: not_null_pk
+        type: text
+        description: "customer_id is never null — fails the whole job if violated (unlike the tax ID case, this signals real pipeline corruption, not expected chaos engineering)."
+        severity: error
+      - id: deduplication
+        type: text
+        description: "Key: (normalized social_number, upper(customer_name)). Tie-break: highest updated_at."
+        severity: error
+
+support:
+  - channel: data-engineering@nexomart.internal
+    tool: email
+
+customProperties:
+  - property: lineageUpstream
+    value: [raw_contract/person/customer.yml]
+  - property: lineageDownstream
+    value: [gold_contract/person/customer.yml]
+  - property: freshnessNotes
+    value: "reprocessed on every new raw cut (every nexomart_seeder_dag run, 5-15min) — latency target to be defined once the job exists"
+  - property: changelog
+    value:
+      - version: 1.0.0
+        date: "2026-09-05"
+        change: "Initial version — contract written before the Spark job exists (contract-first)."
+      - version: 1.1.0
+        date: "2026-09-06"
+        change: "Converted from the project's ODCS-inspired custom format to real ODCS v3.1.0. Non-native concepts (SCD strategy, transformations, lineage, changelog) moved into customProperties; per-column cleaning notes moved into transformDescription."

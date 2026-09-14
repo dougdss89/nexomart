@@ -11,7 +11,7 @@ from api.schemas.marketing.marketing_ads import MarketingAd, MarketingStatus, Ma
 from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
 from api.models.marketing.marketing_advertise import MarketingAdvertiseModel
 from api.seeder.chaos import apply_ads_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, insert_in_batches
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -84,25 +84,33 @@ async def seed_marketing_ads(chaos_rate: float = 0.05, apply_chaos: bool = True)
     Runs the Ads load consuming REAL AdGroups from the database.
     """
     async with AsyncSessionLocal() as session:
-        # 1. Fetch real AdGroups (Dimensional Integrity)
+        # 1. Fetch AdGroups that don't have an Ad yet (same idempotency/batching rationale
+        # as marketing_adgroup.py: reprocessing an AdGroup that already has Ads just piles
+        # on more without violating any constraint, but grows unbounded every run and
+        # eventually blows past asyncpg's 32767-param limit via the unbatched INSERT).
+        already_has_ad = set(
+            (await session.execute(select(MarketingAdvertiseModel.ad_group_id.distinct()))).scalars().all()
+        )
         result = await session.execute(select(MarketingAdGroupModel.ad_group_id, MarketingAdGroupModel.ad_group_name))
-        real_adgroups = [{"ad_group_id": row[0], "ad_group_name": row[1]} for row in result.all()]
+        real_adgroups = [
+            {"ad_group_id": row[0], "ad_group_name": row[1]}
+            for row in result.all() if row[0] not in already_has_ad
+        ]
 
         if not real_adgroups:
-            print("⚠️ No AdGroup found! Run the MarketingAdGroup seeder first.")
+            print("⚠️ No AdGroup pending an Ad! Run the MarketingAdGroup seeder first (or everyone already has one).")
             return
 
-        print(f"📣 Seeding Ads for {len(real_adgroups)} active groups | chaos={chaos_rate:.2%}")
+        print(f"📣 Seeding Ads for {len(real_adgroups)} groups pending one | chaos={chaos_rate:.2%}")
         ads = generate_ad_payloads(real_adgroups, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
 
         try:
-            stmt = insert(MarketingAdvertiseModel).values(ads)
-            await session.execute(stmt)
-            await session.commit()
-            print(f"✅ {len(ads)} Ads seeded successfully!")
+            total = await insert_in_batches(session, MarketingAdvertiseModel, ads)
+            print(f"✅ {total} Ads seeded successfully!")
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding Ads: {e}")
+            raise RuntimeError(f"Marketing ads seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for marketing.marketing_advertise (fan-out of real adgroups)")

@@ -1,10 +1,10 @@
 import uuid
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Any, Dict, Type, TypeVar
 
-from sqlalchemy import Boolean, Column, DateTime, Index, Integer
+from sqlalchemy import Boolean, Column, DateTime, Integer
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, declared_attr
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
 
 T = TypeVar("T", bound="Base")
@@ -56,15 +56,11 @@ class Base(DeclarativeBase):
 class AuditMixin:
     """Injects audit columns (created_at, updated_at, is_active, row_version, row_guid)."""
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     updated_at = Column(DateTime(timezone=True), nullable=True, default=None, onupdate=func.now())
     is_active = Column(Boolean, default=True, nullable=False)
     row_version = Column(Integer, default=1, nullable=False)
     row_guid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
-
-    @declared_attr
-    def ix_created_at(cls):
-        return Index(f"ix_{cls.__tablename__}_created_at", "created_at")
 
     def soft_delete(self) -> None:
         self.is_active = False

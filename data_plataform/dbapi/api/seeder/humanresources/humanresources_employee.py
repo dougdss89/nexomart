@@ -25,6 +25,10 @@ TABLE_NAME = "humanresources.employee"
 
 fake = Faker('pt_BR')
 
+# Widened 2026-09-05 — hire_date was hardcoded to a single fixed value (date(2022, 1, 1))
+# for every employee; now randomized across a realistic multi-year range.
+EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
+
 def generate_role_attributes(role: str, is_manager: bool) -> dict:
     """Generates JSONB attributes specific to the role."""
     if role == "SALES":
@@ -76,7 +80,7 @@ async def seed_humanresources_employees(count: int = 50, chaos_rate: float = 0.0
                 "loginid": f"{first.lower()}.{last.lower()}",
                 "email": f"{first.lower()}.{last.lower()}@empresa.com",
                 "birthdate": date(1980, 1, 1),
-                "hire_date": date(2022, 1, 1),
+                "hire_date": (datetime.now() - timedelta(days=random.randint(1, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))).date(),
                 "jobrole_id": jobs.get(title, random.choice(list(jobs.values()))),
                 "department_id": depts.get(dept, random.choice(list(depts.values()))),
                 "manager_id": manager_id,
@@ -109,6 +113,7 @@ async def seed_humanresources_employees(count: int = 50, chaos_rate: float = 0.0
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding employees: {e}")
+            raise RuntimeError(f"Employee seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = build_parser(f"Dynamic seeder for {TABLE_NAME}")

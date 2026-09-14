@@ -9,15 +9,19 @@ from api.database import AsyncSessionLocal
 from api.schemas.product.production_product_category import ProductCategory
 from api.models.product.productcategory import ProductCategoryModel
 from api.seeder.chaos import apply_category_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args
+from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
+EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
+
+
 def get_category_seeders(chaos_rate: float = 0.0, apply_chaos: bool = False) -> list[dict]:
 
     batch = []
-    days_elapsed = random.randint(30, 365)
+    # Widened 2026-09-05 (was 30-365 days back) so created_date spans multiple years.
+    days_elapsed = random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days)
     simulated_date = datetime.now() - timedelta(days=days_elapsed)
 
     for index, category in enumerate(ProductCategory, start=1):
@@ -42,6 +46,8 @@ async def seed_product_categories(chaos_rate: float = 0.0, apply_chaos: bool = F
     """Runs the categories load (Master Data — fixed list from the ProductCategory Enum)."""
     async with AsyncSessionLocal() as session:
         categories = get_category_seeders(chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+        if await skip_if_already_seeded(session, ProductCategoryModel, label="Categories"):
+            return
         print(f"📣 Seeding {len(categories)} categories | chaos={chaos_rate:.2%}")
         try:
             stmt = insert(ProductCategoryModel).values(categories)
@@ -51,6 +57,7 @@ async def seed_product_categories(chaos_rate: float = 0.0, apply_chaos: bool = F
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding categories: {e}")
+            raise RuntimeError(f"Category seeding aborted: {e}") from e
 
 
 if __name__ == "__main__":

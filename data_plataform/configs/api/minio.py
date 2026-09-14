@@ -1,8 +1,9 @@
 import io
 
 import urllib3
-from minio import Minio
 from minio.error import S3Error
+
+from minio import Minio
 
 from .settings import settings
 

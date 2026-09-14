@@ -1,0 +1,207 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: api.person.customer
+name: "Customer API Contract"
+version: 1.0.0
+status: active
+domain: person
+
+description:
+  purpose: >
+    Payload validated by FastAPI (Pydantic) before persisting to
+    person.customer. Source of truth for the schema:
+    dbapi/api/schemas/person/person_customer.py.
+
+tags: [dimension, pii, customer]
+
+team:
+  name: data-engineering
+  members:
+    - username: data-engineering@nexomart.internal
+      role: Owner
+
+servers:
+  - server: dbapi
+    type: api
+    location: /api/person/customer
+    customProperties:
+      - property: method
+        value: POST
+      - property: requestSchema
+        value: "dbapi/api/schemas/person/person_customer.py::Customer"
+      - property: enforcedBy
+        value: pydantic
+
+schema:
+  - id: customer_api
+    name: customer
+    physicalName: person.customer
+    physicalType: object
+    description: "Customer dimension table"
+    tags: [dimension, pii, customer]
+    dataGranularityDescription: "1 row per customer"
+
+    properties:
+      - name: customer_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+        description: "PK, autoincrement (Field(gt=0) in Pydantic — the API rejects <= 0)."
+        classification: internal
+        quality:
+          - type: library
+            metric: value
+            mustBeGreaterThan: 0
+            description: "Pydantic Field(gt=0) — the API rejects <= 0."
+            severity: error
+        relationships:
+          - to: person.customer_email.customer_id
+
+      - name: customer_name
+        logicalType: string
+        physicalType: varchar(100)
+        required: true
+        description: "Customer's first name."
+        tags: [pii]
+        classification: confidential
+
+      - name: last_name
+        logicalType: string
+        physicalType: varchar(100)
+        required: true
+        description: "Customer's last name."
+        tags: [pii]
+        classification: confidential
+
+      - name: social_number
+        logicalType: string
+        physicalType: varchar(20)
+        required: true
+        description: >
+          CPF/CNPJ or equivalent. Intentional chaos engineering injects
+          malformed values here in ~5-10% of records (see CLAUDE.md — Data
+          Quality Rules) — this contract does NOT guarantee the value is a
+          valid tax ID, only that the field exists and respects the max
+          length.
+        tags: [pii]
+        classification: restricted
+
+      - name: birthdate
+        logicalType: date
+        physicalType: date
+        required: true
+        examples: ["1990-01-01"]
+        description: "Date of customer birth. Format YYYY-MM-DD. The API rejects invalid dates."
+        classification: confidential
+
+      - name: customer_type
+        logicalType: string
+        physicalType: varchar(15)
+        required: true
+        description: "Enum: SC (store contact) | VC (vendor contact)."
+        examples: ["SC", "VC"]
+        classification: internal
+
+      - name: credit_limit
+        logicalType: number
+        physicalType: "numeric(19,4)"
+        required: true
+        description: "Credit limit. Numeric(19,4) in the database."
+        classification: confidential
+        quality:
+          - type: library
+            metric: value
+            mustBeGreaterOrEqualTo: 0
+            description: "Pydantic Field(ge=0)."
+            severity: error
+
+      - name: demographics
+        logicalType: object
+        physicalType: jsonb
+        required: true
+        description: >
+          Nested object (CustomerDemographics): social, marketing_consent,
+          address, metrics. See
+          dbapi/api/schemas/person/person_customer.py for the full shape —
+          deliberately not replicated field by field here, this object has
+          4 sub-schemas of its own.
+        tags: [pii]
+        classification: restricted
+
+      - name: country_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+        description: >
+          FK to person.countryregion. The API does not validate that the
+          country exists — that guarantee comes from the seeder, which
+          always fetches real IDs before inserting (see CLAUDE.md —
+          repositories/seeders never make up an FK).
+        classification: internal
+        quality:
+          - type: library
+            metric: value
+            mustBeGreaterThan: 0
+            description: "Pydantic Field(gt=0) — the API rejects <= 0."
+            severity: error
+        relationships:
+          - to: person.countryregion.country_id
+
+      - name: created_at
+        logicalType: date
+        physicalType: timestamptz
+        required: false
+        examples: ["2026-09-05T12:34:56Z"]
+        description: "Defaults to now() at Pydantic validation time."
+
+      - name: updated_at
+        logicalType: date
+        physicalType: timestamptz
+        required: false
+        examples: ["2026-09-05T12:34:56Z"]
+        description: "Defaults to now() at Pydantic validation time."
+
+      - name: is_active
+        logicalType: boolean
+        physicalType: boolean
+        required: false
+        description: "Defaults to true. Used for soft-delete (see mutator_common.py)."
+
+      - name: row_guid
+        logicalType: string
+        physicalType: uuid
+        required: false
+        description: "Defaults to uuid4() generated by the API, not the database."
+
+    quality:
+      - id: pydantic_validation
+        type: text
+        description: "Every required field rejects the request with a 422 if missing or malformed."
+        severity: error
+      - id: enum_customer_type
+        type: text
+        description: "customer_type only accepts SC or VC."
+        severity: error
+
+support:
+  - channel: data-engineering@nexomart.internal
+    tool: email
+
+customProperties:
+  - property: lineageUpstream
+    value: []
+  - property: lineageDownstream
+    value: [raw_contract/person/customer.yml]
+  - property: availability
+    value: "best effort — study/portfolio environment, no formal production SLA"
+  - property: p99LatencyMs
+    value: 500
+  - property: changelog
+    value:
+      - version: 1.0.0
+        date: "2026-09-05"
+        change: "Initial version, mirroring dbapi/api/schemas/person/person_customer.py."
+      - version: 1.1.0
+        date: "2026-09-06"
+        change: """Converted from the project's ODCS-inspired custom format to real ODCS v3.1.0 (apiVersion/servers/schema.properties/relationships/quality). c
+                onstraints:[...] moved into logicalType/physicalType, native quality rules (mustBeGreaterThan/mustBeGreaterOrEqualTo), and examples; pii boolean dropped in favor of tags:[pii] + classification."""

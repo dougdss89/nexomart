@@ -7,7 +7,7 @@ from sqlalchemy import insert
 from api.database import AsyncSessionLocal
 from api.schemas.marketing.marketing_channel import MarketingChannel, ChannelName, PlatformName
 from api.models.marketing.marketing_channel import MarketingChannelModel
-from api.seeder.cli_common import build_parser
+from api.seeder.cli_common import build_parser, skip_if_already_seeded
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -52,6 +52,8 @@ async def seed_marketing_channels():
     """
     async with AsyncSessionLocal() as session:
         channels = get_marketing_channel_seeders()
+        if await skip_if_already_seeded(session, MarketingChannelModel, label="Marketing channels"):
+            return
         print(f"📣 Seeding {len(channels)} marketing channels...")
         try:
             stmt = insert(MarketingChannelModel).values(channels)
@@ -61,6 +63,7 @@ async def seed_marketing_channels():
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding channels: {e}")
+            raise RuntimeError(f"Marketing channel seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for marketing.marketing_channel (fixed master data, no chaos)")

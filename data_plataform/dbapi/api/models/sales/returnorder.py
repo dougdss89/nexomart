@@ -10,9 +10,14 @@ class SalesReturnOrderModel(Base, AuditMixin):
     return_id = Column(String(36), primary_key=True)
     requestorder_code = Column(String(20), nullable = False)
     
-    salesordernumber = Column(String(20), ForeignKey('sales.salesorder.salesordernumber'), nullable=False)
-    
-    customer_id = Column(Integer, ForeignKey( 'person.customer.customer_id'), nullable=False)
+    # FKs to salesorder.salesordernumber and customer.customer_id dropped 2026-08-13: both
+    # targets became partitioned tables (salesorder by order_date, customer by country_id),
+    # and neither partition key exists on this table to form a composite FK. Referential
+    # integrity here is enforced by the seeder (always inserts real, just-fetched values),
+    # not by the database.
+    salesordernumber = Column(String(20), nullable=False)
+
+    customer_id = Column(Integer, nullable=False)
     store_id = Column(Integer,    ForeignKey( 'person.seller.seller_id'),     nullable=False)
     product_id = Column(Integer,  ForeignKey( 'product.product.product_id'),  nullable=False)
     

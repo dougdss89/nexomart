@@ -4,12 +4,17 @@ Usage: uv run python dbapi/create_tables.py
 """
 import asyncio
 import sys
-sys.path.insert(0, "dbapi")
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "dbapi"))
 
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 
 from api.config.base import Base
+from configs.api.settings import settings
 
 # Importar todos os models para registrar no metadata
 from api.models.product.productcategory import ProductCategoryModel
@@ -44,7 +49,7 @@ from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
 from api.models.purchasing.purchaseorderdetail import PurchaseOrderDetailModel
 from api.models.purchasing.purchaseorderaudit import PurchaseOrderAuditModel
 
-DATABASE_URL = "postgresql+asyncpg://admin:admin@localhost:5432/nexomarket_db"
+DATABASE_URL = settings.DATABASE_URL
 
 SCHEMAS = [
     "product", "person", "sales", "warehouse",

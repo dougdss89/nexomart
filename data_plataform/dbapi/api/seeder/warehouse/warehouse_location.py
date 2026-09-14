@@ -115,8 +115,9 @@ async def run_seeder(count: int, chaos_rate: float = 0.05, batch_size: int = 10_
                 if success:
                     total_inserted += len(data)
             except Exception as e:
+                await db.rollback()
                 print(f"❌ Error during load: {e}")
-                break
+                raise RuntimeError(f"Warehouse location seeding aborted ({total_inserted:,}/{count:,} inserted): {e}") from e
 
         print(f"✅ Success! {total_inserted:,} records inserted into the database via Bulk Insert.")
 

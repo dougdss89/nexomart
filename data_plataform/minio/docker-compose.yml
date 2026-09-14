@@ -7,7 +7,7 @@ services:
       - "9001:9001"     # Console
       
     env_file:
-      - ../configurations/secrets.env
+      - ../configs/secrets.env
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
@@ -37,7 +37,7 @@ services:
   # - "spark-events" is REQUIRED and fixed here: the Spark History Server reads
   #   spark.eventLog.dir=s3a://spark-events/apps (spark/conf/spark-defaults.conf.template)
   #   and crashes on boot if the bucket/prefix doesn't exist. Do not move it to the list below.
-  # - Everything else comes from MINIO_EXTRA_BUCKETS in configurations/secrets.env — a
+  # - Everything else comes from MINIO_EXTRA_BUCKETS in configs/secrets.env — a
   #   comma-separated list. When adding a new pipeline/layer that writes to a new bucket,
   #   just append the name to that variable; no code file changes.
   minio-init:
@@ -47,7 +47,7 @@ services:
       minio:
         condition: service_healthy
     env_file:
-      - ../configurations/secrets.env
+      - ../configs/secrets.env
     entrypoint: /bin/sh
     command:
       - -c

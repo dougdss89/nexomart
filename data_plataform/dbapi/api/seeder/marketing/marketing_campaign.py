@@ -18,6 +18,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 
 fake = Faker('pt_BR')
 
+# Widened 2026-09-05 (was 30-365 days back) so start_date spans multiple years.
+EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
+
 def generate_campaign_payloads(active_channels: list[dict], chaos_rate: float = 0.05, apply_chaos: bool = True) -> list[dict]:
     """
     Generates campaign payloads based on REAL channels from the database.
@@ -53,7 +56,7 @@ def generate_campaign_payloads(active_channels: list[dict], chaos_rate: float = 
                 audience = "General Interest"
 
             status = random.choice(list(CampaignStatus))
-            start_date = datetime.now() - timedelta(days=random.randint(30, 365))
+            start_date = datetime.now() - timedelta(days=random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
             end_date = start_date + timedelta(days=random.randint(30, 90)) if status == CampaignStatus.ACTIVE else None
 
             payload = {
@@ -119,6 +122,7 @@ async def seed_marketing_campaigns(chaos_rate: float = 0.05, apply_chaos: bool =
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding campaigns: {e}")
+            raise RuntimeError(f"Marketing campaign seeding aborted: {e}") from e
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for marketing.marketing_campaign (fan-out of real channels)")

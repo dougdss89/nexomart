@@ -22,6 +22,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 SCHEMA_NAME = "product"
 TABLE_NAME = "product.product"
 
+# Widened 2026-09-05 (was 30-730 days back) so sell_start_date spans multiple years.
+EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
+
 def get_product_seeders(
     count: int = 100,
     start_id: int = 1,
@@ -54,7 +57,7 @@ def get_product_seeders(
         model_id = model_map.get(item["model"], 1)
 
         # Sale cycle: most are still on sale (sell_end_date=None)
-        sell_start_date = datetime.now() - timedelta(days=random.randint(30, 730))
+        sell_start_date = datetime.now() - timedelta(days=random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
 
         # 2. Assemble the dict (maps perfectly to SQLAlchemy and JSONB)
         batch.append({
@@ -127,7 +130,7 @@ async def seed_products(count: int = 500, chaos_rate: float = 0.05, batch_size: 
             except Exception as e:
                 await session.rollback()
                 print(f"❌ Error seeding products: {e}")
-                break
+                raise RuntimeError(f"Product seeding aborted ({total_inserted:,}/{count:,} inserted): {e}") from e
 
         print(f"✅ {total_inserted:,} products seeded successfully!")
 

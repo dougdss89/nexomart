@@ -14,7 +14,7 @@ from api.schemas.humanresources.humanresources_department import (
 
 from api.samples.hr_department_organization import ORG_CHART
 from api.models.humanresources.department import HumanResourcesDepartmentModel
-from api.seeder.cli_common import build_parser
+from api.seeder.cli_common import build_parser, skip_if_already_seeded
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -78,6 +78,8 @@ async def seed_departments():
     """Runs the department load (Master Data — fixed org chart, no chaos)."""
     async with AsyncSessionLocal() as session:
         depts = get_department_seeders()
+        if await skip_if_already_seeded(session, HumanResourcesDepartmentModel, label="Departments"):
+            return
         print(f"📣 Seeding {len(depts)} departments...")
         try:
             stmt = insert(HumanResourcesDepartmentModel).values(depts)
@@ -87,6 +89,7 @@ async def seed_departments():
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding departments: {e}")
+            raise RuntimeError(f"Department seeding aborted: {e}") from e
 
 
 if __name__ == "__main__":

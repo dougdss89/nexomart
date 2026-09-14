@@ -19,9 +19,11 @@ per schema/table.
 """
 
 import argparse
+import json
 import random
 
-from sqlalchemy import insert
+from sqlalchemy import func, insert, select, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config.seeder_config import get_ranges
@@ -139,6 +141,112 @@ def resolve_chaos_args(args: argparse.Namespace, default_chaos_rate: float = 0.0
     return chaos_rate, apply_chaos
 
 
+async def generate_unique_business_ids(
+    session: AsyncSession,
+    id_column,
+    *,
+    prefix: str,
+    count: int,
+    digits: int = 9,
+) -> list[str]:
+    """Generates `count` unique "{prefix}-{digits-digit number}" IDs that collide with
+    neither each other nor existing rows in `id_column`'s table.
+
+    Root-cause fix for the transactional-ID pattern in CLAUDE.md (SO-/PO-/RO-/TR- prefixes,
+    9 random digits = ~900M values): seeders used to draw each ID independently with
+    random.randint() and let the batch INSERT fail on collision. With batch sizes up to
+    10,000 rows, the birthday-paradox math makes that failure the common case once a table
+    passes tens of thousands of rows — not a rare edge case (incident 2026-08-13: sales_order
+    and purchaseorderheader batches were failing outright, previously masked by a since-fixed
+    false-success bug that swallowed the IntegrityError).
+
+    random.sample() (without replacement) guarantees no intra-batch duplicates; the single
+    IN-query against the DB catches the much rarer cross-batch collision, and only the
+    handful of colliding candidates get regenerated instead of the whole batch.
+    """
+    low, high = 10 ** (digits - 1), 10 ** digits - 1
+    chosen: set[str] = set()
+    while len(chosen) < count:
+        needed = count - len(chosen)
+        sampled = random.sample(range(low, high + 1), needed)
+        candidates = {f"{prefix}-{n}" for n in sampled} - chosen
+        if not candidates:
+            continue
+        existing = (
+            await session.execute(select(id_column).where(id_column.in_(candidates)))
+        ).scalars().all()
+        chosen |= candidates - set(existing)
+    return list(chosen)
+
+
+DEFAULT_FK_SAMPLE_SIZE = 5_000
+# How many real FK values to pull server-side when a seeder needs to pick one at random
+# per generated row (e.g. sales_order.py assigning a customer_id to each new order).
+
+
+async def sample_fk_ids(
+    session: AsyncSession, column, limit: int = DEFAULT_FK_SAMPLE_SIZE, sample_pct: float = 2.0
+) -> list:
+    """Server-side random sample of real, existing values from `column` — bounded regardless
+    of how large the source table grows.
+
+    Root-cause fix (2026-08-17, revised same day): seeders used to do
+    `select(column)).scalars().all()` to load the *entire* column into Python just to
+    `random.choice()` from it per generated row — cost grows with total accumulated history,
+    not with rows needed this run. First attempt replaced it with `ORDER BY random() LIMIT n`,
+    which is a well-known Postgres trap: it still has to compute a random sort key for *every*
+    row and sort them before taking the top n, i.e. it still scans (and sorts!) the whole
+    table — measured 2min+ and still running against ~2M rows, no better than the original bug.
+    `TABLESAMPLE SYSTEM (pct)` is the actual fix: it picks random *blocks* and returns
+    whatever rows are in them, touching only ~pct% of the table's pages regardless of table
+    size (measured 52ms for 5,000 rows out of 2M). Every value returned is still a real,
+    existing row — the fix only changes where the sampling happens, never what's sampled.
+    Falls back to a plain bounded fetch if the sample comes back empty (small/sparse table —
+    exactly the case where a full read isn't a scaling concern anyway).
+    """
+    table = column.table
+    qualified = f'"{table.schema}"."{table.name}"' if table.schema else f'"{table.name}"'
+    result = await session.execute(
+        text(f'SELECT "{column.name}" FROM {qualified} TABLESAMPLE SYSTEM (:pct) LIMIT :limit')
+        .bindparams(pct=sample_pct, limit=limit)
+    )
+    ids = [row[0] for row in result.all()]
+    if not ids:
+        ids = (await session.execute(select(column).limit(limit))).scalars().all()
+    return ids
+
+
+async def skip_if_already_seeded(session: AsyncSession, model, *, label: str) -> bool:
+    """Returns True (and prints a skip message) if `model` already has any rows.
+
+    Root-cause fix for the "false success" pattern found across the fixed/static master-data
+    seeders (org chart, job roles, product categories/models, sales channels, transaction
+    types, marketing channels, countries, states, special offers): those seeders insert a
+    fixed payload (explicit PKs or a unique name/code) every DAG run with no idempotency
+    check, so every run after the first hits a PK/unique collision. Some of them then
+    swallowed that IntegrityError (except: print + no raise) and still exited 0 — Airflow saw
+    "success" even though zero rows were written that run (incident 2026-08-13: audit found
+    this on master_data.hr_department, hr_job_role, product_category, product_model,
+    sales_channel, warehouse_transaction_type — all "success" with a duplicate-key error
+    logged underneath). Since this data is meant to be seeded once, the correct behavior on
+    a re-run isn't to fail (nor to silently succeed while doing nothing) — it's to detect
+    "already there" and skip cleanly, while still raising on any other, genuinely unexpected
+    error.
+
+    Deliberately checks "any row present" rather than an exact/expected count: some of these
+    generators aren't deterministic between calls (e.g. humanresources_job_role.py rolls a
+    random per-title history flag, so the row count it would generate this run can differ
+    from what's already in the DB from a previous run) — comparing against a freshly
+    recomputed "expected" count is fragile for exactly that reason, and master data doesn't
+    need row-perfect reconciliation, just "don't try to insert the fixed set twice."
+    """
+    existing = await session.scalar(select(func.count()).select_from(model)) or 0
+    if existing > 0:
+        print(f"✅ {label} already seeded ({existing:,} rows) — skipping.")
+        return True
+    return False
+
+
 async def insert_in_batches(session: AsyncSession, model, rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE) -> int:
     """Inserts `rows` in batches of `batch_size` and commits at the end.
 
@@ -154,5 +262,65 @@ async def insert_in_batches(session: AsyncSession, model, rows: list[dict], batc
     for i in range(0, len(rows), batch_size):
         stmt = insert(model).values(rows[i:i + batch_size])
         await session.execute(stmt)
+    await session.commit()
+    return len(rows)
+
+
+async def bulk_copy(session: AsyncSession, model, rows: list[dict]) -> int:
+    """Loads `rows` via Postgres COPY (asyncpg's copy_records_to_table) instead of INSERT.
+
+    Solution B from the 2026-08-13 performance proposal: COPY streams rows over the wire
+    protocol without per-statement planning/logging, well ahead of even batched multi-row
+    INSERTs at the 10^5-10^6 rows/run volumes the highest-traffic seeders (sales_order,
+    transaction_history, purchaseorderheader/detail, customer, daily_performance) now draw
+    per CLAUDE.md's dynamic ranges. For ordinary fan-out volumes insert_in_batches() is
+    simpler and plenty fast — reserve this for the seeders that actually need it.
+
+    Column set is taken from the model's Table, restricted to keys present in rows[0] (same
+    convention as insert_in_batches()/insert().values()). JSONB columns are json.dumps()'d
+    when not already a str: asyncpg's COPY path has no SQLAlchemy-level JSON adapter in front
+    of it, so a raw dict would otherwise be handed to the wire protocol as an untyped value.
+
+    Columns absent from rows[0] but carrying a Python-side `default` (e.g. AuditMixin's
+    row_version=1, is_active=True — no server_default behind either) are filled in here
+    explicitly, one call per row for callables. COPY talks straight to asyncpg and skips
+    SQLAlchemy's insert-compilation step entirely, so those defaults would otherwise never
+    apply and the column would go in as NULL instead (caught 2026-08-13: person_customer.py
+    never sets row_version, which insert().values() silently defaulted but bulk_copy() sent
+    as NULL, tripping the NOT NULL constraint). Same col.default.arg(...) call Base.from_pydantic()
+    already uses for the same reason. Columns with only a server_default (e.g. created_at)
+    are deliberately left out of this — Postgres applies those on its own.
+    """
+    if not rows:
+        return 0
+    table = model.__table__
+    jsonb_columns = {c.name for c in table.columns if isinstance(c.type, JSONB)}
+
+    present_columns = [c.name for c in table.columns if c.name in rows[0]]
+    defaulted_columns = [c for c in table.columns if c.name not in rows[0] and c.default is not None]
+    columns = present_columns + [c.name for c in defaulted_columns]
+
+    records = []
+    for row in rows:
+        record = [
+            json.dumps(row[col]) if col in jsonb_columns and not isinstance(row[col], str) else row[col]
+            for col in present_columns
+        ]
+        record.extend(
+            c.default.arg(None) if c.default.is_callable else c.default.arg
+            for c in defaulted_columns
+        )
+        records.append(tuple(record))
+
+    raw_conn = await session.connection()
+    dbapi_conn = await raw_conn.get_raw_connection()
+    asyncpg_conn = dbapi_conn.driver_connection
+
+    await asyncpg_conn.copy_records_to_table(
+        table.name,
+        schema_name=table.schema,
+        records=records,
+        columns=columns,
+    )
     await session.commit()
     return len(rows)

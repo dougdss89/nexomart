@@ -21,6 +21,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 SCHEMA_NAME = "purchasing"
 TABLE_NAME = "purchasing.vendor"
 
+# Widened 2026-09-05 (was 30-1000 days back) so the SCD history below spans multiple years.
+EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
+
 fake = Faker('pt_BR')
 
 def get_vendor_details(num_vendors: int, start_id: int = 1, chaos_rate: float = 0.03, apply_chaos: bool = True) -> list[dict]:
@@ -54,7 +57,7 @@ def get_vendor_details(num_vendors: int, start_id: int = 1, chaos_rate: float = 
         certification = random.choice(purchase_payment_certs.POSSIBLE_CERTIFICATIONS)
 
         has_history = random.choice([True, False, False, False, True])
-        today = datetime.now() - timedelta(days=random.randint(30, 1000))
+        today = datetime.now() - timedelta(days=random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
 
         if has_history:
             # --- SCD TYPE 2 LOGIC (Credit Risk Decline) ---
@@ -175,6 +178,7 @@ async def seed_vendors(count: int = 20, chaos_rate: float = 0.03, batch_size: in
         except Exception as e:
             await session.rollback()
             print(f"❌ Error seeding vendors: {e}")
+            raise RuntimeError(f"Vendor seeding aborted: {e}") from e
 
 
 if __name__ == "__main__":

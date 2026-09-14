@@ -137,8 +137,14 @@ def apply_daily_performance_chaos(
             row["conversions"] = max(row.get("conversions", 0), random.randint(1, 5))
 
         elif chaos_type == "retroactive_metric_revision":
+            # `row` never carries "performance_id" (the caller pops it before chaos runs so
+            # the DB's autoincrement sequence fills it in) — dict(row) already omits it. This
+            # used to explicitly set it to None, which isn't "no value, use the default", it's
+            # a literal NULL bound in the INSERT and violates the NOT NULL constraint on the
+            # very first duplicated/revised row (incident 2026-08-13: any batch containing
+            # this chaos type failed outright, previously masked by a since-fixed
+            # false-success bug that swallowed the IntegrityError).
             revision = dict(row)
-            revision["performance_id"] = None
             revision["conversions"] = row.get("conversions", 0) + random.randint(1, 10)
             revision["conversion_value"] = (
                 Decimal(str(row.get("conversion_value", 0))) * Decimal("1.3")

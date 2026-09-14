@@ -1,7 +1,8 @@
 import os
 from pathlib import Path
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from pydantic import computed_field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _find_api_env() -> str:
