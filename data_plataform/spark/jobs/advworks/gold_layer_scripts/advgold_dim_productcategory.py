@@ -4,8 +4,7 @@
 Gold: s3a://silver/advworks_db/dim_productcategory (Delta)
     → Delta Lake spark_catalog.gold.gold_dim_productcategory (s3a://deltadw/)
 
-Note: Unity Catalog Iceberg REST is read-only (no CREATE TABLE support).
-Gold layer uses spark_catalog (DeltaCatalog + Hive metastore) instead.
+Note: Gold layer uses spark_catalog (DeltaCatalog + Hive Metastore).
 """
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import current_timestamp

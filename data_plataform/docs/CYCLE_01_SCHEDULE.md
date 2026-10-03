@@ -42,7 +42,7 @@ The company runs on a mature PostgreSQL OLTP database, but faces a classic probl
 
 #### FR-03: Distributed, Versioned Storage
 - Processed data must be stored in Delta Lake tables on MinIO (S3-compatible object storage)
-- Governance, catalog, and access control must be managed by Unity Catalog OSS
+- Governance, catalog, and access control must be managed by the Hive Metastore
 - The storage format must support time-travel queries and data rollback
 
 #### FR-04: Distributed Processing
@@ -52,7 +52,7 @@ The company runs on a mature PostgreSQL OLTP database, but faces a classic probl
 
 #### FR-05: Query Federation
 - Analysts must query data via standard SQL using Apache Trino
-- Trino must federate data across Delta Lake (MinIO/Unity Catalog OSS), PostgreSQL, and future sources
+- Trino must federate data across Delta Lake (MinIO/Hive Metastore), PostgreSQL, and future sources
 - Analytical queries must return results in under 10s for volumes of 50M records
 
 #### FR-06: Data Quality and Chaos Engineering
@@ -93,7 +93,7 @@ The company runs on a mature PostgreSQL OLTP database, but faces a classic probl
 │         Apache Spark 3.x + Structured Streaming            │
 ├──────────────────────────────────────────────────────────┤
 │              ANALYTICAL STORAGE                             │
-│  Delta Lake + Unity Catalog OSS (governance) + MinIO (S3)  │
+│     Delta Lake + Hive Metastore (catalog) + MinIO (S3)     │
 ├──────────────────────────────────────────────────────────┤
 │                QUERY FEDERATION                              │
 │                     Apache Trino                            │

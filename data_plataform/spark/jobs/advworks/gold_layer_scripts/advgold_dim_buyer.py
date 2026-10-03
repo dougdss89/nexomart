@@ -34,7 +34,7 @@ def read_silver_dimension(spark, table_name: str):
 def write_gold_iceberg(spark, dataframe, catalog: str, schema: str, table_name: str):
     try:
         full_table = f"{catalog}.{schema}.{table_name}"
-        print(f"Writing gold to Unity Catalog: {full_table}")
+        print(f"Writing gold to Iceberg (Hive Metastore): {full_table}")
 
         spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {catalog}.{schema}")
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         df.show(5)
         print(f"Silver schema: {df.schema.simpleString()}")
 
-        write_gold_iceberg(spark, df, "nexo", "gold", "gold_dim_buyer")
+        write_gold_iceberg(spark, df, "iceberglake", "gold", "gold_dim_buyer")
 
         print("Gold layer job completed successfully")
 

@@ -1,7 +1,7 @@
 from pyspark.sql import DataFrame
 
 # NOTE: nexo stopped being an Iceberg catalog — Spark now writes it as Delta via the
-# native unitycatalog-spark connector (UCSingleCatalog). See spark/jobs/common/delta.py
+# DeltaCatalog on spark_catalog (Hive Metastore). See spark/jobs/common/delta.py
 # for the Delta write helper and spark/conf/spark-defaults.conf.template for the catalog config.
 
 

@@ -48,15 +48,8 @@ spark.sql.extensions             io.delta.sql.DeltaSparkSessionExtension,org.apa
 # nexomart_gold), not as separate catalogs — same pattern already used by the AdventureWorks
 # Delta reference (spark_catalog.gold).
 #
-# nexo was tried first as a native Unity Catalog OSS catalog (UCSingleCatalog connector,
-# Delta nativo — mesmo modelo do Databricks). Ficou barrado: UC OSS (confirmado na v0.6.0,
-# a mais recente) só vende credenciais temporárias pra S3 real — o S3StorageConfig do server
-# não tem campo de endpoint customizável, então qualquer storage S3-compatible (MinIO aqui)
-# falha com "Unsupported URI scheme" / erro de credential vending. Nessie também não serve de
-# substituto — só tem suporte de catálogo pra Iceberg, não pra Delta. Sem AWS S3 de verdade,
-# Hive Metastore é o único backend que dá Delta + escrita via Spark + leitura via Trino ao
-# mesmo tempo neste stack. Migrar nexo pra um catálogo governado de verdade (UC ou outro) fica
-# pra quando isso apontar pra um bucket AWS real.
+# Governance/catalog backend for this stack is the Hive Metastore (spark_catalog + iceberglake);
+# nexo/nexomart live as databases inside spark_catalog, not as separate catalogs.
 spark.sql.catalog.spark_catalog           org.apache.spark.sql.delta.catalog.DeltaCatalog
 spark.sql.catalog.spark_catalog.warehouse s3a://deltadw/
 spark.hadoop.hive.metastore.uris          ${HIVE_METASTORE_URI}

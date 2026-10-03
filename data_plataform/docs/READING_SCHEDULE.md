@@ -75,7 +75,7 @@ CADENCE: rotate pillars week to week — never spend more than 2 weeks
 | Apache Kafka (local) | Amazon MSK | Direct |
 | Apache Airflow (local) | Amazon MWAA | Direct |
 | Trino | Amazon Athena v3 | High — Athena uses Trino |
-| Unity Catalog OSS | AWS Lake Formation | Conceptual |
+| Hive Metastore | AWS Glue Data Catalog | Direct |
 | Iceberg on MinIO | Iceberg on S3 + Glue Catalog | Native in Athena v3 |
 | Local FastAPI | ECS Fargate / Lambda | Architectural |
 
@@ -198,7 +198,7 @@ CADENCE: rotate pillars week to week — never spend more than 2 weeks
 ### Why Databricks?
 
 - The company behind Delta Lake and a co-creator of Apache Spark
-- The Unity Catalog you use in the project is the OSS version of Databricks' Unity Catalog
+- Unity Catalog is Databricks' governance layer — the managed version you're adopting for the project
 - The Delta Lake you removed from the project is native to Databricks (Iceberg too)
 - Databricks is the environment where 80% of companies using Spark run in production
 - The Databricks certification is highly valued alongside AWS in the job market
@@ -231,7 +231,7 @@ CADENCE: rotate pillars week to week — never spend more than 2 weeks
 | Component | Level | What it is | Shows up in |
 |------------|-------|---------|------------|
 | Databricks Lakehouse | Associate | Delta Lake + Unity Catalog + managed Spark | The whole pipeline |
-| Unity Catalog (Databricks) | Associate / Professional | Governance + lineage + fine-grained access | You use the OSS version |
+| Unity Catalog (Databricks) | Associate / Professional | Governance + lineage + fine-grained access | Adopting the managed version |
 | Delta Live Tables (DLT) | Associate / Professional | Declarative pipelines with built-in quality | Replaces Airflow + Spark jobs |
 | Auto Loader | Associate | Incremental ingestion from S3/ADLS with schema evolution | Replaces landing jobs |
 | Databricks SQL | Associate | SQL warehouse over Delta/Iceberg | Replaces local Trino |
@@ -523,7 +523,7 @@ When a reading directly grounds one of the other pillars (e.g., DDIA ch 3 → Sp
 | ADR | Decision | Pillar | Book / Resource |
 |-----|---------|-------|-----------------|
 | ADR-001 | Async SQLAlchemy + bulk insert with no for-loops | Python + SQL | Fluent Python ch 17 + 21 |
-| ADR-002 | Iceberg + Unity Catalog for governance | Databricks/Spark | DDIA ch 3 + Databricks docs |
+| ADR-002 | Delta Lake + Hive Metastore for cataloging | Databricks/Spark | DDIA ch 3 + Databricks docs |
 | ADR-003 | Dimensional modeling (star schema) | Python + SQL | Kimball ch 1–4 |
 | ADR-004 | Kafka as a buffer between the API and storage | AWS / Databricks | DDIA ch 11 |
 | ADR-005 | Outbox Pattern for exactly-once with Kafka | Python + SQL | Khononov ch 10 |

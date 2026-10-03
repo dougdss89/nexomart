@@ -140,7 +140,7 @@ Each platform has a specific function in the ecosystem. Mixing up those function
 |----------|--------|------------------|
 | EP01 | The Marketplace — The Business Case, the Database, and the Analytical Problem | business_db + Overview + Docker |
 | EP02 | Async Ingestion with FastAPI — PostgreSQL and 3-Layer Architecture | dbapi + PostgreSQL + SQLAlchemy |
-| EP03 | Distributed Storage — MinIO, Delta Lake, and Unity Catalog OSS | MinIO + Delta Lake + Unity Catalog |
+| EP03 | Distributed Storage — MinIO, Delta Lake, and the Hive Metastore | MinIO + Delta Lake + Hive Metastore |
 | EP04 | Processing at Scale with Spark — from Ingestion to Bronze | Spark + Autoloader + Airflow |
 | EP05 | Kafka Enters the Stack — Event-Driven and the Outbox Pattern | Kafka + Schema Registry + Outbox |
 | EP06 | CQRS in Practice — Read Path via Trino over Delta Lake | Trino + CQRS |
@@ -199,9 +199,9 @@ The second playlist has standalone value. Someone who's never going to build the
 | EP02.4 | Deep Track | SQLAlchemy 2.0 — ORM, Async, and the repository architecture | 12 min |
 | EP02.5 | Deep Track | Exploding JSONB: turning order_items into analytical rows in Spark | 10 min |
 | Club T2 | Theory Track | DDIA — Storage Engines: why Delta Lake and Parquet are dramatically faster | 10 min |
-| EP03 | Fast Track | Distributed Storage — MinIO, Delta Lake, and Unity Catalog OSS | 20 min |
+| EP03 | Fast Track | Distributed Storage — MinIO, Delta Lake, and the Hive Metastore | 20 min |
 | EP03.1 | Deep Track | Delta Lake vs Iceberg — real trade-offs and why we chose Delta | 12 min |
-| EP03.2 | Deep Track | Unity Catalog OSS — open-source data governance aligned with Databricks | 10 min |
+| EP03.2 | Deep Track | Hive Metastore — the catalog backend for Delta and Iceberg | 10 min |
 | EP03.3 | Deep Track | SCD Type 2 in practice: customers and products that change over time | 12 min |
 | EP04 | Fast Track | Processing at Scale with Spark — from Ingestion to Bronze | 22 min |
 | EP04.1 | Deep Track | Driver and Executor: the division of labor in Spark | 10 min |
@@ -517,7 +517,7 @@ Medium is the only channel where content has increasing value over time — an a
 |--------|------------------|
 | EP01 overview | "open source data platform from scratch" |
 | EP02 FastAPI | "fastapi postgresql async sqlalchemy 2.0" |
-| EP03 Delta Lake | "delta lake tutorial docker unity catalog" |
+| EP03 Delta Lake | "delta lake tutorial docker hive metastore" |
 | EP07 Airflow | "apache airflow docker compose tutorial" |
 | EP08 Trino | "trino delta lake query tutorial" |
 | EP09 Seeders | "chaos engineering data quality python" |
@@ -771,7 +771,7 @@ The OLTP → Dimensional transformation is the heart of the series. Kimball (Clu
 | ADR | Decision | Book It's Grounded In | Status |
 |-----|---------|---------------------|--------|
 | ADR-001 | Async SQLAlchemy with bulk insert — no for-loops | Fluent Python — efficient generators and iterators | Accepted |
-| ADR-002 | Delta Lake + Unity Catalog OSS for governance and versioning | DDIA Ch. 3–4 + Fundamentals of DE | Accepted |
+| ADR-002 | Delta Lake + Hive Metastore for cataloging and versioning | DDIA Ch. 3–4 + Fundamentals of DE | Accepted |
 | ADR-003 | Chaos Engineering as a data quality strategy | Fundamentals of DE — reliability as a discipline | Accepted |
 | ADR-004 | Kafka as a buffer between the API and storage (event-driven) | DDIA Ch. 11 — Stream Processing and the immutable log | Proposed |
 | ADR-005 | Outbox Pattern for exactly-once semantics with Kafka | DDD (Khononov) — domain consistency and transactions | Proposed |
@@ -906,5 +906,5 @@ The OLTP → Dimensional transformation is the heart of the series. Kimball (Clu
 ---
 
 *Generated on: 2026-04-23 | Updated on: 2026-04-25*
-*Base: Data Platform with FastAPI, Kafka, Airflow, Spark, Delta Lake, Unity Catalog OSS, MinIO, Trino, dbt, OpenTelemetry*
+*Base: Data Platform with FastAPI, Kafka, Airflow, Spark, Delta Lake, Hive Metastore, MinIO, Trino, dbt, OpenTelemetry*
 *Branch added: Theory Track (Book Club) + Discord + ADRs as content*

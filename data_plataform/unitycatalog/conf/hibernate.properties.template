@@ -1,9 +1,0 @@
-# Unity Catalog OSS — Persistence layer via PostgreSQL
-# UC creates its own schema inside unitycatalogdb on first startup.
-javax.persistence.jdbc.driver=org.postgresql.Driver
-javax.persistence.jdbc.url=jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_UC_DB}
-javax.persistence.jdbc.user=${POSTGRES_USER}
-javax.persistence.jdbc.password=${POSTGRES_PASSWORD}
-hibernate.hbm2ddl.auto=update
-hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
-hibernate.connection.pool_size=10

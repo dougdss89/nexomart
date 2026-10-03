@@ -32,7 +32,7 @@ Write-Output "Attaching $VhdPath to WSL2..."
 & wsl.exe -d $Distro -u root -- mkdir -p "$MountPoint/data"
 # Shared volumes of the other containers (CONTAINERS_DATA_DIR in configs/secrets.env); the Makefile
 # `init` target binds docker volumes to these. World-writable because containers run as different uids.
-foreach ($v in "dockervol", "spark-logs", "spark-ivy-cache", "uc-data") {
+foreach ($v in "dockervol", "spark-logs", "spark-ivy-cache") {
     & wsl.exe -d $Distro -u root -- mkdir -p "$MountPoint/containers/$v"
 }
 & wsl.exe -d $Distro -u root -- chmod 777 "$MountPoint/containers"

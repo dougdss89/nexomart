@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A data platform combining a FastAPI ingestion API (dbapi), Apache Airflow orchestration, Apache Spark distributed compute, Delta Lake tables (governed by Unity Catalog OSS, stored in MinIO), and Trino SQL federation — all connected via a shared Docker network (`hadoopcluster`).
+A data platform combining a FastAPI ingestion API (dbapi), Apache Airflow orchestration, Apache Spark distributed compute, Delta Lake and Iceberg tables (cataloged by the Hive Metastore, stored in MinIO), and Trino SQL federation — all connected via a shared Docker network (`hadoopcluster`).
 
 ## Commands
 
@@ -41,7 +41,6 @@ make clean        # ⚠️  removes containers + volumes (deletes data)
 make up-postgres
 make up-minio
 make up-hive
-make up-unitycatalog
 make up-spark
 make up-trino
 make up-airflow
@@ -56,7 +55,6 @@ make up-dbapi
 | Spark History | http://localhost:18080 | — |
 | Trino UI | http://localhost:8070 | — |
 | Airflow UI | http://localhost:8181 | admin / admin |
-| Unity Catalog API | http://localhost:8182/api/2.1/unity-catalog | — |
 
 ## Architecture
 
@@ -335,7 +333,7 @@ Three substitution mechanisms, depending on file type — use the right one for 
 
 1. **Docker Compose** (`*/docker-compose.yml`): native `${VAR}` syntax. The `Makefile` already exports `secrets.env` to the shell before any `docker compose up` (target `up`/`up-*`), so `${VAR}` inside the YAML resolves on its own. If the *container* also needs to see the variable at runtime (not just when the compose file is assembled), add `env_file: ../configs/secrets.env` to the service.
 2. **Trino Catalogs** (`trino/catalog/*.properties`): Trino's own `${ENV:VAR}` syntax (not plain `${VAR}`). The `trino-coordinator`/`trino-worker` services already load `secrets.env` via `env_file`.
-3. **Config files with no native variable support** (Unity Catalog's Java `.properties`, `spark-defaults.conf`, Hive's XML): **never edit the final file directly** — edit the matching `<file>.template` (uses shell-style `${VAR}`) and run `make generate-confs` (already included in `make up`), which runs `envsubst` and generates the real file. Edits to the generated file are lost on the next `generate-confs`.
+3. **Config files with no native variable support** (`spark-defaults.conf`, Hive's XML): **never edit the final file directly** — edit the matching `<file>.template` (uses shell-style `${VAR}`) and run `make generate-confs` (already included in `make up`), which runs `envsubst` and generates the real file. Edits to the generated file are lost on the next `generate-confs`.
 
 Config files with no template and no variable support (`hive/conf/hive-site.xml`, `nessie/application.properties` — the latter isn't even mounted in any container, it's dead code) fall outside this pattern for now; don't hardcode into them unnecessarily, but also don't assume they accept `${VAR}` without testing.
 

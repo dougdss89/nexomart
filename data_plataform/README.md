@@ -24,7 +24,7 @@ Open-source data platform built from scratch for the **IcebergLake** case study 
 │       Delta Lake + Apache Iceberg + MinIO (S3-compatible)    │
 ├──────────────────────────────────────────────────────────────┤
 │                  CATALOG & METASTORE                         │
-│    Hive Metastore 4.0 (PostgreSQL) + Unity Catalog OSS       │
+│           Hive Metastore 4.0 (PostgreSQL backend)           │
 ├──────────────────────────────────────────────────────────────┤
 │                   QUERY FEDERATION                           │
 │    Apache Trino 482 (delta_lake + iceberg + nexo catalogs)   │
@@ -76,14 +76,13 @@ PostgreSQL (OLTP)
 |---------|-----------------|-----|
 | `spark_catalog` | DeltaCatalog (default) | Landing, Bronze, Silver in Delta Lake |
 | `iceberglake` | IcebergHiveCatalog (HMS) | Gold writes in Iceberg |
-| `nexo` | IcebergRESTCatalog (UC OSS) | Reads via Unity Catalog |
 
 ```python
 # Gold — Iceberg write via HiveCatalog
 df.writeTo("iceberglake.gold.gold_dim_productcategory").createOrReplace()
 
-# Read via Unity Catalog REST
-spark.sql("SELECT * FROM nexo.gold.gold_dim_productcategory")
+# Read Gold via the Iceberg (Hive Metastore) catalog
+spark.sql("SELECT * FROM iceberglake.gold.gold_dim_productcategory")
 ```
 
 ### Trino — 4 catalogs
@@ -92,7 +91,7 @@ spark.sql("SELECT * FROM nexo.gold.gold_dim_productcategory")
 |---------|-----------|-----|
 | `delta` | `delta_lake` + HMS | Bronze and Silver |
 | `iceberglake` | `iceberg` + HMS | Gold direct access (ops/debug) |
-| `nexo` | `iceberg` + UC REST | Gold (reads and dbt) — official read path |
+| `nexo` | `delta_lake` + HMS | Gold (reads and dbt) — official read path |
 | `minio` | `delta_lake` + HMS | Landing / raw exploration |
 
 ```sql
@@ -100,23 +99,6 @@ spark.sql("SELECT * FROM nexo.gold.gold_dim_productcategory")
 SELECT * FROM nexo.gold.gold_dim_productcategory LIMIT 10;
 SHOW TABLES IN nexo.gold;
 ```
-
-### Unity Catalog OSS — via REST API
-
-The UC OSS v0.4.0 GUI requires OAuth (Google/OIDC) and doesn't work without a configured provider. Use the REST API or the `nexo` catalog in Spark/Trino instead:
-
-```bash
-# Catalogs
-curl -s http://localhost:8182/api/2.1/unity-catalog/catalogs | python3 -m json.tool
-
-# Schemas
-curl -s "http://localhost:8182/api/2.1/unity-catalog/schemas?catalog_name=unity" | python3 -m json.tool
-
-# Tables
-curl -s "http://localhost:8182/api/2.1/unity-catalog/tables?catalog_name=unity&schema_name=gold" | python3 -m json.tool
-```
-
----
 
 ## Business Domains
 
@@ -161,7 +143,6 @@ data_plataform/
 ├── hive/                   # Hive Metastore 4.0 (PostgreSQL backend)
 ├── trino/
 │   └── catalog/             # delta.properties, iceberglake.properties, nexomart.properties, nexo.properties, minio.properties
-├── unitycatalog/           # Unity Catalog OSS (REST API + Iceberg REST catalog)
 ├── configs/
 │   ├── .env                # Job paths, MinIO buckets, connections
 │   ├── secrets.env         # Credentials (not committed)
@@ -213,7 +194,7 @@ make restart s=spark-master     # restart one container
 make clean       # ⚠️  removes containers AND volumes (destroys data)
 ```
 
-`make down` removes containers, but it **does not** delete data — everything that matters (Postgres, MinIO, `dockervol`, Spark caches) lives in named Docker volumes (`postgres_pgprojeto_data`, `minio_minio_data`, etc.), which are only removed with an explicit `-v`/`--volumes` flag — something no target other than `clean` (⚠️ intentionally destructive) does. Use `make down`/`make up` when you edit a `docker-compose.yml` (the container needs to be recreated to pick up the change); use `make stop`/`make start` for day-to-day work (e.g. pausing before shutting down your machine) — faster to resume, same data-preservation guarantee.
+`make down` removes containers, but it **does not** delete data — everything that matters (Postgres, `dockervol`, Spark caches) lives in named Docker volumes (`postgres_pgprojeto_data`, etc.); MinIO data lives on the dedicated disk bind-mounted at `MINIO_DATA_DIR` (see Known Issues #9), which are only removed with an explicit `-v`/`--volumes` flag — something no target other than `clean` (⚠️ intentionally destructive) does. Use `make down`/`make up` when you edit a `docker-compose.yml` (the container needs to be recreated to pick up the change); use `make stop`/`make start` for day-to-day work (e.g. pausing before shutting down your machine) — faster to resume, same data-preservation guarantee.
 
 `spark-worker` (`spark/docker-compose.yml`) is sized at 4 cores / 8GB per replica (`SPARK_WORKER_CORES`/`SPARK_WORKER_MEMORY`/`SPARK_WORKER_MEM_LIMIT` in `configs/secrets.env`) specifically so it can scale to 3 replicas — 12 cores / 24GB total — without starving the rest of the stack. `WORKERS` defaults to `1` for normal day-to-day use; pass `WORKERS=N` to `make start` or `make scale-spark` to scale out for heavier jobs, then scale back down (`make scale-spark WORKERS=1`) when done. `docker compose start` can't create new replicas (it only restarts containers that already exist), so both targets use `up -d --scale` under the hood instead — which also means they're safe to call any time, not just after a `make stop`.
 
@@ -223,7 +204,6 @@ make clean       # ⚠️  removes containers AND volumes (destroys data)
 make up-postgres
 make up-minio
 make up-hive
-make up-unitycatalog
 make up-spark
 make up-trino
 make up-airflow
@@ -240,8 +220,10 @@ Buckets are provisioned automatically by the `minio-init` service (`minio/docker
 - **Everything else comes from `MINIO_EXTRA_BUCKETS`** in `configs/secrets.env` — a comma-separated list, no spaces. Currently:
 
   ```bash
-  MINIO_EXTRA_BUCKETS=landing,bronze,silver,iceberg,deltadw
+  MINIO_EXTRA_BUCKETS=landing,bronze,silver,iceberg,deltadw,quarantine
   ```
+
+  `quarantine` holds the rows that seeders reject at validation time, as Parquet with a `payload` column (see [`docs/MINIO.md`](docs/MINIO.md)).
 
   When adding a new pipeline or layer that writes to a bucket that isn't provisioned yet (e.g. `s3a://a-new-bucket/...` in a new Spark job), just append the name to this variable in `secrets.env` **and** in `secrets.env.example` — no code or compose file needs to change. The bucket is created automatically on the next `make up`/`make up-minio`.
 
@@ -262,7 +244,6 @@ make up-minio
 | DataFlint (live, during a job) | http://localhost:4040/dataflint | — |
 | Trino UI | http://localhost:8070 | — |
 | Airflow UI | http://localhost:8181 | per `secrets.env` |
-| Unity Catalog REST API | http://localhost:8182/api/2.1/unity-catalog | — |
 | dbapi (FastAPI) | http://localhost:8001 | — |
 | dbapi Docs | http://localhost:8001/docs | — |
 
@@ -292,17 +273,17 @@ docker exec airflow_scheduler airflow tasks states-for-dag-run \
 
 ## NexoMart Production Pipeline
 
-Three independent Airflow DAGs simulate a live OLTP workload against the `nexomart_db` schemas (see [Business Domains](#business-domains)). They run on separate schedules and are not chained together by triggers:
+Three Airflow DAGs simulate a live OLTP workload against the `nexomart_db` schemas (see [Business Domains](#business-domains)). The seeder and mutator run on their own schedules; ingestion has no schedule and is triggered by the seeder:
 
 | DAG | Schedule | Purpose |
 |-----|----------|---------|
 | `nexomart_seeder_dag` | every 15 minutes (`*/15 * * * *`) | Inserts new rows across all 7 domains, with chaos engineering (see [Chaos Engineering](#chaos-engineering)) |
 | `nexomart_mutator_dag` | hourly (`0 * * * *`) | Applies UPDATE and, where safe, DELETE to rows the seeder already inserted, to give a future CDC pipeline realistic update/delete events, not just inserts |
-| `nexomart_ingestion_dag` | manual only (`schedule=None`) | Reads from `nexomart_db` and lands raw Parquet into MinIO's `landing` bucket, one file per table per run. Trigger it by hand, or put it on its own schedule sized to how long it actually takes |
+| `nexomart_ingestion_dag` | none (`schedule=None`), triggered by the last task of `nexomart_seeder_dag` | Reads from `nexomart_db` and lands raw Parquet into MinIO's `landing` bucket, one file per table per run. You can also trigger it by hand |
 
-Both `nexomart_seeder_dag` and `nexomart_mutator_dag` use `max_active_runs=1` so a slow run can never overlap with the next tick. `nexomart_seeder_dag` also caps `max_active_tasks=8` to avoid disk I/O contention between the heaviest bulk-insert tasks.
+Both `nexomart_seeder_dag` and `nexomart_mutator_dag` use `max_active_runs=1` so a slow run can never overlap with the next tick. `nexomart_seeder_dag` starts with a `contract_drift_check` task that runs `tests/contracts` (data contract YAML vs Pydantic schema vs SQLAlchemy model) and blocks the run on any drift. It also caps `max_active_tasks=8` to avoid disk I/O contention between the heaviest bulk-insert tasks.
 
-`nexomart_ingestion_dag` used to be triggered automatically at the end of every seeder run. That was removed: ingestion runs could take much longer than the seeder's 15-minute cadence, so triggers piled up as queued runs behind each other. Trigger it manually or schedule it independently.
+The seeder ends with a `trigger_ingestion` task using `wait_for_completion=True`, and both DAGs use `max_active_runs=1`, so the next seeder tick cannot start until ingestion for the current one has finished. This trigger was removed and then reinstated on 2026-09-04: it originally fired without waiting while ingestion re-read every table in full, so runs stacked up in the queue. With incremental ingestion (below) a run only reads what changed.
 
 Ingestion reads only rows that are new or changed since the last successful run, using a `COALESCE(updated_at, created_at) > watermark` filter per table, not a full table scan every time. Watermarks live in `ingestion_control.watermarks` inside `nexomart_db`. Full details, including the two real bugs found chasing a stuck backfill (a MinIO client with no timeout, and an unnecessary JSON decode/re-encode round trip in the Postgres read path): [`docs/INGESTION_INCREMENTAL.md`](docs/INGESTION_INCREMENTAL.md).
 
@@ -367,11 +348,6 @@ spark.sql.catalog.iceberglake                   org.apache.iceberg.spark.SparkCa
 spark.sql.catalog.iceberglake.catalog-impl      org.apache.iceberg.hive.HiveCatalog
 spark.sql.catalog.iceberglake.uri               thrift://hive-metastore:9083
 spark.sql.catalog.iceberglake.hive.lock-enabled false
-
-# Iceberg catalog via Unity Catalog REST (nexo reads)
-spark.sql.catalog.nexo                   org.apache.iceberg.spark.SparkCatalog
-spark.sql.catalog.nexo.catalog-impl      org.apache.iceberg.rest.RESTCatalog
-spark.sql.catalog.nexo.uri               http://unitycatalog:8080/api/2.1/unity-catalog/iceberg
 
 # MinIO credentials
 spark.hadoop.fs.s3a.access.key       minioadmin
@@ -555,6 +531,47 @@ docker compose --env-file configs/secrets.env -f minio/docker-compose.yml up -d 
 
 ---
 
+### 9. MinIO starts empty because the data disk was not mounted
+
+**Symptom:** MinIO is healthy but the buckets (`landing`, `bronze`, ...) are empty or recreated by `minio-init`, and ingestion/Spark jobs find no data.
+
+**Cause:** MinIO data lives on a dedicated disk mounted in WSL2 at `/mnt/wsl/minio-f` (`scripts/windows/mount-minio-f.ps1`). `wsl --mount` is lost whenever the WSL VM restarts. With no disk there, Docker creates an empty directory and MinIO starts on empty storage. The real data is untouched on the disk. Even after mounting the disk later, Docker Desktop can keep reusing a stale bind mount that points at the empty directory, so recreating the container may not be enough.
+
+**Fix:**
+```bash
+# 1. Mount the disk from Windows (administrator PowerShell), see scripts/windows/README.md
+# 2. Remove the container and the stale bind mount, then recreate it
+docker rm -f minio
+awk '$4=="/minio-f/data" {print $5}' /proc/self/mountinfo | while read m; do
+  wsl.exe -d Ubuntu-22.04 -u root -- umount -l "$m"
+done
+make up-minio
+# 3. Check: should list the real buckets with data
+docker exec minio ls /data
+```
+`make up-minio`, `make up` and `make start` stop with an error while the disk is not mounted (`make check-minio-disk`).
+
+---
+
+### 10. Every minio-f-backed volume fails to mount: `bind-mounts/<distro>/<hash> ... no such file or directory`
+
+**Symptom:** The disk *is* mounted (`/mnt/wsl/minio-f` present with real data), but `make up`/`up-minio` fails on the very first `docker run` of `make init`, and starting any container that uses `dockervol`, `spark-logs`, `spark-ivy-cache` or the MinIO data dir throws:
+```
+error while mounting volume '.../_data': failed to mount local volume:
+mount /run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu-22.04/<hash>:...,
+flags: 0x1000: no such file or directory
+```
+
+**Cause:** Docker Desktop mounts a WSL-backed bind volume by first re-exporting the source path into `/mnt/wsl/docker-desktop-bind-mounts/<distro>/<sha256(source_path)>` (rshared, so it propagates into the docker-desktop VM), then bind-mounting that staging dir onto the volume's `_data`. It only creates those re-exports for disks present when its WSL integration initialised. The `minio-f` disk is attached late (`wsl --mount`), so after the WSL VM or Docker Desktop restarts the re-exports are gone and every minio-f-backed volume fails. **Restarting Docker Desktop does not fix this** — the re-exports must be recreated by hand. (The `postgres-ssd` disk is not affected; it keeps its live staging.)
+
+**Fix:** the staging hash is deterministic (`sha256` of the source path), so they can be rebuilt:
+```bash
+make stage-minio-f   # idempotent: recreates any missing staging re-export as root
+```
+This runs automatically as a prerequisite of `make init` (so every `make up`/`make up-*`) and of `make start`, so the stack now self-heals after a disk remount. Implementation: `scripts/stage-minio-f.sh`.
+
+---
+
 ## Operational Notes
 
 ### `make clean` — what's destroyed and what survives
@@ -572,7 +589,7 @@ docker compose --env-file configs/secrets.env -f minio/docker-compose.yml up -d 
 ### Service dependency order
 
 ```
-postgres → minio → hive-metastore → unitycatalog → spark → trino → airflow → dbapi
+postgres → minio → hive-metastore → spark → trino → airflow → dbapi
 ```
 
 ### Checking Hive Metastore health
@@ -701,7 +718,6 @@ Full documentation: [`docs/CHAOS_DOCUMENTATION.md`](docs/CHAOS_DOCUMENTATION.md)
 | Metastore | Hive Metastore | 4.0.0 |
 | SQL Federation | Apache Trino | 482 |
 | Transformations | dbt-core / dbt-trino | 1.11 / 1.10 |
-| Governance | Unity Catalog OSS | 0.4.0 |
 | Spark Observability | DataFlint | 0.9.9 |
 
 ---

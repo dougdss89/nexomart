@@ -1060,7 +1060,7 @@ Create a `docs/adr/` folder with documented architectural decisions:
 | ADR | Decision | Status |
 |-----|---------|--------|
 | ADR-001 | Use async SQLAlchemy with bulk insert (no for-loops) | Accepted |
-| ADR-002 | Delta Lake + Unity Catalog OSS for governance and versioning | Accepted |
+| ADR-002 | Delta Lake + Hive Metastore for cataloging and versioning | Accepted |
 | ADR-003 | Chaos Engineering as a data quality strategy | Accepted |
 | ADR-004 | Kafka as a buffer layer between the API and storage | Proposed |
 | ADR-005 | Outbox Pattern for exactly-once guarantees with Kafka | Proposed |
@@ -1076,7 +1076,7 @@ Create a `docs/adr/` folder with documented architectural decisions:
 
 1. **3-layer architecture** (Repository → Service → Router) — clean, disciplined implementation
 2. **Chaos Engineering** with 35+ strategies — a real portfolio differentiator
-3. **Delta Lake + Unity Catalog OSS + Trino** — a lakehouse stack aligned with Databricks and market standards
+3. **Delta Lake + Hive Metastore + Trino** — a lakehouse stack aligned with Databricks and market standards
 4. **Universal AuditMixin** — good record-traceability practice
 5. **Bulk insert with no for-loops** — demonstrates performance-at-scale knowledge
 

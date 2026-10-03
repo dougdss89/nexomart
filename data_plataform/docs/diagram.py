@@ -111,7 +111,7 @@ with Diagram(
 
     # ── Stage 5: Data Lake ─────────────────────────────────────────────────────
     with Cluster("⑤ Data Lake  ·  MinIO  S3-compatible", graph_attr=C_DEF):
-        with Cluster("Delta Lake  ·  governed by Unity Catalog OSS",
+        with Cluster("Delta Lake  ·  cataloged by Hive Metastore",
                      graph_attr={**C_DEF, "margin": "12"}):
             landing = S3("Landing\nRaw CSV / JSON")
             bronze  = S3("Bronze\nDelta · raw ingest")
@@ -211,9 +211,9 @@ with Diagram(
 
     # ── Catalog & Governance ★ ─────────────────────────────────────────────────
     with Cluster("Catalog  &  Governance  ★", graph_attr=C_NEW):
-        uc      = Git("Unity Catalog OSS\nDelta Governance · ACL · Discovery\nREST API · Delta Sharing")
+        hms     = Git("Hive Metastore\nCatalog · Delta + Iceberg\nThrift metastore (PostgreSQL)")
         marquez = Zabbix("Marquez  (OpenLineage UI) ★\nAuto-lineage:\nAirflow · Spark · dbt")
-        uc >> EC("Delta catalog ops") >> marquez
+        hms >> EC("catalog ops") >> marquez
 
     # ── Data Quality & Transformations ★ ──────────────────────────────────────
     with Cluster("Data Quality  &  Transformations  ★", graph_attr=C_NEW):
