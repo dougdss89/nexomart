@@ -7,19 +7,48 @@ Postgres schema and lands it as raw Parquet in MinIO's `landing` bucket, under
 described in docs/nexomart_requisitos.md (FR-03/FR-04). Triggered right after the seeders
 finish, see the `ingestion` TaskGroup in airflow/dags/nexomart/seeder/nexomart_seeder_dag.py.
 
-Partitioned by day, not by run: every ingestion run that lands within the same UTC day appends
-its parts into the same `<YYYY-MM-DD>/` folder instead of each run getting its own partition
-(the previous `ingestion_ts=<run>` scheme, one partition per run — too fine-grained once the
-seeder DAG moved to a 15min cadence, ~96 tiny partitions/day). The full per-run timestamp
-(`run_ts`) still goes into the filename itself so concurrent/same-day runs never collide or
-overwrite each other's parts — this is additive, not a replace.
+Partitioned Hive-style by date, one folder per day, `<schema>/<table>/<YYYY-MM-DD>/part-*.parquet`
+(2026-09-26). Which date depends on whether the table is a fact or a dimension:
+
+- **Fact tables** (transactional/event tables — `sales.salesorder`, `sales.returnorder`,
+  `sales.ordereventlog`, `purchasing.purchaseorderheader`, `warehouse.transactionhistory`,
+  `marketing.dailyperformance`) partition by their own **event date** column (`order_date`,
+  `transaction_date`, `date_ref`, ...) — see `FACT_EVENT_DATE_COLUMNS`. That's the date the
+  business event actually happened, not when the row was inserted.
+- **Dimension tables** (everything else with an AuditMixin `created_at`) partition by
+  `created_at`, same as before.
+- The one table with neither (`product.productcategory`, predates AuditMixin — see
+  `_has_audit_columns`) has no date to key off at all, so it falls back to `run_date` (this
+  ingestion run's own UTC date).
+
+Every table writes each fetched batch split into one Parquet part per distinct partition-date
+found in that batch, so a row lands in the partition matching its own event/creation date rather
+than when this ingestion run happened to execute — an incremental run (see below) can land rows
+into a partition folder from days ago, appending alongside whatever that day's earlier runs
+already wrote there. The full per-run timestamp (`run_ts`) goes into every part's filename so
+concurrent/same-day runs (or runs touching the same historical partition) never collide or
+overwrite each other's parts — this is always additive, never a replace.
+
+Deliberately independent of Postgres' own physical partitioning (5 tables are RANGE-partitioned
+by month in Postgres, see `configs/postgresql/migrations/`, e.g. `sales.salesorder_2026_06`,
+`..._other`): `list_schema_tables()` queries `pg_class` filtered to `NOT relispartition`, so a
+`SELECT *` always runs against the logical parent and Postgres itself fans it out across
+partitions transparently — this landing zone never mirrors PG's monthly partition boundaries or
+partition-child table names as separate "tables". (A `pg_tables`-based lookup, which is where
+this used to read from, doesn't have that guarantee: `pg_tables` returns *both* the logical
+parent — `relkind='p'` counts as a "table" there too, unlike plain `pg_class` filtering — *and*
+every one of its partition children as separate rows, e.g. `sales.salesorder` showed up as 6
+"tables" instead of 1. That silently landed `salesorder_2026_06`/`salesorder_other`/etc. as their
+own landing folders alongside `salesorder/` itself, confirmed 2026-09-26 against the actual
+MinIO layout — fixed here.)
 
 Reads use a sync psycopg2 engine (pandas has no async support) built from the same
 PGUSER/PGPWD/POSTGREIP/PGPORT/PGDATABASENAME settings the rest of dbapi uses for asyncpg —
 never a second, hardcoded connection string (CLAUDE.md's "Zero Hardcode" rule).
 
-Tables are discovered from `pg_tables` rather than hardcoded, so a schema migration that adds
-a table doesn't silently leave it out of the landing zone. Reads stream via a **named (server-side)
+Tables are discovered from `pg_class` (see `list_schema_tables()`) rather than hardcoded, so a
+schema migration that adds a table doesn't silently leave it out of the landing zone. Reads
+stream via a **named (server-side)
 psycopg2 cursor**, one Parquet part uploaded per fetched batch. `pandas.read_sql_query(...,
 chunksize=...)` looks like it streams but doesn't: a plain psycopg2 cursor buffers the *entire*
 resultset client-side on `execute()` regardless of `chunksize` (that only affects how pandas
@@ -54,6 +83,7 @@ just that table rather than crashing or silently skipping it.
 
 import io
 import json
+import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -67,8 +97,34 @@ from api.config import settings, write_on_minio
 LANDING_BUCKET = "landing"
 LANDING_PREFIX = "nexomart"
 DEFAULT_CHUNKSIZE = 100_000
+# Rows buffered per table before the day partitions are flushed. Every fetched chunk is spread over
+# every event date, so writing a part per date per chunk yields ~one tiny file per day per chunk
+# (millions of ~40-row objects for a big backfill, which is slow on MinIO). Buffering this many rows
+# across chunks and writing one part per date per flush cuts the object count by ~FLUSH_ROWS/chunksize.
+# Memory grows with it (~1-2 KB per fact row held), so the default is sized for the steady-state
+# airflow-worker `mem_limit` (6g): ~2M rows is ~4 GB peak, and a normal incremental run reads far
+# less than that per table, so it buffers the whole delta and flushes once (one file per date per run).
+# A one-time full backfill (watermark at epoch) reads tens of millions of rows; raise the worker's
+# memory first, then override with INGEST_FLUSH_ROWS to make fewer/larger files.
+FLUSH_ROWS = int(os.environ.get("INGEST_FLUSH_ROWS", "1000000"))
 MINIO_WRITE_MAX_ATTEMPTS = 4
 MINIO_WRITE_BACKOFF_SECONDS = 2  # doubles each retry: 2s, 4s, 8s
+
+# Fact (transactional/event) tables partition by their own business event-date column instead
+# of `created_at` — see module docstring. Anything not listed here (all dimensions, plus the
+# purchasing detail/audit lines that have no single event-date column of their own) keeps the
+# `created_at` default. Event-date columns here are nullable in the schema (server_default
+# `now()`, not `nullable=False`) even though the seeders always populate them, so
+# `_split_by_partition_date` coalesces with `created_at` defensively rather than assuming NOT
+# NULL.
+FACT_EVENT_DATE_COLUMNS: dict[tuple[str, str], str] = {
+    ("sales", "salesorder"): "order_date",
+    ("sales", "returnorder"): "requested_date",
+    ("sales", "ordereventlog"): "event_date",
+    ("purchasing", "purchaseorderheader"): "order_date",
+    ("warehouse", "transactionhistory"): "transaction_date",
+    ("marketing", "dailyperformance"): "date_ref",
+}
 
 WATERMARK_SCHEMA = "ingestion_control"
 WATERMARK_TABLE = "watermarks"
@@ -86,9 +142,21 @@ def _sync_database_url() -> str:
 
 
 def list_schema_tables(engine, schema: str) -> list[str]:
+    """Logical tables only. Deliberately reads `pg_class`/`pg_namespace` instead of the simpler
+    `pg_tables` — see module docstring for why: `pg_tables` returns a partitioned table's
+    children (e.g. `salesorder_2026_06`) *and* its logical parent as separate rows, so a naive
+    listing double- (or 6x-, for `salesorder`) counts a single logical table. Filtering to
+    `NOT relispartition` keeps only the logical tables (plain `relkind='r'` tables, plus a
+    partitioned table's own `relkind='p'` parent), so one `SELECT *` per row here always targets
+    the parent and lets Postgres fan it out across partitions itself."""
     with engine.connect() as conn:
         rows = conn.execute(
-            text("SELECT tablename FROM pg_tables WHERE schemaname = :schema ORDER BY tablename"),
+            text(
+                "SELECT c.relname FROM pg_class c "
+                "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = :schema AND c.relkind IN ('r', 'p') AND NOT c.relispartition "
+                "ORDER BY c.relname"
+            ),
             {"schema": schema},
         )
         return [r[0] for r in rows]
@@ -205,16 +273,42 @@ def _write_parquet_with_retry(object_name: str, data: bytes) -> None:
         time.sleep(wait)
 
 
+def _split_by_partition_date(chunk: pd.DataFrame, partition_column: str) -> list[tuple[str, pd.DataFrame]]:
+    """Splits a fetched batch into one group per distinct partition date, so each group can be
+    written to its own Hive-style date partition. `partition_column` is a fact table's own
+    event-date column (`FACT_EVENT_DATE_COLUMNS`) or `created_at` for dimensions. Fact
+    event-date columns are nullable in the schema (server_default `now()`, not enforced
+    NOT NULL) even though the seeders always populate them, so a null value here falls back to
+    `created_at` per-row via `fillna` rather than crashing or silently dropping the row —
+    `created_at` itself is `nullable=False` on AuditMixin (configs/api/base.py), so it's always
+    a safe final fallback."""
+    dates = pd.to_datetime(chunk[partition_column], utc=True)
+    if partition_column != "created_at":
+        dates = dates.fillna(pd.to_datetime(chunk["created_at"], utc=True))
+    partition_dates = dates.dt.strftime("%Y-%m-%d")
+    return [
+        (partition_date, group.drop(columns="_partition_date").reset_index(drop=True))
+        for partition_date, group in chunk.assign(_partition_date=partition_dates).groupby(
+            "_partition_date", sort=True
+        )
+    ]
+
+
 def ingest_table(
     raw_conn, engine, schema: str, table: str, run_date: str, run_ts: str, chunksize: int = DEFAULT_CHUNKSIZE
 ) -> int:
-    """Streams `schema.table` into MinIO landing as one Parquet part per fetched batch, via a
-    named psycopg2 cursor so Postgres paginates server-side instead of the client buffering the
-    whole resultset. Returns row count.
+    """Streams `schema.table` into MinIO landing as one Parquet part per partition-date found in
+    each fetched batch, via a named psycopg2 cursor so Postgres paginates server-side instead of
+    the client buffering the whole resultset. Returns row count.
 
-    Parts land under `<run_date>/`, appending alongside any other run's parts from the same
-    day — `run_ts` (unique per run) is folded into the filename instead of the partition path
-    so same-day runs can never collide on `part-NNNNN.parquet` and overwrite each other.
+    Partition date is the table's fact event-date column (`FACT_EVENT_DATE_COLUMNS`) if it's a
+    fact table, else `created_at` for a dimension — see module docstring. Parts land under
+    `<partition date>/`, appending alongside any other run's parts already sitting in that same
+    date folder — `run_ts` (unique per run) is folded into every part's filename so no two runs
+    can collide on `part-NNNNN.parquet` and overwrite each other, even when they're both writing
+    into the same historical partition. Tables without a `created_at` column (see
+    `_has_audit_columns`) have no date to key off at all, so they fall back to `<run_date>/`
+    instead, same as before.
 
     Incremental by default: only rows with `COALESCE(updated_at, created_at) > watermark` are
     read, where `watermark` is this table's last successful extraction (EPOCH — matching
@@ -223,14 +317,15 @@ def ingest_table(
     just won't be picked up until next run, same as a row written a second later would be).
     Tables without both audit columns (see `_has_audit_columns`) always get a full scan.
     """
-    incremental = _has_audit_columns(engine, schema, table)
-    watermark = get_watermark(engine, schema, table) if incremental else None
+    has_audit_columns = _has_audit_columns(engine, schema, table)
+    watermark = get_watermark(engine, schema, table) if has_audit_columns else None
+    partition_column = FACT_EVENT_DATE_COLUMNS.get((schema, table), "created_at" if has_audit_columns else None)
     extract_start = datetime.now(timezone.utc)
 
     total_rows = 0
     with raw_conn.cursor(name=f"ingest_{schema}_{table}") as cur:
         cur.itersize = chunksize
-        if incremental:
+        if has_audit_columns:
             cur.execute(
                 f'SELECT * FROM "{schema}"."{table}" WHERE COALESCE(updated_at, created_at) > %s',
                 (watermark,),
@@ -239,23 +334,48 @@ def ingest_table(
             cur.execute(f'SELECT * FROM "{schema}"."{table}"')
         columns = None  # a named cursor's .description is only populated after the first fetch
         part = 0
+        buffered: dict[str, list[pd.DataFrame]] = {}  # partition date -> normalized groups awaiting flush
+        buffered_rows = 0
+
+        def flush() -> None:
+            """Writes one Parquet part per buffered partition date, then empties the buffer."""
+            nonlocal part, total_rows, buffered_rows
+            files = 0
+            for partition_date in sorted(buffered):
+                frames = buffered[partition_date]
+                written = frames[0] if len(frames) == 1 else pd.concat(frames, ignore_index=True)
+                buffer = io.BytesIO()
+                written.to_parquet(buffer, engine="pyarrow", index=False)
+                object_name = f"{LANDING_PREFIX}/{schema}/{table}/{partition_date}/part-{run_ts}-{part:05d}.parquet"
+                _write_parquet_with_retry(object_name, buffer.getvalue())
+                total_rows += len(written)
+                part += 1
+                files += 1
+            print(f"   flushed {buffered_rows:,} rows -> {files:,} parts across {files:,} date partitions ({total_rows:,} total)")
+            buffered.clear()
+            buffered_rows = 0
+
         while True:
             rows = cur.fetchmany(chunksize)
             if not rows:
                 break
             if columns is None:
                 columns = [d.name for d in cur.description]
-            chunk = _normalize_object_columns(pd.DataFrame(rows, columns=columns))
-            buffer = io.BytesIO()
-            chunk.to_parquet(buffer, engine="pyarrow", index=False)
-            object_name = f"{LANDING_PREFIX}/{schema}/{table}/{run_date}/part-{run_ts}-{part:05d}.parquet"
-            _write_parquet_with_retry(object_name, buffer.getvalue())
-            total_rows += len(chunk)
-            print(f"   part-{part:05d}: {len(chunk):,} rows -> s3://{LANDING_BUCKET}/{object_name}")
-            part += 1
+            raw_chunk = pd.DataFrame(rows, columns=columns)
+            partitions = (
+                _split_by_partition_date(raw_chunk, partition_column) if partition_column else [(run_date, raw_chunk)]
+            )
+            for partition_date, group in partitions:
+                normalized = _normalize_object_columns(group)
+                buffered.setdefault(partition_date, []).append(normalized)
+                buffered_rows += len(normalized)
+            if buffered_rows >= FLUSH_ROWS:
+                flush()
+        if buffered_rows:
+            flush()
     raw_conn.commit()  # closes the read-only transaction the named cursor ran in
 
-    if incremental:
+    if has_audit_columns:
         set_watermark(engine, schema, table, extract_start)
 
     return total_rows
