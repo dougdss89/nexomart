@@ -80,14 +80,17 @@ container status after any `pgprojeto` recreate.
 
 Full writeup: `docs/SEEDER_MICROBATCHING.md`, "Problem 5".
 
-## Dedicated SSD-backed disk
+## Data volume
 
-`pgprojeto`'s data volume was moved off the shared Docker Desktop/WSL2 disk (used by every
-other container in the stack) onto its own disk, mounted at
-`/mnt/wsl/postgres-ssd/pgdata:/var/lib/postgresql/data` in `postgres/docker-compose.yml`. The
-old named volume (`pgprojeto_data`) is kept only as an unused rollback reference. A companion
-Windows scheduled task auto-mounts that disk on logon, since WSL2 does not persist a manual
-mount across a host reboot.
+`pgprojeto` bind-mounts `${POSTGRES_DATA_DIR}` (`/mnt/wsl/postgres-ssd/pgdata`, `configs/secrets.env`) into
+`/var/lib/postgresql/data`. That path is a dedicated disk, `L:\WSLDisks\postgres-data.vhdx`, attached to WSL2 by
+the scheduled task `MountPostgresSSD-WSL` (`scripts/windows/mount-postgres-ssd.ps1`, logon + every 5 min; register it with `setup-postgres-mount-task.ps1`). If the disk is
+not mounted, Docker would create an empty directory and Postgres would initialise a brand-new empty cluster, so
+`make up`, `make up-postgres` and `make start` stop first (`make check-postgres-disk`).
+
+History: the cluster (`nexomarket_db`, `airflowdb`, `metastore`, ...) briefly lived in a `pgprojeto_data` named
+volume inside the Docker Desktop vhdx. When that vhdx was lost (failing `F:` drive, 2026-10-01), the cluster was
+restored by pointing the container back at this disk (last clean shutdown 2026-09-28).
 
 ## `AuditMixin.created_at` index was never actually attached to any table
 
@@ -167,7 +170,7 @@ automatic partition management) if this project runs long enough for that to mat
 ## `salesordernumber` had no index (found and fixed 2026-09-03)
 
 `sales.salesorder`'s dedup helper (`generate_unique_business_ids` in
-`dbapi/api/seeder/cli_common.py`, shared by the sales/purchasing/warehouse/returns seeders)
+`dbapi/api/utils/cli_common.py`, shared by the sales/purchasing/warehouse/returns seeders)
 checks uniqueness with `SELECT ... WHERE <business-key column> IN (...)`. For
 `purchaseorderheader`/`transactionhistory`/`returnorder` that column *is* the primary key, so
 it's already indexed. `salesorder` is the one table where the business key
@@ -216,3 +219,20 @@ A first attempt at plain `CREATE INDEX CONCURRENTLY` directly against the parent
 writing, there's rarely a fully idle moment for `CONCURRENTLY`'s snapshot to wait out. The
 per-partition build above doesn't have that problem (each partition's own build only waits on
 that partition's writers, and killing the seeder/ingestion DAG runs briefly cleared it besides).
+
+## History partitions and future months (`migrations/007a_*.sql`, `007b_*.sql`, applied 2026-10-01)
+
+The monthly bounds only covered a few recent months, so everything older sat in each table's `*_other` DEFAULT
+partition (`sales.salesorder_other` held ~60M rows / 78 GB, 2020-01 to 2026-05) with no partition pruning, and
+anything past the last bound would have landed there too. Nothing creates monthly partitions automatically.
+
+- `purchaseorderheader` and `salesorder`: the old DEFAULT was detached and re-attached as `<table>_history`
+  (`FROM (MINVALUE) TO (<first monthly bound>)`), zero-copy, after a validated CHECK let ATTACH skip the scan.
+  A copy into yearly partitions would have needed ~156 GB on a disk with ~131 GB free.
+- `transactionhistory` and `dailyperformance`: the DEFAULT mixed old history with rows past the last bound, so it was
+  split by `INSERT ... SELECT` in one transaction (small tables, row counts checked before the DROP).
+- All four now have monthly partitions through 2027-12 and an empty DEFAULT. **Create the next months before
+  2028-01** (rerun the loop in the migration) or rows fall back into `*_other`.
+- `person.customer` is LIST by country and was not touched (its DEFAULT has ~78k rows).
+- The landing layer in MinIO is unaffected: it partitions by event date and ignores Postgres partitions
+  (`list_schema_tables()` filters `NOT relispartition`).
