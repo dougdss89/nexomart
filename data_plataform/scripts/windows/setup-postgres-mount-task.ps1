@@ -15,7 +15,10 @@ foreach ($old in "WSL Mount Postgres SSD", "MountPostgresSSD-WSL") {
     Unregister-ScheduledTask -TaskName $old -Confirm:$false -ErrorAction SilentlyContinue
 }
 
-$action    = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Local\mount-postgres-ssd.ps1`""
+# Run through `conhost --headless` so neither PowerShell nor the child wsl.exe calls
+# flash a console window on the desktop every 5 minutes (-WindowStyle Hidden only hides
+# PowerShell, not wsl.exe, which allocates its own console).
+$action    = New-ScheduledTaskAction -Execute "conhost.exe" -Argument "--headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$Local\mount-postgres-ssd.ps1`""
 $trigger   = New-ScheduledTaskTrigger -AtLogOn
 $trigger.Repetition = (New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)).Repetition
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
