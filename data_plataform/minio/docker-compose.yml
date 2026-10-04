@@ -1,7 +1,9 @@
 version: '3'
 services:
   minio:
-    image: minio/minio:latest
+    image: nexomart-minio:local
+    build: .
+    container_name: minio
     ports:
       - "9000:9000"     # API
       - "9001:9001"     # Console
@@ -18,7 +20,11 @@ services:
     mem_limit: 4g
 
     volumes:
-      - minio_data:/data
+      # minio-data is a named bind-volume (type=none,o=bind -> see bottom of file) so Docker REFUSES
+      # to mount when the minio-f disk is not mounted, instead of creating an empty /data and MinIO
+      # serving empty storage over the real buckets (same class of bug as the 2026-10-04 Postgres
+      # silent-initdb incident).
+      - minio-data:/data
       - dockervol:/dockervol
 
     networks:
@@ -41,7 +47,7 @@ services:
   #   comma-separated list. When adding a new pipeline/layer that writes to a new bucket,
   #   just append the name to that variable; no code file changes.
   minio-init:
-    image: minio/mc:latest
+    image: nexomart-minio:local
     container_name: minio-init
     depends_on:
       minio:
@@ -71,7 +77,13 @@ networks:
     external: true
 
 volumes:
-  minio_data:
-
   dockervol:
     external: True
+  # Bind to the minio-f disk. Fails loudly (mount error) if the disk is not mounted at
+  # ${MINIO_DATA_DIR}, instead of MinIO starting on empty storage. See service note.
+  minio-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINIO_DATA_DIR}

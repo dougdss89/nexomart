@@ -24,7 +24,13 @@ services:
       -c maintenance_io_concurrency=${PG_MAINTENANCE_IO_CONCURRENCY}
       -c random_page_cost=${PG_RANDOM_PAGE_COST}
     volumes:
-      - /mnt/wsl/postgres-ssd/pgdata:/var/lib/postgresql/data
+      # pg-data is a named bind-volume (type=none,o=bind -> see bottom of file) so Docker REFUSES
+      # to mount when the postgres-ssd disk is not mounted, instead of silently creating an empty
+      # dir and letting Postgres initdb a fresh, empty cluster over it. See the 2026-10-04
+      # silent-initdb incident: a start with the disk unmounted "lost" nexomart + Airflow history
+      # (data was shadowed on the real disk). The make check-postgres-disk guard only covers make
+      # targets; this covers ANY start (docker compose up, Docker Desktop, auto-start after reboot).
+      - pg-data:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d
     ports:
       - "5433:5432"
@@ -46,4 +52,11 @@ networks:
     external: true
 
 volumes:
-  pgprojeto_data: # old volume kept as rollback backup, unused since data moved to /mnt/wsl/postgres-ssd
+  # Bind to the postgres-ssd disk. Fails loudly (mount error) if the disk is not mounted at
+  # ${POSTGRES_DATA_DIR}, instead of Postgres initializing an empty cluster. See service note.
+  pg-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_DATA_DIR}
