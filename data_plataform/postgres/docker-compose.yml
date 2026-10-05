@@ -8,21 +8,52 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    command: >
-      postgres
-      -c shared_buffers=${PG_SHARED_BUFFERS}
-      -c work_mem=${PG_WORK_MEM}
-      -c maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM}
-      -c effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE}
-      -c max_wal_size=${PG_MAX_WAL_SIZE}
-      -c checkpoint_completion_target=${PG_CHECKPOINT_COMPLETION_TARGET}
-      -c wal_compression=${PG_WAL_COMPRESSION}
-      -c synchronous_commit=${PG_SYNCHRONOUS_COMMIT}
-      -c fsync=${PG_FSYNC}
-      -c full_page_writes=${PG_FULL_PAGE_WRITES}
-      -c effective_io_concurrency=${PG_EFFECTIVE_IO_CONCURRENCY}
-      -c maintenance_io_concurrency=${PG_MAINTENANCE_IO_CONCURRENCY}
-      -c random_page_cost=${PG_RANDOM_PAGE_COST}
+    # Entrypoint guard (robust fix for the 2026-10-04/05 silent-initdb incidents): refuse to start
+    # unless the REAL postgres-ssd disk is mounted, detected by a sentinel file that exists only on
+    # the real disk's PGDATA (.nexomart_real_disk). Immune to the shadowing failure mode — if the
+    # disk is unmounted at start, a leftover/empty dir gets bound and Postgres would initdb an empty
+    # cluster over the real data; the sentinel is absent on any such dir, so we exit instead. The
+    # named bind-volume below is a second layer (fails if the device path is absent entirely).
+    # Genuinely new cluster: set ALLOW_INIT=1 once, let it initdb, then `touch` the sentinel.
+    entrypoint:
+      - /bin/bash
+      - -ec
+      - |
+        SENTINEL=/var/lib/postgresql/data/.nexomart_real_disk
+        if [ ! -f "$$SENTINEL" ] && [ "$${ALLOW_INIT:-0}" != "1" ]; then
+          echo "FATAL: $$SENTINEL not found — PGDATA is not the real postgres-ssd disk (unmounted/shadowed). Refusing to start so Postgres cannot initdb an empty cluster over the real data. Mount the disk and retry, or set ALLOW_INIT=1 to initialize a genuinely new cluster." >&2
+          exit 1
+        fi
+        exec /usr/local/bin/docker-entrypoint.sh "$$@"
+      - --
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS}
+      - -c
+      - work_mem=${PG_WORK_MEM}
+      - -c
+      - maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE}
+      - -c
+      - max_wal_size=${PG_MAX_WAL_SIZE}
+      - -c
+      - checkpoint_completion_target=${PG_CHECKPOINT_COMPLETION_TARGET}
+      - -c
+      - wal_compression=${PG_WAL_COMPRESSION}
+      - -c
+      - synchronous_commit=${PG_SYNCHRONOUS_COMMIT}
+      - -c
+      - fsync=${PG_FSYNC}
+      - -c
+      - full_page_writes=${PG_FULL_PAGE_WRITES}
+      - -c
+      - effective_io_concurrency=${PG_EFFECTIVE_IO_CONCURRENCY}
+      - -c
+      - maintenance_io_concurrency=${PG_MAINTENANCE_IO_CONCURRENCY}
+      - -c
+      - random_page_cost=${PG_RANDOM_PAGE_COST}
     volumes:
       # pg-data is a named bind-volume (type=none,o=bind -> see bottom of file) so Docker REFUSES
       # to mount when the postgres-ssd disk is not mounted, instead of silently creating an empty

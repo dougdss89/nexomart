@@ -14,7 +14,27 @@ services:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
 
-    command: server --console-address ":9001" /data
+    # Entrypoint guard (same robust fix as pgprojeto, for the 2026-10 silent-init incidents): refuse
+    # to start unless the REAL minio-f disk is mounted, detected by a sentinel file that exists only
+    # on the real disk's /data (.nexomart_real_disk). Prevents MinIO serving empty storage over the
+    # real buckets when the disk is unmounted/shadowed at start. The named bind-volume below is a
+    # second layer. Genuinely new store: set ALLOW_INIT=1 once, then `touch` the sentinel.
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        SENTINEL=/data/.nexomart_real_disk
+        if [ ! -f "$$SENTINEL" ] && [ "$${ALLOW_INIT:-0}" != "1" ]; then
+          echo "FATAL: $$SENTINEL not found — /data is not the real minio-f disk (unmounted/shadowed). Refusing to start so MinIO cannot serve empty storage over the real buckets. Mount the disk and retry, or set ALLOW_INIT=1 for a genuinely new store." >&2
+          exit 1
+        fi
+        exec /usr/bin/minio "$$@"
+      - --
+    command:
+      - server
+      - --console-address
+      - ":9001"
+      - /data
 
     cpus: "2.0"
     mem_limit: 4g
