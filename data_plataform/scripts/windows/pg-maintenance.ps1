@@ -25,7 +25,11 @@ function Native($msg) { if ($LASTEXITCODE -ne 0) { throw $msg } }
 
 function Remount-And-Start {
     try { & "$Repo\scripts\windows\mount-postgres-ssd.ps1" | Out-Null } catch { Log "remount failed: $($_.Exception.Message)" }
-    & docker start pgprojeto 2>&1 | Out-Null
+    # Recreate pgprojeto + its named volume so the data bind re-resolves to the freshly remounted
+    # disk. A plain `docker start` reuses a stale WSL bind-mount staging that still points at the
+    # pre-unmount (empty) dir, which the entrypoint sentinel guard then correctly refuses -> pg would
+    # stay down until a manual recreate. Run inside WSL so compose and its relative paths are native.
+    & wsl.exe -d $Distro -- bash -lc "cd /home/doug/project/data_plataform && docker rm -f pgprojeto >/dev/null 2>&1; docker volume rm postgres_pg-data >/dev/null 2>&1; docker compose --env-file configs/secrets.env -f postgres/docker-compose.yml up -d" 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $Log -Append
     # Re-enable the 5-minute remount task that was disabled around the compaction (runs on both the
     # success and the catch path, so the task is never left disabled).
     Enable-ScheduledTask -TaskName "MountPostgresSSD-WSL" -ErrorAction SilentlyContinue | Out-Null

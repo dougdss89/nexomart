@@ -176,6 +176,15 @@ start: stage-minio-f check-postgres-disk ## Reinicia os containers parados com `
 	$(COMPOSE) -f dbapi/docker-compose.yml         start
 	@echo "✅  Stack reiniciada (spark-worker: $(WORKERS) réplica(s))."
 
+.PHONY: start-dev
+start-dev: stage-minio-f check-postgres-disk ## Reinicia só o essencial de dev: postgres, minio, hive, airflow (sem spark/trino/dbapi)
+	@echo "▶  Reiniciando stack de dev (postgres · minio · hive · airflow)..."
+	$(COMPOSE) -f postgres/docker-compose.yml      start
+	$(COMPOSE) -f minio/docker-compose.yml         start
+	$(COMPOSE) -f hive/docker-compose.yml          start
+	$(COMPOSE) -f airflow/docker-compose.yaml      start
+	@echo "✅  Dev stack reiniciada (postgres · minio · hive · airflow — redis vem junto do airflow)."
+
 .PHONY: scale-spark
 scale-spark: ## Escala spark-worker sem mexer no resto da stack — uso: make scale-spark WORKERS=3
 	$(COMPOSE) -f spark/docker-compose.yml up -d --scale spark-worker=$(WORKERS)
