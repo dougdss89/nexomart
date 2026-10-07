@@ -72,8 +72,11 @@ def generate_po_header_payloads(vendor_ids: List[int], employee_ids: List[int], 
         with q.row(payload):
             header_obj = PurchaseOrderHeader(**payload)
             validated_header = header_obj.model_dump()
-            # audit_trail entries carry a datetime (action_date) — JSON-safe dump for the JSONB column
-            validated_header["audit_trail"] = [entry.model_dump(mode="json") for entry in header_obj.audit_trail]
+            # audit_trail entries carry a datetime (action_date) — JSON-safe dump for the JSONB column.
+            # by_alias=True keeps the key as "date" (its alias): the active expression index
+            # ix_audit_trail_date (models/.../purchaseorderheader.py) indexes audit_trail[0]->>'date',
+            # so dumping the field name "action_date" instead would index NULL on every row.
+            validated_header["audit_trail"] = [entry.model_dump(mode="json", by_alias=True) for entry in header_obj.audit_trail]
             batch.append(validated_header)
     q.finish()
     return batch

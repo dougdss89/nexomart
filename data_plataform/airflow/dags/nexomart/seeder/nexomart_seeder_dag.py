@@ -201,7 +201,7 @@ with DAG(
     trigger_ingestion: Any = TriggerDagRunOperator(
         task_id="trigger_ingestion",
         trigger_dag_id="nexomart_ingestion_dag",
-        wait_for_completion=False,
+        wait_for_completion=True,
         poke_interval=30
     )
 
