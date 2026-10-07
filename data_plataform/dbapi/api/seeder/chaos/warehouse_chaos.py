@@ -86,7 +86,7 @@ def apply_inventory_chaos(batch: list[Any], chaos_rate: float = 0.05) -> list[An
 
 
 def apply_warehouse_location_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Cadastro sujo (ja existente), incompatibilidade de temperatura e teletransporte geografico."""
+    """Dirty registration (already existing), temperature mismatch, and geographic teleport."""
     if not batch:
         return batch
 

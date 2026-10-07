@@ -39,7 +39,7 @@ class InspectionData(BaseModel):
     
     evidence_urls: List[HttpUrl] = Field(default_factory=list)
 
-# --- MODELO PRINCIPAL ---
+# --- MAIN MODEL ---
 class SalesReturnOrderSchema(BaseModel):
     
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
@@ -56,7 +56,9 @@ class SalesReturnOrderSchema(BaseModel):
     product_id: int = Field(gt=0)
     quantity: int = Field(gt=0)
     
-    return_reason: ReturnOrderReason
+    # Free text, not the ReturnOrderReason enum: the DB column (String(100)) stores whatever
+    # the customer/seeder actually wrote, not a fixed vocabulary of codes.
+    return_reason: str = Field(max_length=100)
     return_status: ReturnRequestStatus
     
     refund_amount: Decimal = Field(ge=0.0, decimal_places=4)

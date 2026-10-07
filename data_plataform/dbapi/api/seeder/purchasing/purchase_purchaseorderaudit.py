@@ -7,13 +7,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy import select, insert, or_, func
 from api.database import AsyncSessionLocal
-from api.schemas.purchasing.purchasing_orderaudit import AuditAction
+from api.schemas.purchasing.purchasing_orderaudit import AuditAction, PurchaseOrderAudit
 from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
 from api.models.humanresources.employee import HumanResourcesEmployeeModel
 from api.models.humanresources.jobrole import HumanResourcesJobRoleModel
 from api.models.purchasing.purchaseorderaudit import PurchaseOrderAuditModel
 from api.seeder.chaos import apply_purchase_audit_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.utils.quarantine import get_quarantine
 from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
@@ -37,6 +38,7 @@ def get_purchase_order_audit(
     (CREATED -> APPROVED/REJECTED -> CLOSED), preferring managers for approvals.
     """
     batch = []
+    q = get_quarantine("purchasing.purchaseorderaudit")
 
     if not valid_header_ids or not valid_employee_ids:
         return batch
@@ -60,10 +62,12 @@ def get_purchase_order_audit(
             sequence.append((AuditAction.CLOSED, approver_id, "Pedido concluído"))
 
         for action, emp_id, obs in sequence:
-            batch.append({
-                # audit_id is deliberately left out of the payload: it's autoincrement in the database.
-                # Setting it manually here (as it was before) restarts at 1 on every run and
-                # collides with the PK from previous runs, breaking the INSERT for the whole batch.
+            payload = {
+                # audit_id is a placeholder only, for Pydantic validation (gt=0) — popped
+                # below before insert. It's autoincrement in the database; setting a real
+                # value here would restart at 1 on every run and collide with the PK from
+                # previous runs, breaking the INSERT for the whole batch.
+                "audit_id": 1,
                 "purchaseorderheader_id": header_id,
                 "action": action,
                 "employee_id": emp_id,
@@ -72,12 +76,17 @@ def get_purchase_order_audit(
                 "updated_at": event_date,
                 "is_active": True,
                 "row_guid": uuid.uuid4()
-            })
+            }
+            with q.row(payload):
+                validated_audit = PurchaseOrderAudit(**payload).model_dump()
+                validated_audit.pop("audit_id", None)
+                batch.append(validated_audit)
             event_date += timedelta(hours=random.randint(5, 48))
 
     if apply_chaos:
         batch = apply_purchase_audit_chaos(batch, valid_employee_ids, manager_employee_ids, chaos_rate=chaos_rate)
 
+    q.finish()
     return batch
 
 

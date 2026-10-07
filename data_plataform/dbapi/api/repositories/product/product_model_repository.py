@@ -8,7 +8,7 @@ from api.models.product.productmodel import ProductModel
 logger = logging.getLogger(__name__)
 
 class ProductModelRepository:
-    """ Camada de Dados para Modelos de Produto """
+    """ Data layer for Product Models """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, models_data: List[Dict[str, Any]]) -> bool:

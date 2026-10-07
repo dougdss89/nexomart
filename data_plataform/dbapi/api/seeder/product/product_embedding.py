@@ -9,8 +9,10 @@ from sqlalchemy import select, insert
 from api.database import AsyncSessionLocal
 from api.models.product.product import Product
 from api.models.product.product_embedding import ProductEmbeddingModel
+from api.schemas.product.productembedding import ProductEmbeddingSchema
 from api.seeder.chaos import apply_embedding_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, insert_in_batches
+from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, insert_in_batches
+from api.utils.quarantine import get_quarantine
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -22,6 +24,7 @@ def get_product_embedding_seeders(products: list[dict], chaos_rate: float = 0.05
     with random values between -1.0 and 1.0, simulating the output of real models.
     """
     batch = []
+    q = get_quarantine("product.productembedding")
 
     for product in products:
 
@@ -47,9 +50,10 @@ def get_product_embedding_seeders(products: list[dict], chaos_rate: float = 0.05
             "generation_method": "mock_seeder_batch"
         }
 
-        # 4. Assemble the payload
+        # 4. Assemble and validate the payload
         # SQLAlchemy's pgvector and jsonb handle the conversions internally at the service layer
-        batch.append({
+        payload = {
+            "embedding_id": 1,  # placeholder for Pydantic validation (gt=0); removed before insert
             "product_id": product_id,
             "description_vector": desc_vector,
             "image_vector": img_vector,
@@ -59,11 +63,16 @@ def get_product_embedding_seeders(products: list[dict], chaos_rate: float = 0.05
             "updated_at": datetime.now(),
             "is_active": True,
             "row_guid": str(uuid.uuid4())
-        })
+        }
+        with q.row(payload):
+            validated_embedding = ProductEmbeddingSchema(**payload).model_dump()
+            validated_embedding.pop("embedding_id", None)  # let the database's autoincrement take over
+            batch.append(validated_embedding)
 
     if apply_chaos:
         batch = apply_embedding_chaos(batch, chaos_rate=chaos_rate)
 
+    q.finish()
     return batch
 
 

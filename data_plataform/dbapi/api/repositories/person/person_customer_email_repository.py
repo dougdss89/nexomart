@@ -9,7 +9,7 @@ from api.models.person.customer_email import CustomerEmailModel as PersonCustome
 logger = logging.getLogger(__name__)
 
 class PersonCustomerEmailRepository:
-    """ Camada de Dados (SQLAlchemy) para base de Emails relacionais. """
+    """ Data layer (SQLAlchemy) for the relational email store. """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, emails_data: List[Dict[str, Any]]) -> bool:

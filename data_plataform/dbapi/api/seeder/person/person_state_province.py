@@ -9,8 +9,10 @@ from api.database import AsyncSessionLocal
 from api.samples.state_province import STATES_BY_COUNTRY
 from api.models.person.country_region import CountryRegionModel
 from api.models.person.state_province import StateProvinceModel
+from api.schemas.person.person_state_province import StateProvince
 from api.seeder.chaos import apply_geography_code_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded
+from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded, stamp_dimension_history
+from api.utils.quarantine import get_quarantine, physical_gate
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -18,13 +20,16 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 def generate_state_payloads(country_map: Dict[str, int], chaos_rate: float = 0.05, apply_chaos: bool = True) -> List[Dict[str, Any]]:
     """Generates the states load linked to the database's countries."""
     batch = []
+    q = get_quarantine("person.stateprovince")
     setup_date = datetime.now()
+    state_id_counter = 1
     for country_code, states_list in STATES_BY_COUNTRY.items():
         current_country_id = country_map.get(country_code)
         if not current_country_id:
             continue
         for state_code, state_name in states_list:
-            batch.append({
+            payload = {
+                "state_province_id": state_id_counter,  # placeholder for Pydantic validation (gt=0); removed before insert
                 "state_province_name": state_name,
                 "state_province_code": state_code,
                 "country_id": current_country_id,
@@ -32,10 +37,16 @@ def generate_state_payloads(country_map: Dict[str, int], chaos_rate: float = 0.0
                 "updated_at": setup_date,
                 "is_active": True,
                 "row_guid": uuid.uuid4()
-            })
+            }
+            with q.row(payload):
+                validated_state = StateProvince(**payload).model_dump()
+                validated_state.pop("state_province_id", None)  # let the database's autoincrement take over
+                batch.append(validated_state)
+            state_id_counter += 1
     if apply_chaos:
         batch = apply_geography_code_chaos(batch, code_field="state_province_code", chaos_rate=chaos_rate)
 
+    q.finish()
     return batch
 
 async def seed_person_states(chaos_rate: float = 0.05, apply_chaos: bool = True):
@@ -56,8 +67,9 @@ async def seed_person_states(chaos_rate: float = 0.05, apply_chaos: bool = True)
 
         print(f"📣 Seeding states for {len(country_map)} active countries | chaos={chaos_rate:.2%}")
 
+        states = physical_gate(StateProvinceModel, states)
         try:
-            stmt = insert(StateProvinceModel).values(states)
+            stmt = insert(StateProvinceModel).values(stamp_dimension_history(states))
             await session.execute(stmt)
             await session.commit()
             print(f"✅ {len(states)} states seeded successfully!")

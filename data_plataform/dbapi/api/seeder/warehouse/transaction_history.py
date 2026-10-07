@@ -17,7 +17,7 @@ from api.models.warehouse.transactiontype import WarehouseTransactionType
 from api.models.warehouse.transactionhistory import TransactionHistoryModel
 from api.models.sales.salesorder import SalesOrderModel
 from api.seeder.chaos import apply_transaction_history_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args, generate_unique_business_ids, bulk_copy, sample_fk_ids
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, generate_unique_business_ids, bulk_copy, sample_fk_ids
 from api.config.seeder_config import get_ranges
 
 SCHEMA_NAME = "warehouse"

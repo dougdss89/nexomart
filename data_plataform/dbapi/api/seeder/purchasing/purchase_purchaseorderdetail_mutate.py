@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from api.database import AsyncSessionLocal
 from api.models.product.product import Product  # noqa: F401
 from api.models.purchasing.purchaseorderdetail import PurchaseOrderDetailModel
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 # Product: unused directly, but purchaseorderdetail has an FK to product.product — see
 # humanresources_employee_mutate.py's comment for the full explanation (same root cause).

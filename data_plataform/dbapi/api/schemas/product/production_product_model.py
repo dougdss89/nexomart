@@ -28,8 +28,9 @@ class ProductModel(str, Enum):
     
 class ProductModelSchema(BaseModel):
         
-    product_model_id:int = Field(gt=0)
-    model_name: ProductModel
+    productmodel_id:int = Field(gt=0)
+    productmodel_name: ProductModel
+    modelidentifier: uuid.UUID = Field(default_factory=uuid.uuid4)
     created_date: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

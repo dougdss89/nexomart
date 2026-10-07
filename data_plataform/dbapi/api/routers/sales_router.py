@@ -58,7 +58,7 @@ async def get_sales_order(order_id: int, db: AsyncSession = Depends(get_db)):
 async def ingest_sales_orders_bulk(payload: List[SalesOrderSchema], db: AsyncSession = Depends(get_db)):
     """ Ingestion of sales orders (Bulk Fact Table) """
     service = SalesOrderService(db)
-    # Converter Pydantic para Dict para o Service
+    # Convert Pydantic to dict for the Service
     data = [item.model_dump() for item in payload]
     await service.bulk_ingest_orders(data)
     return {"status": "success", "count": len(payload)}

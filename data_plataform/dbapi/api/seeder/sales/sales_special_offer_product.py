@@ -9,7 +9,9 @@ from api.database import AsyncSessionLocal
 from api.models.sales.specialoffer import SpecialOfferModel
 from api.models.product.product import Product
 from api.models.sales.specialofferproduct import SpecialOfferProductModel
-from api.seeder.cli_common import build_parser
+from api.schemas.sales.sales_special_offer_product import SpecialOfferProduct
+from api.utils.cli_common import build_parser, stamp_dimension_history
+from api.utils.quarantine import get_quarantine, physical_gate
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -37,6 +39,7 @@ async def seed_special_offer_products(avg_products_per_offer: int = 5):
         )
 
         mappings = []
+        q = get_quarantine("sales.specialofferproduct")
 
         for offer_id in offer_ids:
             # Select a random number of products for each offer
@@ -46,19 +49,21 @@ async def seed_special_offer_products(avg_products_per_offer: int = 5):
             for product_id in selected_products:
                 pair = (offer_id, product_id)
                 if pair not in seen_pairs:
-                    mappings.append({
-                        "special_offer_id": offer_id,
-                        "product_id": product_id
-                    })
+                    payload = {"special_offer_id": offer_id, "product_id": product_id}
+                    with q.row(payload):
+                        mappings.append(SpecialOfferProduct(**payload).model_dump())
                     seen_pairs.add(pair)
+
+        q.finish()
 
         if not mappings:
             print("✅ No new offer/product links to add — all combinations already seeded.")
             return
 
+        mappings = physical_gate(SpecialOfferProductModel, mappings)
         try:
             # Bulk Insert for performance
-            stmt = insert(SpecialOfferProductModel).values(mappings)
+            stmt = insert(SpecialOfferProductModel).values(stamp_dimension_history(mappings))
             await session.execute(stmt)
             await session.commit()
             print(f"✅ {len(mappings)} offer/product links seeded successfully!")

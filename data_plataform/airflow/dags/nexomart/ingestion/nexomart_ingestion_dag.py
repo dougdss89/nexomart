@@ -11,15 +11,32 @@ manual re-run of just the landing step doesn't require re-running the seeder too
 
 Runs in the same isolated venv as the seeders, via `uv run --project /dockervol` — see
 `nexomart_seeder_dag.py`'s docstring for why (SQLAlchemy version conflict with Airflow's own).
+
+Backfill mode (manual trigger only)
+-----------------------------------
+The normal path is incremental: each schema task reads only rows changed since its last
+watermark (see ingestion_common.py). A table that lost its landing data while its watermark
+stayed advanced (e.g. the landing bucket was wiped) is never re-landed by a normal run — it
+reads 0 rows and writes nothing. Static dimension tables are the usual victims; fact tables
+self-heal because fresh rows keep landing.
+
+To re-land such tables, trigger this DAG manually ("Trigger DAG w/ config") and set the
+`backfill_tables` param to a comma-separated schema.table list, e.g.
+`product.product,product.productembedding,person.countryregion`. When `backfill_tables` is set,
+the DAG runs a single `backfill` task (dbapi/api/seeder/ingestions/backfill_ingestion.py) that
+resets each table's watermark to EPOCH and does a full re-land, then skips the 7 per-schema
+tasks. When it's empty (the seeder's automatic trigger passes no conf), the DAG runs the normal
+7-schema incremental ingestion — unchanged.
 """
 
 import os
 from datetime import datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.param import Param
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
+from airflow.operators.python import BranchPythonOperator
 
 from airflow import DAG
 
@@ -27,6 +44,8 @@ from airflow import DAG
 # &airflow_env anchor in airflow/docker-compose.yaml — CLAUDE.md's "Zero Hardcode" rule.
 SEEDER_ROOT = os.environ["SEEDER_ROOT"]
 UV_PROJECT = os.environ["UV_PROJECT"]
+
+SCHEMAS = ["humanresources", "marketing", "person", "product", "purchasing", "sales", "warehouse"]
 
 DEFAULT_ARGS: dict[str, Any] = {
     "owner": "data-engineering",
@@ -36,13 +55,7 @@ DEFAULT_ARGS: dict[str, Any] = {
     "retry_delay": timedelta(minutes=5),
     "email_on_failure": False,
 }
-def start_ingestions(task_id: str) -> DummyOperator:
-    """DummyOperator that marks the start of the DAG, for visual clarity in the Airflow UI."""
-    return DummyOperator(task_id=task_id)
 
-def end_ingestions(task_id: str) -> DummyOperator:
-    """DummyOperator that marks the end of the DAG, for visual clarity in the Airflow UI."""
-    return DummyOperator(task_id=task_id)
 
 def ingestion_task(task_id: str, relative_path: str) -> BashOperator:
     """BashOperator that runs a nexomart ingestion script via uv, same PYTHONPATH convention as
@@ -56,42 +69,66 @@ def ingestion_task(task_id: str, relative_path: str) -> BashOperator:
     return BashOperator(task_id=task_id, bash_command=command)
 
 
+def _choose_mode(**context) -> Any:
+    """Branch: backfill when the manual trigger set `backfill_tables`, else the normal 7-schema
+    incremental ingestion. The seeder's automatic trigger passes no conf, so params fall back to
+    their defaults ("" -> normal path) and the seeder -> ingestion flow is untouched."""
+    tables = (context["params"].get("backfill_tables") or "").strip()
+    if tables:
+        return "backfill"
+    return [f"ingest_{schema}" for schema in SCHEMAS]
+
+
 with DAG(
     dag_id="nexomart_ingestion_dag",
     default_args=DEFAULT_ARGS,
     description=(
         "Lands every table of all 7 nexomarket_db schemas into MinIO's nexomart landing zone — "
-        "triggered by nexomart_seeder_dag, never scheduled on its own"
+        "triggered by nexomart_seeder_dag; manual trigger supports a backfill_tables param"
     ),
     schedule=None,
     catchup=False,
     max_active_runs=1,
-    tags=["ingestion", "nexomart", "landing"]
+    params={
+        # Comma-separated schema.table list to force a full re-land of. Empty (the default, and
+        # what the seeder's automatic trigger sends) runs the normal incremental ingestion.
+        "backfill_tables": Param(
+            default="",
+            type="string",
+            title="Backfill tables",
+            description="Comma-separated schema.table list to re-land fully, e.g. product.product,person.countryregion. Leave empty for normal incremental ingestion.",
+        ),
+        "chunksize": Param(default=100_000, type="integer", title="Rows per Parquet part (backfill only)"),
+    },
+    tags=["ingestion", "nexomart", "landing"],
 ) as dag:
 
-    start_ingestion: DummyOperator = start_ingestions("start_ingestion")
-    ingest_humanresources: BashOperator = ingestion_task("ingest_humanresources", "ingestions/humanresources_ingestion.py")
-    ingest_marketing: BashOperator = ingestion_task("ingest_marketing", "ingestions/marketing_ingestion.py")
-    ingest_person: BashOperator = ingestion_task("ingest_person", "ingestions/person_ingestion.py")
-    ingest_product: BashOperator = ingestion_task("ingest_product", "ingestions/product_ingestion.py")
-    ingest_purchasing: BashOperator = ingestion_task("ingest_purchasing", "ingestions/purchasing_ingestion.py")
-    ingest_sales: BashOperator = ingestion_task("ingest_sales", "ingestions/sales_ingestion.py")
-    ingest_warehouse: BashOperator = ingestion_task("ingest_warehouse", "ingestions/warehouse_ingestion.py")
-    end_ingestion: DummyOperator = end_ingestions("end_ingestion")
+    start_ingestion = DummyOperator(task_id="start_ingestion")
 
-    # No dependencies were declared at all before this: start_ingestion/end_ingestion ran as
-    # disconnected no-ops (both completing instantly, start_date==end_date, regardless of
-    # whether the 7 ingest_* tasks had even started yet) and the 7 schemas had no upstream gate
-    # on start_ingestion either. end_ingestion's default trigger_rule ("all_success") means it
-    # now only succeeds once every schema has landed cleanly — any single schema failing leaves
-    # it upstream_failed instead of the DAG run misreporting success.
-    ingest_tasks = [
-        ingest_humanresources,
-        ingest_marketing,
-        ingest_person,
-        ingest_product,
-        ingest_purchasing,
-        ingest_sales,
-        ingest_warehouse,
+    # Branch on the backfill_tables param (see _choose_mode). Only the chosen downstream
+    # task(s) run; the rest are skipped, so end_ingestion uses none_failed_min_one_success.
+    choose_mode = BranchPythonOperator(task_id="choose_mode", python_callable=_choose_mode)
+
+    ingest_tasks: list[BashOperator] = [
+        ingestion_task(f"ingest_{schema}", f"ingestions/{schema}_ingestion.py") for schema in SCHEMAS
     ]
-    start_ingestion >> ingest_tasks >> end_ingestion
+
+    # Reuses the exact ingest_table path the per-schema tasks use (resets watermark -> EPOCH ->
+    # full re-land -> watermark re-advances). --tables/--chunksize come from the manual-trigger
+    # params; backfill never runs on the seeder's automatic (conf-less) trigger.
+    backfill = BashOperator(
+        task_id="backfill",
+        bash_command=(
+            "PYTHONPATH=/dockervol:/dockervol/dbapi "
+            f"uv run --project {UV_PROJECT} python {SEEDER_ROOT}/ingestions/backfill_ingestion.py "
+            '--tables "{{ params.backfill_tables }}" --chunksize {{ params.chunksize }}'
+        ),
+    )
+
+    # all_success would get skipped when the branch skips one side, so require only that nothing
+    # upstream failed and at least one upstream succeeded (i.e. whichever branch actually ran).
+    end_ingestion = DummyOperator(task_id="end_ingestion", trigger_rule="none_failed_min_one_success")
+
+    start_ingestion >> choose_mode
+    choose_mode >> ingest_tasks >> end_ingestion
+    choose_mode >> backfill >> end_ingestion

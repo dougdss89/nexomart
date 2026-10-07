@@ -4,7 +4,7 @@ nexomart_seeder_dag — triggers all the standardized dbapi seeders
 dimensions -> facts -> derived.
 
 Each seeder already rolls its own volume and chaos rate on its own when
-called without flags (see dbapi/api/seeder/cli_common.py and
+called without flags (see dbapi/api/utils/cli_common.py and
 configs/seeders/config.py) — this DAG only orchestrates the TRIGGER
 ORDER, respecting the FKs that each seeder queries via a real select()
 against the database before generating data. No fact/derived seeder makes up
@@ -81,6 +81,20 @@ def seeder_task(task_id: str, relative_path: str, extra_args: str = "") -> BashO
     return BashOperator(task_id=task_id, bash_command=command)
 
 
+def contract_drift_task() -> BashOperator:
+    """Blocks the run when the api data contracts (YAML), the Pydantic schemas, the SQLAlchemy
+    models and the real Postgres tables drift apart (tests/contracts: file-vs-file checks plus
+    model/contract-vs-Postgres: columns, types, nullability, PKs, FKs). About a second. REQUIRE_DB_DRIFT=1 makes an
+    unreachable database fail the task instead of skipping the live checks. retries=0: a drift
+    doesn't fix itself in 5 minutes, so fail fast and loud. Same PYTHONPATH rule as seeder_task.
+    """
+    command = (
+        f"cd {UV_PROJECT} && REQUIRE_DB_DRIFT=1 PYTHONPATH=/dockervol:/dockervol/dbapi "
+        f"uv run --project {UV_PROJECT} --group dev pytest tests/contracts -p no:cacheprovider"
+    )
+    return BashOperator(task_id="contract_drift_check", bash_command=command, retries=0)
+
+
 with DAG(
     dag_id="nexomart_seeder_dag",
     default_args=DEFAULT_ARGS,
@@ -119,6 +133,7 @@ with DAG(
 ) as dag:
 
     start_seeder: DummyOperator = DummyOperator(task_id="start")
+    contract_drift_check: BashOperator = contract_drift_task()
 
     # ==================== MASTER DATA (category 3 — fixed lists, chaos-only) ====================
     with TaskGroup(group_id="master_data") as master_data:
@@ -183,11 +198,11 @@ with DAG(
     # DAG run's own success/failure genuinely reflects whether ingestion landed cleanly, and so
     # `max_active_runs=1` on this DAG blocks the next seeder tick from starting until ingestion
     # for this one has actually finished — see this file's docstring for why that matters.
-    trigger_ingestion: TriggerDagRunOperator = TriggerDagRunOperator(
+    trigger_ingestion: Any = TriggerDagRunOperator(
         task_id="trigger_ingestion",
         trigger_dag_id="nexomart_ingestion_dag",
         wait_for_completion=True,
-        poke_interval=30,
+        poke_interval=30
     )
 
     end_seeder: DummyOperator = DummyOperator(task_id="end")
@@ -218,7 +233,7 @@ with DAG(
     person_customer >> person_customer_email
 
     # -> trigger_ingestion (seeder -> ingestion: only once every seeder in this run has finished)
-    start_seeder >>[master_data, dimensions, facts, derived] >> trigger_ingestion >> end_seeder
+    start_seeder >> contract_drift_check >> [master_data, dimensions, facts, derived] >> trigger_ingestion >> end_seeder 
 
     # ==================== RESOURCE SERIALIZATION — REMOVED 2026-09-05, was NOT an FK dependency ====================
     # person_customer, purchase_audit, and purchase_detail are the three heaviest bulk_copy()

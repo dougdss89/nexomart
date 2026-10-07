@@ -11,8 +11,10 @@ from api.database import AsyncSessionLocal
 # Models
 from api.models.sales.salesorder import SalesOrderModel
 from api.models.sales.returnorder import SalesReturnOrderModel
+from api.schemas.sales.sales_return_order import SalesReturnOrderSchema
 from api.seeder.chaos import apply_return_order_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args, generate_unique_business_ids
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, generate_unique_business_ids
+from api.utils.quarantine import get_quarantine, physical_gate
 from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
@@ -67,6 +69,8 @@ async def seed_return_orders(count: int = 20, chaos_rate: float = 0.05, batch_si
 
         statuses = ["pending", "in_inspection", "accepted", "refunded"]
 
+        q = get_quarantine("sales.returnorder")
+
         def generate_return_batch(return_ids: List[str]) -> List[Dict[str, Any]]:
             batch = []
             for return_id in return_ids:
@@ -84,7 +88,7 @@ async def seed_return_orders(count: int = 20, chaos_rate: float = 0.05, batch_si
 
                 req_date = datetime.now() - timedelta(days=random.randint(1, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
 
-                batch.append({
+                payload = {
                     "return_id": return_id,
                     "requestorder_code": f"REQ-{random.randint(10000, 99999)}",
                     "salesordernumber": orig.salesordernumber,
@@ -103,7 +107,14 @@ async def seed_return_orders(count: int = 20, chaos_rate: float = 0.05, batch_si
                         "is_restockable": True,
                         "technical_notes": "Produto em excelente estado, caixa apenas aberta."
                     }
-                })
+                }
+                with q.row(payload):
+                    return_obj = SalesReturnOrderSchema(**payload)
+                    validated_return = return_obj.model_dump()
+                    # inspection_data has no Decimal/datetime that needs a JSON-safe dump here,
+                    # but keep it a plain dict (not the nested model) for the JSONB column
+                    validated_return["inspection_data"] = return_obj.inspection_data.model_dump(mode="json")
+                    batch.append(validated_return)
             return batch
 
         total_inserted = 0
@@ -114,10 +125,12 @@ async def seed_return_orders(count: int = 20, chaos_rate: float = 0.05, batch_si
                 prefix="RO", count=current_batch_size,
             )
             returns = generate_return_batch(return_ids)
+            q.finish()
 
             if apply_chaos:
                 returns = apply_return_order_chaos(returns, chaos_rate=chaos_rate)
 
+            returns = physical_gate(SalesReturnOrderModel, returns)
             try:
                 stmt = insert(SalesReturnOrderModel).values(returns)
                 await session.execute(stmt)

@@ -14,7 +14,7 @@ class ChannelName(str, Enum):
     OTHER = "other"
     
 class PlatformName(str, Enum):
-    # Corrigido de 'Plataform' para 'Platform' para bater com a tabela
+    # Corrected from 'Plataform' to 'Platform' to match the table
     GOOGLE_ADS = "google_ads"
     META_ADS = "meta_ads"
     TIKTOK = "tiktok"

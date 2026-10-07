@@ -1,8 +1,9 @@
 import random
-from datetime import datetime, timedelta
-from typing import Dict, Any
-from faker import Faker
+from datetime import datetime
+from typing import Any, Dict
+
 from api.samples.person_demographics import INTERESTS_BANK, OCCUPATIONS, ROLES
+from faker import Faker
 
 fake = Faker('pt_BR')
 
@@ -14,7 +15,7 @@ def generate_mock_customer() -> Dict[str, Any]:
     # Basic
     is_company = random.choice([True, False])
     customer_type = "VC" if is_company else "SC"
-    
+
     if is_company:
         customer_name = fake.company()
         last_name = fake.company_suffix()
@@ -39,10 +40,10 @@ def generate_mock_customer() -> Dict[str, Any]:
             social_number = fake.cpf()
         else:
             social_number = fake.cpf().replace('.', '').replace('-', '')
-            
+
     birthdate = fake.date_of_birth(minimum_age=18, maximum_age=90)
     credit_limit = round(random.uniform(500.0, 50000.0), 2)
-    
+
     # --- DEMOGRAPHICS (JSONB) ---
     social = {
         "gender": gender,
@@ -52,19 +53,19 @@ def generate_mock_customer() -> Dict[str, Any]:
         "company_name": customer_name if is_company else fake.company(),
         "tax_regime": random.choice(["simple", "real_profit", "presumed_profit"]) if is_company else None
     }
-    
+
     if is_company:
         social["buying_contact"] = {
             "name": fake.name(),
             "role": random.choice(ROLES),
             "phone_number": fake.phone_number()
         }
-        
+
     marketing_consent = {
         "email": random.choice([True, False]),
         "sms": random.choice([True, False])
     }
-    
+
     address = {
         "address_line": fake.street_name(),
         "postal_code": fake.postcode(),

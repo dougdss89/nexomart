@@ -3,8 +3,8 @@ import random
 
 from api.database import AsyncSessionLocal
 from api.models.sales.ordereventlog import SalesOrderEventLogModel
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 SCHEMA_NAME = "sales"
 TABLE_NAME = "sales.ordereventlog"

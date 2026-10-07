@@ -11,8 +11,10 @@ from api.samples.customer import generate_mock_customer
 from api.models.person.country_region import CountryRegionModel
 from api.models.person.state_province import StateProvinceModel
 from api.models.person.customer import CustomerModel
+from api.schemas.person.person_customer import Customer
 from api.seeder.chaos import apply_customer_chaos, apply_false_foreigner_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args, bulk_copy
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, bulk_copy
+from api.utils.quarantine import get_quarantine
 from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
@@ -24,10 +26,12 @@ TABLE_NAME = "person.customer"
 def generate_customer_payloads(count: int, country_ids: List[int], states_by_country: Dict[int, List[int]]) -> List[Dict[str, Any]]:
     """Generates customer payloads linked to REAL geographies (state_province_id always belongs to the drawn country_id)."""
     batch = []
+    q = get_quarantine("person.customer")
     for _ in range(count):
         sample_data = generate_mock_customer()
         country_id = random.choice(country_ids)
-        batch.append({
+        payload = {
+            "customer_id": 1,  # placeholder for Pydantic validation (gt=0); removed before insert
             "customer_name": sample_data["customer_name"],
             "last_name": sample_data["last_name"],
             "social_number": sample_data["social_number"],
@@ -41,8 +45,16 @@ def generate_customer_payloads(count: int, country_ids: List[int], states_by_cou
             "updated_at": datetime.now(),
             "is_active": True,
             "row_guid": uuid.uuid4()
-        })
+        }
+        with q.row(payload):
+            customer_obj = Customer(**payload)
+            validated_customer = customer_obj.model_dump()
+            # demographics.metrics carries Decimal fields — needs a JSON-safe dump for the JSONB column
+            validated_customer["demographics"] = customer_obj.demographics.model_dump(mode="json")
+            validated_customer.pop("customer_id", None)  # let the database's autoincrement take over
+            batch.append(validated_customer)
 
+    q.finish()
     return batch
 
 async def seed_person_customers(count: int = 100, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True):

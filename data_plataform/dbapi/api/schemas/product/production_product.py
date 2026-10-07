@@ -9,8 +9,11 @@ class ProductDetails(BaseModel):
     size: Optional[str] = Field(None, max_length=10, example="G")
     color: Optional[str] = Field(None, max_length=10, example="Black")
     list_price: PositiveFloat = Field(gt=0.0, description = "production cost")
-    price: PositiveFloat = Field(gt=0.0, description = "sale price")
-    tax: PositiveFloat = Field(gt=0.0, description = "product tax")
+    # price/tax use ge=0.0, not PositiveFloat — dbapi/api/samples/product.py intentionally
+    # zeroes both out as chaos engineering (zeroed promo price, missing tax); this contract
+    # only guarantees "not negative", not "not a chaos value". See CLAUDE.md — Chaos Engineering.
+    price: float = Field(ge=0.0, description = "sale price")
+    tax: float = Field(ge=0.0, description = "product tax")
     weight: Optional[float] = Field(None, description="Weight in kg")
     material: Optional[str] = Field(None, example="Cotton/Polyester")
     brand: Optional[str] = Field(None, example="Nike")
@@ -28,7 +31,7 @@ class ProductSchema(BaseModel):
     product_name: str = Field(max_length=100)  
     model_id:int    = Field(gt=0)
     category_id:int = Field(gt=0)
-    product_details: ProductDetails
+    productdetails: ProductDetails
     sell_start_date: datetime = Field(default_factory=datetime.now)
     sell_end_date: Optional[datetime] = Field(None, description="NULL = product still on sale")
     created_at: datetime = Field(default_factory=datetime.now)

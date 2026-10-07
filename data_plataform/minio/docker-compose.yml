@@ -1,7 +1,9 @@
 version: '3'
 services:
   minio:
-    image: minio/minio:latest
+    image: nexomart-minio:local
+    build: .
+    container_name: minio
     ports:
       - "9000:9000"     # API
       - "9001:9001"     # Console
@@ -12,13 +14,37 @@ services:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
 
-    command: server --console-address ":9001" /data
+    # Entrypoint guard (same robust fix as pgprojeto, for the 2026-10 silent-init incidents): refuse
+    # to start unless the REAL minio-f disk is mounted, detected by a sentinel file that exists only
+    # on the real disk's /data (.nexomart_real_disk). Prevents MinIO serving empty storage over the
+    # real buckets when the disk is unmounted/shadowed at start. The named bind-volume below is a
+    # second layer. Genuinely new store: set ALLOW_INIT=1 once, then `touch` the sentinel.
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        SENTINEL=/data/.nexomart_real_disk
+        if [ ! -f "$$SENTINEL" ] && [ "$${ALLOW_INIT:-0}" != "1" ]; then
+          echo "FATAL: $$SENTINEL not found — /data is not the real minio-f disk (unmounted/shadowed). Refusing to start so MinIO cannot serve empty storage over the real buckets. Mount the disk and retry, or set ALLOW_INIT=1 for a genuinely new store." >&2
+          exit 1
+        fi
+        exec /usr/bin/minio "$$@"
+      - --
+    command:
+      - server
+      - --console-address
+      - ":9001"
+      - /data
 
     cpus: "2.0"
-    mem_limit: 4g
+    mem_limit: 8g
 
     volumes:
-      - minio_data:/data
+      # minio-data is a named bind-volume (type=none,o=bind -> see bottom of file) so Docker REFUSES
+      # to mount when the minio-f disk is not mounted, instead of creating an empty /data and MinIO
+      # serving empty storage over the real buckets (same class of bug as the 2026-10-04 Postgres
+      # silent-initdb incident).
+      - minio-data:/data
       - dockervol:/dockervol
 
     networks:
@@ -41,7 +67,7 @@ services:
   #   comma-separated list. When adding a new pipeline/layer that writes to a new bucket,
   #   just append the name to that variable; no code file changes.
   minio-init:
-    image: minio/mc:latest
+    image: nexomart-minio:local
     container_name: minio-init
     depends_on:
       minio:
@@ -71,7 +97,13 @@ networks:
     external: true
 
 volumes:
-  minio_data:
-
   dockervol:
     external: True
+  # Bind to the minio-f disk. Fails loudly (mount error) if the disk is not mounted at
+  # ${MINIO_DATA_DIR}, instead of MinIO starting on empty storage. See service note.
+  minio-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MINIO_DATA_DIR}

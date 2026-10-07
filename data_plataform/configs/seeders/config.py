@@ -159,7 +159,7 @@ TABLE_RANGES: Dict[str, SchemaRanges] = {
         min_count=1_000, max_count=50_000, min_chaos=0.05, max_chaos=0.08,
         description="Purchase order headers, per run — was 10k-1M/day, no absolute ceiling. "
                      "Also used as the fan-out LIMIT for purchaseorderdetail/purchaseorderaudit "
-                     "(see seeder/cli_common.py + those two seeders) — this is the one entry "
+                     "(see utils/cli_common.py + those two seeders) — this is the one entry "
                      "in this file that directly bounds those two, not just its own table.",
     ),
     "purchasing.purchaseorderdetail": SchemaRanges(
@@ -250,7 +250,7 @@ def get_recommended_chaos_types(schema: str) -> list[str]:
 
 
 # ── Mutation ranges (UPDATE/DELETE volume for the CDC mutator seeders) ────────
-# Added 2026-08-22 for the future Debezium+Kafka CDC pipeline (dbapi/api/seeder/mutator_common.py
+# Added 2026-08-22 for the future Debezium+Kafka CDC pipeline (dbapi/api/utils/mutator_common.py
 # + <domain>/<table>_mutate.py + airflow/dags/nexomart/mutator/nexomart_mutator_dag.py, created
 # disabled — not wired into nexomart_seeder_dag). Same min/max-range mechanism as SCHEMA_RANGES/
 # TABLE_RANGES above, but sized for how many *existing* rows to touch per run, not how many new

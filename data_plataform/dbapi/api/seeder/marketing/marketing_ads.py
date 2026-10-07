@@ -11,7 +11,7 @@ from api.schemas.marketing.marketing_ads import MarketingAd, MarketingStatus, Ma
 from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
 from api.models.marketing.marketing_advertise import MarketingAdvertiseModel
 from api.seeder.chaos import apply_ads_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, insert_in_batches
+from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, insert_in_batches
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))

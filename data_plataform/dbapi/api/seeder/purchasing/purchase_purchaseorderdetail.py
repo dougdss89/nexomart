@@ -12,8 +12,10 @@ from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
 from api.models.purchasing.purchaseorderdetail import PurchaseOrderDetailModel
 from api.models.product.product import Product
 from api.schemas.purchasing.purchasing_orderheader import Status
+from api.schemas.purchasing.purchasing_purchaseorderdetail import PurchaseOrderDetailSchema
 from api.seeder.chaos import apply_purchaseorderdetail_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.utils.quarantine import get_quarantine
 from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
@@ -25,6 +27,7 @@ TABLE_NAME = "purchasing.purchaseorderdetail"
 def generate_po_detail_payloads(real_headers: List[dict], product_ids: List[int], chaos_rate: float = 0.05, apply_chaos: bool = True) -> List[Dict[str, Any]]:
     """Generates order detail payloads with an exact distribution of the sub-total."""
     batch = []
+    q = get_quarantine("purchasing.purchaseorderdetail")
     for h in real_headers:
         h_id = h["purchaseorderheader_id"]
         sub_total = h["sub_total"]
@@ -47,26 +50,32 @@ def generate_po_detail_payloads(real_headers: List[dict], product_ids: List[int]
                 current_sum += item_total
             
             due_date = h["ship_date"] + timedelta(days=random.randint(2, 5))
-            batch.append({
+            is_received = h["status"] == Status.COMPLETED.value
+            payload = {
                 "purchaseorderdetail_id": f"{h_id}-{i:02d}",
                 "purchaseorderheader_id": h_id,
                 "product_id": p_id,
                 "due_date": due_date,
+                # A received line must carry when it was received (schema Rule 2)
+                "last_receipt_date": due_date if is_received else None,
                 "order_qty": order_qty,
                 "unit_price": unit_price,
-                "received_qty": order_qty if h["status"] == Status.COMPLETED.value else 0,
+                "received_qty": order_qty if is_received else 0,
                 "rejected_qty": 0,
-                "stocked_qty": order_qty if h["status"] == Status.COMPLETED.value else 0,
-                "is_fully_received": h["status"] == Status.COMPLETED.value,
+                "stocked_qty": order_qty if is_received else 0,
+                "is_fully_received": is_received,
                 "created_at": datetime.now(),
                 "updated_at": datetime.now(),
                 "is_active": True,
                 "row_guid": uuid.uuid4()
-            })
+            }
+            with q.row(payload):
+                batch.append(PurchaseOrderDetailSchema(**payload).model_dump())
 
     if apply_chaos:
         batch = apply_purchaseorderdetail_chaos(batch, chaos_rate=chaos_rate)
 
+    q.finish()
     return batch
 
 async def seed_purchase_details(chaos_rate: float = 0.05, apply_chaos: bool = True):

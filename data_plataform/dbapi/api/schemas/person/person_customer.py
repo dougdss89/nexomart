@@ -65,7 +65,7 @@ class Customer(BaseModel):
     customer_id: int = Field(gt=0)
     customer_name: str = Field(max_length = 100)
     last_name: str = Field(max_length = 100)
-    social_number: str = Field(max_length = 20)
+    social_number: str = Field(max_length = 15)
     birthdate: date
     customer_type: CustomerType
 
@@ -73,10 +73,11 @@ class Customer(BaseModel):
 
     demographics: CustomerDemographics
     country_id: int = Field(gt=0)
+    state_province_id: int = Field(gt=0)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_active:bool = True
     row_guid:uuid.UUID = Field(default_factory=uuid.uuid4)
 
-class Config:
-    use_enum_values = True
+    class Config:
+        use_enum_values = True

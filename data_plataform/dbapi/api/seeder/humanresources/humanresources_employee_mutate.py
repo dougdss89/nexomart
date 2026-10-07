@@ -8,8 +8,8 @@ from api.models.humanresources.employee import HumanResourcesEmployeeModel
 from api.models.humanresources.jobrole import HumanResourcesJobRoleModel  # noqa: F401
 from api.models.person.country_region import CountryRegionModel  # noqa: F401
 from api.models.person.state_province import StateProvinceModel  # noqa: F401
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 # The four imports above are unused directly in this file but required: employee has FKs to
 # all of them (jobrole, department, person.countryregion, person.stateprovince), and SQLAlchemy

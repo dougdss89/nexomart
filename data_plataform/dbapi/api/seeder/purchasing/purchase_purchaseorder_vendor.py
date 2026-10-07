@@ -13,7 +13,7 @@ from api.schemas.purchasing.purchasing_vendor import Vendor
 from api.models.purchasing.vendor import PurchaseVendorModel
 import api.samples.purchase_payment_certs as purchase_payment_certs
 from api.seeder.chaos import apply_vendor_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, stamp_dimension_history
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -168,6 +168,7 @@ async def seed_vendors(count: int = 20, chaos_rate: float = 0.03, batch_size: in
         print(f"📣 Seeding {count:,} vendors (SCD2) | chaos={chaos_rate:.2%}")
 
         vendors = get_vendor_details(count, start_id=max_id + 1, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+        stamp_dimension_history(vendors)  # backdate created_at so the landing spans 2020->now
 
         try:
             for i in range(0, len(vendors), batch_size):

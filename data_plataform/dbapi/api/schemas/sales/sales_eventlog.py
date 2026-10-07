@@ -25,7 +25,7 @@ class SalesEventContext(BaseModel):
     reason: Optional[str] = Field(None, max_length=200)
     gps_location: Optional[GPSLocation] = None
 
-# A Tabela Principal
+# The main table
 class SalesOrderEventLogSchema(BaseModel):
     
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)

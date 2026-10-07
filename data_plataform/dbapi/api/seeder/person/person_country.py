@@ -9,8 +9,10 @@ from sqlalchemy import insert
 from api.database import AsyncSessionLocal
 from api.samples.country import OPERATING_COUNTRIES
 from api.models.person.country_region import CountryRegionModel
+from api.schemas.person.person_country_region import CountryRegion
 from api.seeder.chaos import apply_geography_code_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded
+from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded, stamp_dimension_history
+from api.utils.quarantine import get_quarantine, physical_gate
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -18,10 +20,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 def get_country_seeders(chaos_rate: float = 0.05, apply_chaos: bool = True) -> List[Dict[str, Any]]:
     """Generates the regional countries load."""
     batch = []
+    q = get_quarantine("person.countryregion")
     setup_date = datetime.now() - timedelta(days=730)
     for index, (code, region, _currency) in enumerate(OPERATING_COUNTRIES, start=1):
         country = pycountry.countries.get(alpha_2=code)
-        batch.append({
+        payload = {
+            "country_id": index,  # placeholder for Pydantic validation (gt=0); removed before insert
             "country_code": code,
             "countryregion": region,
             "country_name": country.name if country else code,
@@ -29,10 +33,15 @@ def get_country_seeders(chaos_rate: float = 0.05, apply_chaos: bool = True) -> L
             "updated_at": setup_date,
             "is_active": True,
             "row_guid": uuid.uuid4()
-        })
+        }
+        with q.row(payload):
+            validated_country = CountryRegion(**payload).model_dump()
+            validated_country.pop("country_id", None)  # let the database's autoincrement take over
+            batch.append(validated_country)
     if apply_chaos:
         batch = apply_geography_code_chaos(batch, code_field="country_code", chaos_rate=chaos_rate)
 
+    q.finish()
     return batch
 
 async def seed_person_countries(chaos_rate: float = 0.05, apply_chaos: bool = True):
@@ -42,8 +51,9 @@ async def seed_person_countries(chaos_rate: float = 0.05, apply_chaos: bool = Tr
         if await skip_if_already_seeded(session, CountryRegionModel, label="Countries"):
             return
         print(f"📣 Seeding {len(countries)} countries | chaos={chaos_rate:.2%}")
+        countries = physical_gate(CountryRegionModel, countries)
         try:
-            stmt = insert(CountryRegionModel).values(countries)
+            stmt = insert(CountryRegionModel).values(stamp_dimension_history(countries))
             await session.execute(stmt)
             await session.commit()
             print("✅ Countries seeded successfully!")

@@ -4,8 +4,8 @@ import random
 from api.database import AsyncSessionLocal
 from api.models.humanresources.employee import HumanResourcesEmployeeModel  # noqa: F401
 from api.models.purchasing.purchaseorderaudit import PurchaseOrderAuditModel
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 # HumanResourcesEmployeeModel: unused directly, but purchaseorderaudit has an FK to
 # humanresources.employee — see humanresources_employee_mutate.py's comment for the full

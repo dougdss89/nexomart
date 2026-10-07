@@ -11,7 +11,7 @@ class AIModelMetadata(BaseModel):
     # Optional: Useful to know whether the vector was generated in batch (ETL) or real-time (API)
     generation_method: str = Field(default="batch_pipeline")
 
-# --- MODELO PRINCIPAL ---
+# --- MAIN MODEL ---
 class ProductEmbeddingSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     

@@ -22,7 +22,8 @@ class SpecialOffer(BaseModel):
     
     special_offer_id: int = Field(gt=0)
     description: str = Field(max_length=100, description="Offer description")
-    discount_pct: Decimal = Field(ge=0.0, le=100.00, decimal_places=2, description="Discount percentage")
+    # int, not Decimal — discount_pct is an Integer column in the DB (whole percentage points).
+    discount_pct: int = Field(ge=0, le=100, description="Discount percentage")
     category: OfferCategory
     discount_type: DiscountType
 

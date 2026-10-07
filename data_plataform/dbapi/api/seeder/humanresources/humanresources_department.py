@@ -14,7 +14,8 @@ from api.schemas.humanresources.humanresources_department import (
 
 from api.samples.hr_department_organization import ORG_CHART
 from api.models.humanresources.department import HumanResourcesDepartmentModel
-from api.seeder.cli_common import build_parser, skip_if_already_seeded
+from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
+from api.utils.quarantine import get_quarantine, physical_gate
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -25,6 +26,7 @@ def get_department_seeders() -> list[dict]:
     """
 
     batch = []
+    q = get_quarantine("humanresources.department")
     department_id_counter = 1
 
     # Dictionary to map department names to their IDs
@@ -53,7 +55,7 @@ def get_department_seeders() -> list[dict]:
         # Note: to keep the seeder simple, we only create "current" records (is_active=True, effective_end_date=None)
         # If you want history, you'd need more complex logic here too.
 
-        batch.append({
+        payload = {
             "department_id": department_id_counter,
             "department_name": dept_name,
             "group_name": DEPARTMENT_TO_GROUP_MAP.get(dept_name),
@@ -64,13 +66,16 @@ def get_department_seeders() -> list[dict]:
             "updated_at": today,
             "is_active": True,
             "row_guid": uuid.uuid4()
-        })
+        }
+        with q.row(payload):
+            batch.append(HRDepartment(**payload).model_dump())
 
         # 3. Update the map for future use
         department_map[dept_name] = department_id_counter
 
         department_id_counter += 1
 
+    q.finish()
     return batch
 
 
@@ -81,8 +86,9 @@ async def seed_departments():
         if await skip_if_already_seeded(session, HumanResourcesDepartmentModel, label="Departments"):
             return
         print(f"📣 Seeding {len(depts)} departments...")
+        depts = physical_gate(HumanResourcesDepartmentModel, depts)
         try:
-            stmt = insert(HumanResourcesDepartmentModel).values(depts)
+            stmt = insert(HumanResourcesDepartmentModel).values(stamp_dimension_history(depts))
             await session.execute(stmt)
             await session.commit()
             print("✅ Departments seeded successfully!")

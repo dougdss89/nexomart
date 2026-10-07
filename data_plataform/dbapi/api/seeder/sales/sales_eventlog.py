@@ -14,7 +14,7 @@ from api.schemas.sales.sales_eventlog import SalesOrderEventLogSchema, SalesEven
 from api.samples.sales_eventlog import SALES_EVENT_LOG_TEMPLATES
 from api.models.sales.salesorder import SalesOrderModel
 from api.seeder.chaos import apply_eventlog_chaos
-from api.seeder.cli_common import add_chaos_args, resolve_chaos_args, sample_fk_ids
+from api.utils.cli_common import add_chaos_args, resolve_chaos_args, sample_fk_ids
 
 # Widened 2026-09-05 (was 1-15 days back) so event_date spans multiple years, matching
 # the wider order_date range in sales_order.py.

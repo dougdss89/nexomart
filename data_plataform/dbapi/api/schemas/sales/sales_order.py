@@ -104,9 +104,8 @@ class SalesOrderSchema(BaseModel):
     
     store_id: int = Field(gt=0)
     order_date: datetime = Field(default_factory=datetime.now)
-    due_date: datetime = Field(default_factory=datetime.now)
-    
-    orderstatus: SalesOrderStatus
+
+    order_status: SalesOrderStatus
     total_amount: Decimal = Field(ge=0.0, decimal_places=2)
     currency_code: str = Field(default="BRL", max_length=3)
     

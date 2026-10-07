@@ -14,7 +14,7 @@ from api.schemas.warehouse.warehouse_productinventory import ProductInventorySch
 from api.models.product.product import Product
 from api.models.warehouse.warehouselocation import WarehouseLocationModel
 from api.seeder.chaos import apply_inventory_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, stamp_dimension_history_objs
 
 SCHEMA_NAME = "warehouse"
 TABLE_NAME = "warehouse.product_inventory"
@@ -68,6 +68,7 @@ async def seed_product_inventory(count: int, chaos_rate: float = 0.05, batch_siz
             if apply_chaos:
                 batch_data = apply_inventory_chaos(batch_data, chaos_rate=chaos_rate)
 
+            stamp_dimension_history_objs(batch_data)  # backdate created_at so the landing spans 2020->now
             try:
                 await service.restock_inventory(batch_data)
                 total_inserted += len(batch_data)

@@ -6,8 +6,8 @@ from api.database import AsyncSessionLocal
 from api.models.product.product import Product
 from api.models.product.productcategory import ProductCategoryModel  # noqa: F401
 from api.models.product.productmodel import ProductModel  # noqa: F401
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 # ProductCategoryModel/ProductModel: unused directly, but product has FKs to both — see
 # humanresources_employee_mutate.py's comment for the full explanation (same root cause).

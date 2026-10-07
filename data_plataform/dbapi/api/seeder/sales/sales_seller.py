@@ -11,6 +11,7 @@ from api.database import AsyncSessionLocal
 # Modelos
 from api.models.person.seller import SellerModel
 from api.models.person.country_region import CountryRegionModel
+from api.schemas.sales.sales_seller import Seller
 
 # Amostras
 from api.samples.sales_seller import (
@@ -18,7 +19,8 @@ from api.samples.sales_seller import (
     SELLER_TYPES, ADDRESS_STREETS, CITIES, STATES
 )
 from api.seeder.chaos import apply_seller_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, stamp_dimension_history
+from api.utils.quarantine import get_quarantine, physical_gate
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -38,6 +40,7 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
 
         print(f"📣 Seeding {count:,} sellers (Person.Seller) | chaos={chaos_rate:.2%}")
         sellers = []
+        q = get_quarantine("person.seller")
 
         for i in range(count):
             name = SELLER_NAMES[i % len(SELLER_NAMES)]
@@ -57,7 +60,8 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
             
             opened_date = datetime.now() - timedelta(days=random.randint(365, 3650))
             
-            sellers.append({
+            payload = {
+                "seller_id": 1,  # placeholder for Pydantic validation (gt=0); removed before insert
                 "seller_name": name,
                 "last_name": "Co. & Partners" if s_type == "business" else name.split()[-1],
                 "social_number": social,
@@ -80,7 +84,8 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
                     "address": [
                         {
                             "address_type": "office",
-                            "address_line": f"{random.choice(ADDRESS_STREETS)}, {random.randint(1, 2000)}",
+                            "address_line": random.choice(ADDRESS_STREETS),
+                            "street_number": str(random.randint(1, 2000)),
                             "postal_code": f"{random.randint(10000, 99999)}-{random.randint(0, 999)}",
                             "city": CITIES[city_idx],
                             "state_name": STATES[city_idx],
@@ -97,13 +102,21 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
                         "date_last_sale": date.today().isoformat()
                     }
                 }
-            })
+            }
+            with q.row(payload):
+                seller_obj = Seller(**payload)
+                validated_seller = seller_obj.model_dump()
+                validated_seller["demographics"] = seller_obj.demographics.model_dump(mode="json")
+                validated_seller.pop("seller_id", None)  # let the database's autoincrement take over
+                sellers.append(validated_seller)
 
+        q.finish()
         if apply_chaos:
             sellers = apply_seller_chaos(sellers, chaos_rate=chaos_rate)
 
+        sellers = physical_gate(SellerModel, sellers)
         try:
-            stmt = insert(SellerModel).values(sellers)
+            stmt = insert(SellerModel).values(stamp_dimension_history(sellers))
             await session.execute(stmt)
             await session.commit()
             print(f"✅ {len(sellers)} sellers seeded successfully!")

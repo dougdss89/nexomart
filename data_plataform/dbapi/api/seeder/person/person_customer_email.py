@@ -10,8 +10,10 @@ from sqlalchemy import select, insert, func
 from api.database import AsyncSessionLocal
 from api.models.person.customer import CustomerModel
 from api.models.person.customer_email import CustomerEmailModel
+from api.schemas.person.person_customer_email import Customer_email
 from api.seeder.chaos import apply_customer_email_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.utils.quarantine import get_quarantine
 from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
@@ -48,32 +50,27 @@ def generate_mock_emails(customer: Dict[str, Any]) -> List[Dict[str, Any]]:
         # Formatting error: space in the email
         primary_email = primary_email.replace("@", " @")
 
-    emails.append({
+    q = get_quarantine("person.customer_email")
+    payload = {
         "customer_id": customer.get("customer_id", 0), # Will be injected by the orchestrator
         "customer_email": primary_email,
         "is_primary": True,
-        "email_uuid": str(uuid.uuid4()),
-        "created_at": datetime.now(),
-        "updated_at": datetime.now(),
-        "is_active": True,
-        "row_guid": str(uuid.uuid4())
-    })
+    }
+    with q.row(payload):
+        emails.append(Customer_email(**payload).model_dump())
 
     # 2. Generate secondary emails (20% chance)
     if random.random() < 0.20:
         sec_email = f"financeiro@{domain}" if is_company else f"spam_{base_name}@{domain}"
-        
-        emails.append({
+
+        payload = {
             "customer_id": customer.get("customer_id", 0),
             "customer_email": sec_email,
             "is_primary": False,
-            "email_uuid": str(uuid.uuid4()),
-            "created_at": datetime.now(),
-            "updated_at": datetime.now(),
-            "is_active": True,
-            "row_guid": str(uuid.uuid4())
-        })
-        
+        }
+        with q.row(payload):
+            emails.append(Customer_email(**payload).model_dump())
+
     return emails
 
 def get_customer_email_seeders(customers: List[Dict[str, Any]], chaos_rate: float = 0.05, apply_chaos: bool = True) -> List[Dict[str, Any]]:
@@ -82,12 +79,14 @@ def get_customer_email_seeders(customers: List[Dict[str, Any]], chaos_rate: floa
     already populated) and generates the emails linked to them.
     """
     batch = []
+    q = get_quarantine("person.customer_email")
     for customer in customers:
         batch.extend(generate_mock_emails(customer))
 
     if apply_chaos:
         batch = apply_customer_email_chaos(batch, chaos_rate=chaos_rate)
 
+    q.finish()
     return batch
 
 
