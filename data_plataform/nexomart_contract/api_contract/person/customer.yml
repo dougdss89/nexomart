@@ -2,7 +2,7 @@ apiVersion: v3.1.0
 kind: DataContract
 id: api.person.customer
 name: "Customer API Contract"
-version: 1.0.0
+version: 1.3.0
 status: active
 domain: person
 
@@ -75,7 +75,7 @@ schema:
 
       - name: social_number
         logicalType: string
-        physicalType: varchar(20)
+        physicalType: varchar(15)
         required: true
         description: >
           CPF/CNPJ or equivalent. Intentional chaos engineering injects
@@ -88,10 +88,10 @@ schema:
 
       - name: birthdate
         logicalType: date
-        physicalType: date
+        physicalType: timestamptz
         required: true
         examples: ["1990-01-01"]
-        description: "Date of customer birth. Format YYYY-MM-DD. The API rejects invalid dates."
+        description: "Date of customer birth. Format YYYY-MM-DD. The API rejects invalid dates. Stored as timestamptz in the database."
         classification: confidential
 
       - name: customer_type
@@ -120,13 +120,133 @@ schema:
         physicalType: jsonb
         required: true
         description: >
-          Nested object (CustomerDemographics): social, marketing_consent,
-          address, metrics. See
-          dbapi/api/schemas/person/person_customer.py for the full shape —
-          deliberately not replicated field by field here, this object has
-          4 sub-schemas of its own.
+          Nested object (CustomerDemographics), stored as jsonb. The database enforces nothing
+          inside it: these rules are enforced only by Pydantic, and
+          tests/contracts/test_contract_drift.py keeps them in sync with this contract.
+          String sizes are logicalTypeOptions.maxLength; a Decimal's decimal places are
+          logicalTypeOptions.multipleOf (0.01 means 2 places).
         tags: [pii]
         classification: restricted
+        properties:
+          - name: social
+            logicalType: object
+            required: false
+            properties:
+              - name: gender
+                logicalType: string
+                required: false
+                logicalTypeOptions: {maxLength: 20}
+              - name: marital_status
+                logicalType: string
+                required: false
+                logicalTypeOptions: {maxLength: 10}
+              - name: interests
+                logicalType: array
+                required: false
+                items:
+                  logicalType: string
+              - name: occupation
+                logicalType: string
+                required: false
+                logicalTypeOptions: {maxLength: 50}
+              - name: company_name
+                logicalType: string
+                required: false
+                logicalTypeOptions: {maxLength: 100}
+              - name: tax_regime
+                logicalType: string
+                required: false
+                examples: ["simple", "real_profit", "presumed_profit"]
+              - name: buying_contact
+                logicalType: object
+                required: false
+                properties:
+                  - name: name
+                    logicalType: string
+                    required: true
+                    logicalTypeOptions: {maxLength: 100}
+                  - name: role
+                    logicalType: string
+                    required: true
+                    logicalTypeOptions: {maxLength: 100}
+                  - name: phone_number
+                    logicalType: string
+                    required: false
+          - name: marketing_consent
+            logicalType: object
+            required: false
+            properties:
+              - name: email
+                logicalType: boolean
+                required: false
+              - name: sms
+                logicalType: boolean
+                required: false
+          - name: address
+            logicalType: object
+            required: false
+            properties:
+              - name: address_line
+                logicalType: string
+                required: true
+                logicalTypeOptions: {maxLength: 150}
+              - name: postal_code
+                logicalType: string
+                required: true
+                logicalTypeOptions: {maxLength: 20}
+              - name: street_number
+                logicalType: string
+                required: true
+                logicalTypeOptions: {maxLength: 20}
+              - name: city
+                logicalType: string
+                required: true
+                logicalTypeOptions: {maxLength: 150}
+              - name: state_name
+                logicalType: string
+                required: true
+                logicalTypeOptions: {maxLength: 150}
+              - name: country
+                logicalType: string
+                required: true
+                logicalTypeOptions: {maxLength: 150}
+              - name: country_region
+                logicalType: string
+                required: false
+                logicalTypeOptions: {maxLength: 150}
+              - name: province_name
+                logicalType: string
+                required: false
+                logicalTypeOptions: {maxLength: 150}
+              - name: address_info
+                logicalType: string
+                required: false
+                logicalTypeOptions: {maxLength: 150}
+          - name: metrics
+            logicalType: object
+            required: false
+            properties:
+              - name: minimum_year_income
+                logicalType: number
+                required: false
+                logicalTypeOptions: {multipleOf: 0.01}
+              - name: maximum_year_income
+                logicalType: number
+                required: false
+                logicalTypeOptions: {multipleOf: 0.01}
+              - name: total_purchased
+                logicalType: number
+                required: false
+                logicalTypeOptions: {multipleOf: 0.01}
+              - name: date_of_first_purchase
+                logicalType: date
+                required: false
+              - name: date_last_purchase
+                logicalType: date
+                required: false
+              - name: count_orders
+                logicalType: integer
+                required: false
 
       - name: country_id
         logicalType: integer
@@ -146,6 +266,24 @@ schema:
             severity: error
         relationships:
           - to: person.countryregion.country_id
+
+      - name: state_province_id
+        logicalType: integer
+        physicalType: integer
+        required: true
+        description: >
+          FK to person.stateprovince. Like country_id, the API does not check
+          that it exists; the seeder guarantees it by drawing a state that
+          belongs to the drawn country.
+        classification: internal
+        quality:
+          - type: library
+            metric: value
+            mustBeGreaterThan: 0
+            description: "Pydantic Field(gt=0) — the API rejects <= 0."
+            severity: error
+        relationships:
+          - to: person.stateprovince.state_province_id
 
       - name: created_at
         logicalType: date
@@ -198,10 +336,27 @@ customProperties:
     value: 500
   - property: changelog
     value:
+      - version: 1.3.0
+        date: "2026-09-20"
+        change: >
+          demographics now lists its nested properties (social, marketing_consent, address,
+          metrics) with required flags, string sizes, enum values and decimal places, so
+          tests/contracts/test_contract_drift.py checks them against the Pydantic sub-models.
+      - version: 1.2.0
+        date: "2026-09-19"
+        change: >
+          Aligned with the database and the Pydantic schema, found by
+          tests/contracts/test_contract_drift.py: added state_province_id,
+          social_number varchar(20) -> varchar(15), birthdate physicalType
+          date -> timestamptz. Fixed the invalid YAML in the 1.1.0 entry.
       - version: 1.0.0
         date: "2026-09-05"
         change: "Initial version, mirroring dbapi/api/schemas/person/person_customer.py."
       - version: 1.1.0
         date: "2026-09-06"
-        change: """Converted from the project's ODCS-inspired custom format to real ODCS v3.1.0 (apiVersion/servers/schema.properties/relationships/quality). c
-                onstraints:[...] moved into logicalType/physicalType, native quality rules (mustBeGreaterThan/mustBeGreaterOrEqualTo), and examples; pii boolean dropped in favor of tags:[pii] + classification."""
+        change: >
+          Converted from the project's ODCS-inspired custom format to real ODCS v3.1.0
+          (apiVersion/servers/schema.properties/relationships/quality). constraints:[...]
+          moved into logicalType/physicalType, native quality rules
+          (mustBeGreaterThan/mustBeGreaterOrEqualTo), and examples; pii boolean dropped
+          in favor of tags:[pii] + classification.

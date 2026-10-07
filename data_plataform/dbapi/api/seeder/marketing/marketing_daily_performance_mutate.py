@@ -7,8 +7,8 @@ from api.models.marketing.marketing_adgroup import MarketingAdGroupModel  # noqa
 from api.models.marketing.marketing_advertise import MarketingAdvertiseModel  # noqa: F401
 from api.models.marketing.marketing_campaign import MarketingCampaignModel  # noqa: F401
 from api.models.marketing.marketing_dailyperformance import MarketingDailyPerformanceModel
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 # The 3 unused-looking imports above are required: dailyperformance has FKs to all of them, and
 # a missing one raises NoReferencedTableError at runtime, not import time — see

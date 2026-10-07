@@ -48,6 +48,16 @@ dependencies = [
     "uvicorn>=0.27.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
+
+# The dev group is opt-in (`uv run --group dev ...`) so the seeders' venv on the airflow-worker
+# never syncs pytest; only the contract drift task asks for it.
+[tool.uv]
+default-groups = []
+
 [tool.black]
 line-length = 100
 target-version = ['py312']

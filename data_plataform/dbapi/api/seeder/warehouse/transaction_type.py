@@ -10,7 +10,7 @@ from api.database import AsyncSessionLocal
 from api.services.warehouse.transaction_type_service import TransactionTypeService
 from api.schemas.warehouse.warehouse_transaction_type import TransactionTypeSchema, ActionEffect
 from api.models.warehouse.transactiontype import WarehouseTransactionType
-from api.seeder.cli_common import build_parser, skip_if_already_seeded
+from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history_objs
 
 async def seed_transaction_types(count: int):
     """
@@ -53,6 +53,7 @@ async def seed_transaction_types(count: int):
 
         print(f"🚀 Starting load of {len(to_seed)} transaction types into the database...")
 
+        stamp_dimension_history_objs(to_seed)  # backdate created_at so the landing spans 2020->now
         try:
             await service.seed_initial_data(to_seed)
             await session.commit()

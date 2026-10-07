@@ -1,10 +1,10 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from api.config.base import Base
+from api.config.base import AuditMixin, Base
 import uuid
 
-class ProductCategoryModel(Base):
+class ProductCategoryModel(Base, AuditMixin):
     __tablename__ = "productcategory"
 
     __table_args__ = ({"schema": "product"})

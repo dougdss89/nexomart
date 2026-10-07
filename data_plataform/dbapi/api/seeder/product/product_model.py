@@ -6,9 +6,10 @@ from datetime import datetime, timedelta
 import random
 from sqlalchemy import insert
 from api.database import AsyncSessionLocal
-from api.schemas.product.production_product_model import ProductModel
+from api.schemas.product.production_product_model import ProductModel, ProductModelSchema
 from api.models.product.productmodel import ProductModel as ProductModelTable
-from api.seeder.cli_common import build_parser, skip_if_already_seeded
+from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
+from api.utils.quarantine import get_quarantine, physical_gate
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -19,23 +20,26 @@ EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
 def get_model_seeders() -> list[dict]:
 
     batch = []
+    q = get_quarantine("product.productmodel")
     # Widened 2026-09-05 (was 30-365 days back) so created_at/updated_at span multiple years.
     days_elapsed = random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days)
     simulated_date = datetime.now() - timedelta(days=days_elapsed)
 
     for index, model in enumerate(ProductModel, start=1):
 
-        batch.append(
-            {
-                "productmodel_id": index,
-                "productmodel_name": model,
-                "created_at": simulated_date,
-                "updated_at": simulated_date,
-                "is_active": True,
-                "row_guid": uuid.uuid4()
-            }
-        )
+        payload = {
+            "productmodel_id": index,
+            "productmodel_name": model,
+            "created_date": simulated_date,
+            "created_at": simulated_date,
+            "updated_at": simulated_date,
+            "is_active": True,
+            "row_guid": uuid.uuid4()
+        }
+        with q.row(payload):
+            batch.append(ProductModelSchema(**payload).model_dump())
 
+    q.finish()
     return batch
 
 
@@ -46,8 +50,9 @@ async def seed_product_models():
         if await skip_if_already_seeded(session, ProductModelTable, label="Product models"):
             return
         print(f"📣 Seeding {len(models)} product models...")
+        models = physical_gate(ProductModelTable, models)
         try:
-            stmt = insert(ProductModelTable).values(models)
+            stmt = insert(ProductModelTable).values(stamp_dimension_history(models))
             await session.execute(stmt)
             await session.commit()
             print("✅ Models seeded successfully!")

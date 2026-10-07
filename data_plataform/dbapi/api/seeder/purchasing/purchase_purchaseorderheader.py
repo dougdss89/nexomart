@@ -13,7 +13,8 @@ from api.models.purchasing.vendor import PurchaseVendorModel
 from api.models.humanresources.employee import HumanResourcesEmployeeModel
 from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
 from api.seeder.chaos import apply_purchaseorderheader_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args, generate_unique_business_ids, bulk_copy
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, generate_unique_business_ids, bulk_copy
+from api.utils.quarantine import get_quarantine
 from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
@@ -32,6 +33,7 @@ def generate_po_header_payloads(vendor_ids: List[int], employee_ids: List[int], 
     — one per record.
     """
     batch = []
+    q = get_quarantine("purchasing.purchaseorderheader")
     for header_id in header_ids:
         order_date = datetime.now() - timedelta(days=random.randint(1, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
         status = random.choice(list(Status))
@@ -40,24 +42,40 @@ def generate_po_header_payloads(vendor_ids: List[int], employee_ids: List[int], 
         tax_amt = (sub_total * Decimal("0.12")).quantize(Decimal("0.0001"))
         freight = Decimal(random.uniform(50.0, 500.0)).quantize(Decimal("0.0001"))
         total_due = sub_total + tax_amt + freight
+        employee_id = random.choice(employee_ids)
+        ship_date = order_date + timedelta(days=random.randint(1, 10))
 
-        batch.append({
+        payload = {
             "purchaseorderheader_id": header_id,
             "vendor_id": random.choice(vendor_ids),
-            "employee_id": random.choice(employee_ids),
+            "employee_id": employee_id,
             "order_date": order_date,
-            "ship_date": order_date + timedelta(days=random.randint(1, 10)),
+            "ship_date": ship_date,
+            # schema rule: a completed order must carry its finish date
+            "orderfinished_date": ship_date + timedelta(days=random.randint(1, 10)) if status == Status.COMPLETED else None,
             "sub_total": sub_total,
             "tax_amt": tax_amt,
             "freight": freight,
             "total_due": total_due,
             "status": status.value,
-            "audit_trail": [{"date": order_date.isoformat(), "action": AuditAction.CREATED.value, "comments": "System generated"}],
+            "audit_trail": [{
+                "date": order_date.isoformat(),
+                "action": AuditAction.CREATED.value,
+                "employee_id": str(employee_id),
+                "comments": "System generated",
+            }],
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
             "is_active": True,
             "row_guid": uuid.uuid4()
-        })
+        }
+        with q.row(payload):
+            header_obj = PurchaseOrderHeader(**payload)
+            validated_header = header_obj.model_dump()
+            # audit_trail entries carry a datetime (action_date) — JSON-safe dump for the JSONB column
+            validated_header["audit_trail"] = [entry.model_dump(mode="json") for entry in header_obj.audit_trail]
+            batch.append(validated_header)
+    q.finish()
     return batch
 
 async def seed_purchase_orders(count: int = 50, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True):

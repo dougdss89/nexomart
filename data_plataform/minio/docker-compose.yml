@@ -37,7 +37,7 @@ services:
       - /data
 
     cpus: "2.0"
-    mem_limit: 4g
+    mem_limit: 8g
 
     volumes:
       # minio-data is a named bind-volume (type=none,o=bind -> see bottom of file) so Docker REFUSES

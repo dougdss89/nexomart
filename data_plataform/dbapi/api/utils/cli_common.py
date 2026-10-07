@@ -21,17 +21,92 @@ per schema/table.
 import argparse
 import json
 import random
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, insert, select, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config.seeder_config import get_ranges
+from api.utils.quarantine import physical_gate
 
 DEFAULT_BATCH_SIZE = 1_000
 # asyncpg limits queries to 32767 bound parameters; a multi-row insert().values([...])
 # sums (number of columns x number of rows in the batch). With the batch_size above, even wide
 # tables (~20-30 columns) stay well below the limit. Don't raise this default without accounting for that.
+
+# Dimension landing partitions are keyed on created_at (ingestion_common.FACT_EVENT_DATE_COLUMNS
+# lists the fact tables that partition by their own event-date column instead). Dimensions used to
+# stamp created_at = now() at seed time, so the landing only ever got partitions for the days the
+# DAG actually ran — every customer looked created "today", never any 2020-2025 history — leaving
+# facts that span 2020->now (EARLIEST_TRANSACTION_DATE) with no dimension rows to join against for
+# older dates. These helpers backdate created_at across the same 2020->now window the facts use.
+EARLIEST_HISTORY = datetime(2020, 1, 1)
+
+
+def historical_datetime(earliest: datetime = EARLIEST_HISTORY) -> datetime:
+    """A random timestamp uniformly in [earliest, now] — the same draw the fact seeders use for
+    their event-date columns, so dimension created_at spans the same history."""
+    now = datetime.now()
+    return now - timedelta(days=random.randint(1, (now - earliest).days))
+
+
+def stamp_dimension_history(rows: list[dict], earliest: datetime = EARLIEST_HISTORY) -> list[dict]:
+    """Backdates each row's created_at to a historical draw (so the created_at-partitioned landing
+    spans 2020->now) while setting updated_at to now(). Setting updated_at = now() is mandatory:
+    incremental ingestion selects rows via COALESCE(updated_at, created_at) > watermark, so a row
+    whose only timestamp were a backdated created_at would sit below the watermark and never land.
+    Call this on a dimension seeder's row matrix right before insert(Model).values(rows); any
+    created_at already on the rows is overwritten, since the whole point is to spread them."""
+    now = datetime.now()
+    for row in rows:
+        row["created_at"] = historical_datetime(earliest)
+        row["updated_at"] = now
+    return rows
+
+
+def stamp_dimension_history_objs(objs: list, earliest: datetime = EARLIEST_HISTORY) -> list:
+    """Same as stamp_dimension_history but for objects with settable created_at/updated_at
+    attributes (e.g. Pydantic schema instances a service will later model_dump()), used by the
+    seeders that hand their service layer schema objects instead of plain dicts."""
+    now = datetime.now()
+    for obj in objs:
+        obj.created_at = historical_datetime(earliest)
+        obj.updated_at = now
+    return objs
+
+
+# Tables whose created_at must NOT be backdated, for two distinct reasons:
+#   1. Fact tables (first 6) partition the landing zone by their own business event-date column,
+#      not created_at — mirror of ingestion_common.FACT_EVENT_DATE_COLUMNS (kept here as a plain
+#      set to avoid importing that module, and its pandas/pyarrow deps, into every seeder).
+#   2. purchaseorderdetail/audit are RANGE-partitioned in Postgres BY created_at (migration 010):
+#      inserting a backdated created_at would need a matching 2020-era partition to exist, and the
+#      45-day retention would drop it anyway. Their created_at has to stay near insert time.
+# Keep group (1) in sync with ingestion_common.FACT_EVENT_DATE_COLUMNS.
+_NO_BACKDATE_TABLES = frozenset({
+    ("sales", "salesorder"),
+    ("sales", "returnorder"),
+    ("sales", "ordereventlog"),
+    ("purchasing", "purchaseorderheader"),
+    ("warehouse", "transactionhistory"),
+    ("marketing", "dailyperformance"),
+    ("purchasing", "purchaseorderdetail"),
+    ("purchasing", "purchaseorderaudit"),
+})
+
+
+def _apply_history_if_dimension(model, rows: list[dict]) -> None:
+    """Backdates created_at (and sets updated_at=now) on `rows` in place when `model` is a
+    created_at-partitioned dimension — i.e. not one of `_NO_BACKDATE_TABLES` — and carries the
+    audit columns. Shared choke point for the bulk insert helpers so every dimension seeder routed
+    through them spreads its landing across 2020->now without each one repeating the call."""
+    table = model.__table__
+    if (table.schema, table.name) in _NO_BACKDATE_TABLES:
+        return
+    col_names = {c.name for c in table.columns}
+    if "created_at" in col_names and "updated_at" in col_names:
+        stamp_dimension_history(rows)
 
 
 def build_parser(description: str) -> argparse.ArgumentParser:
@@ -259,6 +334,10 @@ async def insert_in_batches(session: AsyncSession, model, rows: list[dict], batc
     """
     if not rows:
         return 0
+    rows = physical_gate(model, rows)
+    if not rows:
+        return 0
+    _apply_history_if_dimension(model, rows)
     for i in range(0, len(rows), batch_size):
         stmt = insert(model).values(rows[i:i + batch_size])
         await session.execute(stmt)
@@ -293,6 +372,10 @@ async def bulk_copy(session: AsyncSession, model, rows: list[dict]) -> int:
     """
     if not rows:
         return 0
+    rows = physical_gate(model, rows)  # NULL/size/overflow the table would refuse -> quarantine
+    if not rows:
+        return 0
+    _apply_history_if_dimension(model, rows)  # dimensions: backdate created_at so landing spans 2020->now
     table = model.__table__
     jsonb_columns = {c.name for c in table.columns if isinstance(c.type, JSONB)}
 

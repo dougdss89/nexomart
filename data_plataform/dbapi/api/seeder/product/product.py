@@ -9,11 +9,13 @@ from api.database import AsyncSessionLocal
 from api.samples.product import generate_randomized_catalog
 from api.schemas.product.production_product_category import ProductCategory
 from api.schemas.product.production_product_model import ProductModel
+from api.schemas.product.production_product import ProductSchema
 from api.models.product.product import Product
 from api.models.product.productcategory import ProductCategoryModel
 from api.models.product.productmodel import ProductModel as ProductModelTable
 from api.seeder.chaos import apply_product_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, stamp_dimension_history
+from api.utils.quarantine import get_quarantine, physical_gate
 from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
@@ -42,6 +44,7 @@ def get_product_seeders(
     category_id=model_id=1, which is only safe if you know those rows exist.
     """
     batch = []
+    q = get_quarantine("product.product")
     category_map = category_map or {}
     model_map = model_map or {}
 
@@ -59,28 +62,28 @@ def get_product_seeders(
         # Sale cycle: most are still on sale (sell_end_date=None)
         sell_start_date = datetime.now() - timedelta(days=random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
 
-        # 2. Assemble the dict (maps perfectly to SQLAlchemy and JSONB)
-        batch.append({
+        # 2. Assemble and validate the payload (productdetails keeps chaos already baked in by
+        # generate_randomized_catalog — see ProductDetails' price/tax ge=0.0 comment)
+        payload = {
             "product_id": product_id,
             "product_name": item["product_name"][:100],
             "model_id": model_id,
             "category_id": category_id,
-
-            # SQLAlchemy automatically converts this inner dict to JSONB
             "productdetails": item["details"],
-
             "sell_start_date": sell_start_date,
             "sell_end_date": None,
-
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
             "is_active": True,
             "row_guid": str(uuid.uuid4())
-        })
+        }
+        with q.row(payload):
+            batch.append(ProductSchema(**payload).model_dump())
 
     if apply_chaos:
         batch = apply_product_chaos(batch, chaos_rate=chaos_rate)
 
+    q.finish()
     return batch
 
 
@@ -122,8 +125,9 @@ async def seed_products(count: int = 500, chaos_rate: float = 0.05, batch_size: 
             )
             next_id += current_batch_size
 
+            products = physical_gate(Product, products)
             try:
-                stmt = insert(Product).values(products)
+                stmt = insert(Product).values(stamp_dimension_history(products))
                 await session.execute(stmt)
                 await session.commit()
                 total_inserted += len(products)

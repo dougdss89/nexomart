@@ -6,10 +6,11 @@ from datetime import datetime, timedelta
 import random
 from sqlalchemy import insert
 from api.database import AsyncSessionLocal
-from api.schemas.product.production_product_category import ProductCategory
+from api.schemas.product.production_product_category import ProductCategory, ProductCategorySchema
 from api.models.product.productcategory import ProductCategoryModel
 from api.seeder.chaos import apply_category_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded
+from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded, stamp_dimension_history
+from api.utils.quarantine import get_quarantine, physical_gate
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -20,25 +21,27 @@ EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
 def get_category_seeders(chaos_rate: float = 0.0, apply_chaos: bool = False) -> list[dict]:
 
     batch = []
+    q = get_quarantine("product.productcategory")
     # Widened 2026-09-05 (was 30-365 days back) so created_date spans multiple years.
     days_elapsed = random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days)
     simulated_date = datetime.now() - timedelta(days=days_elapsed)
 
     for index, category in enumerate(ProductCategory, start=1):
 
-        batch.append(
-            {
-                "category_id": index,
-                "category_name": category.value,
-                "parent_category_id": None,
-                "category_identifier": uuid.uuid4(),
-                "created_date": simulated_date,
-            }
-        )
+        payload = {
+            "category_id": index,
+            "category_name": category.value,
+            "parent_category_id": None,
+            "category_identifier": uuid.uuid4(),
+            "created_date": simulated_date,
+        }
+        with q.row(payload):
+            batch.append(ProductCategorySchema(**payload).model_dump())
 
     if apply_chaos:
         batch = apply_category_chaos(batch, chaos_rate=chaos_rate)
 
+    q.finish()
     return batch
 
 
@@ -49,8 +52,9 @@ async def seed_product_categories(chaos_rate: float = 0.0, apply_chaos: bool = F
         if await skip_if_already_seeded(session, ProductCategoryModel, label="Categories"):
             return
         print(f"📣 Seeding {len(categories)} categories | chaos={chaos_rate:.2%}")
+        categories = physical_gate(ProductCategoryModel, categories)
         try:
-            stmt = insert(ProductCategoryModel).values(categories)
+            stmt = insert(ProductCategoryModel).values(stamp_dimension_history(categories))
             await session.execute(stmt)
             await session.commit()
             print("✅ Categories seeded successfully!")

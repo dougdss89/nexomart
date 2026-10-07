@@ -9,7 +9,9 @@ from api.database import AsyncSessionLocal
 
 from api.samples.job_roles import JOB_ROLES
 from api.models.humanresources.jobrole import HumanResourcesJobRoleModel
-from api.seeder.cli_common import build_parser, skip_if_already_seeded
+from api.schemas.humanresources.humanresources_jobrole import HRJobRoleHistory
+from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
+from api.utils.quarantine import get_quarantine, physical_gate
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -21,6 +23,7 @@ def get_job_role_seeders() -> list[dict]:
     """
 
     batch = []
+    q = get_quarantine("humanresources.jobrole")
 
     job_role_id_counter = 1
 
@@ -46,7 +49,7 @@ def get_job_role_seeders() -> list[dict]:
             old_min_salary = round(min_salary * growth_factor, 2)
             old_max_salary = round(max_salary * growth_factor, 2)
 
-            batch.append({
+            payload = {
                 "jobrole_id": job_role_id_counter,
                 "job_title": title,
                 "min_salary": old_min_salary,
@@ -59,7 +62,9 @@ def get_job_role_seeders() -> list[dict]:
                 "updated_at": today,
                 "is_active": True,
                 "row_guid": uuid.uuid4()
-            })
+            }
+            with q.row(payload):
+                batch.append(HRJobRoleHistory(**payload).model_dump())
 
             job_role_id_counter += 1
 
@@ -70,7 +75,7 @@ def get_job_role_seeders() -> list[dict]:
 
 
         #current record
-        batch.append({
+        payload = {
             "jobrole_id": job_role_id_counter,
             "job_title": title,
             "min_salary": min_salary,
@@ -83,10 +88,13 @@ def get_job_role_seeders() -> list[dict]:
             "updated_at": today,
             "is_active": True,
             "row_guid": uuid.uuid4()
-        })
+        }
+        with q.row(payload):
+            batch.append(HRJobRoleHistory(**payload).model_dump())
 
         job_role_id_counter += 1
 
+    q.finish()
     return batch
 
 
@@ -97,8 +105,9 @@ async def seed_job_roles():
         if await skip_if_already_seeded(session, HumanResourcesJobRoleModel, label="Job roles"):
             return
         print(f"📣 Seeding {len(roles)} job role records (including history)...")
+        roles = physical_gate(HumanResourcesJobRoleModel, roles)
         try:
-            stmt = insert(HumanResourcesJobRoleModel).values(roles)
+            stmt = insert(HumanResourcesJobRoleModel).values(stamp_dimension_history(roles))
             await session.execute(stmt)
             await session.commit()
             print("✅ Job roles seeded successfully!")

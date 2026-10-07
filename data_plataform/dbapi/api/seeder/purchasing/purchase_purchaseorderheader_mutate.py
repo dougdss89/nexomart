@@ -6,8 +6,8 @@ from api.database import AsyncSessionLocal
 from api.models.humanresources.employee import HumanResourcesEmployeeModel  # noqa: F401
 from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
 from api.models.purchasing.vendor import PurchaseVendorModel  # noqa: F401
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 # HumanResourcesEmployeeModel/PurchaseVendorModel: unused directly, but purchaseorderheader has
 # FKs to both — see humanresources_employee_mutate.py's comment for the full explanation (same

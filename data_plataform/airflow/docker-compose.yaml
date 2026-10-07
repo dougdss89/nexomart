@@ -130,6 +130,9 @@ services:
       - ../pyproject.toml:/dockervol/pyproject.toml:ro
       - ../uv.lock:/dockervol/uv.lock:ro
       - ../dbapi:/dockervol/dbapi:ro
+      # contract drift gate (nexomart_seeder_dag.contract_drift_check) reads these
+      - ../tests:/dockervol/tests:ro
+      - ../nexomart_contract:/dockervol/nexomart_contract:ro
     command: airflow celery worker -H airflow-worker@airflow-worker
     ports:
       - "8793:8793"

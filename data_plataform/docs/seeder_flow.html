@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Seeder Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #EDF0F3;
+    --panel: #F8FAFB;
+    --surface: #FFFFFF;
+    --ink: #132029;
+    --muted: #586975;
+    --line: #B7C3CD;
+    --trail: #DCE3E9;
+    --zone: #EAEFF3;
+    --tint: #DDE9F8;
+    --good: #0B8A79;
+    --bad: #C43D2A;
+    --chaos: #B87A0A;
+    --info: #2A5DB0;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E151B;
+      --panel: #0B1116;
+      --surface: #152029;
+      --ink: #E5EDF3;
+      --muted: #94A5B2;
+      --line: #334452;
+      --trail: #22303B;
+      --zone: #101A22;
+      --tint: #1B2B3E;
+      --good: #3CCDB8;
+      --bad: #FF7B67;
+      --chaos: #F0B44C;
+      --info: #7BA4EE;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E151B;
+    --panel: #0B1116;
+    --surface: #152029;
+    --ink: #E5EDF3;
+    --muted: #94A5B2;
+    --line: #334452;
+    --trail: #22303B;
+    --zone: #101A22;
+    --tint: #1B2B3E;
+    --good: #3CCDB8;
+    --bad: #FF7B67;
+    --chaos: #F0B44C;
+    --info: #7BA4EE;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; }
+
+  header { display: grid; gap: 6px; margin-block-end: 20px; }
+  .id { font: 500 12px/1 var(--mono); letter-spacing: 0.04em; color: var(--muted); }
+  h1 { margin: 0; font-size: 30px; line-height: 1.15; font-weight: 600; text-wrap: balance; }
+  .lede { margin: 0; max-width: 68ch; color: var(--muted); }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-block-end: 14px; }
+  button {
+    font: 500 13px/1 var(--sans);
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 9px 13px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--info); }
+  button:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+  .group { display: inline-flex; }
+  .group button { border-radius: 0; margin-inline-start: -1px; }
+  .group button:first-child { border-radius: 6px 0 0 6px; margin-inline-start: 0; }
+  .group button:last-child { border-radius: 0 6px 6px 0; }
+  .group button[aria-pressed="true"] { background: var(--tint); border-color: var(--info); position: relative; z-index: 1; }
+  .hint { font-size: 13px; color: var(--muted); }
+
+  .stage { margin: 0; }
+  .scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  svg { display: block; width: 100%; min-width: 1000px; height: auto; }
+
+  .zone { fill: var(--zone); stroke: var(--line); stroke-dasharray: 4 4; }
+  .zone-label { fill: var(--muted); font: 500 11px var(--mono); }
+  .link { stroke: var(--line); stroke-width: 1.5; fill: none; }
+  .link.bad { stroke: var(--bad); }
+  .link.dash { stroke-dasharray: 5 4; }
+  .arr { fill: var(--muted); }
+  .arr-bad { fill: var(--bad); }
+  .trail { stroke: var(--trail); stroke-width: 3; stroke-linecap: round; }
+
+  .node rect, .node path, .node ellipse, .node polygon { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+  .node.hot rect, .node.hot path, .node.hot ellipse, .node.hot polygon { stroke: var(--info); stroke-width: 2.25; }
+  .node.flash rect { stroke: var(--good); stroke-width: 2.75; }
+  .node.q rect { stroke: var(--bad); stroke-dasharray: 5 4; }
+  .node.q.hot rect { stroke: var(--bad); stroke-width: 2.5; }
+  .node .t { fill: var(--ink); font: 600 13px var(--sans); text-anchor: middle; }
+  .node .s { fill: var(--muted); font: 500 10.5px var(--mono); text-anchor: middle; }
+  .dia[data-state="check"] polygon { stroke: var(--info); stroke-width: 2.5; }
+  .dia[data-state="ok"] polygon { stroke: var(--good); stroke-width: 2.75; }
+  .dia[data-state="fail"] polygon { stroke: var(--bad); stroke-width: 2.75; fill: var(--surface); }
+  .dcount { fill: var(--ink); font: 600 12px var(--mono); text-anchor: middle; }
+  .dia[data-state="fail"] .dcount { fill: var(--bad); }
+  .dlabel { fill: var(--muted); font: 500 11px var(--mono); text-anchor: middle; }
+  .note { fill: var(--muted); font: 500 11px var(--mono); }
+  .note.bad { fill: var(--bad); }
+  .note.mid { text-anchor: middle; }
+
+  .tk-good { fill: var(--good); }
+  .tk-bad { fill: var(--bad); }
+  .tk-dirty { fill: var(--chaos); }
+  .pulse { fill: none; stroke: var(--info); stroke-width: 2; }
+  .bar { fill: var(--info); }
+  .barlabel { fill: var(--surface); font: 600 10px var(--mono); text-anchor: middle; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-block-start: 12px; font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot.good { background: var(--good); } .dot.bad { background: var(--bad); } .dot.chaos { background: var(--chaos); }
+  .pill { width: 22px; height: 10px; border-radius: 5px; background: var(--info); display: inline-block; }
+
+  .status { margin-block: 18px 0; min-height: 3em; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 14px 44px; margin-block: 22px; }
+  .stat { display: grid; gap: 2px; }
+  .stat .k { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .stat .v { font: 500 26px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+  .stat .v.db { color: var(--info); }
+  .stat .v.q { color: var(--bad); }
+  .stat .v.over { color: var(--bad); }
+  .stat .v small { font-size: 13px; color: var(--muted); font-weight: 400; }
+
+  h2 { margin: 30px 0 12px; font-size: 18px; font-weight: 600; }
+  .steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 14px; }
+  .steps li { counter-increment: step; position: relative; padding: 10px 12px 10px 42px; border-radius: 6px; color: var(--muted); font-size: 14px; }
+  .steps li::before { content: counter(step); position: absolute; left: 12px; top: 10px; font: 600 13px/1.6 var(--mono); color: var(--muted); }
+  .steps li.on { background: var(--tint); color: var(--ink); }
+  .steps li.on::before { color: var(--info); }
+  code { font: 500 12.5px var(--mono); }
+  .foot { margin-block-start: 22px; max-width: 78ch; font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 520px) { h1 { font-size: 25px; } .stat .v { font-size: 22px; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<style>body { margin: 0; }</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <span class="id">nexomart_seeder_dag · */15 * * * *</span>
+    <h1>A batch's path to the database</h1>
+    <p class="lede">Each dot is a row of data. A run starts in Airflow and passes the contract gate; the rows are then generated, validated and deliberately dirtied before going to Postgres. Rows that Pydantic rejects go to the <code>quarantine</code> bucket.</p>
+  </header>
+
+  <div class="controls">
+    <button id="toggle" type="button">Pause</button>
+    <button id="inject" type="button">Inject a schema-invalid row</button>
+    <button id="injectPhys" type="button">Inject a table-invalid row</button>
+    <div class="group" role="group" aria-label="Speed">
+      <button type="button" data-speed="0.5" aria-pressed="false">0.5x</button>
+      <button type="button" data-speed="1" aria-pressed="true">1x</button>
+      <button type="button" data-speed="2" aria-pressed="false">2x</button>
+    </div>
+    <span class="hint">With 2 rejected rows out of 100, the rate goes over 1% and the task fails.</span>
+  </div>
+
+  <figure class="stage">
+    <div class="scroll">
+      <svg viewBox="0 0 1400 480" role="img" aria-label="Seeder flowchart: Airflow triggers the DAG, the contract gate checks the YAML, the seeder generates, validates and deliberately dirties the rows, a physical check drops rows the table would refuse and q.finish() checks the rejection rate, and only then the batch goes to Postgres with COPY; rejected rows from either check go to quarantine in MinIO.">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arr" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="arrBad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arr-bad" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+
+        <rect class="zone" x="400" y="92" width="792" height="166" rx="10"/>
+        <text class="zone-label" x="1184" y="111" text-anchor="end">seeder process · dbapi/api/seeder/&lt;domain&gt;/*.py</text>
+
+        <line class="link" x1="164" y1="196" x2="216" y2="196" marker-end="url(#arr)"/>
+        <line class="link" x1="358" y1="196" x2="410" y2="196" marker-end="url(#arr)"/>
+        <line class="link" x1="552" y1="196" x2="604" y2="196" marker-end="url(#arr)"/>
+        <line class="link" x1="746" y1="196" x2="798" y2="196" marker-end="url(#arr)"/>
+        <line class="link" x1="940" y1="196" x2="962" y2="196" marker-end="url(#arr)"/>
+        <line class="link" x1="1016" y1="196" x2="1038" y2="196" marker-end="url(#arr)"/>
+        <line class="link" x1="1180" y1="196" x2="1232" y2="196" marker-end="url(#arr)"/>
+
+        <line class="link bad" x1="676" y1="216" x2="676" y2="328" marker-end="url(#arrBad)"/>
+        <text class="note bad" x="688" y="276">rejected</text>
+        <path class="link bad dash" d="M990,224 V376 H750" marker-end="url(#arrBad)"/>
+        <text class="note mid bad" x="868" y="367">physical rejects</text>
+
+        <g class="node" id="i0">
+          <rect x="24" y="124" width="140" height="92" rx="8"/>
+          <line class="trail" x1="36" y1="196" x2="152" y2="196"/>
+          <text class="t" x="94" y="150">Airflow</text>
+          <text class="s" x="94" y="168">*/15 * * * *</text>
+        </g>
+        <g class="node" id="i1">
+          <rect x="218" y="124" width="140" height="92" rx="8"/>
+          <line class="trail" x1="230" y1="196" x2="346" y2="196"/>
+          <text class="t" x="288" y="150">Contract gate</text>
+          <text class="s" x="288" y="168">contract_drift_check</text>
+        </g>
+        <g class="node" id="i2">
+          <rect x="412" y="124" width="140" height="92" rx="8"/>
+          <line class="trail" x1="424" y1="196" x2="540" y2="196"/>
+          <text class="t" x="482" y="150">Generate rows</text>
+          <text class="s" x="482" y="168">samples/ + Faker</text>
+        </g>
+        <g class="node" id="i3">
+          <rect x="606" y="124" width="140" height="92" rx="8"/>
+          <line class="trail" x1="618" y1="196" x2="734" y2="196"/>
+          <text class="t" x="676" y="150">Validate</text>
+          <text class="s" x="676" y="168">Pydantic model_dump</text>
+        </g>
+        <g class="node" id="i4">
+          <rect x="800" y="124" width="140" height="92" rx="8"/>
+          <line class="trail" x1="812" y1="196" x2="928" y2="196"/>
+          <text class="t" x="870" y="150">Chaos</text>
+          <text class="s" x="870" y="168">deliberate dirt</text>
+        </g>
+        <g class="node dia" id="i5" data-state="">
+          <polygon points="990,170 1016,196 990,222 964,196"/>
+          <text class="dlabel" x="990" y="146">physical</text>
+          <text class="dlabel" x="990" y="158">q.finish()</text>
+          <text class="dcount" id="dcount" x="990" y="200">0</text>
+        </g>
+        <g class="node" id="i6">
+          <rect x="1040" y="124" width="140" height="92" rx="8"/>
+          <line class="trail" x1="1052" y1="196" x2="1168" y2="196"/>
+          <text class="t" x="1110" y="150">Send</text>
+          <text class="s" x="1110" y="168">bulk_copy · COPY</text>
+        </g>
+        <g class="node" id="i7">
+          <path d="M1234,136 A70,12 0 0 1 1374,136 V204 A70,12 0 0 1 1234,204 Z"/>
+          <ellipse cx="1304" cy="136" rx="70" ry="12"/>
+          <line class="trail" x1="1246" y1="196" x2="1362" y2="196"/>
+          <text class="t" x="1304" y="162">PostgreSQL</text>
+          <text class="s" x="1304" y="179">nexomart_db</text>
+        </g>
+
+        <g class="node q" id="nq">
+          <rect x="606" y="330" width="140" height="92" rx="8"/>
+          <text class="t" x="676" y="364">Quarantine</text>
+          <text class="s" x="676" y="382">MinIO · quarantine</text>
+          <text class="s" x="676" y="400">Parquet</text>
+        </g>
+        <text class="note mid" x="676" y="444">payload (JSON) + errors columns</text>
+        <text class="note mid bad" x="676" y="462">never enters Postgres</text>
+
+        <g id="tokens"></g>
+        <circle id="pulse" class="pulse" r="6" cx="94" cy="196"/>
+        <rect id="bar" class="bar" x="973" y="189" width="34" height="14" rx="7" opacity="0"/>
+        <text id="barLabel" class="barlabel" x="990" y="199.5" opacity="0">0</text>
+      </svg>
+    </div>
+    <figcaption class="legend">
+      <span><i class="dot good"></i>valid row</span>
+      <span><i class="dot bad"></i>rejected (Pydantic or physical check)</span>
+      <span><i class="dot chaos"></i>deliberately dirty (chaos)</span>
+      <span><i class="pill"></i>whole batch in COPY</span>
+    </figcaption>
+  </figure>
+
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <div class="stats">
+    <div class="stat"><span class="k">In Postgres</span><span class="v db" id="sDb">0</span></div>
+    <div class="stat"><span class="k">Quarantined</span><span class="v q" id="sQ">0</span></div>
+    <div class="stat"><span class="k">Rejected this run</span><span class="v" id="sRun">0 of 0</span></div>
+  </div>
+
+  <h2>What happens, in order</h2>
+  <ol class="steps" id="steps">
+    <li>Airflow triggers <code>nexomart_seeder_dag</code> every 15 minutes.</li>
+    <li><code>contract_drift_check</code> compares the YAML contract, the Pydantic schema and the table. If they diverge, the run stops here.</li>
+    <li>The seeder generates rows from <code>samples/</code> and Faker, using real foreign keys from the database.</li>
+    <li>Pydantic validates each row. A rejected row goes to quarantine and the valid ones continue.</li>
+    <li>Chaos deliberately dirties 5% to 10% of the rows that were already validated.</li>
+    <li>The physical check sends rows the table would refuse to quarantine (NULL in a NOT NULL column, text longer than the column, number overflow). Then <code>q.finish()</code> checks the rate: above 1% the task fails before touching the database.</li>
+    <li><code>bulk_copy</code>, from <code>utils/cli_common.py</code>, sends the whole batch with COPY.</li>
+    <li>Postgres receives the rows, including the deliberately dirty ones.</li>
+  </ol>
+
+  <p class="foot">Simulation: 100 rows per run and 8% chaos to keep it readable. In the real seeder each run has 1,000 to 50,000 rows. The 1% limit is checked from 50 rows on and again at the end, and validation, chaos and the send happen on the batch, not row by row.</p>
+</main>
+
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  var LANE = 196, QY = 330;
+  var SPEED = 170, BAR_SPEED = 240, PULSE_SPEED = 210;
+  var X = { n0: 94, n1: 288, n2: 482, n3: 676, n4: 870, dia: 990, n6: 1304 };
+  // x-ranges of the 8 stops, same order as the ordered list: airflow, gate, generate, validate, chaos, finish, send, postgres
+  var ZONES = [[18, 170], [212, 364], [406, 558], [600, 752], [794, 946], [960, 1020], [1034, 1186], [1228, 1380]];
+
+  function $(id) { return document.getElementById(id); }
+  function randInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function pct(n, d) { return d ? (n / d * 100).toFixed(1) : '0.0'; }
+
+  var gTokens = $('tokens'), pulseEl = $('pulse'), barEl = $('bar'), barLabel = $('barLabel');
+  var stepEls = document.querySelectorAll('#steps li');
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var running = !reduce, speed = 1, firstRun = true;
+  var db = 0, qTotal = 0, pendingBad = 0, pendingPhys = 0;
+  var run = null, tokens = [], px = X.n0, pulseOn = true, barX = X.dia, barOn = false;
+  var statusText = '', noteText = '', noteUntil = 0, shownStatus = null;
+
+  function setStatus(msg) { statusText = msg; }
+  function note(msg) { noteText = msg; noteUntil = performance.now() + 2600; }
+  function setDia(state) { $('i5').setAttribute('data-state', state); }
+  function flash(id) {
+    var el = $(id);
+    el.classList.add('flash');
+    setTimeout(function () { el.classList.remove('flash'); }, 700);
+  }
+
+  function newRun() {
+    var bad = {};
+    var first = firstRun ? 30 : randInt(8, 90);
+    var phys = {};
+    if (!firstRun && Math.random() < 0.4) phys[first] = true; else bad[first] = true;
+    firstRun = false;
+    for (var k = 0; k < pendingBad; k++) bad[randInt(5, 95)] = true;
+    for (var m = 0; m < pendingPhys; m++) phys[randInt(5, 95)] = true;
+    pendingBad = 0;
+    pendingPhys = 0;
+    run = { phase: 'trigger', t: 0, total: 100, spawned: 0, spawnT: 0, attempted: 0, rejected: 0, valid: 0, bad: bad, phys: phys, failed: false, gate: false };
+    px = X.n0;
+    pulseOn = true;
+    barOn = false;
+    setDia('');
+    setStatus('Airflow triggers the run and the gate compares contract, schema and table.');
+  }
+
+  function spawn(i) {
+    var el = document.createElementNS(NS, 'circle');
+    el.setAttribute('r', '4.2');
+    el.setAttribute('class', 'tk-good');
+    el.setAttribute('cx', X.n2);
+    el.setAttribute('cy', LANE);
+    gTokens.appendChild(el);
+    tokens.push({ el: el, x: X.n2, y: LANE, bad: !!run.bad[i], phys: !!run.phys[i], validated: false, chaos: false, branch: false, branch2: false, fading: 0 });
+  }
+
+  function removeToken(i) {
+    gTokens.removeChild(tokens[i].el);
+    tokens.splice(i, 1);
+  }
+
+  function fail() {
+    if (run.failed) return;
+    run.failed = true;
+    run.phase = 'fail';
+    run.t = 0;
+    for (var i = 0; i < tokens.length; i++) if (!tokens[i].bad) tokens[i].fading = 1;
+    setDia('fail');
+    setStatus('Task failed: ' + run.rejected + ' of ' + run.attempted + ' rows rejected (' + pct(run.rejected, run.attempted) + '% > 1%). Nothing went to Postgres; the rejected rows are in quarantine/.');
+  }
+
+  function checkMid() {
+    if (!run.failed && run.attempted >= 50 && run.rejected / run.attempted > 0.01) fail();
+  }
+
+  function moveTokens(dt) {
+    for (var i = tokens.length - 1; i >= 0; i--) {
+      var t = tokens[i];
+      if (t.fading > 0) {
+        t.fading -= dt * 4;
+        if (t.fading <= 0) { removeToken(i); continue; }
+        t.el.setAttribute('opacity', t.fading);
+        continue;
+      }
+      if (t.branch2) {
+        if (t.y < QY) { t.y = Math.min(QY, t.y + SPEED * dt); }
+        else {
+          t.x -= SPEED * dt;
+          if (t.x <= 752) { t.x = 752; qTotal++; t.fading = 1; }
+        }
+      } else if (!t.branch) {
+        t.x += SPEED * dt;
+        if (!t.validated && t.x >= X.n3) {
+          t.validated = true;
+          run.attempted++;
+          if (t.bad) {
+            t.branch = true;
+            t.x = X.n3;
+            run.rejected++;
+            t.el.setAttribute('class', 'tk-bad');
+            checkMid();
+          }
+        }
+        if (!t.branch && !t.chaos && t.x >= X.n4) {
+          t.chaos = true;
+          if (Math.random() < 0.08) t.el.setAttribute('class', 'tk-dirty');
+        }
+        if (!t.branch && t.x >= X.dia) {
+          if (t.phys) {
+            t.branch2 = true;
+            t.x = X.dia;
+            run.rejected++;
+            t.el.setAttribute('class', 'tk-bad');
+            note('Physical check: a row the table would refuse goes to quarantine.');
+            checkMid();
+          } else {
+            run.valid++;
+            removeToken(i);
+            continue;
+          }
+        }
+      } else {
+        t.y += SPEED * dt;
+        if (t.y >= QY) { t.y = QY; qTotal++; t.fading = 1; }
+      }
+      t.el.setAttribute('cx', t.x);
+      t.el.setAttribute('cy', t.y);
+    }
+  }
+
+  function step(dt) {
+    var p = run.phase;
+    if (p === 'trigger') {
+      px += PULSE_SPEED * dt;
+      if (!run.gate && px >= X.n1) { run.gate = true; flash('i1'); }
+      if (px >= X.n2) {
+        pulseOn = false;
+        run.phase = 'generate';
+        setStatus('Generating and validating ' + run.total + ' rows.');
+      }
+    } else if (p === 'generate') {
+      run.spawnT += dt;
+      while (run.spawnT >= 0.03 && run.spawned < run.total) {
+        run.spawnT -= 0.03;
+        spawn(run.spawned++);
+      }
+      if (run.spawned >= run.total) run.phase = 'drain';
+    }
+
+    moveTokens(dt);
+
+    p = run.phase;
+    if (p === 'drain' && tokens.length === 0) {
+      run.phase = 'eval';
+      run.t = 0;
+      setDia('check');
+      setStatus('q.finish(): writes the quarantine and checks the rejection rate of both checks.');
+    } else if (p === 'eval') {
+      run.t += dt;
+      if (run.t >= 0.8) {
+        if (run.attempted && run.rejected / run.attempted > 0.01) {
+          fail();
+        } else {
+          run.phase = 'send';
+          barX = X.dia;
+          barOn = true;
+          setDia('ok');
+          setStatus('bulk_copy: ' + run.valid + ' rows go to Postgres in a single COPY (' + run.rejected + ' rejected, ' + pct(run.rejected, run.attempted) + '%, within the 1% limit).');
+        }
+      }
+    } else if (p === 'send') {
+      barX += BAR_SPEED * dt;
+      if (barX >= X.n6) {
+        db += run.valid;
+        barOn = false;
+        run.phase = 'gap';
+        run.t = 0;
+        flash('i7');
+      }
+    } else if (p === 'gap') {
+      run.t += dt;
+      if (run.t >= 2) newRun();
+    } else if (p === 'fail') {
+      run.t += dt;
+      if (run.t >= 3.6 && tokens.length === 0) newRun();
+    }
+  }
+
+  function render() {
+    pulseEl.setAttribute('cx', px);
+    pulseEl.setAttribute('opacity', pulseOn ? 1 : 0);
+    barEl.setAttribute('x', barX - 17);
+    barEl.setAttribute('opacity', barOn ? 1 : 0);
+    barLabel.setAttribute('x', barX);
+    barLabel.setAttribute('opacity', barOn ? 1 : 0);
+    barLabel.textContent = run.valid;
+
+    var hot = [false, false, false, false, false, false, false, false];
+    var hotQ = false;
+    function mark(x) {
+      for (var z = 0; z < ZONES.length; z++) if (x >= ZONES[z][0] && x <= ZONES[z][1]) hot[z] = true;
+    }
+    if (pulseOn) mark(px);
+    if (barOn) mark(barX);
+    if (run.phase === 'eval') hot[5] = true;
+    for (var i = 0; i < tokens.length; i++) {
+      if (tokens[i].branch2) { hotQ = true; hot[5] = true; } else if (tokens[i].branch) { hotQ = true; hot[3] = true; } else mark(tokens[i].x);
+    }
+    for (var n = 0; n < 8; n++) {
+      $('i' + n).classList.toggle('hot', hot[n]);
+      stepEls[n].classList.toggle('on', hot[n]);
+    }
+    $('nq').classList.toggle('hot', hotQ);
+
+    $('dcount').textContent = run.valid;
+    $('sDb').textContent = db.toLocaleString('en-US');
+    $('sQ').textContent = qTotal.toLocaleString('en-US');
+    var sRun = $('sRun');
+    var over = run.attempted > 0 && run.rejected / run.attempted > 0.01;
+    sRun.className = 'v' + (over ? ' over' : '');
+    sRun.innerHTML = run.rejected + ' of ' + run.attempted + ' <small>' + pct(run.rejected, run.attempted) + '% · limit 1%</small>';
+
+    var msg = performance.now() < noteUntil ? noteText : statusText;
+    if (msg !== shownStatus) { $('status').textContent = msg; shownStatus = msg; }
+  }
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (running) step(dt * speed);
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  $('toggle').addEventListener('click', function () {
+    running = !running;
+    this.textContent = running ? 'Pause' : 'Play';
+  });
+  $('injectPhys').addEventListener('click', function () {
+    if (run.phase === 'generate' && run.spawned < run.total - 3) {
+      run.phys[randInt(run.spawned + 1, run.total - 1)] = true;
+      note('A row the table would refuse was injected into this run.');
+    } else {
+      pendingPhys++;
+      note('A row the table would refuse will enter the next run.');
+    }
+  });
+  $('inject').addEventListener('click', function () {
+    if (run.phase === 'generate' && run.spawned < run.total - 3) {
+      run.bad[randInt(run.spawned + 1, run.total - 1)] = true;
+      note('A schema-invalid row was injected into this run.');
+    } else {
+      pendingBad++;
+      note('A schema-invalid row will enter the next run.');
+    }
+  });
+  var speedBtns = document.querySelectorAll('[data-speed]');
+  Array.prototype.forEach.call(speedBtns, function (b) {
+    b.addEventListener('click', function () {
+      speed = parseFloat(b.getAttribute('data-speed'));
+      Array.prototype.forEach.call(speedBtns, function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+    });
+  });
+
+  // Start mid-run so the first frame already shows rows in flight and one rejected row in quarantine.
+  newRun();
+  for (var s = 0; s < 372; s++) step(1 / 60);
+  if (reduce) $('toggle').textContent = 'Play';
+  render();
+  requestAnimationFrame(function (t) { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

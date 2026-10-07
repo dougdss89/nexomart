@@ -11,7 +11,7 @@ class CountryRegion(BaseModel):
     # ISO 3166-1 alpha-2 (e.g.: BR, US, CA) has 2 letters
     country_code: str = Field(min_length=2, max_length=2) 
     
-    country_region: str = Field(max_length=100)
+    countryregion: str = Field(max_length=100)
     
     country_name: str = Field(None, max_length=100) 
     

@@ -16,8 +16,10 @@ from api.models.sales.specialoffer import SpecialOfferModel
 from api.models.person.customer import CustomerModel
 from api.models.person.seller import SellerModel
 from api.models.product.product import Product
+from api.schemas.sales.sales_order import SalesOrderSchema
 from api.seeder.chaos import apply_sales_order_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args, generate_unique_business_ids, bulk_copy, sample_fk_ids
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, generate_unique_business_ids, bulk_copy, sample_fk_ids
+from api.utils.quarantine import get_quarantine
 from api.config.seeder_config import get_ranges
 
 # Adjust path to import API modules
@@ -64,9 +66,10 @@ def generate_sales_order_payloads(
 ) -> List[Dict[str, Any]]:
     """`order_numbers` must be pre-generated, collision-checked IDs (see generate_unique_business_ids)."""
     batch = []
+    q = get_quarantine("sales.salesorder")
     for order_num in order_numbers:
         items = generate_order_items(order_num, product_ids, random.randint(1, 4))
-        total_amount = sum(item["unit_price"] * item["quantity"] for item in items)
+        total_amount = sum(Decimal(str(item["unit_price"])) * item["quantity"] for item in items).quantize(Decimal("0.01"))
         
         order_date = datetime.now() - timedelta(days=random.randint(1, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
         order_status = random.choices(
@@ -74,7 +77,8 @@ def generate_sales_order_payloads(
             weights=[40, 35, 10, 10, 5],
         )[0]
 
-        batch.append({
+        payload = {
+            "salesorder_id": 1,  # placeholder for Pydantic validation (gt=0); removed before insert
             "salesordernumber": order_num,
             "customer_id": random.choice(customer_ids),
             "saleschannel_id": random.choice(channel_ids),
@@ -82,7 +86,7 @@ def generate_sales_order_payloads(
             "store_id": random.choice(seller_ids),
             "order_date": order_date,
             "order_status": order_status,
-            "total_amount": Decimal(total_amount).quantize(Decimal("0.01")),
+            "total_amount": total_amount,
             "currency_code": "BRL",
             "order_items": items,
             "payment_info": {
@@ -100,7 +104,16 @@ def generate_sales_order_payloads(
             "updated_at": datetime.now(),
             "is_active": True,
             "row_guid": uuid.uuid4()
-        })
+        }
+        with q.row(payload):
+            order_obj = SalesOrderSchema(**payload)
+            validated_order = order_obj.model_dump()
+            # order_items/payment_info carry Decimal fields — JSON-safe dump for the JSONB columns
+            validated_order["order_items"] = [item.model_dump(mode="json") for item in order_obj.order_items]
+            validated_order["payment_info"] = order_obj.payment_info.model_dump(mode="json")
+            validated_order.pop("salesorder_id", None)  # let the database's autoincrement take over
+            batch.append(validated_order)
+    q.finish()
     return batch
 
 async def seed_sales_orders(count: int = 50, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True):

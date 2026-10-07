@@ -7,8 +7,8 @@ from api.models.person.seller import SellerModel  # noqa: F401
 from api.models.sales.saleschannel import SalesChannelModel  # noqa: F401
 from api.models.sales.salesorder import SalesOrderModel
 from api.models.sales.specialoffer import SpecialOfferModel  # noqa: F401
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 # SellerModel/SalesChannelModel/SpecialOfferModel: unused directly, but salesorder has FKs to
 # all three — see humanresources_employee_mutate.py's comment for the full explanation (same

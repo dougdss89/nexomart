@@ -10,7 +10,7 @@ from api.services.sales.sales_channel_service import SalesChannelService
 from api.schemas.sales.sales_channel import SalesChannelSchema
 from api.models.sales.saleschannel import SalesChannelModel
 from api.samples.sales_channel import SALES_CHANNEL_SAMPLES
-from api.seeder.cli_common import build_parser, skip_if_already_seeded
+from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
 
 async def seed_sales_channels(count: int):
     """
@@ -29,6 +29,7 @@ async def seed_sales_channels(count: int):
         print(f"💰 Preparing load of {len(samples_to_use)} sales channels...")
 
         # Convert sample dicts into Pydantic schemas for validation
+        stamp_dimension_history(samples_to_use)  # backdate created_at so the landing spans 2020->now
         payload = [SalesChannelSchema(**item) for item in samples_to_use]
 
         try:

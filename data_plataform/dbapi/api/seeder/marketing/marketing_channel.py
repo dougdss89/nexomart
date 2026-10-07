@@ -7,7 +7,7 @@ from sqlalchemy import insert
 from api.database import AsyncSessionLocal
 from api.schemas.marketing.marketing_channel import MarketingChannel, ChannelName, PlatformName
 from api.models.marketing.marketing_channel import MarketingChannelModel
-from api.seeder.cli_common import build_parser, skip_if_already_seeded
+from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -56,7 +56,7 @@ async def seed_marketing_channels():
             return
         print(f"📣 Seeding {len(channels)} marketing channels...")
         try:
-            stmt = insert(MarketingChannelModel).values(channels)
+            stmt = insert(MarketingChannelModel).values(stamp_dimension_history(channels))
             await session.execute(stmt)
             await session.commit()
             print("✅ Channels seeded successfully!")

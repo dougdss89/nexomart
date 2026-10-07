@@ -6,8 +6,8 @@ from api.database import AsyncSessionLocal
 from api.models.product.product import Product  # noqa: F401
 from api.models.warehouse.transactionhistory import TransactionHistoryModel
 from api.models.warehouse.transactiontype import WarehouseTransactionType  # noqa: F401
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 # Product/WarehouseTransactionType: unused directly, but transactionhistory has FKs to both —
 # see humanresources_employee_mutate.py's comment for the full explanation (same root cause).

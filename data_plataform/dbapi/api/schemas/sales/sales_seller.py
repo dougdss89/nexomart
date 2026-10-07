@@ -47,7 +47,7 @@ class SellerMetrics(BaseModel):
     total_gross_revenue: Decimal = Field(default=0.00, ge=0.0, decimal_places=2)
     total_items_sold: int = Field(ge=0)
     count_orders: int = Field(default=0, ge=0) # Name fixed to match the table
-    chargeback_rate: Decimal = Field(default=0.00, ge=0.0, decimal_places=2)
+    chargeback_rate: Decimal = Field(default=0.00, ge=0.0, decimal_places=4)
     date_first_sale: date = Field(default_factory=date.today)
     date_last_sale: date = Field(default_factory=date.today)
 
@@ -63,9 +63,9 @@ class Seller(BaseModel):
     
     seller_id: int = Field(gt=0)
     seller_name: str = Field(max_length=100)
-    trading_name: str = Field(max_length=100)
+    last_name: str = Field(max_length=100)
     social_number: str = Field(max_length=20)
-    opened_date: date = Field(default_factory=date.today)
+    opened_date: datetime = Field(default_factory=datetime.now)  # DateTime column, not Date
     commission_rate: Decimal = Field(ge=0.0, decimal_places=4)
     country_id: int = Field(gt=0)
     demographics: SellerDemographics

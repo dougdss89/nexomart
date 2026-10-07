@@ -22,7 +22,7 @@ from api.services.warehouse.warehouse_location_service import WarehouseLocationS
 
 from api.samples.warehouse_location import WAREHOUSE_LOCATION_SAMPLES
 from api.seeder.chaos import apply_warehouse_location_chaos
-from api.seeder.cli_common import build_parser, add_volume_args, resolve_volume_args
+from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, stamp_dimension_history
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +110,7 @@ async def run_seeder(count: int, chaos_rate: float = 0.05, batch_size: int = 10_
             current_batch_size = min(batch_size, count - total_inserted)
             data = seeder.generate_batch(current_batch_size, chaos_rate=chaos_rate, apply_chaos=apply_chaos, start_id=next_id)
             next_id += current_batch_size
+            stamp_dimension_history(data)  # backdate created_at so the landing spans 2020->now
             try:
                 success = await WarehouseLocationService.process_bulk_integration(db, data)
                 if success:

@@ -123,12 +123,10 @@ schema:
         physicalType: integer
         required: true
         description: >
-          Present here and in the database, but ABSENT from the
-          api_contract/person/customer.yml payload (not in the Pydantic
-          Customer model) — it's populated by the seeder directly, not by
-          the API. A real divergence between the two layers, exactly the
-          kind of thing a data contract exists to surface instead of
-          discovering it in production.
+          FK to person.stateprovince. Was absent from the api contract and the
+          Pydantic Customer model until 2026-09-19, when the drift test
+          (tests/contracts/test_contract_drift.py) surfaced it; now present in
+          all layers.
         relationships:
           - to: person.stateprovince.state_province_id
 

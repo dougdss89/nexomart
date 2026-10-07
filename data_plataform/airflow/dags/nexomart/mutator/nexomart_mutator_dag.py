@@ -1,7 +1,7 @@
 """
 nexomart_mutator_dag — CDC mutation companion to nexomart_seeder_dag: runs UPDATE and
 DELETE against rows nexomart_seeder_dag already inserted, so a future Debezium+Kafka
-pipeline has non-INSERT events to capture (see dbapi/api/seeder/mutator_common.py).
+pipeline has non-INSERT events to capture (see dbapi/api/utils/mutator_common.py).
 
 Was created DISABLED (is_paused_upon_creation=True, schedule=None) pending review of the
 per-table `apply_updates` column choices in each <domain>/<table>_mutate.py (each file says

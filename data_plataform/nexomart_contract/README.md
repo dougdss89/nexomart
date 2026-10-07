@@ -33,3 +33,40 @@ things about the data that the physical schema alone doesn't say: who owns it, w
 what quality rule must pass, how often it refreshes, what counts as a breaking change, and who
 gets notified. The YAML stays versioned in git next to the code, reviewable in a PR like any
 other schema change.
+
+## Drift tests
+
+`tests/contracts/` keeps the contracts honest, in two layers:
+
+- `test_contract_drift.py` compares the api contract YAML against the Pydantic schema named in
+  `servers[].customProperties.requestSchema` and against the SQLAlchemy model: field names, `required`,
+  physical types, `varchar(n)` lengths, numeric rules (`mustBeGreaterThan` / `mustBeGreaterOrEqualTo`) and
+  enum values. No database needed.
+- `test_db_drift.py` compares every SQLAlchemy model, and the contracts, against the real Postgres
+  (`information_schema` and `pg_constraint`): column names, types, lengths, nullability, primary keys and
+  foreign keys. Indexes are not checked. It skips when the database is not
+  reachable, unless `REQUIRE_DB_DRIFT=1`.
+
+Changing a column means changing four places: the `ALTER TABLE` (or migration in
+`configs/postgresql/migrations/`), the model, the Pydantic schema and the contract. The tests fail until all
+four agree. The database is never changed by the tests or by the Pydantic/contract files.
+
+In Airflow the tests run as the first task of `nexomart_seeder_dag` (`contract_drift_check`), so a drift blocks
+the run before any seeder writes data. See `docs/AIRFLOW.md`.
+
+Run them inside the worker (where the database is reachable):
+
+```bash
+docker exec airflow_worker sh -c "cd /dockervol && PYTHONPATH=/dockervol:/dockervol/dbapi REQUIRE_DB_DRIFT=1 \
+  uv run --project /dockervol --group dev pytest tests/contracts"
+```
+
+Or on the host, without the database (the live checks skip):
+
+```bash
+uv run --no-project --python 3.12 --with pytest --with pyyaml --with pydantic --with pydantic-settings \
+  --with sqlalchemy --with asyncpg --with minio --with annotated-types --with psycopg2-binary \
+  pytest tests/contracts
+```
+
+To cover another contract, add a row to `REGISTRY` in `tests/contracts/contract_helpers.py`.

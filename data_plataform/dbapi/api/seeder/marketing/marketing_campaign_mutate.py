@@ -6,8 +6,8 @@ from decimal import Decimal
 from api.database import AsyncSessionLocal
 from api.models.marketing.marketing_campaign import MarketingCampaignModel
 from api.models.marketing.marketing_channel import MarketingChannelModel  # noqa: F401
-from api.seeder.cli_common import build_parser
-from api.seeder.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
+from api.utils.cli_common import build_parser
+from api.utils.mutator_common import add_mutation_args, resolve_mutation_args, run_mutation
 
 # MarketingChannelModel: unused directly, but marketing_campaign has an FK to marketing.channel
 # and SQLAlchemy only registers a model's Table once it's been imported somewhere in the

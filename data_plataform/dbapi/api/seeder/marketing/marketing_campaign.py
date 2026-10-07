@@ -11,7 +11,7 @@ from api.schemas.marketing.marketing_campaign import MarketingCampaign, Marketin
 from api.models.marketing.marketing_channel import MarketingChannelModel
 from api.models.marketing.marketing_campaign import MarketingCampaignModel
 from api.seeder.chaos import apply_campaign_chaos
-from api.seeder.cli_common import build_parser, add_chaos_args, resolve_chaos_args
+from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, stamp_dimension_history
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -115,7 +115,7 @@ async def seed_marketing_campaigns(chaos_rate: float = 0.05, apply_chaos: bool =
         campaigns = generate_campaign_payloads(real_channels, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
 
         try:
-            stmt = insert(MarketingCampaignModel).values(campaigns)
+            stmt = insert(MarketingCampaignModel).values(stamp_dimension_history(campaigns))
             await session.execute(stmt)
             await session.commit()
             print(f"✅ {len(campaigns)} campaigns seeded successfully!")

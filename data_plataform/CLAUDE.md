@@ -98,6 +98,13 @@ Located in `dbapi/api/seeder/<domain>/`. Every seeder **must**:
 
 For analytic fact seeders, derive revenue top-down: Impressions → CTR → Clicks → CPC → Cost → CVR → Conversions → AOV → Revenue.
 
+### Dimension `created_at` — historical spread (2020→now)
+
+Dimension tables partition the landing zone by `created_at` (fact tables partition by their own business event-date column — see `docs/INGESTION_INCREMENTAL.md`). Seeders therefore **must** backdate each dimension row's `created_at` to a uniform random point in `[2020-01-01, now]`, the same window the facts already use for their event dates, so the lake has deep history to join facts against — not just the handful of days the DAG happened to run. Use the shared helpers in `api/utils/cli_common.py`: `stamp_dimension_history(rows)` for dict payloads or `stamp_dimension_history_objs(objs)` for Pydantic schema payloads. Seeders routed through `bulk_copy()`/`insert_in_batches()` get it applied automatically.
+
+- `stamp_dimension_history` also sets `updated_at = now()`. This is **mandatory**: incremental ingestion selects rows via `COALESCE(updated_at, created_at) > watermark`, so a row whose only timestamp were a backdated `created_at` would sit below the watermark and never land.
+- **Never backdate** the 6 fact tables (they partition by their own event-date column) nor `purchasing.purchaseorderdetail`/`purchaseorderaudit` (RANGE-partitioned in Postgres *by* `created_at`: a backdated value would need a matching historical partition to exist, and the 45-day retention would drop it anyway). These eight are listed in `cli_common._NO_BACKDATE_TABLES` and skipped by the helper.
+
 ### Data Volume Limits per Schema — Dynamic Ranges
 
 **IMPORTANT**: Volumes are **dynamic and random** on every run of the Airflow DAG. Seeders must draw a value within the specified minimum/maximum range. Ranges are **per DAG run**, calibrated for `nexomart_seeder_dag` running every 10-15 minutes (~100 runs/day) — not per day. Single source of truth is `configs/seeders/config.py` (`SCHEMA_RANGES`/`TABLE_RANGES`); the table below mirrors it and must be kept in sync if those change. See `docs/SEEDER_MICROBATCHING.md` for why this is sized this way and how to rescale it if the schedule interval changes.
