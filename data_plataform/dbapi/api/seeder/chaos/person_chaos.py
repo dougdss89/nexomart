@@ -10,7 +10,7 @@ from typing import Any
 
 
 def apply_customer_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Nome fora do padrao (upper/lower/espacos extras) e datas de nascimento ilogicas."""
+    """Off-standard name (upper/lower/extra spaces) and illogical birth dates."""
     if not batch:
         return batch
 
@@ -49,7 +49,7 @@ def apply_customer_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) 
 
 
 def apply_customer_email_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Virgula no lugar do ponto, TLD ausente e multi-valor escondido no mesmo campo."""
+    """Comma instead of dot, missing TLD, and a multi-value hidden in the same field."""
     if not batch:
         return batch
 
@@ -101,7 +101,7 @@ def apply_false_foreigner_chaos(
     states_by_country: dict[int, list[int]],
     chaos_rate: float = 0.02,
 ) -> list[dict[str, Any]]:
-    """'Falso Estrangeiro': state_province_id aponta para um pais diferente do country_id."""
+    """'Fake foreigner': state_province_id points to a country different from country_id."""
     if not batch or len(states_by_country) < 2:
         return batch
 

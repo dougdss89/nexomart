@@ -8,7 +8,7 @@ from api.models.product.product_embedding import ProductEmbeddingModel
 logger = logging.getLogger(__name__)
 
 class ProductEmbeddingRepository:
-    """ Camada de Dados para Embeddings """
+    """ Data layer for Embeddings """
     
     @staticmethod
     async def bulk_insert(db: AsyncSession, embeddings_data: List[Dict[str, Any]]) -> bool:

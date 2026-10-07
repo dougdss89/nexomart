@@ -39,7 +39,7 @@ class InspectionData(BaseModel):
     
     evidence_urls: List[HttpUrl] = Field(default_factory=list)
 
-# --- MODELO PRINCIPAL ---
+# --- MAIN MODEL ---
 class SalesReturnOrderSchema(BaseModel):
     
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)

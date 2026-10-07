@@ -1,140 +1,137 @@
-# Lições da esteira DataOps do GAB — o que trazer pro IcebergLake
+# Lessons from GAB's DataOps pipeline — what to bring into IcebergLake
 
-**Contexto:** enquanto investigava como automatizar envio de relatórios via Databricks
-Genie para o projeto Ask Bdesk (cliente/consultoria), acabei lendo a documentação
-completa de governança de dados de uma organização (GAB) que já opera uma esteira
-DataOps madura em produção — e aplicando parte dela num protótipo real. Este
-documento não é sobre o Ask Bdesk; é sobre o que dessa esteira vale a pena portar
-pro **IcebergLake**, que é meu projeto.
+**Context:** while investigating how to automate report delivery via Databricks Genie for the
+Ask Bdesk project (client/consulting), I ended up reading the full data-governance
+documentation of an organization (GAB) that already runs a mature DataOps pipeline in
+production — and applying part of it in a real prototype. This document is not about Ask
+Bdesk; it is about what from that pipeline is worth porting into **IcebergLake**, which is
+my own project.
 
 ---
 
-## 1. O que a esteira GAB faz bem (resumo técnico)
+## 1. What the GAB pipeline does well (technical summary)
 
-Arquitetura observada: YAML como fonte de verdade → PR com CI Gates bloqueantes →
-merge → codegen automático (YAML→Terraform) → PR automática com o `.tf` gerado →
-aprovação dupla → merge em `main` → Terraform Apply automático em produção.
-Princípio-guia deles, que vale citar porque resume tudo: **"Se passou no PR, não
-quebra em `main` nem em PRD."**
+Observed architecture: YAML as the source of truth -> PR with blocking CI Gates -> merge ->
+automatic codegen (YAML->Terraform) -> automatic PR with the generated `.tf` -> dual
+approval -> merge to `main` -> automatic Terraform Apply in production. Their guiding
+principle, worth quoting because it sums everything up: **"If it passed the PR, it doesn't
+break in `main` or in PRD."**
 
-O que sustenta isso na prática, em ordem de relevância pro meu projeto:
+What sustains that in practice, in order of relevance to my project:
 
-### 1.1 Guardrails por camada, com rigor crescente Bronze→Silver→Gold
-Validação automática (bloqueante) que impede `OVERWRITE` não governado, `TRUNCATE`,
-`DROP TABLE/DATABASE`, `DELETE` sem `WHERE`, `dbutils.fs.rm` recursivo — **a menos
-que exista uma allowlist versionada, com justificativa, aprovador e data de
-expiração**. Gold tem regras mais rígidas que Silver (ex.: `DELETE` sem `WHERE` é
-aviso em Silver, erro em Gold; `impact_assessment` é obrigatório só em Gold).
+### 1.1 Per-layer guardrails, with increasing rigor Bronze->Silver->Gold
+Automatic (blocking) validation that prevents ungoverned `OVERWRITE`, `TRUNCATE`,
+`DROP TABLE/DATABASE`, `DELETE` without `WHERE`, recursive `dbutils.fs.rm` — **unless a
+versioned allowlist exists, with justification, approver, and expiration date**. Gold has
+stricter rules than Silver (e.g., `DELETE` without `WHERE` is a warning in Silver, an error
+in Gold; `impact_assessment` is required only in Gold).
 
-**Por que importa:** hoje meu projeto não tem nenhuma proteção estática contra um
-`df.write.mode("overwrite")` acidental num script de `gold_layer_scripts/`. A
-"proteção" é só disciplina manual.
+**Why it matters:** today my project has no static protection against an accidental
+`df.write.mode("overwrite")` in a `gold_layer_scripts/` script. The "protection" is just
+manual discipline.
 
-### 1.2 Allowlist com expiração obrigatória — nunca liberação permanente
-Toda exceção a um guardrail vira uma entrada YAML versionada
-(`justification`, `approved_by`, `approved_at`, `expires_at`, `ticket`). Item
-expirado volta a bloquear automaticamente, sem ação manual. Isso evita o padrão
-clássico de "exceção temporária" que nunca é revertida.
+### 1.2 Allowlist with mandatory expiration — never a permanent waiver
+Every guardrail exception becomes a versioned YAML entry (`justification`, `approved_by`,
+`approved_at`, `expires_at`, `ticket`). An expired item automatically goes back to blocking,
+with no manual action. This avoids the classic "temporary exception" pattern that is never
+reverted.
 
-### 1.3 Disciplina de portabilidade DEV→PRD
-Regra simples e poderosa: **nenhuma string de ambiente hardcoded no código**
-(catálogo, cluster id, caminho `/Repos/DEV/`). Encontrei e corrigi esse exato bug
-no meu próprio protótipo durante a investigação — um notebook com
-`cat_holding_silver_dev` fixo no código, que quebraria em produção. O padrão certo
-é: ambiente sempre vem de parâmetro/variável, nunca de string literal.
+### 1.3 DEV->PRD portability discipline
+Simple, powerful rule: **no hardcoded environment string in the code** (catalog, cluster id,
+`/Repos/DEV/` path). I found and fixed this exact bug in my own prototype during the
+investigation — a notebook with `cat_holding_silver_dev` hardcoded, which would break in
+production. The right pattern is: the environment always comes from a parameter/variable,
+never from a literal string.
 
-### 1.4 Codegen — o YAML é a única coisa que um humano edita
-"O desenvolvedor nunca escreve Terraform manualmente." Um script converte o YAML
-declarativo (jobs, pipelines) em `.tf`, roda em modo `--dry-run` no PR (valida sem
-aplicar), e só gera o `.tf` de verdade depois do merge. Isso elimina a categoria
-inteira de bug "Terraform escrito à mão divergiu do YAML declarado".
+### 1.4 Codegen — the YAML is the only thing a human edits
+"The developer never writes Terraform by hand." A script converts the declarative YAML
+(jobs, pipelines) into `.tf`, runs it in `--dry-run` mode on the PR (validates without
+applying), and only generates the real `.tf` after merge. This eliminates the entire bug
+class of "hand-written Terraform drifted from the declared YAML".
 
-### 1.5 Aprovação dupla com papéis diferentes, não duplicados
-PR pra produção exige **duas** aprovações com escopos diferentes: a Divisão
-(regra de negócio correta? validado funcionalmente?) e a Plataforma (padrões
-técnicos, segurança/secrets, custo, consistência com outros repos). Não é "duas
-pessoas aprovam a mesma coisa" — é "duas perspectivas diferentes, cada uma
-irredutível à outra".
+### 1.5 Dual approval with different roles, not duplicated ones
+A PR to production requires **two** approvals with different scopes: the Division (is the
+business rule correct? functionally validated?) and the Platform (technical standards,
+security/secrets, cost, consistency with other repos). It is not "two people approve the
+same thing" — it is "two different perspectives, neither reducible to the other".
 
 ### 1.6 Diff-aware CI
-As validações de PR rodam só sobre os arquivos que mudaram no diff — um PR não
-falha por causa de um problema pré-existente em código que ele nem tocou. Reduz
-fricção sem abrir mão de bloquear o que realmente importa naquele PR.
+PR validations run only over the files changed in the diff — a PR doesn't fail because of a
+pre-existing problem in code it didn't even touch. Reduces friction without giving up
+blocking what really matters in that PR.
 
-### 1.7 Nomenclatura como mecanismo, não estética
-A norma de nomenclatura de repositório (`<org3>-<dominio>-<produto>-<proposito>`)
-não é só padronização visual — é uma regra estruturalmente parseável (cada campo
-é um único token, sem hífen interno) que existe pra automação conseguir separar os
-campos sem ambiguidade. Eu mesmo violei isso na hora (usei `sucesso-cliente` como
-"produto", que tem hífen embutido) e só percebi ao reler a norma com atenção.
-**Lição:** convenção de nome só vale se for possível validar/parsear
-automaticamente — senão vira sugestão que ninguém confere.
+### 1.7 Naming as a mechanism, not aesthetics
+The repository naming standard (`<org3>-<domain>-<product>-<purpose>`) is not just visual
+standardization — it is a structurally parseable rule (each field is a single token, with no
+internal hyphen) that exists so automation can split the fields unambiguously. I violated
+it myself on the spot (I used `sucesso-cliente` as the "product", which has an embedded
+hyphen) and only noticed on rereading the standard carefully. **Lesson:** a naming
+convention is only worth anything if it can be validated/parsed automatically — otherwise it
+becomes a suggestion nobody checks.
 
 ---
 
-## 2. O que dá pra portar pro IcebergLake, concretamente
+## 2. What can be ported into IcebergLake, concretely
 
-| Padrão GAB | Onde aplicar no IcebergLake | Esforço |
+| GAB pattern | Where to apply in IcebergLake | Effort |
 |---|---|---|
-| Guardrail contra escrita destrutiva em Gold | Check estático (pre-commit ou `pr-checks.yml`) escaneando `spark/jobs/gold_layer_scripts/**.py` por `overwrite`, `TRUNCATE`, `DROP TABLE`, `.mode("overwrite")` sem confirmação explícita | Médio — reaproveita a infra de lint que já existe (`.pre-commit-config.yaml`, `scripts/lint.sh`) |
-| Allowlist com expiração | Um `allowlist.yml` simples por camada (`bronze`/`silver`/`gold`), checado pelo mesmo script acima | Baixo, depois do guardrail existir |
-| Auditoria de portabilidade (nada de ambiente hardcoded) | Grep/AST check procurando strings tipo `s3a://bronze-dev/`, `iceberglake_dev`, hosts fixos, em vez de vars/`.env` | Baixo — acho que vale rodar isso já, antes de crescer mais o projeto |
-| YAML declarativo + codegen | Se algum dia o projeto ganhar Terraform (hoje é `docker-compose`/Makefile), vale já nascer com "YAML descreve, script gera .tf" em vez de Terraform escrito à mão desde o início |
-| Diff-aware em `pr-checks.yml` | Conferir se os checks atuais (`ci.yml`, `pr-checks.yml`) já ignoram arquivos não tocados no PR — se não, é ganho de fricção fácil |
-| Detector de anti-patterns Spark (`.collect()`, `print()` sem log) | Regra de lint customizada (Ruff/AST) pros scripts em `spark/jobs/**` — mesmo padrão usado no protótipo que fiz (achei os dois anti-patterns no meu próprio código antes de entregar) |
-| Parametrização "fan-out" (1 job genérico + lista dinâmica) | Mapeia direto pro **dynamic task mapping** do Airflow — o padrão "não hardcode a lista, leia de uma tabela/config e gere uma task por item" é o mesmo racional do `for_each_task` do Databricks Jobs |
-| Isolamento de secrets por ambiente com approval | Conferir se `cd.yml` já usa GitHub Environments com *required reviewers* pra secrets de "prod" (MinIO/Postgres de produção, se existir esse conceito no projeto) |
+| Guardrail against destructive writes in Gold | Static check (pre-commit or `pr-checks.yml`) scanning `spark/jobs/gold_layer_scripts/**.py` for `overwrite`, `TRUNCATE`, `DROP TABLE`, `.mode("overwrite")` without explicit confirmation | Medium — reuses the lint infra that already exists (`.pre-commit-config.yaml`, `scripts/lint.sh`) |
+| Allowlist with expiration | A simple `allowlist.yml` per layer (`bronze`/`silver`/`gold`), checked by the same script above | Low, once the guardrail exists |
+| Portability audit (no hardcoded environment) | Grep/AST check looking for strings like `s3a://bronze-dev/`, `iceberglake_dev`, fixed hosts, instead of vars/`.env` | Low — worth running this now, before the project grows further |
+| Declarative YAML + codegen | If the project ever gains Terraform (today it's `docker-compose`/Makefile), it's worth being born with "YAML describes, script generates .tf" rather than hand-written Terraform from the start |
+| Diff-aware in `pr-checks.yml` | Check whether the current checks (`ci.yml`, `pr-checks.yml`) already ignore files not touched in the PR — if not, it's an easy friction win |
+| Spark anti-pattern detector (`.collect()`, `print()` without logging) | A custom lint rule (Ruff/AST) for the scripts in `spark/jobs/**` — same pattern used in the prototype I built (I found both anti-patterns in my own code before delivering) |
+| "Fan-out" parameterization (1 generic job + dynamic list) | Maps directly to Airflow's **dynamic task mapping** — the "don't hardcode the list, read it from a table/config and generate one task per item" pattern is the same rationale as Databricks Jobs' `for_each_task` |
+| Per-environment secret isolation with approval | Check whether `cd.yml` already uses GitHub Environments with *required reviewers* for "prod" secrets (production MinIO/Postgres, if that concept exists in the project) |
 
 ---
 
-## 3. Lições de processo (como eu trabalhei, não só o que aprendi)
+## 3. Process lessons (how I worked, not just what I learned)
 
-Estas vieram de observar o que funcionou (e o que quase deu errado) durante a
-própria investigação, não só da leitura da documentação:
+These came from observing what worked (and what nearly went wrong) during the investigation
+itself, not just from reading the documentation:
 
-1. **Verificar contra o sistema real antes de escrever código.** Rodei a
-   pergunta de verdade no Genie, consultei o schema real das tabelas, chequei
-   quais catálogos existiam de fato — em vez de assumir a partir da doc. Isso
-   pegou dois bugs reais: um `ImportError` de uma classe do SDK que só existia na
-   minha versão local (não na do cluster serverless), e o catálogo hardcoded que
-   quebraria em PRD. **Nenhum dos dois apareceria só lendo documentação.**
-2. **Quando doc e realidade divergem, sinalizar — não "corrigir" silenciosamente.**
-   A norma de catálogo (`cat_<divisao>_<camada>`) não bate com os catálogos reais
-   do workspace (`_dev`/`_prd` no nome). Não faz sentido eu "consertar" isso
-   sozinho — é uma divergência que precisa ir pro dono do processo (Tooling &
-   Ops), com o fato registrado, não escondido.
-3. **Não fabricar o que não é seu de fabricar.** Quando descobri que não existia
-   repositório/esteira pro domínio, a tentação seria criar `.github/workflows/`
-   inventados "pra parecer completo". Não fiz — documentei como placeholder
-   explícito, porque simular uma esteira funcional que não existe é pior do que
-   admitir a lacuna.
-4. **Testar em modo seguro antes de qualquer efeito colateral real.** O job de
-   e-mail nasceu com `metodo_envio=none` (dry-run, só grava arquivo) como padrão,
-   e só ganha capacidade de enviar de verdade quando alguém troca o parâmetro
-   explicitamente — depois que a autorização humana existir. **Nada perigoso por
-   default.**
-5. **Convenção só serve se for verificável.** Errei a nomenclatura do repositório
-   na primeira tentativa porque não apliquei a regra letra por letra — só
-   "pareceu razoável". A correção veio de reler a norma com atenção aos exemplos
-   concretos, não à descrição em prosa.
+1. **Verify against the real system before writing code.** I ran the actual question in
+   Genie, queried the tables' real schema, checked which catalogs actually existed — instead
+   of assuming from the docs. This caught two real bugs: an `ImportError` for an SDK class
+   that only existed in my local version (not the serverless cluster's), and the hardcoded
+   catalog that would break in PRD. **Neither would surface from reading documentation
+   alone.**
+2. **When docs and reality diverge, flag it — don't "fix" it silently.** The catalog
+   standard (`cat_<division>_<layer>`) doesn't match the workspace's real catalogs (`_dev`/
+   `_prd` in the name). It makes no sense for me to "fix" this alone — it's a divergence that
+   needs to go to the process owner (Tooling & Ops), with the fact recorded, not hidden.
+3. **Don't fabricate what isn't mine to fabricate.** When I found there was no
+   repository/pipeline for the domain, the temptation was to create invented
+   `.github/workflows/` "to look complete". I didn't — I documented it as an explicit
+   placeholder, because simulating a working pipeline that doesn't exist is worse than
+   admitting the gap.
+4. **Test in safe mode before any real side effect.** The email job was born with
+   `metodo_envio=none` (dry-run, only writes a file) as the default, and only gains the
+   ability to actually send when someone changes the parameter explicitly — after human
+   authorization exists. **Nothing dangerous by default.**
+5. **A convention is only useful if it's verifiable.** I got the repository naming wrong on
+   the first attempt because I didn't apply the rule letter by letter — it just "seemed
+   reasonable". The fix came from rereading the standard with attention to the concrete
+   examples, not the prose description.
 
 ---
 
-## 4. Pra levar pro currículo/portfólio
+## 4. For the resume/portfolio
 
-O que descrevi acima — guardrails por camada, allowlist com expiração, disciplina
-de portabilidade, aprovação dupla com papéis distintos — é vocabulário e prática
-de **DataOps/Platform Engineering em produção real**, não teoria de curso. Vale
-explicitamente:
+What I described above — per-layer guardrails, allowlist with expiration, portability
+discipline, dual approval with distinct roles — is the vocabulary and practice of
+**DataOps/Platform Engineering in real production**, not course theory. It's explicitly
+worth:
 
-- Documentar no README do IcebergLake uma seção "Governança" que **implemente**
-  (não só cite) pelo menos o guardrail de escrita destrutiva em Gold + a
-  allowlist com expiração — é um diferencial concreto e demonstrável em
-  entrevista, muito mais forte do que "sei Spark e Airflow".
-- Se possível, escrever um post/nota curta sobre o padrão "YAML como fonte de
-  verdade + codegen pra IaC" — é um conceito que aparece em Databricks Asset
-  Bundles, mas o racional (nunca editar o artefato gerado à mão) é genérico e
-  vale pra qualquer stack com Terraform.
-- O hábito de "verificar contra o sistema real antes de escrever" (item 3.1)
-  é o tipo de prática que separa engenharia sênior de júnior — vale nomear
-  isso explicitamente como algo que pratico, não só fazer sem registrar.
+- Documenting a "Governance" section in the IcebergLake README that **implements** (not just
+  cites) at least the destructive-write guardrail in Gold + the allowlist with expiration —
+  a concrete, demonstrable differentiator in an interview, far stronger than "I know Spark
+  and Airflow".
+- If possible, writing a short post/note about the "YAML as source of truth + codegen for
+  IaC" pattern — a concept that shows up in Databricks Asset Bundles, but whose rationale
+  (never hand-edit the generated artifact) is generic and applies to any stack with
+  Terraform.
+- The habit of "verify against the real system before writing" (item 3.1) is the kind of
+  practice that separates senior from junior engineering — worth naming explicitly as
+  something I practice, not just doing without recording it.

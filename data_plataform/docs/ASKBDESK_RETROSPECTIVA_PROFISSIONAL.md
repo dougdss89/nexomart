@@ -1,162 +1,153 @@
-# Retrospectiva profissional e técnica — projeto Ask Bdesk (GAB)
+# Professional and technical retrospective — Ask Bdesk project (GAB)
 
-**Contexto:** este documento olha para trás, de forma imparcial, sobre o conjunto de
-trabalho feito no domínio Ask Bdesk/Sucesso do Cliente (pipeline Bronze→Silver→Gold,
-KPIs, 3 Genie Agents em produção, 4 dashboards Lakeview) ao longo de
-~25/08 a 18/09/2026. Complementa [`LESSONS_LEARNED_GAB_DATAOPS.md`](LESSONS_LEARNED_GAB_DATAOPS.md),
-que fala do que portar da esteira DataOps do GAB para o IcebergLake. Este aqui é sobre
-mim: o que os padrões reais desse trabalho dizem sobre pontos fortes e lacunas, técnicas
-e de processo.
-
----
-
-## 1. Pontos fortes confirmados por evidência (não autoavaliação)
-
-### 1.1 Disciplina de causa raiz, não só sintoma
-Repetidamente, o problema relatado não era a causa real, e isso foi descoberto por
-investigação, não assumido:
-- Card 01 ("grupo errado") → pipeline `orquestrador_silver_gold_sucesso_cliente` pausado
-  há 5 dias, não um bug de resolução de grupo.
-- "Grupo duplicado" no Genie → colisão de `id_grupo_atual` diferentes resolvendo para o
-  mesmo nome (`kpi_10_sla_backlog_por_grupo.py`), não um problema de prompt.
-- Investigação de carga incremental → a origem já era CDC quase real-time; o atraso era
-  do padrão de `.createOrReplace()` completo na Silver, não da fonte.
-- Quarentena DQ-G-004 (13.529 linhas) → não era inversão de data de negócio, era um
-  artefato de precisão/ordem entre dois timestamps de eventos automatizados quase
-  simultâneos.
-
-Em nenhum desses casos a explicação óbvia foi aceita de primeira — todos foram
-confirmados com query direta contra o dado real antes de propor correção.
-
-### 1.2 Saber quando NÃO decidir sozinho
-Vários itens foram deliberadamente bloqueados por decisão de negócio ausente, em vez de
-inventar uma regra plausível: exposição de dado individual por analista (Card 02),
-redefinição do KPI oficial de Backlog (Card 20), metodologia de SLA (Gold vs. BI,
-resíduo de 204 chamados nunca forçado a bater), critério de "sobrecarga" (nunca definido
-em lugar nenhum dos dados). Isso é o oposto do anti-padrão comum de "código decide
-regra de negócio por omissão".
-
-### 1.3 Teste ao vivo como critério de fechamento, não a instrução escrita
-O padrão consistente — escrever a regra, rodar `genie start-conversation` com uma
-pergunta real, conferir o SQL gerado e o número — pegou pelo menos duas falhas que uma
-leitura da instrução não pegaria: Card 18 (regra de escopo escrita mas sem efeito
-prático, 2 tentativas) e a descoberta de que o fix do V11 não tinha se propagado para
-4 outras menções de `descricao_status` na mesma sala.
-
-### 1.4 Documentar a lacuna em vez de simular que ela não existe
-Fornecedor, Viva+30, Apontamento de Horas, Analistas Destaque — todos marcados
-explicitamente como "sem fonte de dado" nos dashboards em vez de estimados ou omitidos
-silenciosamente. Mesmo princípio aplicado ao ISO/Alertas (nota FCR da Nexa excluída por
-falta de base, não estimada).
+**Context:** this document looks back, impartially, at the body of work done in the
+Ask Bdesk / Customer Success domain (Bronze->Silver->Gold pipeline, KPIs, 3 Genie Agents
+in production, 4 Lakeview dashboards) over ~2026-08-25 to 2026-09-18. It complements
+[`LESSONS_LEARNED_GAB_DATAOPS.md`](LESSONS_LEARNED_GAB_DATAOPS.md), which covers what to
+port from GAB's DataOps pipeline to the IcebergLake. This one is about me: what the real
+patterns in that work say about strengths and gaps, both technical and process.
 
 ---
 
-## 2. Lacunas técnicas e de processo (a parte que exige ser imparcial)
+## 1. Strengths confirmed by evidence (not self-assessment)
 
-### 2.1 Mudança direta em produção sem trilha de revisão
-Todas as ~80+ mudanças de instrução nos Genie Agents (25 cards + 12 VL + 16 D02 + 18
-CARD04 + a regra TS001 mais recente) foram aplicadas via `genie update-space` direto na
-sala de produção, no mesmo dia da confirmação verbal/chat de uma única pessoa (geralmente
-Ewerton). Não existe PR, não existe diff revisado por segunda pessoa, não existe rollback
-versionado além da memória de sessão. Isso é exatamente o padrão que
-[`LESSONS_LEARNED_GAB_DATAOPS.md`](LESSONS_LEARNED_GAB_DATAOPS.md) descreve como boa
-prática madura (aprovação dupla, allowlist, trilha auditável) — mas o próprio trabalho no
-Ask Bdesk não seguiu isso, porque não havia essa esteira para esse domínio. **A lição já
-documentada não fechou o loop com a prática.**
+### 1.1 Root-cause discipline, not just symptom
+Repeatedly, the reported problem was not the real cause, and that was found by
+investigation, not assumed:
+- Card 01 ("wrong group") -> the `orquestrador_silver_gold_sucesso_cliente` pipeline had
+  been paused for 5 days, not a group-resolution bug.
+- "Duplicate group" in Genie -> a collision of different `id_grupo_atual` resolving to the
+  same name (`kpi_10_sla_backlog_por_grupo.py`), not a prompt problem.
+- Incremental-load investigation -> the source was already near-real-time CDC; the lag was
+  from the full `.createOrReplace()` pattern on Silver, not from the source.
+- DQ-G-004 quarantine (13,529 rows) -> not a business-date inversion, but a precision/order
+  artifact between two near-simultaneous automated event timestamps.
 
-### 2.2 Duplicação estrutural nunca resolvida, só descoberta
-`genie_governanca/publish_instructions.py` e seu README (16/09/2026) documentam que
-Facilitador e Supervisão têm ~15 regras de negócio idênticas escritas à mão, em
-duplicidade, em cada sala — e que Liderança e Customer Success KPIs ficaram *anos-luz*
-atrás em cobertura da mesma regra. Esse kit foi construído, mas **nunca aplicado em
-nenhuma sala** (confirmado no próprio README: "Não foi aplicado em nenhuma sala").
-Resultado prático: a regra do Card 06 (disclaimer de alteração de métrica) foi escrita
-na Liderança, esquecida na Supervisão/Facilitador por dias, e só replicada quando um
-item de validação *diferente* (V02) reabriu o mesmo gap. Isso é reativo, não sistêmico —
-o mecanismo pra evitar exatamente esse tipo de esquecimento já foi projetado e ficou
-engavetado.
+In none of these was the obvious explanation accepted at face value — all were confirmed
+with a direct query against the real data before proposing a fix.
 
-### 2.3 Nenhum harness de regressão
-Toda validação é "1 pergunta ao vivo, 1 resposta conferida". Não existe um conjunto de
-perguntas-benchmark rodado automaticamente depois de cada mudança de instrução (a própria
-skill de Genie Agents recomenda ≥30 itens de benchmark antes de considerar uma sala
-estável — nunca construído aqui). Consequência observada na prática: regras que
-funcionavam voltaram a quebrar sem ninguém perceber até o próximo lote de cards do GAB
-apontar de novo (ex.: escopo Sucesso do Cliente teve 3 rodadas de "fechado" antes de
-virar coluna estrutural em vez de instrução).
+### 1.2 Knowing when NOT to decide alone
+Several items were deliberately blocked on a missing business decision, rather than
+inventing a plausible rule: exposing individual data per analyst (Card 02), redefining the
+official Backlog KPI (Card 20), SLA methodology (Gold vs. BI, a residual of 204 tickets
+never forced to reconcile), the "overload" criterion (never defined anywhere in the data).
+This is the opposite of the common anti-pattern of "code decides the business rule by
+omission".
 
-### 2.4 Instrução de texto como primeiro reflexo, não último recurso
-A própria skill usada neste projeto (`databricks-genie-agents`) documenta "texto de
-instrução é último recurso" — mas o padrão real do trabalho foi: tentar resolver via
-texto primeiro, e só subir para mudança estrutural (nova coluna, novo JOIN) depois de
-uma ou duas falhas confirmadas (Card 18, "grupo vs equipe", levou 2 tentativas de
-instrução antes de virar `equipe_sucesso_cliente` na tabela). O resultado final foi bom,
-mas o caminho até lá custou ciclos evitáveis — vale internalizar a régua "se a regra
-nomeia uma tabela/coluna/junção específica, ela provavelmente devia nascer estrutural,
-não como texto".
+### 1.3 Live testing as the closing criterion, not the written instruction
+The consistent pattern — write the rule, run `genie start-conversation` with a real
+question, check the generated SQL and the number — caught at least two failures a reading
+of the instruction would not: Card 18 (a scope rule written but with no practical effect,
+2 attempts) and the discovery that the V11 fix had not propagated to 4 other mentions of
+`descricao_status` in the same space.
 
-### 2.5 Levantamento de regra de negócio feito tarde, não antes de construir
-Backlog oficial, "sobrecarga", metodologia de SLA, mapeamento de prioridade, e agora a
-regra TS001 ("operação hoje" exclui concluídos/futuros) — em todos os casos a definição
-de negócio só apareceu **depois** que alguém já tinha usado o KPI/agente e reportado
-divergência. Nenhum desses casos teve uma etapa formal de "confirmar definição com o GAB
-antes de implementar" — o ciclo foi sempre construir → usuário reclama → investigar →
-formalizar. Builds mais baratos no curto prazo, mas o custo real apareceu em retrabalho
-(SLA foi revisitado em pelo menos 4 rodadas de card diferentes sem nunca fechar de vez).
-
-### 2.6 Dois tipos de consumidor, uma checklist mental só
-Pelo menos uma vez (rename das tabelas `_sugestao`→oficial em 15/09), o dashboard
-Lakeview quebrou silenciosamente porque a checklist de "quem consome essa tabela" só
-cobria os Genie Spaces, não os dashboards. Foi pego e corrigido no mesmo dia, mas por
-sorte de revisão, não por um processo que garantisse cobrir os dois tipos de consumidor
-sempre que uma tabela Gold muda de nome.
+### 1.4 Documenting the gap instead of pretending it doesn't exist
+Supplier, Viva+30, Time Tracking, Standout Analysts — all marked explicitly as "no data
+source" on the dashboards instead of being estimated or silently omitted. Same principle
+applied to ISO/Alerts (Nexa's FCR score excluded for lack of a base, not estimated).
 
 ---
 
-## 3. Leitura de habilidade técnica (onde a régua está hoje)
+## 2. Technical and process gaps (the part that requires being impartial)
 
-**Forte e demonstrável:**
-- Debugging de dados em camada Lakehouse (Bronze/Silver/Gold, DLT/Lakeflow, CDF/CDC,
-  cascatas de resolução com fallback).
-- Engenharia de prompt/instrução para agentes conversacionais sobre dado estruturado
-  (Genie), incluindo os limites reais do que instrução de texto resolve vs. o que exige
-  mudança de schema.
-- Lakeview/AI-BI: medidas calculadas, multi-dataset filters, armadilhas de nome
-  (colisão case-insensitive), tudo documentado com causa raiz, não só "funcionou".
-- Comunicação técnica para não-técnicos: PDFs de fechamento por card, artifacts de
-  modelo ER gerados ao vivo do `information_schema`, sempre citando achado real (número,
-  chamado, screenshot) em vez de generalidade.
+### 2.1 Direct production changes with no review trail
+All of the ~80+ instruction changes to the Genie Agents (25 cards + 12 VL + 16 D02 + 18
+CARD04 + the most recent TS001 rule) were applied via `genie update-space` straight into
+the production space, on the same day as a single person's verbal/chat confirmation
+(usually Ewerton). There is no PR, no diff reviewed by a second person, no versioned
+rollback beyond session memory. This is exactly the pattern
+[`LESSONS_LEARNED_GAB_DATAOPS.md`](LESSONS_LEARNED_GAB_DATAOPS.md) describes as mature best
+practice (dual approval, allowlist, auditable trail) — but the Ask Bdesk work itself did
+not follow it, because no such pipeline existed for this domain. **The already-documented
+lesson never closed the loop with practice.**
 
-**Ainda incipiente, com evidência concreta da lacuna:**
-- Engenharia de plataforma/governança *aplicada* (não só documentada) — CI Gates,
-  allowlist, aprovação dupla, tudo isso existe como conceito bem entendido (seção 1-2 do
-  outro documento) mas zero disso foi implementado no próprio domínio Ask Bdesk.
-- Testes automatizados/regressão para sistemas dirigidos por prompt — a disciplina de
-  "testar ao vivo" é boa, mas não escala e não é repetível; é o gap mais claro entre "sei
-  fazer" e "sei sistematizar".
-- Gestão de requisito antes de construir — o padrão builder-first é rápido para prototipar
-  mas caro em retrabalho quando o domínio (SLA, backlog, sobrecarga) tem múltiplas
-  definições plausíveis e nenhuma dona clara antes do fato.
+### 2.2 Structural duplication never resolved, only discovered
+`genie_governanca/publish_instructions.py` and its README (2026-09-16) document that
+Facilitador and Supervisao have ~15 identical business rules written by hand, duplicated,
+in each space — and that Lideranca and Customer Success KPIs fell *light-years* behind in
+coverage of the same rule. That kit was built but **never applied to any space** (confirmed
+in its own README: "Not applied to any space"). Practical result: the Card 06 rule (a
+metric-change disclaimer) was written in Lideranca, forgotten in Supervisao/Facilitador for
+days, and only replicated when a *different* validation item (V02) reopened the same gap.
+This is reactive, not systemic — the mechanism to prevent exactly this kind of oversight was
+already designed and left on the shelf.
+
+### 2.3 No regression harness
+All validation is "1 live question, 1 checked answer". There is no benchmark set of
+questions run automatically after each instruction change (the Genie Agents skill itself
+recommends >=30 benchmark items before considering a space stable — never built here).
+Observed consequence in practice: rules that worked broke again with nobody noticing until
+the next batch of GAB cards flagged it again (e.g., Customer Success scope had 3 rounds of
+"closed" before becoming a structural column instead of an instruction).
+
+### 2.4 Text instruction as the first reflex, not the last resort
+The very skill used in this project (`databricks-genie-agents`) documents "instruction text
+is a last resort" — but the real pattern of the work was: try to solve via text first, and
+only escalate to a structural change (new column, new JOIN) after one or two confirmed
+failures (Card 18, "group vs. team", took 2 instruction attempts before becoming
+`equipe_sucesso_cliente` in the table). The end result was good, but the path there cost
+avoidable cycles — worth internalizing the rule "if a rule names a specific
+table/column/join, it should probably be born structural, not as text".
+
+### 2.5 Business-rule gathering done late, not before building
+Official Backlog, "overload", SLA methodology, priority mapping, and now the TS001 rule
+("operation today" excludes completed/future) — in every case the business definition only
+appeared **after** someone had already used the KPI/agent and reported a discrepancy. None
+of these had a formal "confirm the definition with GAB before implementing" step — the cycle
+was always build -> user complains -> investigate -> formalize. Cheaper builds in the short
+term, but the real cost showed up in rework (SLA was revisited in at least 4 different card
+rounds without ever closing for good).
+
+### 2.6 Two kinds of consumer, a single mental checklist
+At least once (the `_sugestao`->official table rename on 2026-09-15), the Lakeview dashboard
+broke silently because the "who consumes this table" checklist only covered the Genie Spaces,
+not the dashboards. It was caught and fixed the same day, but by luck of review, not by a
+process that guaranteed covering both kinds of consumer whenever a Gold table is renamed.
 
 ---
 
-## 4. Ações concretas de melhoria (priorizadas, não uma lista de boas intenções)
+## 3. Technical-skill read (where the bar is today)
 
-1. **Aplicar o próprio kit de consolidação** (`genie_governanca/`) em pelo menos uma sala,
-   começando pela mais defasada (Customer Success KPIs) — fechar o loop entre "documentei
-   a duplicação" e "resolvi a duplicação". É trabalho que já está pronto, só não foi
-   publicado.
-2. **Construir um benchmark mínimo (10-15 perguntas) por sala**, versionado em arquivo,
-   rodado manualmente antes de fechar qualquer card novo — não precisa ser o eval
-   automatizado completo da skill, mas precisa parar de depender só de "testei uma
-   pergunta agora".
-3. **Antes de escrever uma regra de texto que nomeia tabela/coluna/junção específica**,
-   perguntar explicitamente "isso deveria ser uma coluna?" antes de publicar — aplicar a
-   régua da seção 2.4 no início do ciclo, não depois de duas falhas.
-4. **Um changelog versionado por sala** (mesmo que só um arquivo Markdown por Genie
-   Space, com data + regra + quem confirmou) — não substitui CI Gates de verdade, mas dá
-   trilha auditável sem esperar a esteira formal (que está bloqueada por 8 itens de
-   Tooling & Ops, fora do controle da Divisão).
-5. **Checklist de "2 consumidores"** sempre que uma tabela Gold for renomeada/removida:
-   Genie Spaces (`data_sources.tables[]`) E dashboards Lakeview (`queryLines`) — os dois,
-   sempre, não um dos dois de memória.
+**Strong and demonstrable:**
+- Data debugging in the Lakehouse layers (Bronze/Silver/Gold, DLT/Lakeflow, CDF/CDC,
+  resolution cascades with fallback).
+- Prompt/instruction engineering for conversational agents over structured data (Genie),
+  including the real limits of what text instructions solve vs. what requires a schema change.
+- Lakeview/AI-BI: calculated measures, multi-dataset filters, naming pitfalls
+  (case-insensitive collision), all documented with root cause, not just "it worked".
+- Technical communication for non-technical audiences: per-card closing PDFs, ER-model
+  artifacts generated live from `information_schema`, always citing a real finding (number,
+  ticket, screenshot) instead of generalities.
+
+**Still nascent, with concrete evidence of the gap:**
+- *Applied* platform/governance engineering (not just documented) — CI Gates, allowlist,
+  dual approval all exist as a well-understood concept (sections 1-2 of the other document)
+  but none of it was implemented in the Ask Bdesk domain itself.
+- Automated/regression testing for prompt-driven systems — the "test live" discipline is
+  good, but it doesn't scale and isn't repeatable; it's the clearest gap between "I can do
+  it" and "I can systematize it".
+- Requirements management before building — the builder-first pattern is fast to prototype
+  but costly in rework when the domain (SLA, backlog, overload) has multiple plausible
+  definitions and no clear owner before the fact.
+
+---
+
+## 4. Concrete improvement actions (prioritized, not a wish list)
+
+1. **Apply my own consolidation kit** (`genie_governanca/`) to at least one space, starting
+   with the most out-of-date (Customer Success KPIs) — close the loop between "I documented
+   the duplication" and "I resolved the duplication". The work is already done, just not
+   published.
+2. **Build a minimal benchmark (10-15 questions) per space**, versioned in a file, run
+   manually before closing any new card — it doesn't need to be the skill's full automated
+   eval, but it needs to stop depending only on "I tested one question just now".
+3. **Before writing a text rule that names a specific table/column/join**, explicitly ask
+   "should this be a column?" before publishing — apply the section 2.4 rule at the start of
+   the cycle, not after two failures.
+4. **A versioned changelog per space** (even just one Markdown file per Genie Space, with
+   date + rule + who confirmed) — it doesn't replace real CI Gates, but gives an auditable
+   trail without waiting for the formal pipeline (which is blocked by 8 Tooling & Ops items,
+   outside the Division's control).
+5. **A "2 consumers" checklist** whenever a Gold table is renamed/removed: Genie Spaces
+   (`data_sources.tables[]`) AND Lakeview dashboards (`queryLines`) — both, always, not one
+   of the two from memory.

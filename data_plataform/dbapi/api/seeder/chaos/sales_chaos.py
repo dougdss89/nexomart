@@ -10,7 +10,7 @@ from typing import Any
 
 
 def apply_sales_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Matematica quebrada (desconto fantasma), pagamento esquizofrenico e pedido de Schrodinger."""
+    """Broken math (phantom discount), schizophrenic payment, and Schrodinger order."""
     if not batch:
         return batch
 
@@ -22,7 +22,7 @@ def apply_sales_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.0
         chaos_type = random.choice(["broken_math", "schizophrenic_payment", "schrodinger_order"])
 
         if chaos_type == "broken_math":
-            # Desconto aplicado no total sem ratear entre as linhas do pedido
+            # Discount applied to the order total without prorating across line items
             discount = (row["total_amount"] * Decimal(str(random.uniform(0.3, 0.7)))).quantize(Decimal("0.01"))
             row["total_amount"] = row["total_amount"] - discount
 
@@ -77,7 +77,7 @@ def apply_eventlog_chaos(events: list[Any], chaos_rate: float = 0.05) -> list[An
 
         if chaos_type == "time_travel" and len(indices) >= 2:
             earlier_idx, later_idx = sorted(random.sample(indices, 2))
-            # O evento posterior (na sequencia logica) chega com timestamp anterior ao evento anterior
+            # The later event (in logical order) arrives with a timestamp earlier than the prior one
             events[later_idx].event_date = events[earlier_idx].event_date - timedelta(hours=random.randint(1, 4))
 
         elif chaos_type == "gps_teleport":
@@ -93,7 +93,7 @@ def apply_eventlog_chaos(events: list[Any], chaos_rate: float = 0.05) -> list[An
 
 
 def apply_return_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Reembolso infinito (10x o valor original) e inspecao fantasma (estorno sem inspecao real)."""
+    """Infinite refund (10x the original value) and phantom inspection (reversal with no real inspection)."""
     if not batch:
         return batch
 
@@ -119,7 +119,7 @@ def apply_return_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.
 
 
 def apply_seller_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
-    """Parceiro toxico (chargeback alto + rating baixo, mas ainda ativo) e dados bancarios sujos."""
+    """Toxic partner (high chargeback + low rating, but still active) with dirty banking data."""
     if not batch:
         return batch
 
