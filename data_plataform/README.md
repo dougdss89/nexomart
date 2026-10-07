@@ -1,4 +1,4 @@
-# Data Platform — IcebergLake
+# Data Platform — Nexomart
 
 Open-source data platform built from scratch for the **IcebergLake** case study — a
 multi-channel Brazilian marketplace (NexoMart). The goal is to separate the transactional
