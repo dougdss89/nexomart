@@ -7,21 +7,21 @@ Module containing helper function for use with Apache Spark
 
 from pyspark.sql.session import SparkSession
 
+
 class SparkSessionManager:
-    
-    def __init__(self, app_name = "default_application", master=None, configurations=None):
-        """ 
-            Initialize Spark Session Manager
-            :param app_name: Application name for spark
-            :param master (optional): Spark cluster configuration
-            :param configuration: Dict containing a set of cofigurations for spark
+    def __init__(self, app_name="default_application", master=None, configurations=None):
+        """
+        Initialize Spark Session Manager
+        :param app_name: Application name for spark
+        :param master (optional): Spark cluster configuration
+        :param configuration: Dict containing a set of cofigurations for spark
         """
         self.app_name = app_name
         self.master = master
         self.configurations = configurations or {}
-        
+
     def create_session(self) -> SparkSession:
-        """ 
+        """
         Create and return Spark Session
         with specified configurations
 
@@ -38,8 +38,6 @@ class SparkSessionManager:
             spark_builder = spark_builder.config(key, value)
 
         # create spark session
-        spark = (spark_builder
-                 .getOrCreate()
-                )
+        spark = spark_builder.getOrCreate()
 
         return spark

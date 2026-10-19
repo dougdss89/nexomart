@@ -2,21 +2,19 @@
 Silver: iceberglake.bronze.raw_dim_productcategory (Iceberg)
       → iceberglake.silver.dim_productcategory (Iceberg)
 """
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, monotonically_increasing_id, current_timestamp
-from configconnections_loader import load_config, validate_required_keys
+
 from sys import exit
 from traceback import print_exc
+
+from configconnections_loader import load_config
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, current_timestamp, monotonically_increasing_id
 
 
 def load_source_configurations(application_name: str):
     try:
-        config = load_config()
-        spark = (
-            SparkSession.builder
-            .appName(application_name)
-            .getOrCreate()
-        )
+        load_config()
+        spark = SparkSession.builder.appName(application_name).getOrCreate()
 
         return spark
 
@@ -52,8 +50,7 @@ def write_silver_dimension(spark, dataframe, table_name: str):
     try:
         spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberglake.silver")
         (
-            dataframe
-            .writeTo(f"iceberglake.silver.{table_name}")
+            dataframe.writeTo(f"iceberglake.silver.{table_name}")
             .tableProperty("format-version", "2")
             .tableProperty("write.format.default", "parquet")
             .createOrReplace()

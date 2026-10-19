@@ -1,6 +1,6 @@
 import logging
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import * #col, expr, lit, struct, map, array, shuffle, slice, current_timestamp, rand
+import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType, MapType, ArrayType, TimestampType
 
 # Logging configuration

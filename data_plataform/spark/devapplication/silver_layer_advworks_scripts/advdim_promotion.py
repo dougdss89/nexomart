@@ -1,5 +1,5 @@
 from startSparkSession import SparkSessionManager
-from pyspark.sql.functions import *
+import pyspark.sql.functions as F
 from pyspark.sql.dataframe import DataFrame
 from configconnections_loader import validate_required_keys, load_config
 from sys import exit

@@ -8,15 +8,16 @@ Architecture:
                         ↑ Iceberg (HiveCatalog → Hive Metastore)
                         ↑ Trino reads via trino/catalog/iceberglake.properties
 """
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import current_timestamp
-from configconnections_loader import load_config, validate_required_keys
+
 from sys import exit
 from traceback import print_exc
 
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import current_timestamp
+
 SILVER_TABLE = "dim_productcategory"
-GOLD_TABLE   = "gold_dim_productcategory"
-SCHEMA       = "gold"
+GOLD_TABLE = "gold_dim_productcategory"
+SCHEMA = "gold"
 
 
 def create_spark():
@@ -44,9 +45,8 @@ if __name__ == "__main__":
         if not spark:
             raise RuntimeError("Failed to initialize")
 
-        df = (
-            spark.table(f"iceberglake.silver.{SILVER_TABLE}")
-            .withColumn("gold_load_date", current_timestamp())
+        df = spark.table(f"iceberglake.silver.{SILVER_TABLE}").withColumn(
+            "gold_load_date", current_timestamp()
         )
 
         # Creates the Iceberg namespace in the Hive Metastore (idempotent)

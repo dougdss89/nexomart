@@ -9,6 +9,7 @@ write_iceberg(spark, df, "iceberglake.bronze.raw_dimbuyer")
 # Write to iceberglake silver:
 write_iceberg(spark, df, "iceberglake.silver.dim_buyer")
 """
+
 from pyspark.sql import DataFrame, SparkSession
 
 

@@ -1,14 +1,14 @@
+from configconnections_loader import load_config
 from pyspark.sql import SparkSession
-from configconnections_loader import load_config, validate_required_keys
-
 
 # load .env config
 
+
 def load_source_connections():
     """
-        load source connections from .env file
+    load source connections from .env file
     """
-    
+
     try:
         config = load_config()
     except (FileNotFoundError, KeyError) as e:
@@ -17,43 +17,38 @@ def load_source_connections():
 
     # Validate required keys
     try:
-        spark_jars = config["spark_jars"]
+        config["spark_jars"]
         mssql_adventureworks = config["mssql_sources"]["adventureworks"]
         mssql_properties = mssql_adventureworks["properties"]
-        mssql_url = mssql_adventureworks["url"]
+        mssql_adventureworks["url"]
         minio_landing = config.get("hadoop_paths", {})
-        
+
     except KeyError as e:
         print(f"Missing required configuration key: {str(e)}")
         return None, None, None, None
-    
-    #creating spark session    
-    spark = (SparkSession
-                .builder
-                .appName("extract_customer_raw")
-                .enableHiveSupport()
-                .getOrCreate()
-            )
+
+    # creating spark session
+    spark = SparkSession.builder.appName("extract_customer_raw").enableHiveSupport().getOrCreate()
     return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
+
 
 spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
 
-#select data from table customer
+
+# select data from table customer
 def extract_raw_customer(**kwargs):
-    
-    df_customer_raw = (spark
-                       .read
-                        .format("jdbc")
-                        .option("url", mssql_adventureworks['url'])
-                        .option("driver", mssql_properties['driver'])
-                        .option('user', mssql_properties['user'])
-                        .option('password', mssql_properties['password'])
-                        .option('query',
-                               
-                            """
+    df_customer_raw = (
+        spark.read.format("jdbc")
+        .option("url", mssql_adventureworks["url"])
+        .option("driver", mssql_properties["driver"])
+        .option("user", mssql_properties["user"])
+        .option("password", mssql_properties["password"])
+        .option(
+            "query",
+            """
 
                                 select
-                                    
+
                                     pp.businessentityid,
                                     sc.customerid,
                                     pp.firstname,
@@ -115,20 +110,23 @@ def extract_raw_customer(**kwargs):
                                     inner join
                                     person.vStateProvinceCountryRegion as spcr
                                 on pad.StateProvinceID = spcr.StateProvinceID
-                             
-                            """
-                       )).load()
+
+                            """,
+        )
+    ).load()
     return df_customer_raw
+
 
 write_customer = extract_raw_customer()
 
 write_customer.write.mode("overwrite").parquet(f"{minio_landing}/customer")
 
+
 def stop_spark(spark):
     spark.stop()
-    
-if __name__=='__main__':
-    
+
+
+if __name__ == "__main__":
     load_source_connections()
     extract_raw_customer()
     stop_spark(spark)

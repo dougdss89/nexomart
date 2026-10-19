@@ -6,11 +6,13 @@ Gold: s3a://silver/advworks_db/dim_productcategory (Delta)
 
 Note: Gold layer uses spark_catalog (DeltaCatalog + Hive Metastore).
 """
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import current_timestamp
-from configconnections_loader import load_config, validate_required_keys
+
 from sys import exit
 from traceback import print_exc
+
+from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import current_timestamp
 
 
 def load_source_configurations(application_name: str):
@@ -19,11 +21,7 @@ def load_source_configurations(application_name: str):
         delta_paths = config.get("delta_path", {})
         validate_required_keys(delta_paths, ["silver_layer"], "delta_path")
 
-        spark = (
-            SparkSession.builder
-            .appName(application_name)
-            .getOrCreate()
-        )
+        spark = SparkSession.builder.appName(application_name).getOrCreate()
 
         return spark, delta_paths.get("silver_layer")
 
@@ -40,18 +38,14 @@ def read_silver_dimension(spark, silver_base: str, table_name: str):
 
 def write_gold_delta(spark, dataframe, schema: str, table_name: str):
     gold_bucket = "s3a://deltadw/gold.db"
-    spark.sql(
-        f"CREATE DATABASE IF NOT EXISTS spark_catalog.{schema} "
-        f"LOCATION '{gold_bucket}/'"
-    )
+    spark.sql(f"CREATE DATABASE IF NOT EXISTS spark_catalog.{schema} LOCATION '{gold_bucket}/'")
     table_path = f"{gold_bucket}/{table_name}"
     full_table = f"spark_catalog.{schema}.{table_name}"
 
     # Overwrite creates a new Delta version (instead of delete+recreate at version 0),
     # which ensures Trino reads fresh file references rather than stale cache from v0.
     (
-        dataframe.write
-        .format("delta")
+        dataframe.write.format("delta")
         .option("path", table_path)
         .option("overwriteSchema", "true")
         .mode("overwrite")

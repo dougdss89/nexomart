@@ -1,17 +1,14 @@
-from pyspark.sql import SparkSession
-from configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
+
+from configconnections_loader import load_config
+from pyspark.sql import SparkSession
 
 
 def load_source_configurations(application_name: str):
     try:
-        config = load_config()
-        spark = (
-            SparkSession.builder
-            .appName(application_name)
-            .getOrCreate()
-        )
+        load_config()
+        spark = SparkSession.builder.appName(application_name).getOrCreate()
 
         return spark
 
@@ -38,12 +35,7 @@ def write_gold_iceberg(spark, dataframe, catalog: str, schema: str, table_name: 
 
         spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {catalog}.{schema}")
 
-        (
-            dataframe
-            .writeTo(full_table)
-            .tableProperty("format-version", "2")
-            .createOrReplace()
-        )
+        (dataframe.writeTo(full_table).tableProperty("format-version", "2").createOrReplace())
         print(f"Successfully written {full_table}")
         spark.sql(f"SELECT count(*) as total_rows FROM {full_table}").show()
 
@@ -61,7 +53,7 @@ def spark_stop(spark):
         print(f"Error stopping Spark: {str(e)}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     spark = None
     try:
         spark = load_source_configurations("gold_dim_buyer")

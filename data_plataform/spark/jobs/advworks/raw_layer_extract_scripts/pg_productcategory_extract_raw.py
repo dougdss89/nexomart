@@ -1,11 +1,13 @@
 """
 Bronze/Raw: s3a://landing/productcategory (Parquet) → iceberglake.bronze.raw_dim_productcategory (Iceberg)
 """
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, current_timestamp
-from configconnections_loader import load_config, validate_required_keys
+
 from sys import exit
 from traceback import print_exc
+
+from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
 
 
 def load_source_connections():
@@ -14,11 +16,7 @@ def load_source_connections():
         hadoop_paths = config.get("hadoop_paths", {})
         validate_required_keys(hadoop_paths, ["minio_landing"], "hadoop_paths")
 
-        spark = (
-            SparkSession.builder
-            .appName("pg_productcategory_raw")
-            .getOrCreate()
-        )
+        spark = SparkSession.builder.appName("pg_productcategory_raw").getOrCreate()
 
         return spark, hadoop_paths.get("minio_landing")
 
@@ -32,8 +30,7 @@ def write_to_iceberg(spark, dataframe, table_name: str):
     try:
         spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberglake.bronze")
         (
-            dataframe
-            .writeTo(f"iceberglake.bronze.{table_name}")
+            dataframe.writeTo(f"iceberglake.bronze.{table_name}")
             .tableProperty("format-version", "2")
             .tableProperty("write.format.default", "parquet")
             .createOrReplace()
@@ -43,6 +40,7 @@ def write_to_iceberg(spark, dataframe, table_name: str):
         print(f"Failed to write Iceberg: {str(e)}")
         print_exc()
         exit(1)
+
 
 def spark_stop(spark):
     try:

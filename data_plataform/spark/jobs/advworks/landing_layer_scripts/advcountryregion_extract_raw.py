@@ -1,11 +1,12 @@
-from pyspark.sql import SparkSession
-from configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
+from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql import SparkSession
+
 
 def load_source_connections():
-    """ Load source connections from .env file """
+    """Load source connections from .env file"""
     try:
         config = load_config()
 
@@ -17,8 +18,7 @@ def load_source_connections():
         validate_required_keys(hadoop_config, ["minio_landing"], "hadoop_paths")
 
         spark = (
-            SparkSession.builder
-            .appName('extract_country_region_raw')
+            SparkSession.builder.appName("extract_country_region_raw")
             .enableHiveSupport()
             .getOrCreate()
         )
@@ -32,16 +32,17 @@ def load_source_connections():
 
 
 def extract_raw_countryregion(spark, mssql_adventureworks, mssql_properties):
-    """ Extract country region data from SQL Server """
+    """Extract country region data from SQL Server"""
     try:
         df = (
-            spark.read
-            .format('jdbc')
-            .option('url', mssql_adventureworks['url'])
-            .option('driver', mssql_properties['driver'])
-            .option('user', mssql_properties['user'])
-            .option('password', mssql_properties['password'])
-            .option('query', """
+            spark.read.format("jdbc")
+            .option("url", mssql_adventureworks["url"])
+            .option("driver", mssql_properties["driver"])
+            .option("user", mssql_properties["user"])
+            .option("password", mssql_properties["password"])
+            .option(
+                "query",
+                """
                 select distinct
                     sst.territoryid,
                     sst.[name],
@@ -55,7 +56,8 @@ def extract_raw_countryregion(spark, mssql_adventureworks, mssql_properties):
                     on pcr.countryregioncode = sst.countryregioncode
                 left join person.stateprovince as psp
                     on psp.countryregioncode = pcr.countryregioncode
-            """)
+            """,
+            )
             .load()
         )
         return df
@@ -73,7 +75,7 @@ def spark_stop(spark):
         print(f"Error stopping Spark session: {str(e)}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     spark = None
     try:
         spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
@@ -86,7 +88,7 @@ if __name__ == '__main__':
         if df is None:
             raise RuntimeError("Failed to extract country region data")
 
-        df.repartition(1).write.mode('overwrite').parquet(f"{minio_landing}/countryregion")
+        df.repartition(1).write.mode("overwrite").parquet(f"{minio_landing}/countryregion")
 
         print("Job completed successfully")
 

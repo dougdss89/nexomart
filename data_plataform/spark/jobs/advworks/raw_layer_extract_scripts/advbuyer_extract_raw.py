@@ -1,32 +1,27 @@
-from pyspark.sql import SparkSession
-from configconnections_loader import load_config, validate_required_keys
-from pyspark.sql.functions import col
+import logging
 from sys import exit
 from traceback import print_exc
-import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
 def load_source_connections():
-    """ Load source connections from .env file and create a SparkSession. """
+    """Load source connections from .env file and create a SparkSession."""
     try:
         config = load_config()
 
         hadoop_paths = config.get("hadoop_paths", {})
 
         validate_required_keys(
-            config=hadoop_paths,
-            required_keys=["minio_landing"],
-            config_name="hadoop_paths"
+            config=hadoop_paths, required_keys=["minio_landing"], config_name="hadoop_paths"
         )
 
-        spark = (
-            SparkSession.builder
-            .appName('raw_buyer_to_delta')
-            .getOrCreate()
-        )
+        spark = SparkSession.builder.appName("raw_buyer_to_delta").getOrCreate()
 
         return spark, hadoop_paths.get("minio_landing", "")
 
@@ -42,7 +37,7 @@ def load_source_connections():
 
 
 def extract_landing_buyer(spark, minio_landing, raw_table_name: str):
-    """ Read Parquet data from the landing zone. """
+    """Read Parquet data from the landing zone."""
     try:
         return spark.read.parquet(f"{minio_landing}/{raw_table_name}")
     except Exception as e:
@@ -79,12 +74,11 @@ def buyer_replace_schema(dataframe):
 
 
 def write_to_iceberg(spark, dataframe, table_name: str):
-    """ Write DataFrame to Iceberg at iceberglake.bronze.<table_name>. """
+    """Write DataFrame to Iceberg at iceberglake.bronze.<table_name>."""
     try:
         spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberglake.bronze")
         (
-            dataframe
-            .writeTo(f"iceberglake.bronze.{table_name}")
+            dataframe.writeTo(f"iceberglake.bronze.{table_name}")
             .tableProperty("format-version", "2")
             .tableProperty("write.format.default", "parquet")
             .createOrReplace()
@@ -95,6 +89,7 @@ def write_to_iceberg(spark, dataframe, table_name: str):
         print(f"Failed to write table {table_name} to Iceberg: {str(e)}")
         print_exc()
         exit(1)
+
 
 def spark_stop(spark):
     try:

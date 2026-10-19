@@ -1,5 +1,5 @@
 from pyspark.sql.session import SparkSession
-from pyspark.sql.functions import *
+import pyspark.sql.functions as F
 import random
 import string
 from datetime import datetime, timedelta

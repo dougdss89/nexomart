@@ -1,11 +1,13 @@
 """
 Landing: PostgreSQL nexomarket_db.product.productcategory → s3a://landing/productcategory (Parquet)
 """
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import current_timestamp, lit
-from configconnections_loader import load_config, validate_required_keys
+
 from sys import exit
 from traceback import print_exc
+
+from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import current_timestamp, lit
 
 
 def load_source_connections():
@@ -14,11 +16,7 @@ def load_source_connections():
         hadoop_paths = config.get("hadoop_paths", {})
         validate_required_keys(hadoop_paths, ["minio_landing"], "hadoop_paths")
 
-        spark = (
-            SparkSession.builder
-            .appName("pg_productcategory_landing")
-            .getOrCreate()
-        )
+        spark = SparkSession.builder.appName("pg_productcategory_landing").getOrCreate()
 
         return spark, hadoop_paths.get("minio_landing")
 
@@ -30,14 +28,13 @@ def load_source_connections():
 
 def extract_productcategory(spark, minio_landing: str):
     try:
-        jdbc_url  = "jdbc:postgresql://pgprojeto:5432/nexomarket_db"
+        jdbc_url = "jdbc:postgresql://pgprojeto:5432/nexomarket_db"
         jdbc_user = "admin"
-        jdbc_pwd  = "admin"
-        driver    = "org.postgresql.Driver"
+        jdbc_pwd = "admin"
+        driver = "org.postgresql.Driver"
 
         df = (
-            spark.read
-            .format("jdbc")
+            spark.read.format("jdbc")
             .option("url", jdbc_url)
             .option("dbtable", "product.productcategory")
             .option("user", jdbc_user)
@@ -46,8 +43,7 @@ def extract_productcategory(spark, minio_landing: str):
             .load()
         )
 
-        df = df.withColumn("inserted_date", current_timestamp()) \
-               .withColumn("eltversion", lit(1))
+        df = df.withColumn("inserted_date", current_timestamp()).withColumn("eltversion", lit(1))
 
         output_path = f"{minio_landing}/productcategory"
         df.repartition(1).write.mode("overwrite").parquet(output_path)
