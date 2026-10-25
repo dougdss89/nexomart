@@ -43,7 +43,6 @@ before trusting this in production.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Tuple
 
 
 @dataclass
@@ -58,7 +57,7 @@ class SchemaRanges:
 
 # ── Per-schema ranges (used when no table-level override exists) ──────────────
 
-SCHEMA_RANGES: Dict[str, SchemaRanges] = {
+SCHEMA_RANGES: dict[str, SchemaRanges] = {
     "sales": SchemaRanges(
         min_count=20_000,
         max_count=200_000,
@@ -113,105 +112,176 @@ SCHEMA_RANGES: Dict[str, SchemaRanges] = {
 
 # ── Per-table overrides (take priority over schema-level ranges) ──────────────
 
-TABLE_RANGES: Dict[str, SchemaRanges] = {
+TABLE_RANGES: dict[str, SchemaRanges] = {
     "sales.salesorder": SchemaRanges(
-        min_count=20_000, max_count=200_000, min_chaos=0.05, max_chaos=0.10,
+        min_count=20_000,
+        max_count=200_000,
+        min_chaos=0.05,
+        max_chaos=0.10,
         description="Primary sales fact table, per ~10-15min run — bumped 2026-08-21 for testing, was 1k-50k, no absolute ceiling",
     ),
     "sales.sales_return_order": SchemaRanges(
-        min_count=50, max_count=500, min_chaos=0.05, max_chaos=0.10,
+        min_count=50,
+        max_count=500,
+        min_chaos=0.05,
+        max_chaos=0.10,
         description="Returns (~2-5% of sales volume), per run — was 5k-50k/day, no absolute ceiling",
     ),
     "warehouse.transaction_history": SchemaRanges(
-        min_count=1_000, max_count=50_000, min_chaos=0.05, max_chaos=0.10,
+        min_count=1_000,
+        max_count=50_000,
+        min_chaos=0.05,
+        max_chaos=0.10,
         description="Stock transaction history, per run — was 40k-1M/day, no absolute ceiling",
     ),
     "warehouse.product_inventory": SchemaRanges(
-        min_count=100, max_count=1_000, min_chaos=0.05, max_chaos=0.08,
+        min_count=100,
+        max_count=1_000,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Current inventory (one row per product per location), per run",
     ),
     "person.customer": SchemaRanges(
-        min_count=500, max_count=2_000, min_chaos=0.05, max_chaos=0.10,
+        min_count=500,
+        max_count=2_000,
+        min_chaos=0.05,
+        max_chaos=0.10,
         description="Primary customer dimension, per run — dropped from 10k-50k to 500-2k 2026-09-05, table already ~140M rows and growth needed to slow down",
     ),
     "person.address": SchemaRanges(
-        min_count=1_000, max_count=50_000, min_chaos=0.05, max_chaos=0.10,
+        min_count=1_000,
+        max_count=50_000,
+        min_chaos=0.05,
+        max_chaos=0.10,
         description="Addresses (1:N with customers), per run — was 20k-1M/day, no absolute ceiling",
     ),
     "product.product": SchemaRanges(
-        min_count=500, max_count=1_500, min_chaos=0.05, max_chaos=0.08,
+        min_count=500,
+        max_count=1_500,
+        min_chaos=0.05,
+        max_chaos=0.08,
         absolute_max=100_000,
         description="Product catalog",
     ),
     "product.product_category": SchemaRanges(
-        min_count=20, max_count=50, min_chaos=0.05, max_chaos=0.08,
+        min_count=20,
+        max_count=50,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Stable product categories",
     ),
     "humanresources.employee": SchemaRanges(
-        min_count=50, max_count=100, min_chaos=0.05, max_chaos=0.08,
+        min_count=50,
+        max_count=100,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Employees — small and critical",
     ),
     "humanresources.department": SchemaRanges(
-        min_count=10, max_count=20, min_chaos=0.05, max_chaos=0.08,
+        min_count=10,
+        max_count=20,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Departments lookup table",
     ),
     "purchasing.purchaseorderheader": SchemaRanges(
-        min_count=1_000, max_count=50_000, min_chaos=0.05, max_chaos=0.08,
+        min_count=1_000,
+        max_count=50_000,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Purchase order headers, per run — was 10k-1M/day, no absolute ceiling. "
-                     "Also used as the fan-out LIMIT for purchaseorderdetail/purchaseorderaudit "
-                     "(see utils/cli_common.py + those two seeders) — this is the one entry "
-                     "in this file that directly bounds those two, not just its own table.",
+        "Also used as the fan-out LIMIT for purchaseorderdetail/purchaseorderaudit "
+        "(see utils/cli_common.py + those two seeders) — this is the one entry "
+        "in this file that directly bounds those two, not just its own table.",
     ),
     "purchasing.purchaseorderdetail": SchemaRanges(
-        min_count=1_000, max_count=50_000, min_chaos=0.05, max_chaos=0.10,
+        min_count=1_000,
+        max_count=50_000,
+        min_chaos=0.05,
+        max_chaos=0.10,
         description="Purchase order line items — fan-out of headers, not independently drawn "
-                     "(this range is currently inert; kept in sync for when/if it gets its own absolute_max)",
+        "(this range is currently inert; kept in sync for when/if it gets its own absolute_max)",
     ),
     "marketing.marketing_campaign": SchemaRanges(
-        min_count=100, max_count=5_000, min_chaos=0.05, max_chaos=0.08,
+        min_count=100,
+        max_count=5_000,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Marketing campaigns",
     ),
     "marketing.marketing_daily_performance": SchemaRanges(
-        min_count=100, max_count=5_000, min_chaos=0.05, max_chaos=0.08,
+        min_count=100,
+        max_count=5_000,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Daily ad performance time-series, per run — was 10k-500k/day",
     ),
     "purchasing.vendor": SchemaRanges(
-        min_count=20, max_count=300, min_chaos=0.05, max_chaos=0.08,
+        min_count=20,
+        max_count=300,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Vendor master data — small, not a fact table",
     ),
     "warehouse.warehouselocation": SchemaRanges(
-        min_count=10, max_count=200, min_chaos=0.05, max_chaos=0.08,
+        min_count=10,
+        max_count=200,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Physical warehouse locations — small, not a fact table",
     ),
     "sales.seller": SchemaRanges(
-        min_count=10, max_count=300, min_chaos=0.05, max_chaos=0.08,
+        min_count=10,
+        max_count=300,
+        min_chaos=0.05,
+        max_chaos=0.08,
         description="Marketplace sellers/stores — small, not a fact table",
     ),
 }
 
 # ── Recommended chaos types per schema ───────────────────────────────────────
 
-RECOMMENDED_CHAOS_TYPES: Dict[str, list[str]] = {
+RECOMMENDED_CHAOS_TYPES: dict[str, list[str]] = {
     "sales": [
-        "duplicate", "dirty_cpf", "dirty_email",
-        "fraud_fake_cpf", "fraud_cloned_card", "fraud_high_value_suspicious",
-        "incomplete_payment", "incomplete_shipping", "incomplete_delivery",
+        "duplicate",
+        "dirty_cpf",
+        "dirty_email",
+        "fraud_fake_cpf",
+        "fraud_cloned_card",
+        "fraud_high_value_suspicious",
+        "incomplete_payment",
+        "incomplete_shipping",
+        "incomplete_delivery",
         "negative_values",
     ],
     "purchasing": [
-        "duplicate", "fraud_duplicate_order", "fraud_phantom_vendor",
-        "fraud_overpriced", "negative_cost", "missing_vendor_ref", "incomplete_delivery",
+        "duplicate",
+        "fraud_duplicate_order",
+        "fraud_phantom_vendor",
+        "fraud_overpriced",
+        "negative_cost",
+        "missing_vendor_ref",
+        "incomplete_delivery",
     ],
     "warehouse": [
-        "warehouse_lost_transfer", "warehouse_quantity_mismatch",
-        "warehouse_negative_stock", "warehouse_missing_location",
-        "warehouse_quality_fail", "warehouse_cold_chain_break",
-        "warehouse_same_location_transfer", "warehouse_missing_traceability",
+        "warehouse_lost_transfer",
+        "warehouse_quantity_mismatch",
+        "warehouse_negative_stock",
+        "warehouse_missing_location",
+        "warehouse_quality_fail",
+        "warehouse_cold_chain_break",
+        "warehouse_same_location_transfer",
+        "warehouse_missing_traceability",
         "missing_order_ref",
     ],
     "person": [
-        "duplicate", "dirty_cpf", "dirty_phone", "dirty_email",
-        "dirty_cep", "dirty_name", "fraud_fake_address",
+        "duplicate",
+        "dirty_cpf",
+        "dirty_phone",
+        "dirty_email",
+        "dirty_cep",
+        "dirty_name",
+        "fraud_fake_address",
     ],
     "product": ["duplicate", "outlier_value"],
     "marketing": ["outlier_value", "outlier_quantity", "negative_values"],
@@ -221,6 +291,7 @@ RECOMMENDED_CHAOS_TYPES: Dict[str, list[str]] = {
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+
 def get_ranges(schema: str = None, table: str = None) -> SchemaRanges:
     """Return ranges for a table (highest priority) or schema, with a safe fallback."""
     if table and table in TABLE_RANGES:
@@ -228,12 +299,15 @@ def get_ranges(schema: str = None, table: str = None) -> SchemaRanges:
     if schema and schema in SCHEMA_RANGES:
         return SCHEMA_RANGES[schema]
     return SchemaRanges(
-        min_count=1_000, max_count=100_000, min_chaos=0.02, max_chaos=0.08,
+        min_count=1_000,
+        max_count=100_000,
+        min_chaos=0.02,
+        max_chaos=0.08,
         description="Default fallback for unmapped schemas",
     )
 
 
-def get_default_ranges(schema: str) -> Tuple[int, int, float, float]:
+def get_default_ranges(schema: str) -> tuple[int, int, float, float]:
     """Return (min_count, max_count, min_chaos, max_chaos) — useful for argparse defaults."""
     r = get_ranges(schema=schema)
     return r.min_count, r.max_count, r.min_chaos, r.max_chaos
@@ -259,6 +333,7 @@ def get_recommended_chaos_types(schema: str) -> list[str]:
 # no-hard-delete rule itself lives in each table's own mutate_*.py (`hard_delete_allowed=False`),
 # not here — this file only sizes the volume.
 
+
 @dataclass
 class MutationRanges:
     min_count: int
@@ -267,60 +342,86 @@ class MutationRanges:
     description: str = ""
 
 
-MUTATION_SCHEMA_RANGES: Dict[str, MutationRanges] = {
+MUTATION_SCHEMA_RANGES: dict[str, MutationRanges] = {
     "sales": MutationRanges(
-        min_count=200, max_count=2_000, delete_ratio=0.15,
+        min_count=200,
+        max_count=2_000,
+        delete_ratio=0.15,
         description="Sales rows touched per run — DELETE here always resolves to a soft flag",
     ),
     "purchasing": MutationRanges(
-        min_count=100, max_count=1_000, delete_ratio=0.20,
+        min_count=100,
+        max_count=1_000,
+        delete_ratio=0.20,
         description="Purchasing rows touched per run",
     ),
     "warehouse": MutationRanges(
-        min_count=100, max_count=1_000, delete_ratio=0.20,
+        min_count=100,
+        max_count=1_000,
+        delete_ratio=0.20,
         description="Warehouse rows touched per run",
     ),
     "person": MutationRanges(
-        min_count=200, max_count=2_000, delete_ratio=0.10,
+        min_count=200,
+        max_count=2_000,
+        delete_ratio=0.10,
         description="Person rows touched per run",
     ),
     "product": MutationRanges(
-        min_count=50, max_count=300, delete_ratio=0.10,
+        min_count=50,
+        max_count=300,
+        delete_ratio=0.10,
         description="Product rows touched per run — mostly discontinuation-style updates",
     ),
     "marketing": MutationRanges(
-        min_count=50, max_count=500, delete_ratio=0.15,
+        min_count=50,
+        max_count=500,
+        delete_ratio=0.15,
         description="Marketing rows touched per run",
     ),
     "humanresources": MutationRanges(
-        min_count=10, max_count=50, delete_ratio=0.05,
+        min_count=10,
+        max_count=50,
+        delete_ratio=0.05,
         description="HR rows touched per run — small and sensitive, kept conservative",
     ),
 }
 
-MUTATION_TABLE_RANGES: Dict[str, MutationRanges] = {
+MUTATION_TABLE_RANGES: dict[str, MutationRanges] = {
     "sales.salesorder": MutationRanges(
-        min_count=200, max_count=2_000, delete_ratio=0.15,
+        min_count=200,
+        max_count=2_000,
+        delete_ratio=0.15,
         description="Order status/payment-style updates; DELETE resolves to a soft flag",
     ),
     "sales.returnorder": MutationRanges(
-        min_count=50, max_count=500, delete_ratio=0.15,
+        min_count=50,
+        max_count=500,
+        delete_ratio=0.15,
         description="Return status updates; DELETE resolves to a soft flag",
     ),
     "sales.ordereventlog": MutationRanges(
-        min_count=20, max_count=200, delete_ratio=0.10,
+        min_count=20,
+        max_count=200,
+        delete_ratio=0.10,
         description="Event log corrections; DELETE resolves to a soft flag (audit-type table)",
     ),
     "purchasing.purchaseorderaudit": MutationRanges(
-        min_count=50, max_count=500, delete_ratio=0.10,
+        min_count=50,
+        max_count=500,
+        delete_ratio=0.10,
         description="Audit trail corrections; DELETE resolves to a soft flag (audit-type table)",
     ),
     "purchasing.purchaseorderheader": MutationRanges(
-        min_count=100, max_count=1_000, delete_ratio=0.15,
+        min_count=100,
+        max_count=1_000,
+        delete_ratio=0.15,
         description="PO status/date updates — real DELETE allowed (not itself an audit table)",
     ),
     "person.customer": MutationRanges(
-        min_count=200, max_count=2_000, delete_ratio=0.10,
+        min_count=200,
+        max_count=2_000,
+        delete_ratio=0.10,
         description="Customer profile updates — real DELETE allowed (e.g. right-to-be-forgotten scenarios)",
     ),
 }
@@ -333,6 +434,8 @@ def get_mutation_ranges(schema: str = None, table: str = None) -> MutationRanges
     if schema and schema in MUTATION_SCHEMA_RANGES:
         return MUTATION_SCHEMA_RANGES[schema]
     return MutationRanges(
-        min_count=50, max_count=500, delete_ratio=0.10,
+        min_count=50,
+        max_count=500,
+        delete_ratio=0.10,
         description="Default fallback for unmapped schemas",
     )

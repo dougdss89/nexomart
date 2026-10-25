@@ -22,11 +22,9 @@ Usage (inside the airflow-worker venv, same convention as the ingestion DAG):
 """
 
 import argparse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import psycopg2.extras
-from sqlalchemy import create_engine
-
 from api.seeder.ingestions.ingestion_common import (
     DEFAULT_CHUNKSIZE,
     EPOCH,
@@ -34,6 +32,7 @@ from api.seeder.ingestions.ingestion_common import (
     ingest_table,
     set_watermark,
 )
+from sqlalchemy import create_engine
 
 
 def _parse_targets(raw: str) -> list[tuple[str, str]]:
@@ -71,7 +70,7 @@ def main() -> None:
     psycopg2.extras.register_default_jsonb(raw_conn.dbapi_connection, loads=lambda raw: raw)
     psycopg2.extras.register_default_json(raw_conn.dbapi_connection, loads=lambda raw: raw)
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         run_date = now.strftime("%Y-%m-%d")
         run_ts = now.strftime("%Y%m%dT%H%M%SZ")
         print(f"Backfill of {len(targets)} table(s), run_ts={run_ts}")
@@ -79,7 +78,9 @@ def main() -> None:
         grand_total = 0
         for schema, table in targets:
             set_watermark(engine, schema, table, EPOCH)  # force a full scan on this table
-            rows = ingest_table(raw_conn, engine, schema, table, run_date, run_ts, chunksize=args.chunksize)
+            rows = ingest_table(
+                raw_conn, engine, schema, table, run_date, run_ts, chunksize=args.chunksize
+            )
             grand_total += rows
             print(f"OK {schema}.{table}: {rows:,} rows re-landed")
 

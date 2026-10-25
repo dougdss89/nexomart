@@ -31,10 +31,10 @@ import json
 import os
 import time
 import uuid
+from collections.abc import Callable
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Callable, Optional
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -60,8 +60,10 @@ def _minio_writer(bucket: str, object_name: str, data: bytes) -> bool:
 
 
 def _has_default(col) -> bool:
-    return col.default is not None or col.server_default is not None or (
-        col.primary_key and col.autoincrement in (True, "auto")
+    return (
+        col.default is not None
+        or col.server_default is not None
+        or (col.primary_key and col.autoincrement in (True, "auto"))
     )
 
 
@@ -73,28 +75,59 @@ def _physical_problems(table, row: dict) -> list[dict]:
     for col in table.columns:
         if col.name not in row:
             if not col.nullable and not _has_default(col):
-                problems.append({"loc": [col.name], "msg": "missing, column is NOT NULL with no default", "type": "physical"})
+                problems.append(
+                    {
+                        "loc": [col.name],
+                        "msg": "missing, column is NOT NULL with no default",
+                        "type": "physical",
+                    }
+                )
             continue
         value = row[col.name]
         if value is None:
             if not col.nullable:
-                problems.append({"loc": [col.name], "msg": "NULL in a NOT NULL column", "type": "physical"})
+                problems.append(
+                    {"loc": [col.name], "msg": "NULL in a NOT NULL column", "type": "physical"}
+                )
             continue
         t = col.type
         if isinstance(t, String) and t.length and isinstance(value, str):
             if len(value) > t.length:
-                problems.append({"loc": [col.name], "msg": f"{len(value)} characters, column is varchar({t.length})", "type": "physical"})
-        elif isinstance(t, Numeric) and t.precision is not None and isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
+                problems.append(
+                    {
+                        "loc": [col.name],
+                        "msg": f"{len(value)} characters, column is varchar({t.length})",
+                        "type": "physical",
+                    }
+                )
+        elif (
+            isinstance(t, Numeric)
+            and t.precision is not None
+            and isinstance(value, (int, float, Decimal))
+            and not isinstance(value, bool)
+        ):
             try:
                 d = Decimal(str(value))
             except InvalidOperation:
                 continue
             if d.is_finite() and abs(d) >= Decimal(10) ** (t.precision - (t.scale or 0)):
-                problems.append({"loc": [col.name], "msg": f"{value} overflows numeric({t.precision},{t.scale})", "type": "physical"})
+                problems.append(
+                    {
+                        "loc": [col.name],
+                        "msg": f"{value} overflows numeric({t.precision},{t.scale})",
+                        "type": "physical",
+                    }
+                )
         elif isinstance(t, Integer) and isinstance(value, int) and not isinstance(value, bool):
             bits = 63 if isinstance(t, BigInteger) else 15 if isinstance(t, SmallInteger) else 31
-            if not -(2 ** bits) <= value < 2 ** bits:
-                problems.append({"loc": [col.name], "msg": f"{value} is out of range for {type(t).__name__}", "type": "physical"})
+            if not -(2**bits) <= value < 2**bits:
+                problems.append(
+                    {
+                        "loc": [col.name],
+                        "msg": f"{value} is out of range for {type(t).__name__}",
+                        "type": "physical",
+                    }
+                )
     return problems
 
 
@@ -102,18 +135,18 @@ class Quarantine:
     def __init__(
         self,
         table: str,
-        max_reject_rate: Optional[float] = None,
-        writer: Optional[Callable[[str, str, bytes], bool]] = None,
+        max_reject_rate: float | None = None,
+        writer: Callable[[str, str, bytes], bool] | None = None,
     ):
         self.table = table
         self.max_reject_rate = MAX_REJECT_RATE if max_reject_rate is None else max_reject_rate
         self._writer = writer or _minio_writer
-        self.accepted = 0          # rows that passed Pydantic through row()
+        self.accepted = 0  # rows that passed Pydantic through row()
         self.rejected_pyd = 0
         self.rejected_phys = 0
-        self.phys_seen = 0         # rows that reached the physical check
+        self.phys_seen = 0  # rows that reached the physical check
         self._pending: list[dict] = []
-        self.last_object: Optional[str] = None
+        self.last_object: str | None = None
         atexit.register(self._flush_at_exit)
 
     @property
@@ -150,7 +183,7 @@ class Quarantine:
                 self._pending.append(
                     {
                         "stage": "physical",
-                        "rejected_at": datetime.now(timezone.utc),
+                        "rejected_at": datetime.now(UTC),
                         "payload": json.dumps(row, default=str, ensure_ascii=False),
                         "errors": json.dumps(problems, ensure_ascii=False),
                     }
@@ -176,7 +209,7 @@ class Quarantine:
             return
         rows, self._pending = self._pending, []
         schema_name, _, table_name = self.table.partition(".")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         object_name = (
             f"{QUARANTINE_PREFIX}/{schema_name}/{table_name}/{now:%Y-%m-%d}/"
             f"rejected-{now:%Y%m%dT%H%M%S}-{uuid.uuid4().hex[:8]}.parquet"
@@ -185,7 +218,9 @@ class Quarantine:
             {
                 "table_name": [self.table] * len(rows),
                 "stage": [r["stage"] for r in rows],
-                "rejected_at": pa.array([r["rejected_at"] for r in rows], type=pa.timestamp("us", tz="UTC")),
+                "rejected_at": pa.array(
+                    [r["rejected_at"] for r in rows], type=pa.timestamp("us", tz="UTC")
+                ),
                 "payload": [r["payload"] for r in rows],
                 "errors": [r["errors"] for r in rows],
             }
@@ -200,7 +235,7 @@ class Quarantine:
         self._pending.append(
             {
                 "stage": "pydantic",
-                "rejected_at": datetime.now(timezone.utc),
+                "rejected_at": datetime.now(UTC),
                 "payload": json.dumps(payload, default=str, ensure_ascii=False),
                 "errors": json.dumps(
                     exc.errors(include_url=False, include_input=False, include_context=False),

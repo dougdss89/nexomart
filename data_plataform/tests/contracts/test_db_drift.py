@@ -13,7 +13,6 @@ from pathlib import Path
 
 import psycopg2
 import pytest
-
 from contract_helpers import REGISTRY, _import, _load, _norm, _props, _sql_physical_type
 
 MODELS_DIR = Path(__file__).resolve().parents[2] / "dbapi" / "api" / "models"
@@ -167,7 +166,9 @@ def test_primary_key_matches_database(model_vs_db, db):
     table, _ = model_vs_db
     model_pk = {c.name for c in table.primary_key.columns}
     db_pk = _db_primary_key(db, table.schema, table.name)
-    assert model_pk == db_pk, f"primary key differs: model {sorted(model_pk)}, database {sorted(db_pk)}"
+    assert model_pk == db_pk, (
+        f"primary key differs: model {sorted(model_pk)}, database {sorted(db_pk)}"
+    )
 
 
 def test_foreign_keys_match_database(model_vs_db, db):

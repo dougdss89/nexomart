@@ -56,5 +56,17 @@ RUN curl -fSL https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/
         -o "$SPARK_HOME/jars/aws-java-sdk-bundle-1.12.262.jar" && \
     chown spark:spark "$SPARK_HOME/jars/hadoop-aws-3.3.4.jar" "$SPARK_HOME/jars/aws-java-sdk-bundle-1.12.262.jar"
 
+# Delta Lake baked into every node (master/worker/history) instead of relying only on the driver
+# shipping it via spark.jars.packages. Keep DELTA_VERSION in sync with spark.jars.packages in
+# conf/spark-defaults.conf.template — a mismatch puts two Delta versions on the executor classpath.
+# Python bindings (delta.tables) installed with --no-deps: pyspark already lives in $SPARK_HOME/python.
+ARG DELTA_VERSION=3.2.1
+RUN curl -fSL https://repo1.maven.org/maven2/io/delta/delta-spark_2.13/${DELTA_VERSION}/delta-spark_2.13-${DELTA_VERSION}.jar \
+        -o "$SPARK_HOME/jars/delta-spark_2.13-${DELTA_VERSION}.jar" && \
+    curl -fSL https://repo1.maven.org/maven2/io/delta/delta-storage/${DELTA_VERSION}/delta-storage-${DELTA_VERSION}.jar \
+        -o "$SPARK_HOME/jars/delta-storage-${DELTA_VERSION}.jar" && \
+    chown spark:spark "$SPARK_HOME/jars/delta-spark_2.13-${DELTA_VERSION}.jar" "$SPARK_HOME/jars/delta-storage-${DELTA_VERSION}.jar" && \
+    pip install --no-cache-dir --no-deps delta-spark==${DELTA_VERSION}
+
 USER spark
 ENTRYPOINT ["/entrypoint.sh"]

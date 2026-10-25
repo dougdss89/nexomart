@@ -1,18 +1,19 @@
 import logging
-from typing import List, Dict, Any, Optional
-from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Any
 
 from api.models.marketing.marketing_campaign import MarketingCampaignModel
+from sqlalchemy import insert, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+
 class MarketingCampaignRepository:
-    """ Exclusively for Marketing Campaign database operations """
-    
+    """Exclusively for Marketing Campaign database operations"""
+
     @staticmethod
-    async def bulk_insert(db: AsyncSession, campaigns_data: List[Dict[str, Any]]) -> bool:
+    async def bulk_insert(db: AsyncSession, campaigns_data: list[dict[str, Any]]) -> bool:
         try:
             stmt = insert(MarketingCampaignModel).values(campaigns_data)
             await db.execute(stmt)
@@ -22,11 +23,13 @@ class MarketingCampaignRepository:
             await db.rollback()
             logger.error(f"SQL Error Bulk Insert Marketing Campaign: {e}")
             raise
-            
+
     @staticmethod
-    async def get_by_id(db: AsyncSession, campaign_id: int) -> Optional[MarketingCampaignModel]:
+    async def get_by_id(db: AsyncSession, campaign_id: int) -> MarketingCampaignModel | None:
         try:
-            stmt = select(MarketingCampaignModel).where(MarketingCampaignModel.campaign_id == campaign_id)
+            stmt = select(MarketingCampaignModel).where(
+                MarketingCampaignModel.campaign_id == campaign_id
+            )
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:

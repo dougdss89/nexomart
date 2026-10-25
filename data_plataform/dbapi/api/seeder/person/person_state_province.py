@@ -1,23 +1,33 @@
 import asyncio
-import sys
 import os
+import sys
 import uuid
 from datetime import datetime
-from typing import List, Dict, Any
-from sqlalchemy import select, insert
+from typing import Any
+
 from api.database import AsyncSessionLocal
-from api.samples.state_province import STATES_BY_COUNTRY
 from api.models.person.country_region import CountryRegionModel
 from api.models.person.state_province import StateProvinceModel
+from api.samples.state_province import STATES_BY_COUNTRY
 from api.schemas.person.person_state_province import StateProvince
 from api.seeder.chaos import apply_geography_code_chaos
-from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, skip_if_already_seeded, stamp_dimension_history
+from api.utils.cli_common import (
+    add_chaos_args,
+    build_parser,
+    resolve_chaos_args,
+    skip_if_already_seeded,
+    stamp_dimension_history,
+)
 from api.utils.quarantine import get_quarantine, physical_gate
+from sqlalchemy import insert, select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-def generate_state_payloads(country_map: Dict[str, int], chaos_rate: float = 0.05, apply_chaos: bool = True) -> List[Dict[str, Any]]:
+
+def generate_state_payloads(
+    country_map: dict[str, int], chaos_rate: float = 0.05, apply_chaos: bool = True
+) -> list[dict[str, Any]]:
     """Generates the states load linked to the database's countries."""
     batch = []
     q = get_quarantine("person.stateprovince")
@@ -36,31 +46,40 @@ def generate_state_payloads(country_map: Dict[str, int], chaos_rate: float = 0.0
                 "created_at": setup_date,
                 "updated_at": setup_date,
                 "is_active": True,
-                "row_guid": uuid.uuid4()
+                "row_guid": uuid.uuid4(),
             }
             with q.row(payload):
                 validated_state = StateProvince(**payload).model_dump()
-                validated_state.pop("state_province_id", None)  # let the database's autoincrement take over
+                validated_state.pop(
+                    "state_province_id", None
+                )  # let the database's autoincrement take over
                 batch.append(validated_state)
             state_id_counter += 1
     if apply_chaos:
-        batch = apply_geography_code_chaos(batch, code_field="state_province_code", chaos_rate=chaos_rate)
+        batch = apply_geography_code_chaos(
+            batch, code_field="state_province_code", chaos_rate=chaos_rate
+        )
 
     q.finish()
     return batch
+
 
 async def seed_person_states(chaos_rate: float = 0.05, apply_chaos: bool = True):
     """Runs the states load linked to REAL countries from the database."""
     async with AsyncSessionLocal() as session:
         # 1. Fetch the map of country codes to IDs (Dimensional Integrity)
-        result = await session.execute(select(CountryRegionModel.country_id, CountryRegionModel.country_code))
+        result = await session.execute(
+            select(CountryRegionModel.country_id, CountryRegionModel.country_code)
+        )
         country_map = {row[1]: row[0] for row in result.all()}
 
         if not country_map:
             print("⚠️ No country found! Run the PersonCountry seeder first.")
             return
 
-        states = generate_state_payloads(country_map, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+        states = generate_state_payloads(
+            country_map, chaos_rate=chaos_rate, apply_chaos=apply_chaos
+        )
 
         if await skip_if_already_seeded(session, StateProvinceModel, label="States"):
             return
@@ -77,6 +96,7 @@ async def seed_person_states(chaos_rate: float = 0.05, apply_chaos: bool = True)
             await session.rollback()
             print(f"❌ Error seeding states: {e}")
             raise RuntimeError(f"State seeding aborted: {e}") from e
+
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for person.state_province (fan-out of real countries)")

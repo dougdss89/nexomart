@@ -1,18 +1,19 @@
 import logging
-from typing import List, Dict, Any, Optional
-from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Any
 
 from api.models.marketing.marketing_advertise import MarketingAdvertiseModel
+from sqlalchemy import insert, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+
 class MarketingAdsRepository:
-    """ Exclusively for database operations on Ads and Creatives """
-    
+    """Exclusively for database operations on Ads and Creatives"""
+
     @staticmethod
-    async def bulk_insert(db: AsyncSession, ads_data: List[Dict[str, Any]]) -> bool:
+    async def bulk_insert(db: AsyncSession, ads_data: list[dict[str, Any]]) -> bool:
         try:
             stmt = insert(MarketingAdvertiseModel).values(ads_data)
             await db.execute(stmt)
@@ -22,9 +23,9 @@ class MarketingAdsRepository:
             await db.rollback()
             logger.error(f"SQL Error Bulk Insert Marketing Ads: {e}")
             raise
-            
+
     @staticmethod
-    async def get_by_id(db: AsyncSession, ad_id: int) -> Optional[MarketingAdvertiseModel]:
+    async def get_by_id(db: AsyncSession, ad_id: int) -> MarketingAdvertiseModel | None:
         try:
             stmt = select(MarketingAdvertiseModel).where(MarketingAdvertiseModel.ad_id == ad_id)
             result = await db.execute(stmt)

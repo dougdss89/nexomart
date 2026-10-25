@@ -1,26 +1,37 @@
 import asyncio
+import os
 import random
 import sys
-import os
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import List, Dict, Any
-from sqlalchemy import select, insert
+
 from api.database import AsyncSessionLocal
+from api.models.person.country_region import CountryRegionModel
 
 # Modelos
 from api.models.person.seller import SellerModel
-from api.models.person.country_region import CountryRegionModel
-from api.schemas.sales.sales_seller import Seller
 
 # Amostras
 from api.samples.sales_seller import (
-    SELLER_NAMES, TRADING_NAMES, BANK_CODES, BANK_NAMES,
-    SELLER_TYPES, ADDRESS_STREETS, CITIES, STATES
+    ADDRESS_STREETS,
+    BANK_CODES,
+    BANK_NAMES,
+    CITIES,
+    SELLER_NAMES,
+    SELLER_TYPES,
+    STATES,
+    TRADING_NAMES,
 )
+from api.schemas.sales.sales_seller import Seller
 from api.seeder.chaos import apply_seller_chaos
-from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, stamp_dimension_history
+from api.utils.cli_common import (
+    add_volume_args,
+    build_parser,
+    resolve_volume_args,
+    stamp_dimension_history,
+)
 from api.utils.quarantine import get_quarantine, physical_gate
+from sqlalchemy import insert, select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -28,7 +39,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 SCHEMA_NAME = "sales"
 TABLE_NAME = "sales.seller"
 
-async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True):
+
+async def seed_sellers(
+    count: int = 30, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True
+):
     """Runs the sellers load with full dimensional integrity."""
     async with AsyncSessionLocal() as session:
         # 1. Fetch valid IDs (Dimensional Integrity)
@@ -54,12 +68,12 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
                 social = f"{random.randint(10, 99)}{random.randint(100, 999)}{random.randint(100, 999)}0001{random.randint(10, 99)}"
             else:
                 social = f"{random.randint(100, 999)}.{random.randint(100, 999)}.{random.randint(100, 999)}-{random.randint(10, 99)}"
-            
-            bank_idx = random.randint(0, len(BANK_CODES)-1)
-            city_idx = random.randint(0, len(CITIES)-1)
-            
+
+            bank_idx = random.randint(0, len(BANK_CODES) - 1)
+            city_idx = random.randint(0, len(CITIES) - 1)
+
             opened_date = datetime.now() - timedelta(days=random.randint(365, 3650))
-            
+
             payload = {
                 "seller_id": 1,  # placeholder for Pydantic validation (gt=0); removed before insert
                 "seller_name": name,
@@ -72,14 +86,14 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
                     "information": {
                         "sellertype": s_type,
                         "trading_name": trading,
-                        "support_email": f"support@{trading.lower()}.com.br"
+                        "support_email": f"support@{trading.lower()}.com.br",
                     },
                     "bank_account": {
                         "bank_code": BANK_CODES[bank_idx],
                         "bank_name": BANK_NAMES[bank_idx],
                         "agency": f"{random.randint(1000, 9999)}",
                         "account_number": f"{random.randint(10000, 99999)}-{random.randint(0, 9)}",
-                        "account_type": "checking"
+                        "account_type": "checking",
                     },
                     "address": [
                         {
@@ -89,7 +103,7 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
                             "postal_code": f"{random.randint(10000, 99999)}-{random.randint(0, 999)}",
                             "city": CITIES[city_idx],
                             "state_name": STATES[city_idx],
-                            "country": "Brasil"
+                            "country": "Brasil",
                         }
                     ],
                     "metrics": {
@@ -99,15 +113,17 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
                         "count_orders": random.randint(50, 5000),
                         "chargeback_rate": round(random.uniform(0.0, 0.05), 4),
                         "date_first_sale": (opened_date + timedelta(days=30)).date().isoformat(),
-                        "date_last_sale": date.today().isoformat()
-                    }
-                }
+                        "date_last_sale": date.today().isoformat(),
+                    },
+                },
             }
             with q.row(payload):
                 seller_obj = Seller(**payload)
                 validated_seller = seller_obj.model_dump()
                 validated_seller["demographics"] = seller_obj.demographics.model_dump(mode="json")
-                validated_seller.pop("seller_id", None)  # let the database's autoincrement take over
+                validated_seller.pop(
+                    "seller_id", None
+                )  # let the database's autoincrement take over
                 sellers.append(validated_seller)
 
         q.finish()
@@ -125,10 +141,17 @@ async def seed_sellers(count: int = 30, chaos_rate: float = 0.05, batch_size: in
             print(f"❌ Error seeding sellers: {e}")
             raise RuntimeError(f"Seller seeding aborted: {e}") from e
 
+
 if __name__ == "__main__":
     parser = build_parser(f"Dynamic seeder for {TABLE_NAME}")
     add_volume_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
     args = parser.parse_args()
-    count, chaos_rate, apply_chaos, batch_size = resolve_volume_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+    count, chaos_rate, apply_chaos, batch_size = resolve_volume_args(
+        args, schema=SCHEMA_NAME, table=TABLE_NAME
+    )
 
-    asyncio.run(seed_sellers(count=count, chaos_rate=chaos_rate, batch_size=batch_size, apply_chaos=apply_chaos))
+    asyncio.run(
+        seed_sellers(
+            count=count, chaos_rate=chaos_rate, batch_size=batch_size, apply_chaos=apply_chaos
+        )
+    )

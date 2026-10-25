@@ -1,16 +1,18 @@
 import asyncio
-import sys
 import os
+import sys
 import uuid
 from datetime import datetime
-from sqlalchemy import insert
+
 from api.database import AsyncSessionLocal
-from api.schemas.marketing.marketing_channel import MarketingChannel, ChannelName, PlatformName
 from api.models.marketing.marketing_channel import MarketingChannelModel
+from api.schemas.marketing.marketing_channel import ChannelName, MarketingChannel, PlatformName
 from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
+from sqlalchemy import insert
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+
 
 def get_marketing_channel_seeders() -> list[dict]:
     """
@@ -39,12 +41,13 @@ def get_marketing_channel_seeders() -> list[dict]:
             "created_at": today,
             "updated_at": today,
             "is_active": True,
-            "row_guid": uuid.uuid4()
+            "row_guid": uuid.uuid4(),
         }
         validated_channel = MarketingChannel(**payload).model_dump()
         validated_channel.pop("channel_id", None)  # let the database's autoincrement take over
         batch.append(validated_channel)
     return batch
+
 
 async def seed_marketing_channels():
     """
@@ -64,6 +67,7 @@ async def seed_marketing_channels():
             await session.rollback()
             print(f"❌ Error seeding channels: {e}")
             raise RuntimeError(f"Marketing channel seeding aborted: {e}") from e
+
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for marketing.marketing_channel (fixed master data, no chaos)")

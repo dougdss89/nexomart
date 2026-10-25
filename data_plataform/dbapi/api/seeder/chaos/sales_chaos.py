@@ -9,7 +9,9 @@ from decimal import Decimal
 from typing import Any
 
 
-def apply_sales_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_sales_order_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Broken math (phantom discount), schizophrenic payment, and Schrodinger order."""
     if not batch:
         return batch
@@ -23,7 +25,9 @@ def apply_sales_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.0
 
         if chaos_type == "broken_math":
             # Discount applied to the order total without prorating across line items
-            discount = (row["total_amount"] * Decimal(str(random.uniform(0.3, 0.7)))).quantize(Decimal("0.01"))
+            discount = (row["total_amount"] * Decimal(str(random.uniform(0.3, 0.7)))).quantize(
+                Decimal("0.01")
+            )
             row["total_amount"] = row["total_amount"] - discount
 
         elif chaos_type == "schizophrenic_payment":
@@ -34,7 +38,11 @@ def apply_sales_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.0
                 "transactions": [
                     {"method": "pix", "amount": float(thirds), "status": "paid"},
                     {"method": "credit_card", "amount": float(thirds), "status": "paid"},
-                    {"method": "credit_card", "amount": float(total - thirds * 2), "status": "paid"},
+                    {
+                        "method": "credit_card",
+                        "amount": float(total - thirds * 2),
+                        "status": "paid",
+                    },
                 ],
             }
 
@@ -69,7 +77,9 @@ def apply_eventlog_chaos(events: list[Any], chaos_rate: float = 0.05) -> list[An
         return events
 
     num_chaos = max(1, int(len(orders_with_multiple_events) * chaos_rate))
-    chosen_orders = random.sample(orders_with_multiple_events, min(num_chaos, len(orders_with_multiple_events)))
+    chosen_orders = random.sample(
+        orders_with_multiple_events, min(num_chaos, len(orders_with_multiple_events))
+    )
 
     for order_id in chosen_orders:
         indices = by_order[order_id]
@@ -78,7 +88,9 @@ def apply_eventlog_chaos(events: list[Any], chaos_rate: float = 0.05) -> list[An
         if chaos_type == "time_travel" and len(indices) >= 2:
             earlier_idx, later_idx = sorted(random.sample(indices, 2))
             # The later event (in logical order) arrives with a timestamp earlier than the prior one
-            events[later_idx].event_date = events[earlier_idx].event_date - timedelta(hours=random.randint(1, 4))
+            events[later_idx].event_date = events[earlier_idx].event_date - timedelta(
+                hours=random.randint(1, 4)
+            )
 
         elif chaos_type == "gps_teleport":
             target_idx = random.choice(indices)
@@ -92,7 +104,9 @@ def apply_eventlog_chaos(events: list[Any], chaos_rate: float = 0.05) -> list[An
     return events
 
 
-def apply_return_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_return_order_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Infinite refund (10x the original value) and phantom inspection (reversal with no real inspection)."""
     if not batch:
         return batch
@@ -105,7 +119,9 @@ def apply_return_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.
         chaos_type = random.choice(["infinite_refund", "phantom_inspection"])
 
         if chaos_type == "infinite_refund":
-            row["refund_amount"] = (row["refund_amount"] * Decimal("10")).quantize(Decimal("0.0001"))
+            row["refund_amount"] = (row["refund_amount"] * Decimal("10")).quantize(
+                Decimal("0.0001")
+            )
 
         elif chaos_type == "phantom_inspection":
             row["return_status"] = "refunded"
@@ -118,7 +134,9 @@ def apply_return_order_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.
     return batch
 
 
-def apply_seller_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_seller_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Toxic partner (high chargeback + low rating, but still active) with dirty banking data."""
     if not batch:
         return batch

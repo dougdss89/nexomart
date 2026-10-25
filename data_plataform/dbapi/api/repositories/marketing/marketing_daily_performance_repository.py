@@ -1,18 +1,19 @@
 import logging
-from typing import List, Dict, Any, Optional
-from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Any
 
 from api.models.marketing.marketing_dailyperformance import MarketingDailyPerformanceModel
+from sqlalchemy import insert
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+
 class MarketingDailyPerformanceRepository:
-    """ Exclusively for the Daily Analytical Performance Fact Table """
-    
+    """Exclusively for the Daily Analytical Performance Fact Table"""
+
     @staticmethod
-    async def bulk_insert(db: AsyncSession, perf_data: List[Dict[str, Any]]) -> bool:
+    async def bulk_insert(db: AsyncSession, perf_data: list[dict[str, Any]]) -> bool:
         try:
             stmt = insert(MarketingDailyPerformanceModel).values(perf_data)
             await db.execute(stmt)

@@ -1,87 +1,84 @@
-from pyspark.sql import SparkSession
-import pyspark.sql.functions as f
 from sys import exit
 from traceback import print_exc
+
 from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql import SparkSession
 
 
 def load_source_connections():
-    
     print("Import .env file and creating Spark Session")
-    
-    #loading configurations and validated it
+
+    # loading configurations and validated it
     try:
         config = load_config()
         print("File .env loaded")
-        
-        
-    except FileExistsError as e:
+
+    except FileExistsError:
         print("File .env not founded: {str(e)}")
-        
-    except KeyError as e:
+
+    except KeyError:
         print("Missing some key-values pair: {str(e)}")
-        
-    #importing key-values from .env
-    #validating data imported
-    #validating imported keys
+
+    # importing key-values from .env
+    # validating data imported
+    # validating imported keys
     try:
         spark_jars = config.get("spark_jars", {})
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
         mssql_properties = mssql_adventureworks.get("properties", {})
         minio_landing = config.get("hadoop_paths", {})
-        validate_required_keys(config=spark_jars, 
-                               required_keys=["mssql_spark_jars"],
-                               config_name="spark_jars")
-        
-        #validade properties key
-        validate_required_keys(config= mssql_adventureworks,
-                               required_keys=["properties"],
-                               config_name="mssql_adventureworks")
-        
+        validate_required_keys(
+            config=spark_jars, required_keys=["mssql_spark_jars"], config_name="spark_jars"
+        )
+
+        # validade properties key
+        validate_required_keys(
+            config=mssql_adventureworks,
+            required_keys=["properties"],
+            config_name="mssql_adventureworks",
+        )
+
         validate_required_keys(
             config=minio_landing,  # validating hadoop_path key
             required_keys=["minio_landing"],  # check if key exists
-            config_name="hadoop_paths"
+            config_name="hadoop_paths",
         )
-        
-        spark = (SparkSession
-                    .builder
-                    .appName("extract_sales_person_raw")
-                    .enableHiveSupport()
-                    .getOrCreate())
-        
+
+        spark = (
+            SparkSession.builder.appName("extract_sales_person_raw")
+            .enableHiveSupport()
+            .getOrCreate()
+        )
+
         return spark, mssql_properties, mssql_adventureworks, minio_landing.get("minio_landing", "")
 
-    
     except RuntimeError as e:
         print(f"Failed to create configuration: {str(e)}")
         print_exc()
-        
+
         return None
-    
+
     except Exception as e:
         print(f"Unexpected error occur: {str(e)}")
         print_exc()
         return None, None, None, None
-    
-    
+
+
 def extract_salesperson_raw(spark, mssql_properties, mssql_adventureworks):
-    
     if not all([spark, mssql_properties, mssql_adventureworks]):
         print("Missing connection configuration or Spark Session")
         exit(1)
-        
-    try:
-        df_salesperson_raw = (spark
-                                .read
-                                .format("jdbc")
-                                .option("url", mssql_adventureworks["url"])
-                                .option("driver", mssql_properties["driver"])
-                                .option("user", mssql_properties["user"])
-                                .option("password", mssql_properties["password"])
-                                .option("query", 
 
-                                            """
+    try:
+        df_salesperson_raw = (
+            spark.read.format("jdbc")
+            .option("url", mssql_adventureworks["url"])
+            .option("driver", mssql_properties["driver"])
+            .option("user", mssql_properties["user"])
+            .option("password", mssql_properties["password"])
+            .option(
+                "query",
+                """
 
                                             select
 
@@ -123,58 +120,61 @@ def extract_salesperson_raw(spark, mssql_properties, mssql_adventureworks):
                                                 sales.salesterritory as sst
                                             on sst.territoryid = ssp.territoryid
 
-                                            """                            ).load())
-    
+                                            """,
+            )
+            .load()
+        )
+
         return df_salesperson_raw
 
     except Exception as e:
         print(f"Error to extract and create  dataframe: {str(e)}")
         print_exc()
         return None, None, None, None
-    
 
-#finalize spark session function
+
+# finalize spark session function
+
 
 def spark_stop(spark):
-    
     if spark:
         spark.stop()
-        
+
     else:
         print("Spark Session not initialized")
-        
+
+
 def main():
-    
     spark = None
-    
+
     try:
         spark, mssql_adventureworks, mssql_properties, minio_landing = load_source_connections()
-        
+
         if not spark:
             print("Missing Spark Session")
             print_exc()
             exit(1)
-            
+
         salesperson_df = extract_salesperson_raw(spark, mssql_adventureworks, mssql_properties)
-        
+
         if salesperson_df:
             salesperson_df.write.parquet(f"{minio_landing}/salesperson", mode="overwrite")
-            
+
             print(f""" Data frame created successfully.
                   
                   {salesperson_df}.""")
-    
+
     except Exception as e:
         print(f"Main script encontered some error value: {str(e)}")
         print_exc()
-        
+
         return None, None, None, None
-    
-    #finalize spark session
+
+    # finalize spark session
     finally:
         print("Closing spark session... ")
         spark_stop(spark)
-        
-        
+
+
 if __name__ == "__main__":
     main()

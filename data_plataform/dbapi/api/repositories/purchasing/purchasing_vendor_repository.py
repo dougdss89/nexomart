@@ -1,18 +1,19 @@
 import logging
-from typing import List, Dict, Any, Optional
-from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Any
 
 from api.models.purchasing.vendor import PurchaseVendorModel as VendorModel
+from sqlalchemy import insert, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+
 class PurchasingVendorRepository:
-    """ Exclusively for DB operations on Vendor Entities """
-    
+    """Exclusively for DB operations on Vendor Entities"""
+
     @staticmethod
-    async def bulk_insert(db: AsyncSession, vendors_data: List[Dict[str, Any]]) -> bool:
+    async def bulk_insert(db: AsyncSession, vendors_data: list[dict[str, Any]]) -> bool:
         try:
             stmt = insert(VendorModel).values(vendors_data)
             await db.execute(stmt)
@@ -22,9 +23,9 @@ class PurchasingVendorRepository:
             await db.rollback()
             logger.error(f"SQL Error Bulk Insert Vendors: {e}")
             raise
-            
+
     @staticmethod
-    async def get_by_id(db: AsyncSession, vendor_id: int) -> Optional[VendorModel]:
+    async def get_by_id(db: AsyncSession, vendor_id: int) -> VendorModel | None:
         try:
             stmt = select(VendorModel).where(VendorModel.vendor_id == vendor_id)
             result = await db.execute(stmt)

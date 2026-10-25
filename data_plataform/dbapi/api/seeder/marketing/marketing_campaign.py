@@ -1,27 +1,40 @@
-import uuid
-import random
 import asyncio
-import sys
 import os
+import random
+import sys
+import uuid
 from datetime import datetime, timedelta
-from faker import Faker
-from sqlalchemy import select, insert
+
 from api.database import AsyncSessionLocal
-from api.schemas.marketing.marketing_campaign import MarketingCampaign, MarketingBudgeType, CampaignStatus
-from api.models.marketing.marketing_channel import MarketingChannelModel
 from api.models.marketing.marketing_campaign import MarketingCampaignModel
+from api.models.marketing.marketing_channel import MarketingChannelModel
+from api.schemas.marketing.marketing_campaign import (
+    CampaignStatus,
+    MarketingBudgeType,
+    MarketingCampaign,
+)
 from api.seeder.chaos import apply_campaign_chaos
-from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, stamp_dimension_history
+from api.utils.cli_common import (
+    add_chaos_args,
+    build_parser,
+    resolve_chaos_args,
+    stamp_dimension_history,
+)
+from faker import Faker
+from sqlalchemy import insert, select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-fake = Faker('pt_BR')
+fake = Faker("pt_BR")
 
 # Widened 2026-09-05 (was 30-365 days back) so start_date spans multiple years.
 EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
 
-def generate_campaign_payloads(active_channels: list[dict], chaos_rate: float = 0.05, apply_chaos: bool = True) -> list[dict]:
+
+def generate_campaign_payloads(
+    active_channels: list[dict], chaos_rate: float = 0.05, apply_chaos: bool = True
+) -> list[dict]:
     """
     Generates campaign payloads based on REAL channels from the database.
     """
@@ -33,15 +46,20 @@ def generate_campaign_payloads(active_channels: list[dict], chaos_rate: float = 
         for i in range(num_campaigns):
             platform = channel["platform_name"]
             is_dynamic = random.choice([True, False])
-            locations = random.sample(["Brazil", "United States", "Portugal", "Global"], k=random.randint(1, 2))
+            locations = random.sample(
+                ["Brazil", "United States", "Portugal", "Global"], k=random.randint(1, 2)
+            )
             devices = random.sample(["Mobile", "Desktop", "Tablet"], k=random.randint(1, 3))
 
             cpa, roas = None, None
             if platform == "google_ads":
-                campaign_name = f"GSN_{fake.word().capitalize()}_{random.choice(['Brand', 'Generic'])}"
+                campaign_name = (
+                    f"GSN_{fake.word().capitalize()}_{random.choice(['Brand', 'Generic'])}"
+                )
                 objective = random.choice(["SALES", "LEADS"])
                 bidding = random.choice(["TARGET_ROAS", "MAXIMIZE_CONVERSIONS"])
-                if bidding == "TARGET_ROAS": roas = round(random.uniform(3.0, 7.0), 2)
+                if bidding == "TARGET_ROAS":
+                    roas = round(random.uniform(3.0, 7.0), 2)
                 audience = "In-Market Buyers"
             elif platform == "meta_ads":
                 campaign_name = f"FB_IG_{fake.word().capitalize()}_{random.choice(['Retargeting', 'Prospecting'])}"
@@ -56,8 +74,14 @@ def generate_campaign_payloads(active_channels: list[dict], chaos_rate: float = 
                 audience = "General Interest"
 
             status = random.choice(list(CampaignStatus))
-            start_date = datetime.now() - timedelta(days=random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
-            end_date = start_date + timedelta(days=random.randint(30, 90)) if status == CampaignStatus.ACTIVE else None
+            start_date = datetime.now() - timedelta(
+                days=random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days)
+            )
+            end_date = (
+                start_date + timedelta(days=random.randint(30, 90))
+                if status == CampaignStatus.ACTIVE
+                else None
+            )
 
             payload = {
                 "campaign_id": campaign_id_counter,  # placeholder for Pydantic validation (gt=0); removed before insert
@@ -78,18 +102,20 @@ def generate_campaign_payloads(active_channels: list[dict], chaos_rate: float = 
                     "target_cpa": cpa,
                     "location_targeting": locations,
                     "device_targeting": devices,
-                    "is_dynamic_creative": is_dynamic
+                    "is_dynamic_creative": is_dynamic,
                 },
                 "created_at": start_date,
                 "updated_at": datetime.now(),
                 "is_active": status == CampaignStatus.ACTIVE,
-                "row_guid": uuid.uuid4()
+                "row_guid": uuid.uuid4(),
             }
             campaign_obj = MarketingCampaign(**payload)
             validated_campaign = campaign_obj.model_dump()
             # mktsettings is JSONB — Decimal (target_roas/target_cpa) needs to become a JSON-safe type
             validated_campaign["mktsettings"] = campaign_obj.mktsettings.model_dump(mode="json")
-            validated_campaign.pop("campaign_id", None)  # let the database's autoincrement take over
+            validated_campaign.pop(
+                "campaign_id", None
+            )  # let the database's autoincrement take over
             batch.append(validated_campaign)
             campaign_id_counter += 1
 
@@ -98,21 +124,28 @@ def generate_campaign_payloads(active_channels: list[dict], chaos_rate: float = 
 
     return batch
 
+
 async def seed_marketing_campaigns(chaos_rate: float = 0.05, apply_chaos: bool = True):
     """
     Runs the campaign load consuming REAL Channels from the database.
     """
     async with AsyncSessionLocal() as session:
         # 1. Fetch real channels (Dimensional Integrity)
-        result = await session.execute(select(MarketingChannelModel.channel_id, MarketingChannelModel.platform_name))
+        result = await session.execute(
+            select(MarketingChannelModel.channel_id, MarketingChannelModel.platform_name)
+        )
         real_channels = [{"channel_id": row[0], "platform_name": row[1]} for row in result.all()]
 
         if not real_channels:
             print("⚠️ No channel found! Run the MarketingChannel seeder first.")
             return
 
-        print(f"📣 Seeding campaigns for {len(real_channels)} active channels | chaos={chaos_rate:.2%}")
-        campaigns = generate_campaign_payloads(real_channels, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+        print(
+            f"📣 Seeding campaigns for {len(real_channels)} active channels | chaos={chaos_rate:.2%}"
+        )
+        campaigns = generate_campaign_payloads(
+            real_channels, chaos_rate=chaos_rate, apply_chaos=apply_chaos
+        )
 
         try:
             stmt = insert(MarketingCampaignModel).values(stamp_dimension_history(campaigns))
@@ -123,6 +156,7 @@ async def seed_marketing_campaigns(chaos_rate: float = 0.05, apply_chaos: bool =
             await session.rollback()
             print(f"❌ Error seeding campaigns: {e}")
             raise RuntimeError(f"Marketing campaign seeding aborted: {e}") from e
+
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for marketing.marketing_campaign (fan-out of real channels)")

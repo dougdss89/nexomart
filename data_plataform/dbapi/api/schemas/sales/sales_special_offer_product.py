@@ -1,9 +1,10 @@
 import uuid
-from pydantic import BaseModel, Field
 from datetime import datetime
 
+from pydantic import BaseModel, Field
+
+
 class SpecialOfferProduct(BaseModel):
-    
     special_offer_id: int = Field(gt=0)
     product_id: int = Field(gt=0)
     created_at: datetime = Field(default_factory=datetime.now)

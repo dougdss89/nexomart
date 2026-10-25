@@ -9,38 +9,17 @@ STATES_BY_COUNTRY = {
         ("RJ", "Rio de Janeiro"),
         ("MG", "Minas Gerais"),
         ("PR", "Paraná"),
-        ("SC", "Santa Catarina")
+        ("SC", "Santa Catarina"),
     ],
-    "US": [
-        ("CA", "California"),
-        ("NY", "New York"),
-        ("TX", "Texas"),
-        ("FL", "Florida")
-    ],
-    "CA": [
-        ("ON", "Ontario"),
-        ("BC", "British Columbia"),
-        ("QC", "Quebec")
-    ],
+    "US": [("CA", "California"), ("NY", "New York"), ("TX", "Texas"), ("FL", "Florida")],
+    "CA": [("ON", "Ontario"), ("BC", "British Columbia"), ("QC", "Quebec")],
     "PT": [
-        ("11", "Lisboa"), # In Portugal, districts use numbers in ISO 3166-2
+        ("11", "Lisboa"),  # In Portugal, districts use numbers in ISO 3166-2
         ("13", "Porto"),
-        ("03", "Braga")
+        ("03", "Braga"),
     ],
-    "CL": [
-        ("RM", "Región Metropolitana"),
-        ("VS", "Valparaíso"),
-        ("BI", "Biobío")
-    ],
-    "PE": [
-        ("LIM", "Lima"),
-        ("ARE", "Arequipa"),
-        ("CUS", "Cusco")
-    ],
-    "IT": [
-        ("LOM", "Lombardia"),
-        ("LAZ", "Lazio"),
-        ("CAM", "Campania")
-    ]
+    "CL": [("RM", "Región Metropolitana"), ("VS", "Valparaíso"), ("BI", "Biobío")],
+    "PE": [("LIM", "Lima"), ("ARE", "Arequipa"), ("CUS", "Cusco")],
+    "IT": [("LOM", "Lombardia"), ("LAZ", "Lazio"), ("CAM", "Campania")],
     # You can expand to other countries later...
 }

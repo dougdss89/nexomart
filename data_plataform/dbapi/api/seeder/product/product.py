@@ -1,22 +1,26 @@
-import random
-import uuid
 import asyncio
-import sys
 import os
+import random
+import sys
+import uuid
 from datetime import datetime, timedelta
-from sqlalchemy import select, insert, func
+
+from api.config.seeder_config import get_ranges
 from api.database import AsyncSessionLocal
-from api.samples.product import generate_randomized_catalog
-from api.schemas.product.production_product_category import ProductCategory
-from api.schemas.product.production_product_model import ProductModel
-from api.schemas.product.production_product import ProductSchema
 from api.models.product.product import Product
 from api.models.product.productcategory import ProductCategoryModel
 from api.models.product.productmodel import ProductModel as ProductModelTable
+from api.samples.product import generate_randomized_catalog
+from api.schemas.product.production_product import ProductSchema
 from api.seeder.chaos import apply_product_chaos
-from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, stamp_dimension_history
+from api.utils.cli_common import (
+    add_volume_args,
+    build_parser,
+    resolve_volume_args,
+    stamp_dimension_history,
+)
 from api.utils.quarantine import get_quarantine, physical_gate
-from api.config.seeder_config import get_ranges
+from sqlalchemy import func, insert, select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -26,6 +30,7 @@ TABLE_NAME = "product.product"
 
 # Widened 2026-09-05 (was 30-730 days back) so sell_start_date spans multiple years.
 EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
+
 
 def get_product_seeders(
     count: int = 100,
@@ -60,7 +65,9 @@ def get_product_seeders(
         model_id = model_map.get(item["model"], 1)
 
         # Sale cycle: most are still on sale (sell_end_date=None)
-        sell_start_date = datetime.now() - timedelta(days=random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
+        sell_start_date = datetime.now() - timedelta(
+            days=random.randint(30, (datetime.now() - EARLIEST_TRANSACTION_DATE).days)
+        )
 
         # 2. Assemble and validate the payload (productdetails keeps chaos already baked in by
         # generate_randomized_catalog — see ProductDetails' price/tax ge=0.0 comment)
@@ -75,7 +82,7 @@ def get_product_seeders(
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
             "is_active": True,
-            "row_guid": str(uuid.uuid4())
+            "row_guid": str(uuid.uuid4()),
         }
         with q.row(payload):
             batch.append(ProductSchema(**payload).model_dump())
@@ -87,17 +94,27 @@ def get_product_seeders(
     return batch
 
 
-async def seed_products(count: int = 500, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True):
+async def seed_products(
+    count: int = 500, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True
+):
     """Runs the products load respecting the absolute catalog limit (100k)."""
     async with AsyncSessionLocal() as session:
         # 1. Fetch REAL Categories and Models from the database (Dimensional Integrity —
         # never infer category_id/model_id by Enum position)
-        category_map = dict((await session.execute(
-            select(ProductCategoryModel.category_name, ProductCategoryModel.category_id)
-        )).all())
-        model_map = dict((await session.execute(
-            select(ProductModelTable.productmodel_name, ProductModelTable.productmodel_id)
-        )).all())
+        category_map = dict(
+            (
+                await session.execute(
+                    select(ProductCategoryModel.category_name, ProductCategoryModel.category_id)
+                )
+            ).all()
+        )
+        model_map = dict(
+            (
+                await session.execute(
+                    select(ProductModelTable.productmodel_name, ProductModelTable.productmodel_id)
+                )
+            ).all()
+        )
 
         if not category_map or not model_map:
             print("⚠️ ProductCategory or ProductModel tables are empty! Run those seeders first.")
@@ -113,15 +130,21 @@ async def seed_products(count: int = 500, chaos_rate: float = 0.05, batch_size: 
         if ranges.absolute_max:
             count = min(count, ranges.absolute_max - existing_count)
 
-        print(f"📣 Seeding {count:,} products (final total: {existing_count + count:,}) | chaos={chaos_rate:.2%}")
+        print(
+            f"📣 Seeding {count:,} products (final total: {existing_count + count:,}) | chaos={chaos_rate:.2%}"
+        )
 
         next_id = max_id + 1
         total_inserted = 0
         while total_inserted < count:
             current_batch_size = min(batch_size, count - total_inserted)
             products = get_product_seeders(
-                current_batch_size, start_id=next_id, chaos_rate=chaos_rate, apply_chaos=apply_chaos,
-                category_map=category_map, model_map=model_map,
+                current_batch_size,
+                start_id=next_id,
+                chaos_rate=chaos_rate,
+                apply_chaos=apply_chaos,
+                category_map=category_map,
+                model_map=model_map,
             )
             next_id += current_batch_size
 
@@ -134,7 +157,9 @@ async def seed_products(count: int = 500, chaos_rate: float = 0.05, batch_size: 
             except Exception as e:
                 await session.rollback()
                 print(f"❌ Error seeding products: {e}")
-                raise RuntimeError(f"Product seeding aborted ({total_inserted:,}/{count:,} inserted): {e}") from e
+                raise RuntimeError(
+                    f"Product seeding aborted ({total_inserted:,}/{count:,} inserted): {e}"
+                ) from e
 
         print(f"✅ {total_inserted:,} products seeded successfully!")
 
@@ -143,6 +168,12 @@ if __name__ == "__main__":
     parser = build_parser(f"Dynamic seeder for {TABLE_NAME}")
     add_volume_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
     args = parser.parse_args()
-    count, chaos_rate, apply_chaos, batch_size = resolve_volume_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+    count, chaos_rate, apply_chaos, batch_size = resolve_volume_args(
+        args, schema=SCHEMA_NAME, table=TABLE_NAME
+    )
 
-    asyncio.run(seed_products(count=count, chaos_rate=chaos_rate, batch_size=batch_size, apply_chaos=apply_chaos))
+    asyncio.run(
+        seed_products(
+            count=count, chaos_rate=chaos_rate, batch_size=batch_size, apply_chaos=apply_chaos
+        )
+    )

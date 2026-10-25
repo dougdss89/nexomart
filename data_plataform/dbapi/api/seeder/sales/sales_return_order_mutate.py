@@ -1,7 +1,6 @@
 import asyncio
 import random
-from datetime import datetime, timezone
-from decimal import Decimal
+from datetime import UTC, datetime
 
 from api.database import AsyncSessionLocal
 from api.models.person.seller import SellerModel  # noqa: F401
@@ -24,14 +23,15 @@ def apply_updates(rows: list[dict]) -> list[dict]:
     for row in rows:
         row["return_status"] = random.choice(RETURN_STATUS_TRANSITIONS)
         if row["return_status"] == "refunded":
-            row["return_date"] = datetime.now(timezone.utc)
+            row["return_date"] = datetime.now(UTC)
     return rows
 
 
 async def mutate(count: int, delete_ratio: float, batch_size: int):
     async with AsyncSessionLocal() as session:
         await run_mutation(
-            session, SalesReturnOrderModel,
+            session,
+            SalesReturnOrderModel,
             label=TABLE_NAME,
             count=count,
             delete_ratio=delete_ratio,
@@ -45,5 +45,7 @@ if __name__ == "__main__":
     parser = build_parser(f"CDC mutation seeder (UPDATE/soft-DELETE) for {TABLE_NAME}")
     add_mutation_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
     args = parser.parse_args()
-    count, delete_ratio, batch_size = resolve_mutation_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+    count, delete_ratio, batch_size = resolve_mutation_args(
+        args, schema=SCHEMA_NAME, table=TABLE_NAME
+    )
     asyncio.run(mutate(count, delete_ratio, batch_size))

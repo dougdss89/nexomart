@@ -1,27 +1,27 @@
-import uuid
-import random
 import asyncio
-import sys
 import os
-from datetime import datetime
-from typing import List, Dict, Any
-from faker import Faker
-from sqlalchemy import select, insert, func
+import random
+import sys
+from typing import Any
+
+from api.config.seeder_config import get_ranges
 from api.database import AsyncSessionLocal
 from api.models.person.customer import CustomerModel
 from api.models.person.customer_email import CustomerEmailModel
 from api.schemas.person.person_customer_email import Customer_email
 from api.seeder.chaos import apply_customer_email_chaos
-from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.utils.cli_common import add_chaos_args, build_parser, bulk_copy, resolve_chaos_args
 from api.utils.quarantine import get_quarantine
-from api.config.seeder_config import get_ranges
+from faker import Faker
+from sqlalchemy import func, select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-fake = Faker('pt_BR')
+fake = Faker("pt_BR")
 
-def generate_mock_emails(customer: Dict[str, Any]) -> List[Dict[str, Any]]:
+
+def generate_mock_emails(customer: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Generates the email rows for a single customer.
     Can generate 1 or more emails.
@@ -31,7 +31,13 @@ def generate_mock_emails(customer: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     # Determine the domain based on the customer type
     is_company = customer.get("customer_type") == "VC"
-    base_name = str(customer.get("customer_name")).lower().replace(" ", "").replace(".", "").replace(",", "")
+    base_name = (
+        str(customer.get("customer_name"))
+        .lower()
+        .replace(" ", "")
+        .replace(".", "")
+        .replace(",", "")
+    )
 
     # 1. Generate the primary email
     primary_email = ""
@@ -52,7 +58,7 @@ def generate_mock_emails(customer: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     q = get_quarantine("person.customer_email")
     payload = {
-        "customer_id": customer.get("customer_id", 0), # Will be injected by the orchestrator
+        "customer_id": customer.get("customer_id", 0),  # Will be injected by the orchestrator
         "customer_email": primary_email,
         "is_primary": True,
     }
@@ -73,7 +79,10 @@ def generate_mock_emails(customer: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     return emails
 
-def get_customer_email_seeders(customers: List[Dict[str, Any]], chaos_rate: float = 0.05, apply_chaos: bool = True) -> List[Dict[str, Any]]:
+
+def get_customer_email_seeders(
+    customers: list[dict[str, Any]], chaos_rate: float = 0.05, apply_chaos: bool = True
+) -> list[dict[str, Any]]:
     """
     Receives REAL customers from the database (with customer_id/customer_name/customer_type
     already populated) and generates the emails linked to them.
@@ -112,7 +121,9 @@ async def seed_customer_emails(chaos_rate: float = 0.05, apply_chaos: bool = Tru
     async with AsyncSessionLocal() as session:
         watermark = await session.scalar(select(func.max(CustomerEmailModel.customer_id))) or 0
         pending_stmt = (
-            select(CustomerModel.customer_id, CustomerModel.customer_name, CustomerModel.customer_type)
+            select(
+                CustomerModel.customer_id, CustomerModel.customer_name, CustomerModel.customer_type
+            )
             .where(CustomerModel.customer_id > watermark)
             .order_by(CustomerModel.customer_id)
             .limit(fan_out_limit)
@@ -124,11 +135,15 @@ async def seed_customer_emails(chaos_rate: float = 0.05, apply_chaos: bool = Tru
         ]
 
         if not customers:
-            print("⚠️ No customer pending an email! Run the Customer seeder first (or everyone already has an email).")
+            print(
+                "⚠️ No customer pending an email! Run the Customer seeder first (or everyone already has an email)."
+            )
             return
 
         print(f"📣 Generating emails for {len(customers)} real customers | chaos={chaos_rate:.2%}")
-        emails = get_customer_email_seeders(customers, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+        emails = get_customer_email_seeders(
+            customers, chaos_rate=chaos_rate, apply_chaos=apply_chaos
+        )
 
         try:
             total = await bulk_copy(session, CustomerEmailModel, emails)

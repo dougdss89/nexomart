@@ -1,24 +1,25 @@
-import uuid
 import asyncio
-import sys
 import os
+import sys
+import uuid
 from datetime import datetime
-from sqlalchemy import insert
+
 from api.database import AsyncSessionLocal
+from api.models.humanresources.department import HumanResourcesDepartmentModel
+from api.samples.hr_department_organization import ORG_CHART
 
 # Adjust the imports to your project's correct path
 from api.schemas.humanresources.humanresources_department import (
+    DEPARTMENT_TO_GROUP_MAP,
     HRDepartment,
-    DEPARTMENT_TO_GROUP_MAP
 )
-
-from api.samples.hr_department_organization import ORG_CHART
-from api.models.humanresources.department import HumanResourcesDepartmentModel
 from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
 from api.utils.quarantine import get_quarantine, physical_gate
+from sqlalchemy import insert
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+
 
 def get_department_seeders() -> list[dict]:
     """
@@ -36,7 +37,6 @@ def get_department_seeders() -> list[dict]:
     today = datetime.now()
 
     for dept_name, parent_name in ORG_CHART:
-
         # 1. Get the parent's ID
         parent_id = None
         if parent_name:
@@ -60,12 +60,11 @@ def get_department_seeders() -> list[dict]:
             "department_name": dept_name,
             "group_name": DEPARTMENT_TO_GROUP_MAP.get(dept_name),
             "parent_department_id": parent_id,
-            "manager_id": None, # You can populate this with employee IDs later, if you want
-
+            "manager_id": None,  # You can populate this with employee IDs later, if you want
             "created_at": today,
             "updated_at": today,
             "is_active": True,
-            "row_guid": uuid.uuid4()
+            "row_guid": uuid.uuid4(),
         }
         with q.row(payload):
             batch.append(HRDepartment(**payload).model_dump())
@@ -83,7 +82,9 @@ async def seed_departments():
     """Runs the department load (Master Data — fixed org chart, no chaos)."""
     async with AsyncSessionLocal() as session:
         depts = get_department_seeders()
-        if await skip_if_already_seeded(session, HumanResourcesDepartmentModel, label="Departments"):
+        if await skip_if_already_seeded(
+            session, HumanResourcesDepartmentModel, label="Departments"
+        ):
             return
         print(f"📣 Seeding {len(depts)} departments...")
         depts = physical_gate(HumanResourcesDepartmentModel, depts)

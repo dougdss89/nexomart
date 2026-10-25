@@ -3,10 +3,9 @@ import json
 
 import pyarrow.parquet as pq
 import pytest
+from api.utils.quarantine import Quarantine, QuarantineLimitExceeded
 from pydantic import BaseModel, Field
 from sqlalchemy import BigInteger, Column, Integer, MetaData, Numeric, String, Table
-
-from api.utils.quarantine import Quarantine, QuarantineLimitExceeded
 
 
 class Item(BaseModel):

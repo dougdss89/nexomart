@@ -1,23 +1,23 @@
-import uuid
-import random
 import asyncio
-import sys
 import os
+import random
+import sys
+import uuid
 from datetime import datetime, timedelta
-from sqlalchemy import insert
-from api.database import AsyncSessionLocal
 
-from api.samples.job_roles import JOB_ROLES
+from api.database import AsyncSessionLocal
 from api.models.humanresources.jobrole import HumanResourcesJobRoleModel
+from api.samples.job_roles import JOB_ROLES
 from api.schemas.humanresources.humanresources_jobrole import HRJobRoleHistory
 from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
 from api.utils.quarantine import get_quarantine, physical_gate
+from sqlalchemy import insert
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-def get_job_role_seeders() -> list[dict]:
 
+def get_job_role_seeders() -> list[dict]:
     """
     Generates job role seeders with salary base and professional history.
     """
@@ -31,16 +31,17 @@ def get_job_role_seeders() -> list[dict]:
     EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
 
     for title, min_salary, max_salary in JOB_ROLES:
-
         has_raise = random.choice([True, False, False])
 
         if has_raise:
-            #generates an old or inactive record
-            #valid for 3 years or 1 year
-            #min and max salary with a 20% raise
+            # generates an old or inactive record
+            # valid for 3 years or 1 year
+            # min and max salary with a 20% raise
 
             # Widened 2026-09-05 (was 700-1500 days back) so the oldest history reaches 2020.
-            old_start = today - timedelta(days=random.randint(700, (today - EARLIEST_TRANSACTION_DATE).days))
+            old_start = today - timedelta(
+                days=random.randint(700, (today - EARLIEST_TRANSACTION_DATE).days)
+            )
             old_end = old_start + timedelta(days=random.randint(180, 600))
 
             # Logical adjustment: the old salary was lower than the current one,
@@ -57,11 +58,10 @@ def get_job_role_seeders() -> list[dict]:
                 "effective_start_date": old_start,
                 "effective_end_date": old_end,
                 "is_current": False,
-
                 "created_at": today,
                 "updated_at": today,
                 "is_active": True,
-                "row_guid": uuid.uuid4()
+                "row_guid": uuid.uuid4(),
             }
             with q.row(payload):
                 batch.append(HRJobRoleHistory(**payload).model_dump())
@@ -71,10 +71,9 @@ def get_job_role_seeders() -> list[dict]:
             current_start = old_end + timedelta(seconds=1)
 
         else:
-            current_start = today - timedelta(days = random.randint(500, 1000))
+            current_start = today - timedelta(days=random.randint(500, 1000))
 
-
-        #current record
+        # current record
         payload = {
             "jobrole_id": job_role_id_counter,
             "job_title": title,
@@ -83,11 +82,10 @@ def get_job_role_seeders() -> list[dict]:
             "effective_start_date": current_start,
             "effective_end_date": None,
             "is_current": True,
-
             "created_at": today,
             "updated_at": today,
             "is_active": True,
-            "row_guid": uuid.uuid4()
+            "row_guid": uuid.uuid4(),
         }
         with q.row(payload):
             batch.append(HRJobRoleHistory(**payload).model_dump())

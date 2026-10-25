@@ -1,21 +1,22 @@
 import logging
-from typing import List, Dict, Any, Optional
-from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Any
 
 from api.models.person.customer import CustomerModel as PersonCustomerModel
+from sqlalchemy import insert, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
 
 class PersonCustomerRepository:
     """
     Data Access Layer (SQLAlchemy).
     All direct interactions with the Customers PostgreSQL are restricted to here.
     """
-    
+
     @staticmethod
-    async def bulk_insert(db: AsyncSession, customers_data: List[Dict[str, Any]]) -> bool:
+    async def bulk_insert(db: AsyncSession, customers_data: list[dict[str, Any]]) -> bool:
         try:
             stmt = insert(PersonCustomerModel).values(customers_data)
             await db.execute(stmt)
@@ -27,7 +28,7 @@ class PersonCustomerRepository:
             raise
 
     @staticmethod
-    async def get_by_id(db: AsyncSession, customer_id: int) -> Optional[PersonCustomerModel]:
+    async def get_by_id(db: AsyncSession, customer_id: int) -> PersonCustomerModel | None:
         try:
             stmt = select(PersonCustomerModel).where(PersonCustomerModel.customer_id == customer_id)
             result = await db.execute(stmt)
@@ -37,8 +38,8 @@ class PersonCustomerRepository:
             raise
 
     @staticmethod
-    async def create_single(db: AsyncSession, customer_data: Dict[str, Any]) -> PersonCustomerModel:
-        """ Creates and returns the originated Entity persisted in the database (Useful for transactional APIs). """
+    async def create_single(db: AsyncSession, customer_data: dict[str, Any]) -> PersonCustomerModel:
+        """Creates and returns the originated Entity persisted in the database (Useful for transactional APIs)."""
         try:
             new_customer = PersonCustomerModel(**customer_data)
             db.add(new_customer)

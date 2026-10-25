@@ -1,16 +1,17 @@
 import asyncio
-import sys
 import os
+import sys
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 from api.database import AsyncSessionLocal
-from api.services.sales.sales_channel_service import SalesChannelService
-from api.schemas.sales.sales_channel import SalesChannelSchema
 from api.models.sales.saleschannel import SalesChannelModel
 from api.samples.sales_channel import SALES_CHANNEL_SAMPLES
+from api.schemas.sales.sales_channel import SalesChannelSchema
+from api.services.sales.sales_channel_service import SalesChannelService
 from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
+
 
 async def seed_sales_channels(count: int):
     """
@@ -29,17 +30,20 @@ async def seed_sales_channels(count: int):
         print(f"💰 Preparing load of {len(samples_to_use)} sales channels...")
 
         # Convert sample dicts into Pydantic schemas for validation
-        stamp_dimension_history(samples_to_use)  # backdate created_at so the landing spans 2020->now
+        stamp_dimension_history(
+            samples_to_use
+        )  # backdate created_at so the landing spans 2020->now
         payload = [SalesChannelSchema(**item) for item in samples_to_use]
 
         try:
             await service.seed_initial_channels(payload)
             await session.commit()
-            print(f"✅ Seeder finished successfully!")
+            print("✅ Seeder finished successfully!")
         except Exception as e:
             await session.rollback()
             print(f"❌ Error during load: {e}")
             raise RuntimeError(f"Sales channel seeding aborted: {e}") from e
+
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for sales.saleschannel (fixed master data, no chaos)")

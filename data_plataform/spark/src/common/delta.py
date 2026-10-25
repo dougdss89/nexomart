@@ -73,3 +73,20 @@ def write_delta(
 
     if not spark.catalog.tableExists(target_table):
         spark.sql(f"CREATE TABLE {target_table} USING delta LOCATION '{table_path}'")
+
+
+def qualified_table_name(project: str, layer: str, schema: str, table: str) -> str:
+    """Builds the compact 'full_table' encoding write_delta() expects as input
+    ('<project>.<layer>.<schema>_<table>') — NOT a literal Spark-resolvable name. write_delta()
+    is the only place that knows how to translate it into spark_catalog.<project>_<layer>.<table>.
+    Anything that talks to Spark directly (DeltaTable.forName, spark.catalog.tableExists, a bare
+    SELECT) needs resolved_table_name() below instead, or it hits the same "catalog not found"
+    error registering a catalog literally named <project> would (see spark-defaults.conf.template)."""
+    return f"{project}.{layer}.{schema}_{table}"
+
+
+def resolved_table_name(project: str, layer: str, schema: str, table: str) -> str:
+    """The literal identifier Spark can resolve: spark_catalog.<project>_<layer>.<schema>_<table>.
+    Use this for DeltaTable.forName, spark.catalog.tableExists, or any direct SQL/read — anything
+    that doesn't go through write_delta()."""
+    return f"spark_catalog.{project}_{layer}.{schema}_{table}"

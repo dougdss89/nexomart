@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from pyspark.sql import DataFrame, SparkSession
 
+from spark.src.common.delta import resolved_table_name
 from spark.src.common.logger import get_logger
 
 
@@ -9,7 +10,7 @@ class LandingReader(ABC):
     """One concrete subclass per landing source. Clients depend only on this interface."""
 
     @abstractmethod
-    def read(self, spark: SparkSession, schema: str, table: str, catalog: str) -> DataFrame:
+    def read(self, spark: SparkSession, schema: str, table: str, catalog: str = "") -> DataFrame:
         raise NotImplementedError
 
 
@@ -26,19 +27,15 @@ class ParquetLandingReader(LandingReader):
 
 
 class DeltaTableReader(LandingReader):
-    """Reads Spark Delta table"""
+    """Reads a Delta table already written to spark_catalog (e.g. silver reading from bronze)."""
 
-    def __init__(self, catalog: str, schema: str, table: str):
-        self._catalog = catalog
-        self._schema = schema
-        self._table = table
+    def __init__(self, layer: str, project: str = "nexomart"):
+        self._layer = layer
+        self._project = project
 
     def read(self, spark: SparkSession, schema: str, table: str, catalog: str = "") -> DataFrame:
-        self._catalog = catalog
-        self._schema = schema
-        self._table = table
-        table_path = f"{catalog}.{schema}.{table}"
-        return spark.read.table(table_path)
+        target_table = resolved_table_name(self._project, self._layer, schema, table)
+        return spark.read.table(target_table)
 
 
 class LoggingReader(LandingReader):

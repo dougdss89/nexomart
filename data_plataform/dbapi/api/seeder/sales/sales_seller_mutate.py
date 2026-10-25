@@ -33,7 +33,8 @@ def apply_updates(rows: list[dict]) -> list[dict]:
 async def mutate(count: int, delete_ratio: float, batch_size: int):
     async with AsyncSessionLocal() as session:
         await run_mutation(
-            session, SellerModel,
+            session,
+            SellerModel,
             label=TABLE_NAME,
             count=count,
             delete_ratio=delete_ratio,
@@ -47,5 +48,7 @@ if __name__ == "__main__":
     parser = build_parser(f"CDC mutation seeder (UPDATE/DELETE) for {TABLE_NAME}")
     add_mutation_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
     args = parser.parse_args()
-    count, delete_ratio, batch_size = resolve_mutation_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+    count, delete_ratio, batch_size = resolve_mutation_args(
+        args, schema=SCHEMA_NAME, table=TABLE_NAME
+    )
     asyncio.run(mutate(count, delete_ratio, batch_size))

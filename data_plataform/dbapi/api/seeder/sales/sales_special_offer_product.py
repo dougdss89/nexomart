@@ -1,26 +1,30 @@
-import random
 import asyncio
-import sys
 import os
-from sqlalchemy import select, insert
+import random
+import sys
+
 from api.database import AsyncSessionLocal
+from api.models.product.product import Product
 
 # Modelos
 from api.models.sales.specialoffer import SpecialOfferModel
-from api.models.product.product import Product
 from api.models.sales.specialofferproduct import SpecialOfferProductModel
 from api.schemas.sales.sales_special_offer_product import SpecialOfferProduct
 from api.utils.cli_common import build_parser, stamp_dimension_history
 from api.utils.quarantine import get_quarantine, physical_gate
+from sqlalchemy import insert, select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+
 
 async def seed_special_offer_products(avg_products_per_offer: int = 5):
     """Runs the linking of products to special offers with full integrity."""
     async with AsyncSessionLocal() as session:
         # 1. Fetch valid IDs (Dimensional Integrity)
-        offer_ids = (await session.execute(select(SpecialOfferModel.special_offer_id))).scalars().all()
+        offer_ids = (
+            (await session.execute(select(SpecialOfferModel.special_offer_id))).scalars().all()
+        )
         product_ids = (await session.execute(select(Product.product_id))).scalars().all()
 
         if not offer_ids or not product_ids:
@@ -35,7 +39,14 @@ async def seed_special_offer_products(avg_products_per_offer: int = 5):
         # product_id) pair and hit the composite unique constraint. Seeding seen_pairs from
         # what's already in the DB means only genuinely new pairs get generated.
         seen_pairs = set(
-            (await session.execute(select(SpecialOfferProductModel.special_offer_id, SpecialOfferProductModel.product_id))).all()
+            (
+                await session.execute(
+                    select(
+                        SpecialOfferProductModel.special_offer_id,
+                        SpecialOfferProductModel.product_id,
+                    )
+                )
+            ).all()
         )
 
         mappings = []
@@ -72,9 +83,14 @@ async def seed_special_offer_products(avg_products_per_offer: int = 5):
             print(f"❌ Error seeding links: {e}")
             raise RuntimeError(f"Special offer/product link seeding aborted: {e}") from e
 
+
 if __name__ == "__main__":
-    parser = build_parser("Seeder for sales.specialofferproduct (M:N fan-out of real offers x products, no chaos)")
-    parser.add_argument("--avg-products-per-offer", type=int, default=5, help="Average products linked per offer")
+    parser = build_parser(
+        "Seeder for sales.specialofferproduct (M:N fan-out of real offers x products, no chaos)"
+    )
+    parser.add_argument(
+        "--avg-products-per-offer", type=int, default=5, help="Average products linked per offer"
+    )
     args = parser.parse_args()
 
     asyncio.run(seed_special_offer_products(avg_products_per_offer=args.avg_products_per_offer))

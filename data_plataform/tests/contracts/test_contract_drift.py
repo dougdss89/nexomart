@@ -13,7 +13,6 @@ from decimal import Decimal
 
 import pytest
 from annotated_types import Ge, Gt, MaxLen
-from pydantic import BaseModel
 from contract_helpers import (
     DB_ONLY_COLUMNS,
     LOGICAL_TO_PYTHON,
@@ -26,6 +25,7 @@ from contract_helpers import (
     _sql_physical_type,
     _unwrap,
 )
+from pydantic import BaseModel
 
 
 @pytest.fixture(params=REGISTRY, ids=[r[0] for r in REGISTRY])
@@ -109,7 +109,8 @@ def test_max_length_matches_pydantic(bundle):
             continue  # an enum already bounds the length
         declared = int(m.group(1))
         pydantic_max = next(
-            (x.max_length for x in schema.model_fields[name].metadata if isinstance(x, MaxLen)), None
+            (x.max_length for x in schema.model_fields[name].metadata if isinstance(x, MaxLen)),
+            None,
         )
         if pydantic_max != declared:
             wrong[name] = (declared, pydantic_max)
@@ -201,11 +202,15 @@ def _nested_problems(props: list, model, path: str) -> list:
             inner = _unwrap(typing.get_args(annotation)[0])
             items = prop.get("items", {})
             if prop["logicalType"] != "array":
-                problems.append(f"{here}: Pydantic has a list, contract logicalType is {prop['logicalType']}")
+                problems.append(
+                    f"{here}: Pydantic has a list, contract logicalType is {prop['logicalType']}"
+                )
             if isinstance(inner, type) and issubclass(inner, BaseModel):
                 problems += _nested_problems(items.get("properties", []), inner, here + "[]")
             elif not _logical_ok(items.get("logicalType"), inner):
-                problems.append(f"{here}[]: item logicalType {items.get('logicalType')} does not fit {inner}")
+                problems.append(
+                    f"{here}[]: item logicalType {items.get('logicalType')} does not fit {inner}"
+                )
             continue
 
         if not _logical_ok(prop["logicalType"], annotation):
@@ -220,7 +225,9 @@ def _nested_problems(props: list, model, path: str) -> list:
 
         pyd_max = next((m.max_length for m in metadata if isinstance(m, MaxLen)), None)
         if not is_enum and opts.get("maxLength") != pyd_max:
-            problems.append(f"{here}: maxLength is {opts.get('maxLength')} in contract, {pyd_max} in Pydantic")
+            problems.append(
+                f"{here}: maxLength is {opts.get('maxLength')} in contract, {pyd_max} in Pydantic"
+            )
 
         pyd_ge = next((m.ge for m in metadata if isinstance(m, Ge)), None)
         pyd_gt = next((m.gt for m in metadata if isinstance(m, Gt)), None)
@@ -231,18 +238,23 @@ def _nested_problems(props: list, model, path: str) -> list:
             )
 
         pyd_places = next(
-            (getattr(m, "decimal_places") for m in metadata if getattr(m, "decimal_places", None) is not None), None
+            (m.decimal_places for m in metadata if getattr(m, "decimal_places", None) is not None),
+            None,
         )
         contract_places = (
             -Decimal(str(opts["multipleOf"])).as_tuple().exponent if "multipleOf" in opts else None
         )
         if contract_places != pyd_places:
-            problems.append(f"{here}: decimal places are {contract_places} in contract, {pyd_places} in Pydantic")
+            problems.append(
+                f"{here}: decimal places are {contract_places} in contract, {pyd_places} in Pydantic"
+            )
 
         if is_enum:
             values, examples = {e.value for e in annotation}, set(prop.get("examples", []))
             if values != examples:
-                problems.append(f"{here}: enum values {sorted(values)} vs contract examples {sorted(examples)}")
+                problems.append(
+                    f"{here}: enum values {sorted(values)} vs contract examples {sorted(examples)}"
+                )
 
         if isinstance(annotation, type) and issubclass(annotation, BaseModel):
             problems += _nested_problems(prop.get("properties", []), annotation, here)
@@ -260,7 +272,9 @@ def test_nested_objects_match_pydantic(bundle):
         annotation = _unwrap(schema.model_fields[name].annotation)
         if isinstance(annotation, type) and issubclass(annotation, BaseModel):
             if "properties" not in prop:
-                problems.append(f"{name}: is a Pydantic model but the contract lists no nested properties")
+                problems.append(
+                    f"{name}: is a Pydantic model but the contract lists no nested properties"
+                )
             else:
                 problems += _nested_problems(prop["properties"], annotation, name)
     assert not problems, "\n" + "\n".join(problems)

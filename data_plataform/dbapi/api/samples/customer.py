@@ -1,13 +1,14 @@
 import random
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from api.samples.person_demographics import INTERESTS_BANK, OCCUPATIONS, ROLES
 from faker import Faker
 
-fake = Faker('pt_BR')
+fake = Faker("pt_BR")
 
-def generate_mock_customer() -> Dict[str, Any]:
+
+def generate_mock_customer() -> dict[str, Any]:
     """
     Generates a payload simulating a real Customer,
     with properties nested inside demographics.
@@ -21,7 +22,7 @@ def generate_mock_customer() -> Dict[str, Any]:
         last_name = fake.company_suffix()
         # Formatted CNPJ ("99.999.999/9999-99") has 18 characters — doesn't fit in
         # social_number varchar(15). Always unpunctuated here (14 digits).
-        social_number = fake.cnpj().replace('.', '').replace('/', '').replace('-', '')
+        social_number = fake.cnpj().replace(".", "").replace("/", "").replace("-", "")
         gender = None
     else:
         gender = random.choice(["M", "F", "Other"])
@@ -39,7 +40,7 @@ def generate_mock_customer() -> Dict[str, Any]:
         if random.random() < 0.5:
             social_number = fake.cpf()
         else:
-            social_number = fake.cpf().replace('.', '').replace('-', '')
+            social_number = fake.cpf().replace(".", "").replace("-", "")
 
     birthdate = fake.date_of_birth(minimum_age=18, maximum_age=90)
     credit_limit = round(random.uniform(500.0, 50000.0), 2)
@@ -47,24 +48,25 @@ def generate_mock_customer() -> Dict[str, Any]:
     # --- DEMOGRAPHICS (JSONB) ---
     social = {
         "gender": gender,
-        "marital_status": random.choice(["Single", "Married", "Divorced", "Widowed"]) if not is_company else None,
+        "marital_status": random.choice(["Single", "Married", "Divorced", "Widowed"])
+        if not is_company
+        else None,
         "interests": random.sample(INTERESTS_BANK, k=random.randint(1, 4)),
         "occupation": random.choice(OCCUPATIONS) if not is_company else None,
         "company_name": customer_name if is_company else fake.company(),
-        "tax_regime": random.choice(["simple", "real_profit", "presumed_profit"]) if is_company else None
+        "tax_regime": random.choice(["simple", "real_profit", "presumed_profit"])
+        if is_company
+        else None,
     }
 
     if is_company:
         social["buying_contact"] = {
             "name": fake.name(),
             "role": random.choice(ROLES),
-            "phone_number": fake.phone_number()
+            "phone_number": fake.phone_number(),
         }
 
-    marketing_consent = {
-        "email": random.choice([True, False]),
-        "sms": random.choice([True, False])
-    }
+    marketing_consent = {"email": random.choice([True, False]), "sms": random.choice([True, False])}
 
     address = {
         "address_line": fake.street_name(),
@@ -75,34 +77,36 @@ def generate_mock_customer() -> Dict[str, Any]:
         "country": "Brazil",
         "country_region": "South America",
         "province_name": fake.bairro(),
-        "address_info": random.choice(["Apto 101", "Casa 2", "Fundos", ""])
+        "address_info": random.choice(["Apto 101", "Casa 2", "Fundos", ""]),
     }
-    
+
     # Purchase dates — widened 2026-09-05 (was -5y) so it reaches back to 2020.
-    first_purchase = fake.date_between(start_date=datetime(2020, 1, 1).date(), end_date='today')
-    last_purchase = fake.date_between(start_date=first_purchase, end_date='today')
-    
+    first_purchase = fake.date_between(start_date=datetime(2020, 1, 1).date(), end_date="today")
+    last_purchase = fake.date_between(start_date=first_purchase, end_date="today")
+
     metrics = {
         "minimum_year_income": round(random.uniform(20000.0, 50000.0), 2),
         "maximum_year_income": round(random.uniform(50000.0, 200000.0), 2),
         "total_purchased": round(random.uniform(100.0, 15000.0), 2),
         "date_of_first_purchase": first_purchase.isoformat(),
         "date_last_purchase": last_purchase.isoformat(),
-        "count_orders": random.randint(1, 150)
+        "count_orders": random.randint(1, 150),
     }
-    
+
     demographics = {
         "social": social,
         "marketing_consent": marketing_consent,
         "address": address,
-        "metrics": metrics
+        "metrics": metrics,
     }
-    
+
     # --- INTENTIONAL DATA ENGINEERING ANOMALIES ---
 
     # 1. Negative Metrics Bug: 2% chance of the purchased value coming in negative
     if random.random() < 0.02:
-        demographics["metrics"]["total_purchased"] = -abs(demographics["metrics"]["total_purchased"])
+        demographics["metrics"]["total_purchased"] = -abs(
+            demographics["metrics"]["total_purchased"]
+        )
 
     # 2. Schema Drift: 5% chance of injecting a mysterious metric (LTV) not covered by the official Pydantic schema
     if random.random() < 0.05:
@@ -124,5 +128,5 @@ def generate_mock_customer() -> Dict[str, Any]:
         "birthdate": birthdate.isoformat(),
         "customer_type": customer_type,
         "credit_limit": credit_limit,
-        "demographics": demographics
+        "demographics": demographics,
     }

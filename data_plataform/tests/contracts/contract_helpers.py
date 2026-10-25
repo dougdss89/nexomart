@@ -111,5 +111,3 @@ def _norm(physical_type: str) -> str:
 
 def _sql_default(col) -> bool:
     return col.default is not None or col.server_default is not None
-
-

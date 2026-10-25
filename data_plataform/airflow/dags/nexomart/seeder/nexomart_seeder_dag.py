@@ -8,7 +8,7 @@ called without flags (see dbapi/api/utils/cli_common.py and
 configs/seeders/config.py) — this DAG only orchestrates the TRIGGER
 ORDER, respecting the FKs that each seeder queries via a real select()
 against the database before generating data. No fact/derived seeder makes up
-customer_id, product_id, category_id, etc. 
+customer_id, product_id, category_id, etc.
 
 Once seeding for a run is fully done, the final `trigger_ingestion` task triggers the separate
 `nexomart_ingestion_dag` (airflow/dags/nexomart/ingestion/), which lands every table of all 7
@@ -131,21 +131,34 @@ with DAG(
     # timeout once that number is established, sized to it rather than to the 10-15min target.
     tags=["seeder", "nexomart", "chaos-engineering"],
 ) as dag:
-
     start_seeder: DummyOperator = DummyOperator(task_id="start")
     contract_drift_check: BashOperator = contract_drift_task()
 
     # ==================== MASTER DATA (category 3 — fixed lists, chaos-only) ====================
     with TaskGroup(group_id="master_data") as master_data:
-        hr_department: BashOperator = seeder_task("hr_department", "humanresources/humanresources_department.py")
-        hr_job_role: BashOperator = seeder_task("hr_job_role", "humanresources/humanresources_job_role.py")
-        product_category: BashOperator = seeder_task("product_category", "product/product_category.py")
+        hr_department: BashOperator = seeder_task(
+            "hr_department", "humanresources/humanresources_department.py"
+        )
+        hr_job_role: BashOperator = seeder_task(
+            "hr_job_role", "humanresources/humanresources_job_role.py"
+        )
+        product_category: BashOperator = seeder_task(
+            "product_category", "product/product_category.py"
+        )
         product_model: BashOperator = seeder_task("product_model", "product/product_model.py")
         person_country: BashOperator = seeder_task("person_country", "person/person_country.py")
-        person_state_province: BashOperator = seeder_task("person_state_province", "person/person_state_province.py")
-        marketing_channel: BashOperator = seeder_task("marketing_channel", "marketing/marketing_channel.py")
-        sales_special_offer: BashOperator = seeder_task("sales_special_offer", "sales/sales_special_offer.py")
-        warehouse_transaction_type: BashOperator = seeder_task("warehouse_transaction_type", "warehouse/transaction_type.py")
+        person_state_province: BashOperator = seeder_task(
+            "person_state_province", "person/person_state_province.py"
+        )
+        marketing_channel: BashOperator = seeder_task(
+            "marketing_channel", "marketing/marketing_channel.py"
+        )
+        sales_special_offer: BashOperator = seeder_task(
+            "sales_special_offer", "sales/sales_special_offer.py"
+        )
+        warehouse_transaction_type: BashOperator = seeder_task(
+            "warehouse_transaction_type", "warehouse/transaction_type.py"
+        )
         sales_channel: BashOperator = seeder_task("sales_channel", "sales/sales_channel.py")
 
         person_country >> person_state_province
@@ -154,27 +167,49 @@ with DAG(
     with TaskGroup(group_id="dimensions") as dimensions:
         product: BashOperator = seeder_task("product", "product/product.py")
         person_customer: BashOperator = seeder_task("person_customer", "person/person_customer.py")
-        purchase_vendor: BashOperator = seeder_task("purchase_vendor", "purchasing/purchase_purchaseorder_vendor.py")
-        hr_employee: BashOperator = seeder_task("hr_employee", "humanresources/humanresources_employee.py")
-        warehouse_location: BashOperator = seeder_task("warehouse_location", "warehouse/warehouse_location.py")
+        purchase_vendor: BashOperator = seeder_task(
+            "purchase_vendor", "purchasing/purchase_purchaseorder_vendor.py"
+        )
+        hr_employee: BashOperator = seeder_task(
+            "hr_employee", "humanresources/humanresources_employee.py"
+        )
+        warehouse_location: BashOperator = seeder_task(
+            "warehouse_location", "warehouse/warehouse_location.py"
+        )
         sales_seller: BashOperator = seeder_task("sales_seller", "sales/sales_seller.py")
 
     # ==================== FACTS (category 1 fact — random volume, no flags) ====================
     with TaskGroup(group_id="facts") as facts:
         sales_order: BashOperator = seeder_task("sales_order", "sales/sales_order.py")
-        sales_return_order: BashOperator = seeder_task("sales_return_order", "sales/sales_return_order.py")
-        purchase_header: BashOperator = seeder_task("purchase_header", "purchasing/purchase_purchaseorderheader.py")
-        product_inventory: BashOperator = seeder_task("product_inventory", "warehouse/product_inventory.py")
-        transaction_history: BashOperator = seeder_task("transaction_history", "warehouse/transaction_history.py")
+        sales_return_order: BashOperator = seeder_task(
+            "sales_return_order", "sales/sales_return_order.py"
+        )
+        purchase_header: BashOperator = seeder_task(
+            "purchase_header", "purchasing/purchase_purchaseorderheader.py"
+        )
+        product_inventory: BashOperator = seeder_task(
+            "product_inventory", "warehouse/product_inventory.py"
+        )
+        transaction_history: BashOperator = seeder_task(
+            "transaction_history", "warehouse/transaction_history.py"
+        )
 
         sales_order >> sales_return_order
 
     # ==================== DERIVED (category 2 — fan-out from existing data, chaos-only) ====================
     with TaskGroup(group_id="derived") as derived:
-        purchase_detail: BashOperator = seeder_task("purchase_detail", "purchasing/purchase_purchaseorderdetail.py")
-        purchase_audit: BashOperator = seeder_task("purchase_audit", "purchasing/purchase_purchaseorderaudit.py")
-        marketing_campaign: BashOperator = seeder_task("marketing_campaign", "marketing/marketing_campaign.py")
-        marketing_adgroup: BashOperator = seeder_task("marketing_adgroup", "marketing/marketing_adgroup.py")
+        purchase_detail: BashOperator = seeder_task(
+            "purchase_detail", "purchasing/purchase_purchaseorderdetail.py"
+        )
+        purchase_audit: BashOperator = seeder_task(
+            "purchase_audit", "purchasing/purchase_purchaseorderaudit.py"
+        )
+        marketing_campaign: BashOperator = seeder_task(
+            "marketing_campaign", "marketing/marketing_campaign.py"
+        )
+        marketing_adgroup: BashOperator = seeder_task(
+            "marketing_adgroup", "marketing/marketing_adgroup.py"
+        )
         marketing_ads: BashOperator = seeder_task("marketing_ads", "marketing/marketing_ads.py")
         marketing_daily_performance: BashOperator = seeder_task(
             "marketing_daily_performance", "marketing/marketing_daily_performance.py"
@@ -183,8 +218,12 @@ with DAG(
             "sales_special_offer_product", "sales/sales_special_offer_product.py"
         )
         sales_eventlog: BashOperator = seeder_task("sales_eventlog", "sales/sales_eventlog.py")
-        product_embedding: BashOperator = seeder_task("product_embedding", "product/product_embedding.py")
-        person_customer_email: BashOperator = seeder_task("person_customer_email", "person/person_customer_email.py")
+        product_embedding: BashOperator = seeder_task(
+            "product_embedding", "product/product_embedding.py"
+        )
+        person_customer_email: BashOperator = seeder_task(
+            "person_customer_email", "person/person_customer_email.py"
+        )
 
         marketing_campaign >> marketing_adgroup >> marketing_ads >> marketing_daily_performance
 
@@ -202,7 +241,7 @@ with DAG(
         task_id="trigger_ingestion",
         trigger_dag_id="nexomart_ingestion_dag",
         wait_for_completion=True,
-        poke_interval=30
+        poke_interval=30,
     )
 
     end_seeder: DummyOperator = DummyOperator(task_id="end")
@@ -233,7 +272,13 @@ with DAG(
     person_customer >> person_customer_email
 
     # -> trigger_ingestion (seeder -> ingestion: only once every seeder in this run has finished)
-    start_seeder >> contract_drift_check >> [master_data, dimensions, facts, derived] >> trigger_ingestion >> end_seeder 
+    (
+        start_seeder
+        >> contract_drift_check
+        >> [master_data, dimensions, facts, derived]
+        >> trigger_ingestion
+        >> end_seeder
+    )
 
     # ==================== RESOURCE SERIALIZATION — REMOVED 2026-09-05, was NOT an FK dependency ====================
     # person_customer, purchase_audit, and purchase_detail are the three heaviest bulk_copy()

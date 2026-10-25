@@ -12,10 +12,12 @@ the "Pydantic Guard" without needing to loosen any schema.
 import random
 import uuid
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any
 
 
-def apply_campaign_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_campaign_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """3.6.1 broken naming, 3.6.2 zeroed budget with active status, 3.6.14 duplicate UTM."""
     if len(batch) < 2:
         return batch
@@ -27,9 +29,14 @@ def apply_campaign_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) 
         chaos_type = random.choice(["broken_naming", "zero_budget_active", "duplicate_utm"])
 
         if chaos_type == "broken_naming":
-            batch[idx]["campaign_name"] = random.choice([
-                "Cópia de campanha teste 1", "nova campanha (1)", "teste 123", "SEM NOME",
-            ])
+            batch[idx]["campaign_name"] = random.choice(
+                [
+                    "Cópia de campanha teste 1",
+                    "nova campanha (1)",
+                    "teste 123",
+                    "SEM NOME",
+                ]
+            )
 
         elif chaos_type == "zero_budget_active":
             batch[idx]["total_budget"] = Decimal("0.00")
@@ -43,7 +50,9 @@ def apply_campaign_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) 
     return batch
 
 
-def apply_adgroup_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_adgroup_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """3.6.4 missing/empty targeting, 3.6.5 inverted age range."""
     if not batch:
         return batch
@@ -78,11 +87,13 @@ def apply_ads_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> li
         creative = dict(batch[idx].get("creative_data") or {})
 
         if chaos_type == "broken_url":
-            creative["final_url"] = random.choice([
-                "www.example.com/lp",
-                "https://cdn.example.com/ad final.jpg",
-                "cdn.example.com/sem-protocolo",
-            ])
+            creative["final_url"] = random.choice(
+                [
+                    "www.example.com/lp",
+                    "https://cdn.example.com/ad final.jpg",
+                    "cdn.example.com/sem-protocolo",
+                ]
+            )
 
         elif chaos_type == "media_type_mismatch":
             creative["media_type"] = "video"
@@ -98,8 +109,8 @@ def apply_ads_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> li
 def apply_daily_performance_chaos(
     batch: list[dict[str, Any]],
     chaos_rate: float = 0.05,
-    platform_by_campaign: Optional[dict[int, str]] = None,
-    budget_by_campaign: Optional[dict[int, Decimal]] = None,
+    platform_by_campaign: dict[int, str] | None = None,
+    budget_by_campaign: dict[int, Decimal] | None = None,
 ) -> list[dict[str, Any]]:
     """
     3.6.8 cross-platform field leak (requires platform_by_campaign),
@@ -180,9 +191,9 @@ def _apply_budget_overspend_chaos(
     chaos_rate: float,
 ) -> None:
     """3.6.3: inflates the daily cost of randomly chosen campaigns until the budget is blown by ~300%."""
-    campaign_ids = list({
-        row["campaign_id"] for row in batch if row.get("campaign_id") in budget_by_campaign
-    })
+    campaign_ids = list(
+        {row["campaign_id"] for row in batch if row.get("campaign_id") in budget_by_campaign}
+    )
     if not campaign_ids:
         return
 

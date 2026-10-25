@@ -11,7 +11,9 @@ from datetime import datetime, timedelta
 from typing import Any
 
 
-def apply_product_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_product_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Negative margin, dirty weight (string), near-duplicate name, and illogical sale dates."""
     if not batch:
         return batch
@@ -22,23 +24,34 @@ def apply_product_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -
     for idx in chaos_indices:
         row = batch[idx]
         details = row.get("productdetails") or {}
-        chaos_type = random.choice([
-            "negative_margin", "dirty_weight_unit", "duplicate_inconsistent_name", "illogical_sell_dates",
-        ])
+        chaos_type = random.choice(
+            [
+                "negative_margin",
+                "dirty_weight_unit",
+                "duplicate_inconsistent_name",
+                "illogical_sell_dates",
+            ]
+        )
 
         if chaos_type == "negative_margin":
             # price (sale) ends up below list_price (cost) or zeroed out - promotion "glitch"
             if random.random() < 0.5:
                 details["price"] = 0.0
             else:
-                details["price"] = round(details.get("list_price", 1.0) * random.uniform(0.3, 0.9), 2)
+                details["price"] = round(
+                    details.get("list_price", 1.0) * random.uniform(0.3, 0.9), 2
+                )
 
         elif chaos_type == "dirty_weight_unit":
             weight = details.get("weight")
             if weight is not None:
-                details["weight"] = random.choice([
-                    f"{weight}kg", f"{str(weight).replace('.', ',')} kg", f"{weight} KG",
-                ])
+                details["weight"] = random.choice(
+                    [
+                        f"{weight}kg",
+                        f"{str(weight).replace('.', ',')} kg",
+                        f"{weight} KG",
+                    ]
+                )
 
         elif chaos_type == "duplicate_inconsistent_name":
             other_idx = random.choice([i for i in range(len(batch)) if i != idx])
@@ -54,7 +67,9 @@ def apply_product_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -
     return batch
 
 
-def apply_category_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_category_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Orphan category (parent_category_id pointing to a nonexistent id) and a cycle between two categories."""
     if len(batch) < 2:
         return batch
@@ -78,7 +93,9 @@ def apply_category_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) 
     return batch
 
 
-def apply_embedding_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_embedding_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Image extraction failure, truncated vector (dimension mismatch), and NaN/Infinite values."""
     if not batch:
         return batch
@@ -88,7 +105,9 @@ def apply_embedding_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05)
 
     for idx in chaos_indices:
         row = batch[idx]
-        chaos_type = random.choice(["failed_image_extraction", "truncated_vector", "nan_infinite_values"])
+        chaos_type = random.choice(
+            ["failed_image_extraction", "truncated_vector", "nan_infinite_values"]
+        )
 
         if chaos_type == "failed_image_extraction":
             row["image_vector"] = None

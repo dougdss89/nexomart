@@ -1,6 +1,6 @@
 import uuid
 from datetime import date, datetime
-from typing import Any, Dict, Type, TypeVar
+from typing import Any, TypeVar
 
 from sqlalchemy import Boolean, Column, DateTime, Integer
 from sqlalchemy.dialects.postgresql import UUID
@@ -18,7 +18,7 @@ class Base(DeclarativeBase):
         except Exception:
             return f"<{self.__class__.__name__} (uninitialized)>"
 
-    def to_dict(self, exclude: set = None) -> Dict[str, Any]:
+    def to_dict(self, exclude: set = None) -> dict[str, Any]:
         exclude = exclude or set()
         result = {}
         for col in self.__table__.columns:
@@ -33,7 +33,7 @@ class Base(DeclarativeBase):
                 result[col.name] = value
         return result
 
-    def update_from_dict(self, data: Dict[str, Any], ignore_missing: bool = True) -> None:
+    def update_from_dict(self, data: dict[str, Any], ignore_missing: bool = True) -> None:
         for key, value in data.items():
             if hasattr(self, key):
                 setattr(self, key, value)
@@ -41,7 +41,7 @@ class Base(DeclarativeBase):
                 raise AttributeError(f"{self.__class__.__name__} has no attribute '{key}'")
 
     @classmethod
-    def from_pydantic(cls: Type[T], schema: Any) -> T:
+    def from_pydantic(cls: type[T], schema: Any) -> T:
         data = schema.model_dump() if hasattr(schema, "model_dump") else schema.dict()
         instance = cls(**data)
         for col in cls.__table__.columns:
@@ -56,7 +56,9 @@ class Base(DeclarativeBase):
 class AuditMixin:
     """Injects audit columns (created_at, updated_at, is_active, row_version, row_guid)."""
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
     updated_at = Column(DateTime(timezone=True), nullable=True, default=None, onupdate=func.now())
     is_active = Column(Boolean, default=True, nullable=False)
     row_version = Column(Integer, default=1, nullable=False)

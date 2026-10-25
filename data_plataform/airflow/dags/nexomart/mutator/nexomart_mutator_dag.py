@@ -69,34 +69,57 @@ with DAG(
     max_active_tasks=8,  # same I/O-contention rationale as nexomart_seeder_dag
     tags=["mutator", "cdc", "nexomart"],
 ) as dag:
-
     start: DummyOperator = DummyOperator(task_id="start")
     # ==================== SALES (no hard DELETE — soft flag only) ====================
     with TaskGroup(group_id="sales_no_hard_delete") as sales_no_hard_delete:
         sales_order: BashOperator = mutator_task("sales_order", "sales/sales_order_mutate.py")
-        sales_return_order: BashOperator = mutator_task("sales_return_order", "sales/sales_return_order_mutate.py")
+        sales_return_order: BashOperator = mutator_task(
+            "sales_return_order", "sales/sales_return_order_mutate.py"
+        )
         sales_seller: BashOperator = mutator_task("sales_seller", "sales/sales_seller_mutate.py")
 
     # ==================== AUDIT-TYPE (no hard DELETE — soft flag only) ====================
     with TaskGroup(group_id="audit_no_hard_delete") as audit_no_hard_delete:
-        sales_eventlog: BashOperator = mutator_task("sales_eventlog", "sales/sales_eventlog_mutate.py")
-        purchase_audit: BashOperator = mutator_task("purchase_audit", "purchasing/purchase_purchaseorderaudit_mutate.py")
+        sales_eventlog: BashOperator = mutator_task(
+            "sales_eventlog", "sales/sales_eventlog_mutate.py"
+        )
+        purchase_audit: BashOperator = mutator_task(
+            "purchase_audit", "purchasing/purchase_purchaseorderaudit_mutate.py"
+        )
 
     # ==================== EVERYTHING ELSE (real DELETE allowed) ====================
     with TaskGroup(group_id="mutable") as mutable:
-        purchase_header: BashOperator = mutator_task("purchase_header", "purchasing/purchase_purchaseorderheader_mutate.py")
-        purchase_detail: BashOperator = mutator_task("purchase_detail", "purchasing/purchase_purchaseorderdetail_mutate.py")
-        purchase_vendor: BashOperator = mutator_task("purchase_vendor", "purchasing/purchase_purchaseorder_vendor_mutate.py")
-        person_customer: BashOperator = mutator_task("person_customer", "person/person_customer_mutate.py")
-        person_customer_email: BashOperator = mutator_task("person_customer_email", "person/person_customer_email_mutate.py")
-        transaction_history: BashOperator = mutator_task("transaction_history", "warehouse/transaction_history_mutate.py")
-        product_inventory: BashOperator = mutator_task("product_inventory", "warehouse/product_inventory_mutate.py")
+        purchase_header: BashOperator = mutator_task(
+            "purchase_header", "purchasing/purchase_purchaseorderheader_mutate.py"
+        )
+        purchase_detail: BashOperator = mutator_task(
+            "purchase_detail", "purchasing/purchase_purchaseorderdetail_mutate.py"
+        )
+        purchase_vendor: BashOperator = mutator_task(
+            "purchase_vendor", "purchasing/purchase_purchaseorder_vendor_mutate.py"
+        )
+        person_customer: BashOperator = mutator_task(
+            "person_customer", "person/person_customer_mutate.py"
+        )
+        person_customer_email: BashOperator = mutator_task(
+            "person_customer_email", "person/person_customer_email_mutate.py"
+        )
+        transaction_history: BashOperator = mutator_task(
+            "transaction_history", "warehouse/transaction_history_mutate.py"
+        )
+        product_inventory: BashOperator = mutator_task(
+            "product_inventory", "warehouse/product_inventory_mutate.py"
+        )
         product: BashOperator = mutator_task("product", "product/product_mutate.py")
-        marketing_campaign: BashOperator = mutator_task("marketing_campaign", "marketing/marketing_campaign_mutate.py")
+        marketing_campaign: BashOperator = mutator_task(
+            "marketing_campaign", "marketing/marketing_campaign_mutate.py"
+        )
         marketing_daily_performance: BashOperator = mutator_task(
             "marketing_daily_performance", "marketing/marketing_daily_performance_mutate.py"
         )
-        hr_employee: BashOperator = mutator_task("hr_employee", "humanresources/humanresources_employee_mutate.py")
+        hr_employee: BashOperator = mutator_task(
+            "hr_employee", "humanresources/humanresources_employee_mutate.py"
+        )
 
     end: DummyOperator = DummyOperator(task_id="end")
 

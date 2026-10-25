@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 spark = SparkSession.builder.appName("nexo-iceberg-dev-sample").getOrCreate()
 
@@ -13,10 +13,12 @@ spark.sql("""
   TBLPROPERTIES ('format-version' = '3')
 """)
 
-schema = StructType([
-    StructField("name", StringType(), True),
-    StructField("age", IntegerType(), True),
-])
+schema = StructType(
+    [
+        StructField("name", StringType(), True),
+        StructField("age", IntegerType(), True),
+    ]
+)
 data = [("Alice", 34), ("Bob", 45), ("Charlie", 28)]
 df = spark.createDataFrame(data, schema)
 

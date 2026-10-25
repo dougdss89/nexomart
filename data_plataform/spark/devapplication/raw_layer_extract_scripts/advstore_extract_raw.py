@@ -1,16 +1,18 @@
 import logging
-from configconnections_loader import load_config, validate_required_keys
-from pyspark.sql.functions import col, cast
-from startSparkSession import SparkSessionManager
 from sys import exit
 from traceback import print_exc
 
-#log config
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql.functions import col
+from startSparkSession import SparkSessionManager
+
+# log config
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+
 def load_source_connections():
-    """ Load source connections from .env file and create a SparkSession. """
+    """Load source connections from .env file and create a SparkSession."""
     try:
         config = load_config()
 
@@ -20,148 +22,147 @@ def load_source_connections():
         iceberg_catalog = config.get("hadoop_paths", {})
 
         validate_required_keys(
-            config=minio_landing,
-            required_keys=["minio_landing"],
-            config_name="hadoop_paths"
+            config=minio_landing, required_keys=["minio_landing"], config_name="hadoop_paths"
         )
-        
+
         validate_required_keys(
-            config=iceberg,
-            required_keys=["raw_icebergdb"],
-            config_name="hadoop_paths"
+            config=iceberg, required_keys=["raw_icebergdb"], config_name="hadoop_paths"
         )
-        
+
         validate_required_keys(
-            config=iceberg_catalog,
-            required_keys=["iceberg_catalog"],
-            config_name="hadoop_paths"
+            config=iceberg_catalog, required_keys=["iceberg_catalog"], config_name="hadoop_paths"
         )
-        
-        #create spark session
-        
-        session_manager = SparkSessionManager(
-                            app_name="extract_store_landing"
-        )
-        
+
+        # create spark session
+
+        session_manager = SparkSessionManager(app_name="extract_store_landing")
+
         spark = session_manager.create_session()
-        
-        return spark, minio_landing.get("minio_landing", ""), iceberg.get("raw_icebergdb", ""), iceberg_catalog.get("iceberg_catalog", "") #, minio_storage
-    
+
+        return (
+            spark,
+            minio_landing.get("minio_landing", ""),
+            iceberg.get("raw_icebergdb", ""),
+            iceberg_catalog.get("iceberg_catalog", ""),
+        )  # , minio_storage
+
     except (FileNotFoundError, KeyError) as e:
         logger.error(f"Could not load connections from source: {str(e)}")
         print_exc()
         exit(1)
-        
+
     except RuntimeError as e:
         logger.error(f"Failed to create Spark Session. Runtime Error: {str(e)}")
         print_exc()
         exit(1)
-        
+
     except Exception as e:
         logger.error(f"Unexpected error occur. {str(e)}")
         print_exc()
         exit(1)
-        
+
+
 def extract_landing_data(spark, minio_landing, raw_table):
     try:
-        dataframe = (spark
-                        .read
-                        .parquet(f"{minio_landing}/{raw_table}")
-                    )
+        dataframe = spark.read.parquet(f"{minio_landing}/{raw_table}")
         logger.info(f"Data extracted sucessfully for table: {raw_table}")
-        
+
         return dataframe
-    
+
     except Exception as e:
         logger.error(f"Failed to extract data from {raw_table}: {str(e)}")
         print_exc()
         exit(1)
-        
+
+
 def convert_store_schema(tmp_store):
     try:
         tmp_store.select(
-                        col("storeid").cast("int").alias("store_id"),
-                        col("personid").cast("int").alias("person_id"),
-                        col("customerid").cast("int").alias("customer_id"),
-                        col("accountnumber").cast("string").alias("accountnumber"),
-                        col("storename").cast("string").alias("storename"),
-                        col("firstname").cast("string").alias("firstname"),
-                        col("lastname").cast("string").alias("lastname"),
-                        col("annualsales").cast("float").alias("annualsales"),
-                        col("annualrevenue").cast("float").alias("annualrevenue"),
-                        col("bankname").cast("string").alias("bankname"),   
-                        col("businesstype").cast("string").alias("businesstype"),
-                        col("yearopened").cast("int").alias("yearopened"),
-                        col("Specialty").cast("string").alias("Specialty"),
-                        col("squarefeet").cast("float").alias("squarefeet"),
-                        col("brands").cast("string").alias("brands"),
-                        col("internet").cast("string").alias("internet"),
-                        col("numberemployees").cast("int").alias("numberemployees"),
-                        col("salespersonid").cast("int").alias("salesperson_id"),
-                        col("territoryid").cast("int").alias("territory_id"),
-                        col("continentname").cast("string").alias("continentname"),
-                        col("regionname").cast("string").alias("region_name"),
-                        col("countryregioncode").cast("string").alias("countryregioncode"),
-                        col("inserted_date").cast("timestamp").alias("extracted_date"),
-                        col("modified_date").cast("timestamp").alias("modified_date"),
-                        col("eltversion").cast("int").alias("eltversion")
+            col("storeid").cast("int").alias("store_id"),
+            col("personid").cast("int").alias("person_id"),
+            col("customerid").cast("int").alias("customer_id"),
+            col("accountnumber").cast("string").alias("accountnumber"),
+            col("storename").cast("string").alias("storename"),
+            col("firstname").cast("string").alias("firstname"),
+            col("lastname").cast("string").alias("lastname"),
+            col("annualsales").cast("float").alias("annualsales"),
+            col("annualrevenue").cast("float").alias("annualrevenue"),
+            col("bankname").cast("string").alias("bankname"),
+            col("businesstype").cast("string").alias("businesstype"),
+            col("yearopened").cast("int").alias("yearopened"),
+            col("Specialty").cast("string").alias("Specialty"),
+            col("squarefeet").cast("float").alias("squarefeet"),
+            col("brands").cast("string").alias("brands"),
+            col("internet").cast("string").alias("internet"),
+            col("numberemployees").cast("int").alias("numberemployees"),
+            col("salespersonid").cast("int").alias("salesperson_id"),
+            col("territoryid").cast("int").alias("territory_id"),
+            col("continentname").cast("string").alias("continentname"),
+            col("regionname").cast("string").alias("region_name"),
+            col("countryregioncode").cast("string").alias("countryregioncode"),
+            col("inserted_date").cast("timestamp").alias("extracted_date"),
+            col("modified_date").cast("timestamp").alias("modified_date"),
+            col("eltversion").cast("int").alias("eltversion"),
         )
-        
+
         return tmp_store
-    
+
     except Exception as e:
         logger.error(f"Error to convert dataframe {tmp_store} schema. Please verify: {str(e)}")
         print_exc()
         exit(1)
-        
-def write_to_iceberg(dataframe, catalog:str, raw_icebergdb:str, table_name:str):
-    """ Write DataFrame to iceberg table. """
+
+
+def write_to_iceberg(dataframe, catalog: str, raw_icebergdb: str, table_name: str):
+    """Write DataFrame to iceberg table."""
     try:
         raw_lakehouse = f"{catalog}.{raw_icebergdb}.{table_name}"
 
         (
-            dataframe
-            .write.format("iceberg")
+            dataframe.write.format("iceberg")
             .mode("append")  # Use "append" to add data instead
             .saveAsTable(f"{raw_lakehouse}")
         )
         print(f"Table {table_name} written successfully to iceberg.")
-        
+
         return logger.info(f"Table {table_name} written successfully to iceberg.")
-        
+
     except Exception as e:
         print(f"Failed to write table {table_name} to iceberg: {str(e)}")
         print_exc()
         exit(1)
-        
+
+
 def spark_stop(spark):
     try:
         if spark:
             spark.stop()
             logger.info("SparkSession stoped successfully")
-            
+
     except Exception as e:
         logger.error(f"Failed to stop SparkSession: {str(e)}")
         print_exc()
-        
-        
+
+
 def main():
-    
     spark, minio_landing, iceberg, iceberg_catalog = load_source_connections()
     raw_table = "raw_dimstore"
-    
+
     dataframe = extract_landing_data(spark, minio_landing, "store")
-    
+
     dataframe = convert_store_schema(dataframe)
-    
+
     # write_store_minio_storage(store, miniopath, "store")
-    
-    write_to_iceberg(dataframe=dataframe, catalog=iceberg_catalog, raw_icebergdb=iceberg, table_name= raw_table)
-    
+
+    write_to_iceberg(
+        dataframe=dataframe, catalog=iceberg_catalog, raw_icebergdb=iceberg, table_name=raw_table
+    )
+
     spark_stop(spark)
-    
+
     return logger.info("All functions have been executed successfully")
-    
+
+
 if __name__ == "__main__":
     main()
     logger.info("Sparkjob completed successfully")

@@ -1,17 +1,17 @@
-from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+from api.models.warehouse.transactionhistory import TransactionHistoryModel
 from api.repositories.warehouse.transaction_history_repository import TransactionHistoryRepository
 from api.schemas.warehouse.warehouse_transactionhistory import TransactionHistorySchema
-from api.models.warehouse.transactionhistory import TransactionHistoryModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 class TransactionHistoryService:
     def __init__(self, session: AsyncSession):
         self.repository = TransactionHistoryRepository(session)
 
-    async def list_transactions(self, limit: int = 100) -> List[TransactionHistoryModel]:
+    async def list_transactions(self, limit: int = 100) -> list[TransactionHistoryModel]:
         return await self.repository.get_all(limit=limit)
 
-    async def process_bulk_transactions(self, transactions_data: List[TransactionHistorySchema]):
+    async def process_bulk_transactions(self, transactions_data: list[TransactionHistorySchema]):
         """
         Bulk processing of transaction history.
         Converts Pydantic schemas into dictionaries ready for the Repository.
@@ -27,5 +27,5 @@ class TransactionHistoryService:
 
             # traceability_info will trigger SQLAlchemy's automatic JSON serialization
             processed_data.append(data)
-            
+
         await self.repository.bulk_insert(processed_data)

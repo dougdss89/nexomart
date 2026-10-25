@@ -1,17 +1,19 @@
-from pyspark.sql import SparkSession
-from configconnections_loader import load_config, validate_required_keys
 from sys import exit
 from traceback import print_exc
 
+from configconnections_loader import load_config, validate_required_keys
+from pyspark.sql import SparkSession
+
+
 def load_source_connections():
-    """ load source connections from .env file """
-    spark = None # Initialize to avoid NameError in finally
+    """load source connections from .env file"""
+    spark = None  # Initialize to avoid NameError in finally
     try:
         config = load_config()
-    except(FileNotFoundError, KeyError) as e:
+    except (FileNotFoundError, KeyError) as e:
         print(f"Could not load connections from source: {str(e)}")
         return None, None, None, None, None
-    
+
     try:
         # Get the configurations
         mssql_adventureworks = config.get("mssql_sources", {}).get("adventureworks", {})
@@ -24,28 +26,28 @@ def load_source_connections():
 
         # Create a CLEAN SparkSession
         # Spark 4.1.1 will read the packages and settings from spark-defaults.conf automatically
-        spark = (SparkSession.builder
-                .appName('extract_buyer_raw')
-                .enableHiveSupport()
-                .getOrCreate())
-        
-        return spark, mssql_properties, mssql_adventureworks, hadoop_config.get("minio_landing") 
-    
+        spark = SparkSession.builder.appName("extract_buyer_raw").enableHiveSupport().getOrCreate()
+
+        return spark, mssql_properties, mssql_adventureworks, hadoop_config.get("minio_landing")
+
     except Exception as e:
         print(f"Failed to create Spark Session: {str(e)}")
         print_exc()
         return None, None, None, None, None
 
+
 def extract_raw_buyer(spark, mssql_adventureworks, mssql_properties):
     """Extract buyer data from source"""
     try:
-        df_buyer_raw = (spark.read
-                       .format('jdbc')
-                       .option('url', mssql_adventureworks['url'])
-                       .option('driver', mssql_properties['driver'])
-                       .option('user', mssql_properties['user'])
-                       .option('password', mssql_properties['password'])
-                       .option('query', """
+        df_buyer_raw = (
+            spark.read.format("jdbc")
+            .option("url", mssql_adventureworks["url"])
+            .option("driver", mssql_properties["driver"])
+            .option("user", mssql_properties["user"])
+            .option("password", mssql_properties["password"])
+            .option(
+                "query",
+                """
                            select distinct
                                hre.businessentityid,
                                pp.firstname,
@@ -80,12 +82,16 @@ def extract_raw_buyer(spark, mssql_adventureworks, mssql_properties):
                                on hrd.departmentid = hrdh.departmentid
                            where hre.jobtitle = 'buyer' 
                                or hre.jobtitle like 'purchasing%'
-                       """).load())
+                       """,
+            )
+            .load()
+        )
         return df_buyer_raw
     except Exception as e:
         print(f"Error extracting buyer data: {str(e)}")
         print_exc()
         return None
+
 
 def spark_stop(spark):
     """Stop Spark session safely"""
@@ -93,9 +99,10 @@ def spark_stop(spark):
         if spark:
             spark.stop()
     except Exception as e:
-        print(f'Error stopping Spark session: {str(e)}')
+        print(f"Error stopping Spark session: {str(e)}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         # Load connections
         spark, mssql_properties, mssql_adventureworks, minio_landing = load_source_connections()
@@ -110,14 +117,14 @@ if __name__ == '__main__':
             raise RuntimeError("Failed to extract buyer data")
 
         # Write data
-        df_buyer.repartition(1).write.mode('overwrite').parquet(f"{minio_landing}/buyer")
-        
+        df_buyer.repartition(1).write.mode("overwrite").parquet(f"{minio_landing}/buyer")
+
         print("Job completed successfully")
-        
+
     except Exception as e:
         print(f"Job failed: {str(e)}")
         print_exc()
         exit(1)
-        
+
     finally:
         spark_stop(spark)
