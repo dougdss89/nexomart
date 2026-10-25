@@ -21,7 +21,7 @@ F_BIND_SRCS := $(foreach v,$(F_VOLUMES),$(CONTAINERS_DATA_DIR)/$(v)) $(MINIO_DAT
 WSL_DISTRO  ?= $(WSL_DISTRO_NAME)
 
 .PHONY: init
-init: stage-minio-f ## Cria a rede e os volumes Docker compartilhados (volumes bind no disco F:)
+init: stage ## Cria a rede e os volumes Docker compartilhados (volumes bind no disco F:)
 	docker network create hadoopcluster  2>/dev/null || true
 	@test -n "$(CONTAINERS_DATA_DIR)" || { echo "ERROR: CONTAINERS_DATA_DIR missing in $(SECRETS)"; exit 1; }
 	@for v in $(F_VOLUMES); do \
@@ -97,6 +97,17 @@ check-postgres-disk: ## Fails if the Postgres data disk is not mounted in WSL2
 	  echo "Run the scheduled task \"MountPostgresSSD-WSL\" (or wsl --mount from an administrator PowerShell) and retry."; \
 	  exit 1; }
 
+# The postgres-ssd disk is also attached late (wsl --mount), so the postgres_pg-data volume
+# hits the same missing-staging failure as the minio-f volumes. Same script, same fix.
+POSTGRES_BIND_SRC := $(POSTGRES_DATA_MOUNT)/pgdata
+
+.PHONY: stage-postgres
+stage-postgres: check-postgres-disk ## Recria o staging de bind-mount do Docker Desktop p/ o volume do disco postgres-ssd
+	@wsl.exe -d $(WSL_DISTRO) -u root -- bash $(CURDIR)/scripts/stage-minio-f.sh $(POSTGRES_BIND_SRC)
+
+.PHONY: stage
+stage: stage-minio-f stage-postgres ## Recria o staging de bind-mount dos dois discos anexados tarde (minio-f + postgres-ssd)
+
 # ── Stack completa ───────────────────────────────────────────────────────────────
 .PHONY: up
 up: check-minio-disk check-postgres-disk init generate-confs build ## Sobe toda a stack em ordem de dependência (generate-confs antes do build)
@@ -160,7 +171,7 @@ stop: ## Só PARA os containers (sem remover) — mais rápido pra retomar depoi
 	@echo "✅  Containers parados (preservados — use \`make start\` pra retomar)."
 
 .PHONY: start
-start: stage-minio-f check-postgres-disk ## Reinicia os containers parados com `make stop` (sem recriar) — uso: make start WORKERS=3
+start: stage ## Reinicia os containers parados com `make stop` (sem recriar) — uso: make start WORKERS=3
 	@echo "▶  Reiniciando containers..."
 	$(COMPOSE) -f postgres/docker-compose.yml      start
 	$(COMPOSE) -f minio/docker-compose.yml         start
@@ -177,7 +188,7 @@ start: stage-minio-f check-postgres-disk ## Reinicia os containers parados com `
 	@echo "✅  Stack reiniciada (spark-worker: $(WORKERS) réplica(s))."
 
 .PHONY: start-dev
-start-dev: stage-minio-f check-postgres-disk ## Reinicia só o essencial de dev: postgres, minio, hive, airflow (sem spark/trino/dbapi)
+start-dev: stage ## Reinicia só o essencial de dev: postgres, minio, hive, airflow (sem spark/trino/dbapi)
 	@echo "▶  Reiniciando stack de dev (postgres · minio · hive · airflow)..."
 	$(COMPOSE) -f postgres/docker-compose.yml      start
 	$(COMPOSE) -f minio/docker-compose.yml         start

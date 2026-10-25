@@ -33,6 +33,7 @@ def write_delta(
     spark: SparkSession,
     df: DataFrame,
     full_table: str,
+    partition_column: str,
     mode: str = "overwrite",
 ) -> None:
     """Writes a DataFrame to a Delta table under nexo or nexomart.
@@ -60,11 +61,14 @@ def write_delta(
     # path-based writer + register-if-missing instead.
     namespace = f"spark_catalog.{project}_{layer}"
     bucket = f"s3a://deltadw/{project}/{layer}.db"
-    spark.sql(f"CREATE DATABASE IF NOT EXISTS {namespace} LOCATION '{bucket}/'")
+
+    spark.sql(f"""CREATE DATABASE IF NOT EXISTS {namespace} 
+              LOCATION '{bucket}/'""")
+
     table_path = f"{bucket}/{table}"
     target_table = f"{namespace}.{table}"
 
-    writer = df.write.format("delta").option("path", table_path)
+    writer = df.write.format("delta").option("path", table_path).partitionBy(partition_column)
     if mode == "overwrite":
         writer = writer.option("overwriteSchema", "true").mode("overwrite")
     else:
@@ -72,7 +76,8 @@ def write_delta(
     writer.save()
 
     if not spark.catalog.tableExists(target_table):
-        spark.sql(f"CREATE TABLE {target_table} USING delta LOCATION '{table_path}'")
+        spark.sql(f"""CREATE TABLE {target_table} USING delta 
+                  LOCATION '{table_path}' PARTITIONED BY ({partition_column})""")
 
 
 def qualified_table_name(project: str, layer: str, schema: str, table: str) -> str:

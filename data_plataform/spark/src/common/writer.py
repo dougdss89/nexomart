@@ -13,7 +13,15 @@ class TableWriter(ABC):
     """One concrete subclass per storage format. Writes the row as-is."""
 
     @abstractmethod
-    def write(self, spark: SparkSession, df: DataFrame, layer: str, schema: str, table: str) -> Any:
+    def write(
+        self,
+        spark: SparkSession,
+        df: DataFrame,
+        layer: str,
+        schema: str,
+        table: str,
+        partition_column: str,
+    ) -> Any:
         raise NotImplementedError
 
 
@@ -23,10 +31,18 @@ class DeltaTableWriter(TableWriter):
     def __init__(self, project: str = "nexomart"):
         self._project = project
 
-    def write(self, spark: SparkSession, df: DataFrame, layer: str, schema: str, table: str) -> Any:
+    def write(
+        self,
+        spark: SparkSession,
+        df: DataFrame,
+        layer: str,
+        schema: str,
+        table: str,
+        partition_column: str,
+    ) -> Any:
         full_table = qualified_table_name(self._project, layer, schema, table)
 
-        write_delta(spark, df, full_table, mode="append")
+        write_delta(spark, df, full_table, partition_column, mode="append")
 
         return {"status": "success", "table": f"{full_table}"}
 
@@ -39,8 +55,20 @@ class DeltaMergeWriter(TableWriter):
         self._validator = validator
         self._project = project
 
-    def write(self, spark: SparkSession, df: DataFrame, layer: str, schema: str, table: str) -> Any:
-        self._validator.validate(spark, self._project, layer, schema, table, df, self._merge_keys)
+    def write(self, 
+              spark: SparkSession, 
+              df: DataFrame, 
+              layer: str, 
+              schema: str, 
+              table: str,
+              partition_column:str) -> Any:
+        self._validator.validate(spark, 
+                                 self._project, 
+                                 layer, 
+                                 schema, 
+                                 table, 
+                                 df, 
+                                 self._merge_keys)
 
         target_table = resolved_table_name(self._project, layer, schema, table)
 
@@ -66,10 +94,25 @@ class LoggingWriter(TableWriter):
         self._writer = writer
         self._logger = get_logger(self.__class__.__name__)
 
-    def write(self, spark: SparkSession, df: DataFrame, layer: str, schema: str, table: str) -> Any:
+    def write(
+        self,
+        spark: SparkSession,
+        df: DataFrame,
+        layer: str,
+        schema: str,
+        table: str,
+        partition_column: str,
+    ) -> Any:
         self._logger.info(f"Writing {layer}.{schema}.{table} via {type(self._writer).__name__}")
         try:
-            result = self._writer.write(spark=spark, df=df, layer=layer, schema=schema, table=table)
+            result = self._writer.write(
+                spark=spark,
+                df=df,
+                layer=layer,
+                schema=schema,
+                table=table,
+                partition_column=partition_column,
+            )
 
         except Exception:
             self._logger.exception(f"Failed to write {layer}.{schema}.{table}")
