@@ -33,12 +33,15 @@ class FlattenTransformer(BaseTransformer):
 
         other_cols = [c for c in df.columns if c != col_name]
 
-        df = df.select(*other_cols, *[F.col(f"{col_name}.{f.name}").alias(f.name) for f in root_type.fields])
+        df = df.select(
+            *other_cols, *[F.col(f"{col_name}.{f.name}").alias(f.name) for f in root_type.fields]
+        )
         owned = {f.name for f in root_type.fields}
 
         while True:
             struct_cols = {
-                f.name: f.dataType for f in df.schema.fields
+                f.name: f.dataType
+                for f in df.schema.fields
                 if f.name in owned and isinstance(f.dataType, StructType)
             }
             if not struct_cols:

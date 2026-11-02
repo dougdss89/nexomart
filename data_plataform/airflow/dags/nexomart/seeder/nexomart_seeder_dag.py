@@ -107,7 +107,7 @@ with DAG(
     # analysis that day). max_active_runs=1 below means a run overrunning 15min just delays the
     # next tick rather than overlapping. Matches the 10-15min target this file's docstring and
     # CLAUDE.md's ranges table were already calibrated for. Was 40min before this, daily before that.
-    schedule="*/15 * * * *",
+    schedule="*/10 * * * *",
     catchup=False,
     max_active_runs=1,
     # max_active_tasks reduced from the unset default (16) 2026-08-21: docs/SEEDER_MICROBATCHING.md's

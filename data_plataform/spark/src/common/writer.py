@@ -55,20 +55,16 @@ class DeltaMergeWriter(TableWriter):
         self._validator = validator
         self._project = project
 
-    def write(self, 
-              spark: SparkSession, 
-              df: DataFrame, 
-              layer: str, 
-              schema: str, 
-              table: str,
-              partition_column:str) -> Any:
-        self._validator.validate(spark, 
-                                 self._project, 
-                                 layer, 
-                                 schema, 
-                                 table, 
-                                 df, 
-                                 self._merge_keys)
+    def write(
+        self,
+        spark: SparkSession,
+        df: DataFrame,
+        layer: str,
+        schema: str,
+        table: str,
+        partition_column: str,
+    ) -> Any:
+        self._validator.validate(spark, self._project, layer, schema, table, df, self._merge_keys)
 
         target_table = resolved_table_name(self._project, layer, schema, table)
 
