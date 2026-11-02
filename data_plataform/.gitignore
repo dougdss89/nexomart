@@ -5,7 +5,7 @@ configs/secrets.env
 spark/conf/spark-defaults.conf
 
 # Python
-__pycache__/
+/__pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
@@ -27,4 +27,3 @@ dbapi/configs
 .claude/
 _agent/
 .github/
-
