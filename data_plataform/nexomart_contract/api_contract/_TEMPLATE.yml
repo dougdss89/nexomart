@@ -1,0 +1,98 @@
+# ============================================================================
+# TEMPLATE — API contract (dbapi/FastAPI layer, before any persistence)
+# Real ODCS v3.1.0 (https://bitol-io.github.io/open-data-contract-standard/v3.1.0/).
+# Copy to <schema>/<table>.yml and fill in. Remove comments once you no
+# longer need the guidance.
+# ============================================================================
+
+apiVersion: v3.1.0
+kind: DataContract
+id: api.<schema>.<table>                 # e.g. api.person.customer
+name: "<Readable name — e.g. Customer API Contract>"
+version: 1.0.0
+status: draft                            # proposed | draft | active | deprecated | retired
+domain: <schema>                         # matches dbapi/api/models/<schema>/
+
+description:
+  purpose: >
+    What this contract covers in one sentence: which endpoint/payload, what
+    business purpose the data serves.
+
+tags: []
+
+team:
+  name: data-engineering
+  members:
+    - username: <your email or channel>
+      role: Owner
+
+# Where this contract is actually enforced — the endpoint and the Pydantic
+# validation behind it. This is what makes the contract verifiable, not
+# just documentation.
+servers:
+  - server: dbapi
+    type: api
+    location: /api/<schema>/<table>
+    customProperties:
+      - property: method
+        value: POST
+      - property: requestSchema
+        value: dbapi/api/schemas/<schema>/<file>.py::<ModelClass>
+      - property: enforcedBy
+        value: pydantic
+
+# One entry per payload field. `tags: [pii]` + `classification` exist
+# because this is exactly the kind of metadata the physical database
+# schema does NOT carry.
+schema:
+  - id: <table>_api
+    name: <table>
+    physicalName: <schema>.<table>
+    physicalType: object
+    description: "<what this payload represents>"
+    dataGranularityDescription: "1 row per <table>"
+
+    properties:
+      - name: <field>
+        logicalType: string | integer | number | boolean | date | object
+        physicalType: "<engine-specific type, e.g. varchar(100), numeric(19,4), jsonb, uuid>"
+        required: true | false
+        description: "What this field means."
+        # tags: [pii]                             # personal data (SSN/CPF, name, address...)
+        # classification: public | internal | confidential | restricted
+        # examples: []                             # sample values instead of a bare "format" note
+        # quality:                                 # numeric range checks Pydantic already enforces
+        #   - type: library
+        #     metric: value
+        #     mustBeGreaterThan: 0
+        #     description: "Pydantic Field(gt=0)."
+        #     severity: error
+        # relationships:                           # only on FK columns
+        #   - to: <schema>.<table>.<column>
+
+    quality:
+      # Rules the API already enforces via Pydantic — the contract just
+      # makes this explicit and traceable outside the code.
+      - id: <rule name>
+        type: text
+        description: "What it checks."
+        severity: error                        # error (blocks) | warning (logs and continues)
+
+support:
+  - channel: <your email or channel>
+    tool: email
+
+customProperties:
+  - property: lineageUpstream
+    value: []                             # usually empty — the API is the origin
+  - property: lineageDownstream
+    value: [raw_contract/<schema>/<table>.yml]
+  - property: availability
+    value: "<e.g. 99.5% monthly, or 'best effort'>"
+  - property: p99LatencyMs
+    value: <e.g. 300>
+  - property: changelog
+    value:
+      - version: 1.0.0
+        date: "<YYYY-MM-DD>"
+        change: "Initial version."

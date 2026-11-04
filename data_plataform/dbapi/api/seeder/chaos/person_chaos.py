@@ -9,7 +9,9 @@ from datetime import date
 from typing import Any
 
 
-def apply_customer_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_customer_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Off-standard name (upper/lower/extra spaces) and illogical birth dates."""
     if not batch:
         return batch
@@ -19,9 +21,15 @@ def apply_customer_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) 
 
     for idx in chaos_indices:
         row = batch[idx]
-        chaos_type = random.choice([
-            "all_caps", "all_lower", "extra_whitespace", "future_birthdate", "impossible_age",
-        ])
+        chaos_type = random.choice(
+            [
+                "all_caps",
+                "all_lower",
+                "extra_whitespace",
+                "future_birthdate",
+                "impossible_age",
+            ]
+        )
 
         if chaos_type == "all_caps":
             row["customer_name"] = row["customer_name"].upper()
@@ -42,13 +50,17 @@ def apply_customer_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) 
 
         elif chaos_type == "impossible_age":
             row["birthdate"] = date(
-                date.today().year - random.randint(120, 150), random.randint(1, 12), random.randint(1, 28)
+                date.today().year - random.randint(120, 150),
+                random.randint(1, 12),
+                random.randint(1, 28),
             )
 
     return batch
 
 
-def apply_customer_email_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_customer_email_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Comma instead of dot, missing TLD, and a multi-value hidden in the same field."""
     if not batch:
         return batch

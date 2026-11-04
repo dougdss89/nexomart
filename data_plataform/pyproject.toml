@@ -21,6 +21,7 @@ dependencies = [
     "boto3>=1.34.0",
     "botocore>=1.34.0",
     "connexion[swagger-ui]>=3.3.0",
+    "delta-spark==3.2.1",
     "diagrams>=0.25.1",
     "dotenv>=0.9.9",
     "faker>=40.11.0",
@@ -47,6 +48,16 @@ dependencies = [
     "traitlets>=5.14.3",
     "uvicorn>=0.27.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
+
+# The dev group is opt-in (`uv run --group dev ...`) so the seeders' venv on the airflow-worker
+# never syncs pytest; only the contract drift task asks for it.
+[tool.uv]
+default-groups = []
 
 [tool.black]
 line-length = 100

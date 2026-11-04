@@ -90,7 +90,6 @@ with DAG(
     is_paused_upon_creation=True,
     tags=["streaming", "nexomart", "study"],
 ) as dag:
-
     start_stream: DummyOperator = DummyOperator(task_id="start")
 
     # ==================== MASTER DATA (fixed lists / chaos-only — no volume flags) ====================
@@ -100,10 +99,14 @@ with DAG(
         product_category = seeder_task("product_category", "product/product_category.py")
         product_model = seeder_task("product_model", "product/product_model.py")
         person_country = seeder_task("person_country", "person/person_country.py")
-        person_state_province = seeder_task("person_state_province", "person/person_state_province.py")
+        person_state_province = seeder_task(
+            "person_state_province", "person/person_state_province.py"
+        )
         marketing_channel = seeder_task("marketing_channel", "marketing/marketing_channel.py")
         sales_special_offer = seeder_task("sales_special_offer", "sales/sales_special_offer.py")
-        warehouse_transaction_type = seeder_task("warehouse_transaction_type", "warehouse/transaction_type.py")
+        warehouse_transaction_type = seeder_task(
+            "warehouse_transaction_type", "warehouse/transaction_type.py"
+        )
         sales_channel = seeder_task("sales_channel", "sales/sales_channel.py")
 
         person_country >> person_state_province
@@ -111,34 +114,58 @@ with DAG(
     # ==================== DIMENSIONS (volume-driven — capped at STREAM_COUNT) ====================
     with TaskGroup(group_id="dimensions") as dimensions:
         product = seeder_task("product", "product/product.py", STREAM_COUNT_ARGS)
-        person_customer = seeder_task("person_customer", "person/person_customer.py", STREAM_COUNT_ARGS)
-        purchase_vendor = seeder_task("purchase_vendor", "purchasing/purchase_purchaseorder_vendor.py", STREAM_COUNT_ARGS)
-        hr_employee = seeder_task("hr_employee", "humanresources/humanresources_employee.py", STREAM_COUNT_ARGS)
-        warehouse_location = seeder_task("warehouse_location", "warehouse/warehouse_location.py", STREAM_COUNT_ARGS)
+        person_customer = seeder_task(
+            "person_customer", "person/person_customer.py", STREAM_COUNT_ARGS
+        )
+        purchase_vendor = seeder_task(
+            "purchase_vendor", "purchasing/purchase_purchaseorder_vendor.py", STREAM_COUNT_ARGS
+        )
+        hr_employee = seeder_task(
+            "hr_employee", "humanresources/humanresources_employee.py", STREAM_COUNT_ARGS
+        )
+        warehouse_location = seeder_task(
+            "warehouse_location", "warehouse/warehouse_location.py", STREAM_COUNT_ARGS
+        )
         sales_seller = seeder_task("sales_seller", "sales/sales_seller.py", STREAM_COUNT_ARGS)
 
     # ==================== FACTS (volume-driven — capped at STREAM_COUNT) ====================
     with TaskGroup(group_id="facts") as facts:
         sales_order = seeder_task("sales_order", "sales/sales_order.py", STREAM_COUNT_ARGS)
-        sales_return_order = seeder_task("sales_return_order", "sales/sales_return_order.py", STREAM_COUNT_ARGS)
-        purchase_header = seeder_task("purchase_header", "purchasing/purchase_purchaseorderheader.py", STREAM_COUNT_ARGS)
-        product_inventory = seeder_task("product_inventory", "warehouse/product_inventory.py", STREAM_COUNT_ARGS)
-        transaction_history = seeder_task("transaction_history", "warehouse/transaction_history.py", STREAM_COUNT_ARGS)
+        sales_return_order = seeder_task(
+            "sales_return_order", "sales/sales_return_order.py", STREAM_COUNT_ARGS
+        )
+        purchase_header = seeder_task(
+            "purchase_header", "purchasing/purchase_purchaseorderheader.py", STREAM_COUNT_ARGS
+        )
+        product_inventory = seeder_task(
+            "product_inventory", "warehouse/product_inventory.py", STREAM_COUNT_ARGS
+        )
+        transaction_history = seeder_task(
+            "transaction_history", "warehouse/transaction_history.py", STREAM_COUNT_ARGS
+        )
 
         sales_order >> sales_return_order
 
     # ==================== DERIVED (fan-out / chaos-only — no volume flags) ====================
     with TaskGroup(group_id="derived") as derived:
-        purchase_detail = seeder_task("purchase_detail", "purchasing/purchase_purchaseorderdetail.py")
+        purchase_detail = seeder_task(
+            "purchase_detail", "purchasing/purchase_purchaseorderdetail.py"
+        )
         purchase_audit = seeder_task("purchase_audit", "purchasing/purchase_purchaseorderaudit.py")
         marketing_campaign = seeder_task("marketing_campaign", "marketing/marketing_campaign.py")
         marketing_adgroup = seeder_task("marketing_adgroup", "marketing/marketing_adgroup.py")
         marketing_ads = seeder_task("marketing_ads", "marketing/marketing_ads.py")
-        marketing_daily_performance = seeder_task("marketing_daily_performance", "marketing/marketing_daily_performance.py")
-        sales_special_offer_product = seeder_task("sales_special_offer_product", "sales/sales_special_offer_product.py")
+        marketing_daily_performance = seeder_task(
+            "marketing_daily_performance", "marketing/marketing_daily_performance.py"
+        )
+        sales_special_offer_product = seeder_task(
+            "sales_special_offer_product", "sales/sales_special_offer_product.py"
+        )
         sales_eventlog = seeder_task("sales_eventlog", "sales/sales_eventlog.py")
         product_embedding = seeder_task("product_embedding", "product/product_embedding.py")
-        person_customer_email = seeder_task("person_customer_email", "person/person_customer_email.py")
+        person_customer_email = seeder_task(
+            "person_customer_email", "person/person_customer_email.py"
+        )
 
         marketing_campaign >> marketing_adgroup >> marketing_ads >> marketing_daily_performance
 

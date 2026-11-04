@@ -1,0 +1,206 @@
+name: PR Quality Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-metadata:
+    name: PR Metadata Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check PR title
+      uses: amannn/action-semantic-pull-request@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        types: |
+          feat
+          fix
+          docs
+          style
+          refactor
+          perf
+          test
+          build
+          ci
+          chore
+          revert
+        requireScope: false
+        subjectPattern: ^(?![A-Z]).+$
+        subjectPatternError: |
+          PR title must start with a lowercase letter.
+          Example: "feat: add new feature"
+
+    - name: Check PR size
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const pr = context.payload.pull_request;
+          const additions = pr.additions;
+          const deletions = pr.deletions;
+          const total = additions + deletions;
+
+          if (total > 1000) {
+            core.warning(`⚠️ PR too large: ${total} lines changed. Consider splitting it into smaller PRs.`);
+          }
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        pip install ruff pylint radon
+
+    - name: Run Ruff with annotations
+      run: |
+        ruff check . --output-format=github
+      continue-on-error: true
+
+    - name: Calculate complexity
+      run: |
+        echo "## Code Complexity Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Cyclomatic Complexity (top 10 most complex)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        radon cc . -s -n B --total-average | head -20 >> $GITHUB_STEP_SUMMARY || echo "No Python files found" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+      continue-on-error: true
+
+    - name: Calculate maintainability index
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Maintainability Index" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        radon mi . -s | head -20 >> $GITHUB_STEP_SUMMARY || echo "No Python files found" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+      continue-on-error: true
+
+  comment-coverage:
+    name: Comment Coverage Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        pip install pytest pytest-cov
+        pip install -r fastapi/requirements.txt || true
+
+    - name: Run tests with coverage
+      run: |
+        cd fastapi
+        pytest --cov=app --cov-report=term --cov-report=html 2>&1 | tee coverage.txt
+      continue-on-error: true
+
+    - name: Comment PR with coverage
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let coverage = 'Coverage report not available';
+
+          try {
+            coverage = fs.readFileSync('fastapi/coverage.txt', 'utf8');
+          } catch (error) {
+            console.log('Coverage file not found');
+          }
+
+          const comment = `## 📊 Test Coverage Report\n\n\`\`\`\n${coverage}\n\`\`\``;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+      continue-on-error: true
+
+  sql-diff:
+    name: SQL Changes Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get changed SQL files
+      id: changed-sql
+      uses: tj-actions/changed-files@v44
+      with:
+        files: |
+          **/*.sql
+
+    - name: List changed SQL files
+      if: steps.changed-sql.outputs.any_changed == 'true'
+      run: |
+        echo "## 🗄️ SQL Files Changed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "The following SQL files were modified:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        for file in ${{ steps.changed-sql.outputs.all_changed_files }}; do
+          echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+        done
+
+    - name: Set up Python
+      if: steps.changed-sql.outputs.any_changed == 'true'
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install SQLFluff
+      if: steps.changed-sql.outputs.any_changed == 'true'
+      run: pip install sqlfluff sqlfluff-templater-dbt
+
+    - name: Lint changed SQL files
+      if: steps.changed-sql.outputs.any_changed == 'true'
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### SQLFluff Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        for file in ${{ steps.changed-sql.outputs.all_changed_files }}; do
+          echo "Checking: $file"
+          sqlfluff lint "$file" --dialect postgres || true
+        done >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        fail-on-severity: moderate
+        comment-summary-in-pr: always

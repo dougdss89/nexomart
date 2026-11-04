@@ -1,7 +1,8 @@
-from enum import Enum
 import uuid
-from pydantic import BaseModel, Field
 from datetime import datetime
+from enum import Enum
+
+from pydantic import BaseModel, Field
 
 
 class ChannelName(str, Enum):
@@ -12,7 +13,8 @@ class ChannelName(str, Enum):
     AFFILIATE = "affiliate"
     ORGANIC = "organic"
     OTHER = "other"
-    
+
+
 class PlatformName(str, Enum):
     # Corrected from 'Plataform' to 'Platform' to match the table
     GOOGLE_ADS = "google_ads"
@@ -22,13 +24,14 @@ class PlatformName(str, Enum):
     MAILCHIMP = "mailchimp"
     GA4 = "google_analytics_4"
     NONE = "none"
-    
+
+
 class MarketingChannel(BaseModel):
     channel_id: int = Field(gt=0)
-    
+
     channel_name: ChannelName
     platform_name: PlatformName
-    
+
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True

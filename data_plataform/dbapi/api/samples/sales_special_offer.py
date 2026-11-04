@@ -10,7 +10,7 @@ SPECIAL_OFFERS = [
         "discount_type": "seasonal",
         "category": "customer",
         "min_quantity": 1,
-        "max_quantity": 5
+        "max_quantity": 5,
     },
     {
         "description": "Desconto Progressivo Atacado",
@@ -18,7 +18,7 @@ SPECIAL_OFFERS = [
         "discount_type": "volume",
         "category": "reseller",
         "min_quantity": 10,
-        "max_quantity": 100
+        "max_quantity": 100,
     },
     {
         "description": "Limpa Estoque - Fora de Linha",
@@ -26,7 +26,7 @@ SPECIAL_OFFERS = [
         "discount_type": "discontinued",
         "category": "customer",
         "min_quantity": 1,
-        "max_quantity": 2
+        "max_quantity": 2,
     },
     {
         "description": "Lançamento Nova Coleção",
@@ -34,7 +34,7 @@ SPECIAL_OFFERS = [
         "discount_type": "new_product",
         "category": "customer",
         "min_quantity": 1,
-        "max_quantity": 10
+        "max_quantity": 10,
     },
     {
         "description": "Semana do Consumidor",
@@ -42,7 +42,7 @@ SPECIAL_OFFERS = [
         "discount_type": "seasonal",
         "category": "customer",
         "min_quantity": 1,
-        "max_quantity": 3
+        "max_quantity": 3,
     },
     {
         "description": "Combo Revenda Prata",
@@ -50,6 +50,6 @@ SPECIAL_OFFERS = [
         "discount_type": "volume",
         "category": "reseller",
         "min_quantity": 50,
-        "max_quantity": 500
-    }
+        "max_quantity": 500,
+    },
 ]

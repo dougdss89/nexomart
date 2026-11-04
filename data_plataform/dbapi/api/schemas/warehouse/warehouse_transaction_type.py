@@ -1,26 +1,28 @@
 import uuid
-from typing import Optional
-from enum import Enum
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 
 class ActionEffect(str, Enum):
     IN = "positive"
     OUT = "negative"
-    NEUTRAL = "neutral" 
+    NEUTRAL = "neutral"
+
 
 class TransactionTypeSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
-    
+
     transactiontype_id: int = Field(gt=0)
     transaction_code: str = Field(min_length=1, max_length=2)
     transaction_name: str = Field(max_length=50)
-    description: Optional[str] = Field(None, max_length=255)
+    description: str | None = Field(None, max_length=255)
     action_effect: ActionEffect
-    
+
     valid_from: datetime = Field(default_factory=datetime.now)
-    valid_to: Optional[datetime] = None
-    
+    valid_to: datetime | None = None
+
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True

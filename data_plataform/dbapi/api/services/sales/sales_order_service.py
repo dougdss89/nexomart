@@ -1,7 +1,6 @@
-from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
 from api.repositories.sales.sales_order_repository import SalesOrderRepository
-from api.schemas.sales.sales_order import SalesOrderSchema
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 class SalesOrderService:
     def __init__(self, db: AsyncSession):
@@ -17,7 +16,7 @@ class SalesOrderService:
         # Business Logic could go here (e.g. inventory check)
         return await self.repository.create(order_data)
 
-    async def bulk_ingest_orders(self, orders: List[dict]):
+    async def bulk_ingest_orders(self, orders: list[dict]):
         """Bulk ingestion of sales orders."""
         await self.repository.bulk_create(orders)
 

@@ -1,6 +1,8 @@
 import uuid
-from pydantic import BaseModel, Field
 from datetime import datetime
+
+from pydantic import BaseModel, Field
+
 
 class Customer_email(BaseModel):
     customer_id: int = Field(gt=0)
@@ -13,4 +15,4 @@ class Customer_email(BaseModel):
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
 
     class Config:
-        from_attributes = True #pydantic lendo modelos do SQLAlchemy
+        from_attributes = True  # pydantic lendo modelos do SQLAlchemy

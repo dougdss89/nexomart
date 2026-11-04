@@ -1,21 +1,21 @@
 import asyncio
-import sys
 import os
-import uuid
 import random
-from datetime import datetime, date
-from typing import List, Dict, Any
-from sqlalchemy import select, func
+import sys
+import uuid
+from datetime import date, datetime
+from typing import Any
+
+from api.config.seeder_config import get_ranges
 from api.database import AsyncSessionLocal
-from api.samples.customer import generate_mock_customer
-from api.models.person.country_region import CountryRegionModel
-from api.models.person.state_province import StateProvinceModel
 from api.models.person.customer import CustomerModel
+from api.models.person.state_province import StateProvinceModel
+from api.samples.customer import generate_mock_customer
 from api.schemas.person.person_customer import Customer
 from api.seeder.chaos import apply_customer_chaos, apply_false_foreigner_chaos
-from api.utils.cli_common import build_parser, add_volume_args, resolve_volume_args, bulk_copy
+from api.utils.cli_common import add_volume_args, build_parser, bulk_copy, resolve_volume_args
 from api.utils.quarantine import get_quarantine
-from api.config.seeder_config import get_ranges
+from sqlalchemy import func, select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -23,7 +23,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 SCHEMA_NAME = "person"
 TABLE_NAME = "person.customer"
 
-def generate_customer_payloads(count: int, country_ids: List[int], states_by_country: Dict[int, List[int]]) -> List[Dict[str, Any]]:
+
+def generate_customer_payloads(
+    count: int, country_ids: list[int], states_by_country: dict[int, list[int]]
+) -> list[dict[str, Any]]:
     """Generates customer payloads linked to REAL geographies (state_province_id always belongs to the drawn country_id)."""
     batch = []
     q = get_quarantine("person.customer")
@@ -44,25 +47,34 @@ def generate_customer_payloads(count: int, country_ids: List[int], states_by_cou
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
             "is_active": True,
-            "row_guid": uuid.uuid4()
+            "row_guid": uuid.uuid4(),
         }
         with q.row(payload):
             customer_obj = Customer(**payload)
             validated_customer = customer_obj.model_dump()
             # demographics.metrics carries Decimal fields — needs a JSON-safe dump for the JSONB column
             validated_customer["demographics"] = customer_obj.demographics.model_dump(mode="json")
-            validated_customer.pop("customer_id", None)  # let the database's autoincrement take over
+            validated_customer.pop(
+                "customer_id", None
+            )  # let the database's autoincrement take over
             batch.append(validated_customer)
 
     q.finish()
     return batch
 
-async def seed_person_customers(count: int = 100, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True):
+
+async def seed_person_customers(
+    count: int = 100, chaos_rate: float = 0.05, batch_size: int = 10_000, apply_chaos: bool = True
+):
     """Runs the customer load consuming REAL geographies from the database."""
     async with AsyncSessionLocal() as session:
         # 1. Fetch the map of states by country (Dimensional Integrity: state always belongs to the drawn country)
-        states_result = (await session.execute(select(StateProvinceModel.state_province_id, StateProvinceModel.country_id))).all()
-        states_by_country: Dict[int, List[int]] = {}
+        states_result = (
+            await session.execute(
+                select(StateProvinceModel.state_province_id, StateProvinceModel.country_id)
+            )
+        ).all()
+        states_by_country: dict[int, list[int]] = {}
         for state_id, country_id in states_result:
             states_by_country.setdefault(country_id, []).append(state_id)
 
@@ -82,23 +94,33 @@ async def seed_person_customers(count: int = 100, chaos_rate: float = 0.05, batc
             # it when absolute_max is actually set (currently None for person.customer,
             # making the check a no-op) — same fix already applied to
             # purchase_purchaseorderdetail.py for the same reason.
-            existing_count = await session.scalar(select(func.count(CustomerModel.customer_id))) or 0
+            existing_count = (
+                await session.scalar(select(func.count(CustomerModel.customer_id))) or 0
+            )
             if existing_count >= ranges.absolute_max:
-                print(f"⚠️ Absolute customer limit reached ({existing_count:,}/{ranges.absolute_max:,}).")
+                print(
+                    f"⚠️ Absolute customer limit reached ({existing_count:,}/{ranges.absolute_max:,})."
+                )
                 return
             count = min(count, ranges.absolute_max - existing_count)
 
         final_total = f"{existing_count + count:,}" if existing_count is not None else "n/a"
-        print(f"📣 Seeding {count:,} customers (final total: {final_total}) | chaos={chaos_rate:.2%}")
+        print(
+            f"📣 Seeding {count:,} customers (final total: {final_total}) | chaos={chaos_rate:.2%}"
+        )
 
         total_inserted = 0
         while total_inserted < count:
             current_batch_size = min(batch_size, count - total_inserted)
-            customers = generate_customer_payloads(current_batch_size, country_ids, states_by_country)
+            customers = generate_customer_payloads(
+                current_batch_size, country_ids, states_by_country
+            )
 
             if apply_chaos:
                 customers = apply_customer_chaos(customers, chaos_rate=chaos_rate)
-                customers = apply_false_foreigner_chaos(customers, states_by_country, chaos_rate=chaos_rate)
+                customers = apply_false_foreigner_chaos(
+                    customers, states_by_country, chaos_rate=chaos_rate
+                )
 
             try:
                 await bulk_copy(session, CustomerModel, customers)
@@ -107,14 +129,23 @@ async def seed_person_customers(count: int = 100, chaos_rate: float = 0.05, batc
             except Exception as e:
                 await session.rollback()
                 print(f"❌ Error seeding customers: {e}")
-                raise RuntimeError(f"Customer seeding aborted ({total_inserted:,}/{count:,} inserted): {e}") from e
+                raise RuntimeError(
+                    f"Customer seeding aborted ({total_inserted:,}/{count:,} inserted): {e}"
+                ) from e
 
         print(f"✅ {total_inserted:,} customers seeded successfully!")
+
 
 if __name__ == "__main__":
     parser = build_parser(f"Dynamic seeder for {TABLE_NAME}")
     add_volume_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
     args = parser.parse_args()
-    count, chaos_rate, apply_chaos, batch_size = resolve_volume_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+    count, chaos_rate, apply_chaos, batch_size = resolve_volume_args(
+        args, schema=SCHEMA_NAME, table=TABLE_NAME
+    )
 
-    asyncio.run(seed_person_customers(count=count, chaos_rate=chaos_rate, batch_size=batch_size, apply_chaos=apply_chaos))
+    asyncio.run(
+        seed_person_customers(
+            count=count, chaos_rate=chaos_rate, batch_size=batch_size, apply_chaos=apply_chaos
+        )
+    )

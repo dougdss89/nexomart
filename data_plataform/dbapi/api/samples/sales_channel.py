@@ -11,8 +11,8 @@ SALES_CHANNEL_SAMPLES = [
             "allows_return": True,
             "requires_pos_auth": False,
             "default_currency": "BRL",
-            "stock_source_priority": ["warehouse_sp", "warehouse_mg"]
-        }
+            "stock_source_priority": ["warehouse_sp", "warehouse_mg"],
+        },
     },
     {
         "saleschannel_id": 2,
@@ -23,8 +23,8 @@ SALES_CHANNEL_SAMPLES = [
             "allows_return": True,
             "requires_pos_auth": True,
             "default_currency": "BRL",
-            "stock_source_priority": ["store_sp_01", "warehouse_sp"]
-        }
+            "stock_source_priority": ["store_sp_01", "warehouse_sp"],
+        },
     },
     {
         "saleschannel_id": 3,
@@ -35,8 +35,8 @@ SALES_CHANNEL_SAMPLES = [
             "allows_return": False,
             "requires_pos_auth": False,
             "default_currency": "BRL",
-            "stock_source_priority": ["warehouse_sp"]
-        }
+            "stock_source_priority": ["warehouse_sp"],
+        },
     },
     {
         "saleschannel_id": 4,
@@ -47,8 +47,8 @@ SALES_CHANNEL_SAMPLES = [
             "allows_return": True,
             "requires_pos_auth": False,
             "default_currency": "BRL",
-            "stock_source_priority": ["warehouse_sp", "warehouse_rj"]
-        }
+            "stock_source_priority": ["warehouse_sp", "warehouse_rj"],
+        },
     },
     {
         "saleschannel_id": 5,
@@ -59,7 +59,7 @@ SALES_CHANNEL_SAMPLES = [
             "allows_return": False,
             "requires_pos_auth": False,
             "default_currency": "BRL",
-            "stock_source_priority": ["warehouse_sp", "factory_direct"]
-        }
-    }
+            "stock_source_priority": ["warehouse_sp", "factory_direct"],
+        },
+    },
 ]

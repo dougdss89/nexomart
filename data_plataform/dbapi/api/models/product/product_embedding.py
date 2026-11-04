@@ -1,15 +1,18 @@
 # models/product.py
+from api.config.base import AuditMixin, Base
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB
-from pgvector.sqlalchemy import Vector
-from api.config.base import Base, AuditMixin
+
 
 class ProductEmbeddingModel(Base, AuditMixin):
     __tablename__ = "productembedding"
-    __table_args__ = {"schema": "product"} # Organization by Schemas in Postgres
+    __table_args__ = {"schema": "product"}  # Organization by Schemas in Postgres
 
     embedding_id = Column(Integer, primary_key=True, autoincrement=True)
-    product_id = Column(Integer, unique=True, nullable=False) # Add ForeignKey if the product table already exists
+    product_id = Column(
+        Integer, unique=True, nullable=False
+    )  # Add ForeignKey if the product table already exists
 
     # --- VECTORS ---
     # The Vector type is imported from pgvector.sqlalchemy
@@ -22,4 +25,3 @@ class ProductEmbeddingModel(Base, AuditMixin):
     # --- THE JSONB SECRET ---
     # Everything that was a sub-model in Pydantic (AIModelMetadata) simply becomes JSONB here
     ai_metadata = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
-    

@@ -6,10 +6,12 @@ See dbapi/api/seeder/CHAOS_DOCUMENTATION.md section 3.9 for the full catalog.
 import random
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any
 
 
-def apply_purchaseorderheader_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_purchaseorderheader_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Financial math that doesn't add up, ship_date before order_date, and a phantom order."""
     if not batch:
         return batch
@@ -23,7 +25,9 @@ def apply_purchaseorderheader_chaos(batch: list[dict[str, Any]], chaos_rate: flo
 
         if chaos_type == "financial_mismatch":
             # Manual discount applied directly to the total, without recalculating sub_total/tax_amt
-            discount = (row["sub_total"] * Decimal(str(random.uniform(0.05, 0.20)))).quantize(Decimal("0.0001"))
+            discount = (row["sub_total"] * Decimal(str(random.uniform(0.05, 0.20)))).quantize(
+                Decimal("0.0001")
+            )
             row["total_due"] = row["total_due"] - discount
 
         elif chaos_type == "reversed_ship_date":
@@ -39,7 +43,9 @@ def apply_purchaseorderheader_chaos(batch: list[dict[str, Any]], chaos_rate: flo
     return batch
 
 
-def apply_purchaseorderdetail_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_purchaseorderdetail_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Over-shipment (received+rejected > ordered) and zombie orders (pending for years)."""
     if not batch:
         return batch
@@ -66,7 +72,9 @@ def apply_purchaseorderdetail_chaos(batch: list[dict[str, Any]], chaos_rate: flo
     return batch
 
 
-def apply_vendor_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.03) -> list[dict[str, Any]]:
+def apply_vendor_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.03
+) -> list[dict[str, Any]]:
     """
     'Active deadbeat' vendor and master data collision (same tax_id, different names).
 
@@ -99,7 +107,7 @@ def apply_vendor_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.03) ->
 def apply_purchase_audit_chaos(
     batch: list[dict[str, Any]],
     valid_employee_ids: list[int],
-    manager_employee_ids: Optional[list[int]] = None,
+    manager_employee_ids: list[int] | None = None,
     chaos_rate: float = 0.05,
 ) -> list[dict[str, Any]]:
     """Skipped process (removes intermediate steps) and ghost approver."""
@@ -115,7 +123,9 @@ def apply_purchase_audit_chaos(
     chosen_headers = random.sample(header_ids, min(num_chaos, len(header_ids)))
 
     remove_indices: set[int] = set()
-    non_managers = [e for e in valid_employee_ids if not manager_employee_ids or e not in manager_employee_ids]
+    non_managers = [
+        e for e in valid_employee_ids if not manager_employee_ids or e not in manager_employee_ids
+    ]
 
     for header_id in chosen_headers:
         indices = by_header[header_id]

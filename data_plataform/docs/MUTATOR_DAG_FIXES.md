@@ -90,7 +90,7 @@ Verified by checking exact row-count deltas before/after a controlled `--delete-
 a composite PK (`warehouse.transactionhistory`: 8240740 → 8240737) — both dropped by exactly 3,
 and the SQL echo showed a real `WHERE ... = $1` with real bound values, not an empty tuple.
 
-Code: `dbapi/api/seeder/mutator_common.py` — `bulk_hard_delete()`.
+Code: `dbapi/api/utils/mutator_common.py` — `bulk_hard_delete()`.
 
 ## Bug 3 — hard-deleting a row that's still an FK target
 

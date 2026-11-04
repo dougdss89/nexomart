@@ -23,12 +23,11 @@ import json
 import random
 from datetime import datetime, timedelta
 
+from api.config.seeder_config import get_ranges
+from api.utils.quarantine import physical_gate
 from sqlalchemy import func, insert, select, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from api.config.seeder_config import get_ranges
-from api.utils.quarantine import physical_gate
 
 DEFAULT_BATCH_SIZE = 1_000
 # asyncpg limits queries to 32767 bound parameters; a multi-row insert().values([...])
@@ -84,16 +83,18 @@ def stamp_dimension_history_objs(objs: list, earliest: datetime = EARLIEST_HISTO
 #      inserting a backdated created_at would need a matching 2020-era partition to exist, and the
 #      45-day retention would drop it anyway. Their created_at has to stay near insert time.
 # Keep group (1) in sync with ingestion_common.FACT_EVENT_DATE_COLUMNS.
-_NO_BACKDATE_TABLES = frozenset({
-    ("sales", "salesorder"),
-    ("sales", "returnorder"),
-    ("sales", "ordereventlog"),
-    ("purchasing", "purchaseorderheader"),
-    ("warehouse", "transactionhistory"),
-    ("marketing", "dailyperformance"),
-    ("purchasing", "purchaseorderdetail"),
-    ("purchasing", "purchaseorderaudit"),
-})
+_NO_BACKDATE_TABLES = frozenset(
+    {
+        ("sales", "salesorder"),
+        ("sales", "returnorder"),
+        ("sales", "ordereventlog"),
+        ("purchasing", "purchaseorderheader"),
+        ("warehouse", "transactionhistory"),
+        ("marketing", "dailyperformance"),
+        ("purchasing", "purchaseorderdetail"),
+        ("purchasing", "purchaseorderaudit"),
+    }
+)
 
 
 def _apply_history_if_dimension(model, rows: list[dict]) -> None:
@@ -128,43 +129,59 @@ def add_volume_args(
 
     random_group = parser.add_argument_group("Random Mode (recommended for Airflow)")
     random_group.add_argument(
-        "--random", action="store_true",
+        "--random",
+        action="store_true",
         help="Draws values within the configured ranges (min/max)",
     )
     random_group.add_argument(
-        "--min-count", type=int, default=ranges.min_count,
+        "--min-count",
+        type=int,
+        default=ranges.min_count,
         help=f"Minimum record volume (default: {ranges.min_count:,})",
     )
     random_group.add_argument(
-        "--max-count", type=int, default=ranges.max_count,
+        "--max-count",
+        type=int,
+        default=ranges.max_count,
         help=f"Maximum record volume (default: {ranges.max_count:,})",
     )
     random_group.add_argument(
-        "--min-chaos", type=float, default=ranges.min_chaos,
+        "--min-chaos",
+        type=float,
+        default=ranges.min_chaos,
         help=f"Minimum chaos rate (default: {ranges.min_chaos:.2%})".replace("%", "%%"),
     )
     random_group.add_argument(
-        "--max-chaos", type=float, default=ranges.max_chaos,
+        "--max-chaos",
+        type=float,
+        default=ranges.max_chaos,
         help=f"Maximum chaos rate (default: {ranges.max_chaos:.2%})".replace("%", "%%"),
     )
 
     fixed_group = parser.add_argument_group("Fixed Mode (development/testing)")
     fixed_group.add_argument(
-        "--count", type=int, default=None,
+        "--count",
+        type=int,
+        default=None,
         help="FIXED record count (ignores randomization)",
     )
     fixed_group.add_argument(
-        "--chaos-rate", type=float, default=None,
+        "--chaos-rate",
+        type=float,
+        default=None,
         help="FIXED chaos rate (ignores randomization, 0.0 to 0.10)",
     )
 
     general_group = parser.add_argument_group("General Settings")
     general_group.add_argument(
-        "--batch-size", type=int, default=default_batch_size,
+        "--batch-size",
+        type=int,
+        default=default_batch_size,
         help=f"Batch size for insertion (default: {default_batch_size:,})",
     )
     general_group.add_argument(
-        "--no-chaos", action="store_true",
+        "--no-chaos",
+        action="store_true",
         help="Disables chaos engineering (generates clean data only)",
     )
 
@@ -196,14 +213,19 @@ def resolve_volume_args(args: argparse.Namespace, *, schema: str, table: str | N
     return count, chaos_rate, apply_chaos, args.batch_size
 
 
-def add_chaos_args(parser: argparse.ArgumentParser, *, default_chaos_rate: float = 0.05) -> argparse.ArgumentParser:
+def add_chaos_args(
+    parser: argparse.ArgumentParser, *, default_chaos_rate: float = 0.05
+) -> argparse.ArgumentParser:
     """Adds only --chaos-rate/--no-chaos, for seeders without a free-form count."""
     parser.add_argument(
-        "--chaos-rate", type=float, default=default_chaos_rate,
+        "--chaos-rate",
+        type=float,
+        default=default_chaos_rate,
         help=f"Chaos rate (default: {default_chaos_rate:.2%})".replace("%", "%%"),
     )
     parser.add_argument(
-        "--no-chaos", action="store_true",
+        "--no-chaos",
+        action="store_true",
         help="Disables chaos engineering (generates clean data only)",
     )
     return parser
@@ -239,7 +261,7 @@ async def generate_unique_business_ids(
     IN-query against the DB catches the much rarer cross-batch collision, and only the
     handful of colliding candidates get regenerated instead of the whole batch.
     """
-    low, high = 10 ** (digits - 1), 10 ** digits - 1
+    low, high = 10 ** (digits - 1), 10**digits - 1
     chosen: set[str] = set()
     while len(chosen) < count:
         needed = count - len(chosen)
@@ -248,8 +270,10 @@ async def generate_unique_business_ids(
         if not candidates:
             continue
         existing = (
-            await session.execute(select(id_column).where(id_column.in_(candidates)))
-        ).scalars().all()
+            (await session.execute(select(id_column).where(id_column.in_(candidates))))
+            .scalars()
+            .all()
+        )
         chosen |= candidates - set(existing)
     return list(chosen)
 
@@ -282,8 +306,9 @@ async def sample_fk_ids(
     table = column.table
     qualified = f'"{table.schema}"."{table.name}"' if table.schema else f'"{table.name}"'
     result = await session.execute(
-        text(f'SELECT "{column.name}" FROM {qualified} TABLESAMPLE SYSTEM (:pct) LIMIT :limit')
-        .bindparams(pct=sample_pct, limit=limit)
+        text(
+            f'SELECT "{column.name}" FROM {qualified} TABLESAMPLE SYSTEM (:pct) LIMIT :limit'
+        ).bindparams(pct=sample_pct, limit=limit)
     )
     ids = [row[0] for row in result.all()]
     if not ids:
@@ -322,7 +347,9 @@ async def skip_if_already_seeded(session: AsyncSession, model, *, label: str) ->
     return False
 
 
-async def insert_in_batches(session: AsyncSession, model, rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE) -> int:
+async def insert_in_batches(
+    session: AsyncSession, model, rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE
+) -> int:
     """Inserts `rows` in batches of `batch_size` and commits at the end.
 
     Fan-out seeders (category 2) derive their count from what's already in the
@@ -339,7 +366,7 @@ async def insert_in_batches(session: AsyncSession, model, rows: list[dict], batc
         return 0
     _apply_history_if_dimension(model, rows)
     for i in range(0, len(rows), batch_size):
-        stmt = insert(model).values(rows[i:i + batch_size])
+        stmt = insert(model).values(rows[i : i + batch_size])
         await session.execute(stmt)
     await session.commit()
     return len(rows)
@@ -375,18 +402,24 @@ async def bulk_copy(session: AsyncSession, model, rows: list[dict]) -> int:
     rows = physical_gate(model, rows)  # NULL/size/overflow the table would refuse -> quarantine
     if not rows:
         return 0
-    _apply_history_if_dimension(model, rows)  # dimensions: backdate created_at so landing spans 2020->now
+    _apply_history_if_dimension(
+        model, rows
+    )  # dimensions: backdate created_at so landing spans 2020->now
     table = model.__table__
     jsonb_columns = {c.name for c in table.columns if isinstance(c.type, JSONB)}
 
     present_columns = [c.name for c in table.columns if c.name in rows[0]]
-    defaulted_columns = [c for c in table.columns if c.name not in rows[0] and c.default is not None]
+    defaulted_columns = [
+        c for c in table.columns if c.name not in rows[0] and c.default is not None
+    ]
     columns = present_columns + [c.name for c in defaulted_columns]
 
     records = []
     for row in rows:
         record = [
-            json.dumps(row[col]) if col in jsonb_columns and not isinstance(row[col], str) else row[col]
+            json.dumps(row[col])
+            if col in jsonb_columns and not isinstance(row[col], str)
+            else row[col]
             for col in present_columns
         ]
         record.extend(

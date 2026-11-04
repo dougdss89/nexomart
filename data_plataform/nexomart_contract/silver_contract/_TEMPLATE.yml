@@ -1,0 +1,103 @@
+# ============================================================================
+# TEMPLATE — silver layer contract (cleaned/conformed, Delta/Iceberg)
+# Real ODCS v3.1.0 (https://bitol-io.github.io/open-data-contract-standard/v3.1.0/).
+# Copy to <schema>/<table>.yml and fill in.
+# ============================================================================
+
+apiVersion: v3.1.0
+kind: DataContract
+id: silver.<schema>.<table>
+name: "<Readable name>"
+version: 1.0.0
+status: draft
+domain: <schema>
+
+description:
+  purpose: >
+    What this layer guarantees that raw does not: correct types,
+    cleaned/normalized values, duplicates resolved.
+
+tags: []
+
+team:
+  name: data-engineering
+  members:
+    - username: <your email or channel>
+      role: Owner
+
+servers:
+  - server: nexomart-trino
+    type: trino
+    host: trino-coordinator
+    port: 8080
+    catalog: <Trino catalog — see trino/catalog/*.properties>
+    schema: silver_<schema>
+    customProperties:
+      - property: table
+        value: <table>
+      - property: format
+        value: iceberg | delta
+      - property: job
+        value: spark/jobs/nexomart/silver/<schema>/<file>.py
+
+schema:
+  - id: <table>_silver
+    name: <table>
+    physicalType: table
+    description: "<what this dataset is, cleaned/conformed version of what raw dataset>"
+
+    customProperties:
+      # What changes shape relative to raw — typically: JSON becomes a
+      # typed struct, strings become native types, composite keys get
+      # merged. Prefer transformDescription on the individual property
+      # below when a transformation is 1:1 with a single column; use this
+      # list only for transformations that don't map to one column.
+      - property: transformations
+        value:
+          - "<e.g. parse the demographics field (json_string) into typed columns>"
+          - "<e.g. phone/postal code/tax ID normalization>"
+      - property: scdStrategy
+        value: none | scd_type_1 | scd_type_2
+      - property: scdNaturalKey
+        value: []
+      - property: scdEffectiveColumns
+        value: []                    # if SCD2: valid_from/valid_to or similar
+
+    properties:
+      - name: <field>
+        logicalType: string | integer | number | boolean | date | object
+        physicalType: "<engine-specific type>"
+        required: true | false
+        description: "Already cleaned/typed field — state the cleaning rule applied, if any."
+        transformDescription: "<e.g. trim + collapse double spaces>"
+        # relationships:                          # only on FK columns
+        #   - to: <schema>.<table>.<column>
+
+    quality:
+      # This is where real rules (Great Expectations/Soda-style) come in —
+      # silver is the layer that promises "this has passed validation".
+      - id: <e.g. valid_cpf_check_digit>
+        type: text
+        description: "What it checks and what happens on failure (quarantine? drop? flag?)."
+        severity: error
+      - id: deduplication
+        type: text
+        description: "Deduplication key and the criterion for which row wins (e.g. most recent updated_at)."
+        severity: error
+
+support:
+  - channel: <your email or channel>
+    tool: email
+
+customProperties:
+  - property: lineageUpstream
+    value: [raw_contract/<schema>/<table>.yml]
+  - property: lineageDownstream
+    value: [gold_contract/<schema>/<table>.yml]
+  - property: freshnessNotes
+    value: "<e.g. reprocessed on every new raw file, target latency of X min>"
+  - property: changelog
+    value:
+      - version: 1.0.0
+        date: "<YYYY-MM-DD>"
+        change: "Initial version."

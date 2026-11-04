@@ -1,11 +1,11 @@
 import uuid
-from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+
+from pydantic import BaseModel, Field
+
 
 class ProductModel(str, Enum):
-    
     SMARTPHONE = "smartphone"
     LAPTOP_COMPUTING = "laptop_computing"
     WEARABLE_TECH = "wearable_tech"
@@ -25,17 +25,17 @@ class ProductModel(str, Enum):
     MENS_WATCHES = "mens_watches"
     POWER_TOOLS = "power_tools"
     GAMING_CONSOLES = "gaming_consoles"
-    
+
+
 class ProductModelSchema(BaseModel):
-        
-    productmodel_id:int = Field(gt=0)
+    productmodel_id: int = Field(gt=0)
     productmodel_name: ProductModel
     modelidentifier: uuid.UUID = Field(default_factory=uuid.uuid4)
     created_date: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    is_active:bool = True
-    row_guid:uuid.UUID = Field(default_factory= uuid.uuid4)
-    
+    is_active: bool = True
+    row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
+
     class Config:
-        use_enum_values = True #Pydantic exporta os valores do enum
+        use_enum_values = True  # Pydantic exporta os valores do enum

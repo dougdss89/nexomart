@@ -3,10 +3,9 @@ configs/secrets.env
 
 # Arquivos gerados a partir de templates (contêm credenciais)
 spark/conf/spark-defaults.conf
-unitycatalog/conf/hibernate.properties
 
 # Python
-__pycache__/
+/__pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
@@ -28,4 +27,3 @@ dbapi/configs
 .claude/
 _agent/
 .github/
-

@@ -19,5 +19,5 @@ OPERATING_COUNTRIES = [
     ("DE", "Europe", "EUR"),
     ("IT", "Europe", "EUR"),
     ("JP", "Asia", "JPY"),
-    ("AU", "Oceania", "AUD")
+    ("AU", "Oceania", "AUD"),
 ]

@@ -1,8 +1,9 @@
+import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Optional
-import uuid
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 
 class HRDepartmentName(str, Enum):
     DOCUMENT_CONTROL = "document control"
@@ -22,15 +23,16 @@ class HRDepartmentName(str, Enum):
     SHIPPING_AND_RECEIVING = "shipping and receiving"
     TOOL_DESIGN = "tool design"
 
-class HRGroupName(str, Enum):
 
+class HRGroupName(str, Enum):
     EXECUTIVE_GENERAL_AND_ADMINISTRATION = "executive general and administration"
     INVENTORY_MANAGEMENT = "inventory management"
     MANUFACTURING = "manufacturing"
     QUALITY_ASSURANCE = "quality assurance"
     RESEARCH_AND_DEVELOPMENT = "research and development"
     SALES_AND_MARKETING = "sales and marketing"
-    
+
+
 # Organizational structure: each group lists the departments that make it up.
 # DEPARTMENT_TO_GROUP_MAP is derived from here to guarantee a single source of truth.
 GROUP_TO_DEPARTMENTS: dict[HRGroupName, list[HRDepartmentName]] = {
@@ -70,29 +72,25 @@ DEPARTMENT_TO_GROUP_MAP: dict[HRDepartmentName, HRGroupName] = {
     for department in departments
 }
 
-class HRDepartment(BaseModel):
-    
-    model_config = ConfigDict(
-            from_attributes=True,
-            use_enum_values=True
-        )
-        
-    department_id: int = Field(gt=0)
-    
-    department_name: HRDepartmentName
-    group_name: Optional[HRGroupName] = None
 
-    manager_id: Optional[int] = Field(None, gt=0)
-    parent_department_id: Optional[int] = Field(None, gt=0)
-    
+class HRDepartment(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+    department_id: int = Field(gt=0)
+
+    department_name: HRDepartmentName
+    group_name: HRGroupName | None = None
+
+    manager_id: int | None = Field(None, gt=0)
+    parent_department_id: int | None = Field(None, gt=0)
+
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True
     row_guid: uuid.UUID = Field(default_factory=uuid.uuid4)
-    
+
     @model_validator(mode="after")
     def set_group_based_on_departament(self):
-
         correct_group = DEPARTMENT_TO_GROUP_MAP.get(self.department_name)
 
         if correct_group is None:
@@ -103,4 +101,3 @@ class HRDepartment(BaseModel):
         self.group_name = correct_group
 
         return self
-    

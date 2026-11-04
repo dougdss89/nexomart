@@ -6,7 +6,7 @@ catalogo completo.
 
 import random
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any
 
 
 def apply_transaction_history_chaos(
@@ -26,12 +26,14 @@ def apply_transaction_history_chaos(
         return batch
 
     cold_chain_candidates = [
-        i for i, txn in enumerate(batch)
+        i
+        for i, txn in enumerate(batch)
         if txn.traceability_info.source_warehouselocation_id in cold_storage_location_ids
         or txn.traceability_info.target_warehouselocation_id in cold_storage_location_ids
     ]
     black_hole_candidates = [
-        i for i, txn in enumerate(batch)
+        i
+        for i, txn in enumerate(batch)
         if txn.transactiontype_id in neutral_type_ids
         and txn.traceability_info.target_warehouselocation_id is not None
     ]
@@ -76,7 +78,9 @@ def apply_inventory_chaos(batch: list[Any], chaos_rate: float = 0.05) -> list[An
             expiration = date.today() - timedelta(days=random.randint(700, 900))
             # Mantem o validator (expiration >= manufacturing) satisfeito
             item.attributes.expiration_date = expiration
-            item.attributes.manufacturing_date = expiration - timedelta(days=random.randint(200, 400))
+            item.attributes.manufacturing_date = expiration - timedelta(
+                days=random.randint(200, 400)
+            )
 
         elif chaos_type == "quantum_lot":
             item.attributes.lot_number = None
@@ -85,7 +89,9 @@ def apply_inventory_chaos(batch: list[Any], chaos_rate: float = 0.05) -> list[An
     return batch
 
 
-def apply_warehouse_location_chaos(batch: list[dict[str, Any]], chaos_rate: float = 0.05) -> list[dict[str, Any]]:
+def apply_warehouse_location_chaos(
+    batch: list[dict[str, Any]], chaos_rate: float = 0.05
+) -> list[dict[str, Any]]:
     """Dirty registration (already existing), temperature mismatch, and geographic teleport."""
     if not batch:
         return batch

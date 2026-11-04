@@ -1,15 +1,16 @@
-import uuid
 import asyncio
-import sys
 import os
-from datetime import datetime, timedelta
 import random
-from sqlalchemy import insert
+import sys
+import uuid
+from datetime import datetime, timedelta
+
 from api.database import AsyncSessionLocal
-from api.schemas.product.production_product_model import ProductModel, ProductModelSchema
 from api.models.product.productmodel import ProductModel as ProductModelTable
+from api.schemas.product.production_product_model import ProductModel, ProductModelSchema
 from api.utils.cli_common import build_parser, skip_if_already_seeded, stamp_dimension_history
 from api.utils.quarantine import get_quarantine, physical_gate
+from sqlalchemy import insert
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -18,7 +19,6 @@ EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
 
 
 def get_model_seeders() -> list[dict]:
-
     batch = []
     q = get_quarantine("product.productmodel")
     # Widened 2026-09-05 (was 30-365 days back) so created_at/updated_at span multiple years.
@@ -26,7 +26,6 @@ def get_model_seeders() -> list[dict]:
     simulated_date = datetime.now() - timedelta(days=days_elapsed)
 
     for index, model in enumerate(ProductModel, start=1):
-
         payload = {
             "productmodel_id": index,
             "productmodel_name": model,
@@ -34,7 +33,7 @@ def get_model_seeders() -> list[dict]:
             "created_at": simulated_date,
             "updated_at": simulated_date,
             "is_active": True,
-            "row_guid": uuid.uuid4()
+            "row_guid": uuid.uuid4(),
         }
         with q.row(payload):
             batch.append(ProductModelSchema(**payload).model_dump())

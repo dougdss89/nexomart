@@ -1,6 +1,6 @@
 import asyncio
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from api.database import AsyncSessionLocal
@@ -31,14 +31,15 @@ def apply_updates(rows: list[dict]) -> list[dict]:
         row["status"] = status
         row["total_budget"] = Decimal(random.uniform(500.0, 50_000.0)).quantize(Decimal("0.01"))
         if status == "completed":
-            row["end_date"] = datetime.now(timezone.utc)
+            row["end_date"] = datetime.now(UTC)
     return rows
 
 
 async def mutate(count: int, delete_ratio: float, batch_size: int):
     async with AsyncSessionLocal() as session:
         await run_mutation(
-            session, MarketingCampaignModel,
+            session,
+            MarketingCampaignModel,
             label=TABLE_NAME,
             count=count,
             delete_ratio=delete_ratio,
@@ -52,5 +53,7 @@ if __name__ == "__main__":
     parser = build_parser(f"CDC mutation seeder (UPDATE/DELETE) for {TABLE_NAME}")
     add_mutation_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
     args = parser.parse_args()
-    count, delete_ratio, batch_size = resolve_mutation_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+    count, delete_ratio, batch_size = resolve_mutation_args(
+        args, schema=SCHEMA_NAME, table=TABLE_NAME
+    )
     asyncio.run(mutate(count, delete_ratio, batch_size))

@@ -1,22 +1,23 @@
-import uuid
-import random
 import asyncio
-import sys
 import os
+import random
+import sys
+import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import List, Dict, Any
-from sqlalchemy import select, insert, func
+from typing import Any
+
+from api.config.seeder_config import get_ranges
 from api.database import AsyncSessionLocal
-from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
-from api.models.purchasing.purchaseorderdetail import PurchaseOrderDetailModel
 from api.models.product.product import Product
+from api.models.purchasing.purchaseorderdetail import PurchaseOrderDetailModel
+from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
 from api.schemas.purchasing.purchasing_orderheader import Status
 from api.schemas.purchasing.purchasing_purchaseorderdetail import PurchaseOrderDetailSchema
 from api.seeder.chaos import apply_purchaseorderdetail_chaos
-from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.utils.cli_common import add_chaos_args, build_parser, bulk_copy, resolve_chaos_args
 from api.utils.quarantine import get_quarantine
-from api.config.seeder_config import get_ranges
+from sqlalchemy import func, select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -24,7 +25,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 SCHEMA_NAME = "purchasing"
 TABLE_NAME = "purchasing.purchaseorderdetail"
 
-def generate_po_detail_payloads(real_headers: List[dict], product_ids: List[int], chaos_rate: float = 0.05, apply_chaos: bool = True) -> List[Dict[str, Any]]:
+
+def generate_po_detail_payloads(
+    real_headers: list[dict],
+    product_ids: list[int],
+    chaos_rate: float = 0.05,
+    apply_chaos: bool = True,
+) -> list[dict[str, Any]]:
     """Generates order detail payloads with an exact distribution of the sub-total."""
     batch = []
     q = get_quarantine("purchasing.purchaseorderdetail")
@@ -33,22 +40,26 @@ def generate_po_detail_payloads(real_headers: List[dict], product_ids: List[int]
         sub_total = h["sub_total"]
         num_items = random.randint(1, 4)
         current_sum = Decimal("0.0000")
-        
+
         for i in range(1, num_items + 1):
             p_id = random.choice(product_ids)
             if i == num_items:
                 item_total = sub_total - current_sum
-                if item_total <= 0: break
+                if item_total <= 0:
+                    break
                 order_qty = 1
                 unit_price = item_total
             else:
                 safe_max = (sub_total - current_sum) / (num_items - i + 1)
-                if safe_max < 1.0: continue
+                if safe_max < 1.0:
+                    continue
                 order_qty = random.randint(1, 5)
-                unit_price = Decimal(random.uniform(1.0, float(safe_max/order_qty))).quantize(Decimal("0.0001"))
+                unit_price = Decimal(random.uniform(1.0, float(safe_max / order_qty))).quantize(
+                    Decimal("0.0001")
+                )
                 item_total = order_qty * unit_price
                 current_sum += item_total
-            
+
             due_date = h["ship_date"] + timedelta(days=random.randint(2, 5))
             is_received = h["status"] == Status.COMPLETED.value
             payload = {
@@ -67,7 +78,7 @@ def generate_po_detail_payloads(real_headers: List[dict], product_ids: List[int]
                 "created_at": datetime.now(),
                 "updated_at": datetime.now(),
                 "is_active": True,
-                "row_guid": uuid.uuid4()
+                "row_guid": uuid.uuid4(),
             }
             with q.row(payload):
                 batch.append(PurchaseOrderDetailSchema(**payload).model_dump())
@@ -77,6 +88,7 @@ def generate_po_detail_payloads(real_headers: List[dict], product_ids: List[int]
 
     q.finish()
     return batch
+
 
 async def seed_purchase_details(chaos_rate: float = 0.05, apply_chaos: bool = True):
     """Runs the order details load consuming REAL headers and products.
@@ -97,17 +109,25 @@ async def seed_purchase_details(chaos_rate: float = 0.05, apply_chaos: bool = Tr
     ordering) — otherwise the high-water mark could advance past a header whose detail hasn't
     landed yet.
     """
-    fan_out_limit = get_ranges(schema="purchasing", table="purchasing.purchaseorderheader").max_count
+    fan_out_limit = get_ranges(
+        schema="purchasing", table="purchasing.purchaseorderheader"
+    ).max_count
 
     async with AsyncSessionLocal() as session:
         watermark = await session.scalar(select(func.max(PurchaseOrderDetailModel.created_at)))
         # purchaseorderdetail_id is a manual "<header_id>-<line>" PK — reprocessing a header
         # that already has a detail collides on the PK and breaks the entire batch INSERT,
         # not just the duplicate, hence bounding by the watermark rather than a plain fetch.
-        pending_stmt = select(
-            PurchaseOrderHeaderModel.purchaseorderheader_id, PurchaseOrderHeaderModel.sub_total,
-            PurchaseOrderHeaderModel.ship_date, PurchaseOrderHeaderModel.status,
-        ).order_by(PurchaseOrderHeaderModel.created_at).limit(fan_out_limit)
+        pending_stmt = (
+            select(
+                PurchaseOrderHeaderModel.purchaseorderheader_id,
+                PurchaseOrderHeaderModel.sub_total,
+                PurchaseOrderHeaderModel.ship_date,
+                PurchaseOrderHeaderModel.status,
+            )
+            .order_by(PurchaseOrderHeaderModel.created_at)
+            .limit(fan_out_limit)
+        )
         if watermark is not None:
             pending_stmt = pending_stmt.where(PurchaseOrderHeaderModel.created_at > watermark)
         result = await session.execute(pending_stmt)
@@ -128,9 +148,16 @@ async def seed_purchase_details(chaos_rate: float = 0.05, apply_chaos: bool = Tr
             # COUNT(*) scales with total accumulated rows, not this run's work — same class
             # of bug as the fan-out fixes above, so only pay for it when absolute_max is
             # actually set (currently None for this table, making the check a no-op).
-            existing_count = await session.scalar(select(func.count(PurchaseOrderDetailModel.purchaseorderdetail_id))) or 0
+            existing_count = (
+                await session.scalar(
+                    select(func.count(PurchaseOrderDetailModel.purchaseorderdetail_id))
+                )
+                or 0
+            )
             if existing_count >= ranges.absolute_max:
-                print(f"⚠️ Absolute purchase order detail limit reached ({existing_count:,}/{ranges.absolute_max:,}).")
+                print(
+                    f"⚠️ Absolute purchase order detail limit reached ({existing_count:,}/{ranges.absolute_max:,})."
+                )
                 return
             # Fan-out seeder: each header yields 1-4 detail lines (avg ~2.5), so headers
             # are capped conservatively (÷3) to avoid overshooting absolute_max.
@@ -138,8 +165,12 @@ async def seed_purchase_details(chaos_rate: float = 0.05, apply_chaos: bool = Tr
             headers = headers[:max_headers]
 
         existing_display = f"{existing_count:,}" if existing_count is not None else "n/a"
-        print(f"📣 Seeding details for {len(headers)} orders (existing details: {existing_display}) | chaos={chaos_rate:.2%}")
-        details = generate_po_detail_payloads(headers, product_ids, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+        print(
+            f"📣 Seeding details for {len(headers)} orders (existing details: {existing_display}) | chaos={chaos_rate:.2%}"
+        )
+        details = generate_po_detail_payloads(
+            headers, product_ids, chaos_rate=chaos_rate, apply_chaos=apply_chaos
+        )
 
         try:
             total = await bulk_copy(session, PurchaseOrderDetailModel, details)
@@ -148,6 +179,7 @@ async def seed_purchase_details(chaos_rate: float = 0.05, apply_chaos: bool = Tr
             await session.rollback()
             print(f"❌ Error seeding details: {e}")
             raise RuntimeError(f"Purchase order detail seeding aborted: {e}") from e
+
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for purchasing.purchaseorderdetail (fan-out of real headers)")

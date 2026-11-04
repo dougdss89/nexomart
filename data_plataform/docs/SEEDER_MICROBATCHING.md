@@ -157,7 +157,7 @@ not just the ones this session happened to depend on.
 - `dbapi/api/seeder/purchasing/purchase_purchaseorderdetail.py`
 - `dbapi/api/seeder/purchasing/purchase_purchaseorderaudit.py`
 - `dbapi/api/seeder/sales/sales_order.py`
-- `dbapi/api/seeder/cli_common.py` (new `sample_fk_ids()` helper)
+- `dbapi/api/utils/cli_common.py` (new `sample_fk_ids()` helper)
 - `dbapi/api/models/person/customer_email.py`, `dbapi/api/models/purchasing/purchaseorderdetail.py`,
   `dbapi/api/models/purchasing/purchaseorderaudit.py` (new indexes, declared for future fresh DBs)
 - `configs/seeders/config.py` (resized ranges)
@@ -327,7 +327,7 @@ write via `dd` was **187MB/s**, a perfectly healthy number — so this isn't bro
 under-tuned I/O settings (still at Postgres's HDD-era defaults: `effective_io_concurrency=1`,
 `random_page_cost=4`) plus real contention from concurrency, running on a Docker
 Desktop/WSL2-backed virtual disk shared with every other container in the stack (Trino, MinIO,
-Spark, Hive, Unity Catalog, all three Airflow containers).
+Spark, Hive, all three Airflow containers).
 
 **Fixes applied**:
 1. `dagrun_timeout` removed entirely (was 15min, briefly raised to 45min, then removed) — the

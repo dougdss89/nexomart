@@ -1,21 +1,21 @@
 import asyncio
 import os
+import random
 import sys
 import uuid
-import random
 from datetime import datetime, timedelta
-from typing import Optional
-from sqlalchemy import select, insert, or_, func
+
+from api.config.seeder_config import get_ranges
 from api.database import AsyncSessionLocal
-from api.schemas.purchasing.purchasing_orderaudit import AuditAction, PurchaseOrderAudit
-from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
 from api.models.humanresources.employee import HumanResourcesEmployeeModel
 from api.models.humanresources.jobrole import HumanResourcesJobRoleModel
 from api.models.purchasing.purchaseorderaudit import PurchaseOrderAuditModel
+from api.models.purchasing.purchaseorderheader import PurchaseOrderHeaderModel
+from api.schemas.purchasing.purchasing_orderaudit import AuditAction, PurchaseOrderAudit
 from api.seeder.chaos import apply_purchase_audit_chaos
-from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, bulk_copy
+from api.utils.cli_common import add_chaos_args, build_parser, bulk_copy, resolve_chaos_args
 from api.utils.quarantine import get_quarantine
-from api.config.seeder_config import get_ranges
+from sqlalchemy import func, or_, select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -29,7 +29,7 @@ EARLIEST_TRANSACTION_DATE = datetime(2020, 1, 1)
 def get_purchase_order_audit(
     valid_header_ids: list[str],
     valid_employee_ids: list[int],
-    manager_employee_ids: Optional[list[int]] = None,
+    manager_employee_ids: list[int] | None = None,
     chaos_rate: float = 0.05,
     apply_chaos: bool = True,
 ) -> list[dict]:
@@ -47,16 +47,21 @@ def get_purchase_order_audit(
 
     for header_id in valid_header_ids:
         requester_id = random.choice(valid_employee_ids)
-        event_date = datetime.now() - timedelta(days=random.randint(5, (datetime.now() - EARLIEST_TRANSACTION_DATE).days))
+        event_date = datetime.now() - timedelta(
+            days=random.randint(5, (datetime.now() - EARLIEST_TRANSACTION_DATE).days)
+        )
 
         sequence = [(AuditAction.CREATED, requester_id, "Pedido criado")]
 
         decision = random.choice([AuditAction.APPROVED, AuditAction.REJECTED])
         approver_id = random.choice(approver_pool)
-        sequence.append((
-            decision, approver_id,
-            "Pedido aprovado" if decision == AuditAction.APPROVED else "Pedido rejeitado",
-        ))
+        sequence.append(
+            (
+                decision,
+                approver_id,
+                "Pedido aprovado" if decision == AuditAction.APPROVED else "Pedido rejeitado",
+            )
+        )
 
         if decision == AuditAction.APPROVED and random.random() < 0.6:
             sequence.append((AuditAction.CLOSED, approver_id, "Pedido concluído"))
@@ -75,7 +80,7 @@ def get_purchase_order_audit(
                 "created_at": event_date,
                 "updated_at": event_date,
                 "is_active": True,
-                "row_guid": uuid.uuid4()
+                "row_guid": uuid.uuid4(),
             }
             with q.row(payload):
                 validated_audit = PurchaseOrderAudit(**payload).model_dump()
@@ -84,7 +89,9 @@ def get_purchase_order_audit(
             event_date += timedelta(hours=random.randint(5, 48))
 
     if apply_chaos:
-        batch = apply_purchase_audit_chaos(batch, valid_employee_ids, manager_employee_ids, chaos_rate=chaos_rate)
+        batch = apply_purchase_audit_chaos(
+            batch, valid_employee_ids, manager_employee_ids, chaos_rate=chaos_rate
+        )
 
     q.finish()
     return batch
@@ -107,7 +114,9 @@ async def seed_purchase_order_audit(chaos_rate: float = 0.05, apply_chaos: bool 
     audit-seeding always runs strictly after header-seeding within the same DAG execution
     (true per the DAG's facts→derived TaskGroup ordering).
     """
-    fan_out_limit = get_ranges(schema="purchasing", table="purchasing.purchaseorderheader").max_count
+    fan_out_limit = get_ranges(
+        schema="purchasing", table="purchasing.purchaseorderheader"
+    ).max_count
 
     async with AsyncSessionLocal() as session:
         watermark = await session.scalar(select(func.max(PurchaseOrderAuditModel.created_at)))
@@ -122,12 +131,24 @@ async def seed_purchase_order_audit(chaos_rate: float = 0.05, apply_chaos: bool 
         if watermark is not None:
             pending_stmt = pending_stmt.where(PurchaseOrderHeaderModel.created_at > watermark)
         header_ids = (await session.execute(pending_stmt)).scalars().all()
-        employee_ids = (await session.execute(select(HumanResourcesEmployeeModel.employee_id))).scalars().all()
+        employee_ids = (
+            (await session.execute(select(HumanResourcesEmployeeModel.employee_id))).scalars().all()
+        )
 
         manager_rows = await session.execute(
             select(HumanResourcesEmployeeModel.employee_id)
-            .join(HumanResourcesJobRoleModel, HumanResourcesEmployeeModel.jobrole_id == HumanResourcesJobRoleModel.jobrole_id)
-            .where(or_(*[HumanResourcesJobRoleModel.job_title.ilike(f"%{kw}%") for kw in MANAGEMENT_KEYWORDS]))
+            .join(
+                HumanResourcesJobRoleModel,
+                HumanResourcesEmployeeModel.jobrole_id == HumanResourcesJobRoleModel.jobrole_id,
+            )
+            .where(
+                or_(
+                    *[
+                        HumanResourcesJobRoleModel.job_title.ilike(f"%{kw}%")
+                        for kw in MANAGEMENT_KEYWORDS
+                    ]
+                )
+            )
         )
         manager_ids = list(manager_rows.scalars().all())
 
@@ -136,7 +157,13 @@ async def seed_purchase_order_audit(chaos_rate: float = 0.05, apply_chaos: bool 
             return
 
         print(f"📣 Seeding audit trail for {len(header_ids)} orders | chaos={chaos_rate:.2%}")
-        audits = get_purchase_order_audit(list(header_ids), list(employee_ids), manager_ids or None, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
+        audits = get_purchase_order_audit(
+            list(header_ids),
+            list(employee_ids),
+            manager_ids or None,
+            chaos_rate=chaos_rate,
+            apply_chaos=apply_chaos,
+        )
 
         try:
             total = await bulk_copy(session, PurchaseOrderAuditModel, audits)

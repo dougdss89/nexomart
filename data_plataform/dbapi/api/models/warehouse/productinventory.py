@@ -1,28 +1,36 @@
-from sqlalchemy import Column, Integer, String, text, Index, cast, ForeignKey, DateTime
-from sqlalchemy.sql import func
-from api.config.base import Base, AuditMixin
+from api.config.base import AuditMixin, Base
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, cast, text
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
+
 
 class WarehouseProductInventoryModel(Base, AuditMixin):
-    
     __tablename__ = "productinventory"
-    
+
     inventory_id = Column(Integer, primary_key=True, autoincrement=True)
-    product_id = Column(Integer, ForeignKey('product.product.product_id'),nullable=False)
-    warehouselocation_id = Column(Integer, ForeignKey('warehouse.warehouselocation.warehouselocation_id'), nullable=False)
-    
+    product_id = Column(Integer, ForeignKey("product.product.product_id"), nullable=False)
+    warehouselocation_id = Column(
+        Integer, ForeignKey("warehouse.warehouselocation.warehouselocation_id"), nullable=False
+    )
+
     quantity = Column(Integer, nullable=False, default=0)
     bin_code = Column(String(50), nullable=False)
     last_restock_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    
+
     attributes = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
-    
-    modified_date = Column(DateTime(timezone=True), nullable=True, default=None,server_default=func.now())
-    
+
+    modified_date = Column(
+        DateTime(timezone=True), nullable=True, default=None, server_default=func.now()
+    )
+
     __table_args__ = (
-        Index('ix_inventory_attributes_expiration_date', cast(attributes["expiration_date"].astext, String)),
-        Index('ix_inventory_attributes_manufacturing_date', cast(attributes["manufacturing_date"].astext, String)),
-        
-        {'schema': 'warehouse'}
-        
-        )
+        Index(
+            "ix_inventory_attributes_expiration_date",
+            cast(attributes["expiration_date"].astext, String),
+        ),
+        Index(
+            "ix_inventory_attributes_manufacturing_date",
+            cast(attributes["manufacturing_date"].astext, String),
+        ),
+        {"schema": "warehouse"},
+    )

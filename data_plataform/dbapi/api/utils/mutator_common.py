@@ -25,14 +25,12 @@ requires of the insert-side seeders.
 """
 
 import random
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Callable
-
-from sqlalchemy import and_, bindparam, delete, select, text, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 from api.config.seeder_config import get_mutation_ranges
+from sqlalchemy import and_, bindparam, delete, select, text, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 DEFAULT_BATCH_SIZE = 1_000
 
@@ -45,31 +43,44 @@ def add_mutation_args(parser, *, schema: str, table: str | None = None):
 
     random_group = parser.add_argument_group("Random Mode (recommended for Airflow)")
     random_group.add_argument(
-        "--random", action="store_true",
+        "--random",
+        action="store_true",
         help="Draws the row count within the configured range (min/max)",
     )
     random_group.add_argument(
-        "--min-count", type=int, default=ranges.min_count,
+        "--min-count",
+        type=int,
+        default=ranges.min_count,
         help=f"Minimum rows to mutate (default: {ranges.min_count:,})",
     )
     random_group.add_argument(
-        "--max-count", type=int, default=ranges.max_count,
+        "--max-count",
+        type=int,
+        default=ranges.max_count,
         help=f"Maximum rows to mutate (default: {ranges.max_count:,})",
     )
     random_group.add_argument(
-        "--delete-ratio", type=float, default=ranges.delete_ratio,
-        help=f"Share of the sampled rows that get deleted/flagged instead of updated (default: {ranges.delete_ratio:.0%})".replace("%", "%%"),
+        "--delete-ratio",
+        type=float,
+        default=ranges.delete_ratio,
+        help=f"Share of the sampled rows that get deleted/flagged instead of updated (default: {ranges.delete_ratio:.0%})".replace(
+            "%", "%%"
+        ),
     )
 
     fixed_group = parser.add_argument_group("Fixed Mode (development/testing)")
     fixed_group.add_argument(
-        "--count", type=int, default=None,
+        "--count",
+        type=int,
+        default=None,
         help="FIXED row count (ignores randomization)",
     )
 
     general_group = parser.add_argument_group("General Settings")
     general_group.add_argument(
-        "--batch-size", type=int, default=DEFAULT_BATCH_SIZE,
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
         help=f"Batch size per UPDATE/DELETE executemany (default: {DEFAULT_BATCH_SIZE:,})",
     )
     return parser
@@ -100,16 +111,17 @@ async def sample_active_pks(
     col_list = ", ".join(f'"{c}"' for c in pk_cols)
 
     result = await session.execute(
-        text(f'SELECT {col_list} FROM {qualified} TABLESAMPLE SYSTEM (:pct) WHERE is_active = true LIMIT :limit')
-        .bindparams(pct=sample_pct, limit=limit)
+        text(
+            f"SELECT {col_list} FROM {qualified} TABLESAMPLE SYSTEM (:pct) WHERE is_active = true LIMIT :limit"
+        ).bindparams(pct=sample_pct, limit=limit)
     )
-    rows = [dict(zip(pk_cols, r)) for r in result.all()]
+    rows = [dict(zip(pk_cols, r, strict=False)) for r in result.all()]
 
     if len(rows) < limit:
         fallback = await session.execute(
             select(*[table.c[c] for c in pk_cols]).where(model.is_active.is_(True)).limit(limit)
         )
-        rows = [dict(zip(pk_cols, r)) for r in fallback.all()]
+        rows = [dict(zip(pk_cols, r, strict=False)) for r in fallback.all()]
 
     return rows
 
@@ -124,29 +136,35 @@ def split_for_mutation(pk_rows: list[dict], delete_ratio: float) -> tuple[list[d
     return shuffled[n_delete:], shuffled[:n_delete]
 
 
-async def bulk_update(session: AsyncSession, model, rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE) -> int:
+async def bulk_update(
+    session: AsyncSession, model, rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE
+) -> int:
     """ORM bulk UPDATE by primary key. Each dict must carry every PK column plus
     whichever business columns are changing — columns left out keep their current
     value (and AuditMixin's updated_at=onupdate=func.now() still fires normally)."""
     if not rows:
         return 0
     for i in range(0, len(rows), batch_size):
-        await session.execute(update(model), rows[i:i + batch_size])
+        await session.execute(update(model), rows[i : i + batch_size])
     await session.commit()
     return len(rows)
 
 
-async def bulk_soft_delete(session: AsyncSession, model, pk_rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE) -> int:
+async def bulk_soft_delete(
+    session: AsyncSession, model, pk_rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE
+) -> int:
     """Flags rows inactive instead of deleting them — the only 'delete' allowed for
     sales.*/audit-type tables (see module docstring)."""
     if not pk_rows:
         return 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = [{**pk, "is_active": False, "updated_at": now} for pk in pk_rows]
     return await bulk_update(session, model, rows, batch_size=batch_size)
 
 
-async def bulk_hard_delete(session: AsyncSession, model, pk_rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE) -> int:
+async def bulk_hard_delete(
+    session: AsyncSession, model, pk_rows: list[dict], batch_size: int = DEFAULT_BATCH_SIZE
+) -> int:
     """Real bulk DELETE by primary key. Never call this for sales.*/audit-type
     tables — use bulk_soft_delete() there instead.
 
@@ -170,12 +188,10 @@ async def bulk_hard_delete(session: AsyncSession, model, pk_rows: list[dict], ba
     if not pk_rows:
         return 0
     pk_cols = [c.name for c in model.__table__.primary_key.columns]
-    stmt = delete(model).where(
-        and_(*(model.__table__.c[col] == bindparam(col) for col in pk_cols))
-    )
+    stmt = delete(model).where(and_(*(model.__table__.c[col] == bindparam(col) for col in pk_cols)))
     conn = await session.connection()
     for i in range(0, len(pk_rows), batch_size):
-        await conn.execute(stmt, pk_rows[i:i + batch_size])
+        await conn.execute(stmt, pk_rows[i : i + batch_size])
     await session.commit()
     return len(pk_rows)
 
@@ -216,5 +232,7 @@ async def run_mutation(
             verb = "soft-deleted (is_active=false)"
         print(f"🗑️  {label}: {deleted:,} rows {verb}")
 
-    print(f"✅ {label}: {updated:,} updated, {deleted:,} {'deleted' if hard_delete_allowed else 'flagged'} "
-          f"(sampled {len(pk_rows):,}/{count:,} requested)")
+    print(
+        f"✅ {label}: {updated:,} updated, {deleted:,} {'deleted' if hard_delete_allowed else 'flagged'} "
+        f"(sampled {len(pk_rows):,}/{count:,} requested)"
+    )

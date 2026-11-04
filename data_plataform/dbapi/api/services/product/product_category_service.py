@@ -1,11 +1,12 @@
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any
+
+from api.models.product.productcategory import ProductCategoryModel
+from api.repositories.product.product_category_repository import ProductCategoryRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.repositories.product.product_category_repository import ProductCategoryRepository
-from api.models.product.productcategory import ProductCategoryModel
-
 logger = logging.getLogger(__name__)
+
 
 class ProductCategoryService:
     """
@@ -15,7 +16,7 @@ class ProductCategoryService:
     """
 
     @staticmethod
-    async def process_bulk_insert(db: AsyncSession, categories_data: List[Dict[str, Any]]) -> bool:
+    async def process_bulk_insert(db: AsyncSession, categories_data: list[dict[str, Any]]) -> bool:
         """
         Ensures logical validations and forwards the bulk operation to the DB.
         (Example: Checks permissions, validates anomalies in the logical dictionaries).
@@ -33,5 +34,7 @@ class ProductCategoryService:
         Business Rule: Checks whether the hierarchy exists in the database.
         Returns a boolean abstracting the Model — the Router doesn't need to read the SQL Model, just know if it's Valid or not.
         """
-        category: Optional[ProductCategoryModel] = await ProductCategoryRepository.get_by_id(db, category_id)
+        category: ProductCategoryModel | None = await ProductCategoryRepository.get_by_id(
+            db, category_id
+        )
         return category is not None

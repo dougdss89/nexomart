@@ -11,8 +11,16 @@
 # blocks) -> stop pgprojeto (graceful checkpoint) -> wsl --unmount the vhd -> Optimize-VHD (compact)
 # -> remount + start pgprojeto. The catch block always tries to remount the disk and restart
 # pgprojeto so a mid-run failure never leaves the stack down.
+#
+# Guards (added after the 2026-10-24 run, where `wsl --unmount` returned E_ACCESSDENIED, the
+# compaction ran anyway, the remount failed, pgprojeto was recreated over the empty mountpoint and
+# the run still logged "done OK"): compaction is skipped unless the unmount verifiably succeeded;
+# pgprojeto is only recreated once the real disk (sentinel file) is back; and the run exits 1
+# whenever Postgres did not come back, so the +1h retry fires and the log says so.
 
 $ErrorActionPreference = "Continue"
+# wsl.exe writes UTF-16 by default, which ends up interleaved with the UTF-8 lines in the log.
+$env:WSL_UTF8 = "1"
 $Distro = "Ubuntu-22.04"
 $Vhd    = "L:\WSLDisks\postgres-data.vhdx"
 $Mount  = "/mnt/wsl/postgres-ssd"
@@ -23,16 +31,36 @@ $Log    = "C:\Users\Doug\scripts\pg-maintenance.log"
 function Log($m) { "{0}  {1}" -f (Get-Date -Format "u"), $m | Tee-Object -FilePath $Log -Append }
 function Native($msg) { if ($LASTEXITCODE -ne 0) { throw $msg } }
 
+# True only when the real Postgres disk is mounted. The mountpoint check alone is not enough: the
+# sentinel file lives on the disk itself, so it is absent from the empty shadow dir underneath.
+function Test-RealDisk {
+    & wsl.exe -d $Distro -u root -- bash -c "mountpoint -q $Mount && test -f $Mount/pgdata/.nexomart_real_disk" 2>&1 | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
+# Set by Remount-And-Start: whether the disk and pgprojeto actually came back.
+$script:RemountOk = $false
+
 function Remount-And-Start {
+    $script:RemountOk = $false
     try { & "$Repo\scripts\windows\mount-postgres-ssd.ps1" | Out-Null } catch { Log "remount failed: $($_.Exception.Message)" }
+    # Re-enable the 5-minute remount task that was disabled around the compaction (runs on every
+    # path, so the task is never left disabled and can still remount the disk later on its own).
+    Enable-ScheduledTask -TaskName "MountPostgresSSD-WSL" -ErrorAction SilentlyContinue | Out-Null
+    # Without the real disk, recreating pgprojeto would bind its volume to the empty shadow dir. The
+    # entrypoint sentinel refuses to initdb there, but the container would still be pointed at the
+    # wrong place. Leave it stopped; `make start-dev` re-checks the disk and stages the bind mount.
+    if (-not (Test-RealDisk)) {
+        Log "real Postgres disk is not mounted -> leaving pgprojeto stopped (fix the mount, then make start-dev)"
+        return
+    }
     # Recreate pgprojeto + its named volume so the data bind re-resolves to the freshly remounted
     # disk. A plain `docker start` reuses a stale WSL bind-mount staging that still points at the
     # pre-unmount (empty) dir, which the entrypoint sentinel guard then correctly refuses -> pg would
     # stay down until a manual recreate. Run inside WSL so compose and its relative paths are native.
     & wsl.exe -d $Distro -- bash -lc "cd /home/doug/project/data_plataform && docker rm -f pgprojeto >/dev/null 2>&1; docker volume rm postgres_pg-data >/dev/null 2>&1; docker compose --env-file configs/secrets.env -f postgres/docker-compose.yml up -d" 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $Log -Append
-    # Re-enable the 5-minute remount task that was disabled around the compaction (runs on both the
-    # success and the catch path, so the task is never left disabled).
-    Enable-ScheduledTask -TaskName "MountPostgresSSD-WSL" -ErrorAction SilentlyContinue | Out-Null
+    if ($LASTEXITCODE -ne 0) { Log "pgprojeto recreate failed (exit $LASTEXITCODE)"; return }
+    $script:RemountOk = $true
 }
 
 try {
@@ -78,6 +106,14 @@ try {
     Disable-ScheduledTask -TaskName "MountPostgresSSD-WSL" -ErrorAction SilentlyContinue | Out-Null
     & docker stop pgprojeto 2>&1 | Out-Null
     & wsl.exe --unmount $Vhd 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $Log -Append
+    $unmountExit = $LASTEXITCODE
+    # Never compact a disk WSL may still hold. A non-zero exit is fatal even if the kernel did
+    # detach: it means the WSL service state is out of sync, and the remount will fail too.
+    & wsl.exe -d $Distro -u root -- mountpoint -q $Mount 2>&1 | Out-Null
+    $stillMounted = ($LASTEXITCODE -eq 0)
+    if ($unmountExit -ne 0 -or $stillMounted) {
+        throw "wsl --unmount failed (exit $unmountExit, still mounted: $stillMounted) -> compaction skipped"
+    }
 
     # 6. Compact. Prefer Hyper-V's Optimize-VHD; fall back to diskpart if that module is absent.
     $sizeBefore = (Get-Item $Vhd -ErrorAction Stop).Length
@@ -94,11 +130,16 @@ try {
 
     # 7. Bring the disk and Postgres back.
     Remount-And-Start
+    if (-not $script:RemountOk) {
+        Log "=== maintenance FAILED: compaction done but Postgres did not come back ==="
+        exit 1
+    }
     Log "=== maintenance done OK ==="
     exit 0
 }
 catch {
     Log "ERROR: $($_.Exception.Message)"
     Remount-And-Start
+    Log ("=== maintenance FAILED (Postgres back: {0}) ===" -f $script:RemountOk)
     exit 1
 }

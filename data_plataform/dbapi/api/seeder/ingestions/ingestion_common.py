@@ -86,13 +86,12 @@ import json
 import os
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 import psycopg2.extras
-from sqlalchemy import create_engine, text
-
 from api.config import settings, write_on_minio
+from sqlalchemy import create_engine, text
 
 LANDING_BUCKET = "landing"
 LANDING_PREFIX = "nexomart"
@@ -130,7 +129,7 @@ WATERMARK_SCHEMA = "ingestion_control"
 WATERMARK_TABLE = "watermarks"
 # Default watermark for a (schema, table) that has never been ingested — old enough that
 # `> EPOCH` matches every existing row, giving a full backfill on the first run.
-EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 def _sync_database_url() -> str:
@@ -167,7 +166,8 @@ def _ensure_watermark_table(engine) -> None:
     no-op after the first call anywhere (any schema's ingestion script can trigger it)."""
     with engine.begin() as conn:
         conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{WATERMARK_SCHEMA}"'))
-        conn.execute(text(f'''
+        conn.execute(
+            text(f'''
             CREATE TABLE IF NOT EXISTS "{WATERMARK_SCHEMA}"."{WATERMARK_TABLE}" (
                 schema_name text NOT NULL,
                 table_name text NOT NULL,
@@ -175,7 +175,8 @@ def _ensure_watermark_table(engine) -> None:
                 updated_at timestamptz NOT NULL DEFAULT now(),
                 PRIMARY KEY (schema_name, table_name)
             )
-        '''))
+        ''')
+        )
 
 
 def _has_audit_columns(engine, schema: str, table: str) -> bool:
@@ -269,11 +270,15 @@ def _write_parquet_with_retry(object_name: str, data: bytes) -> None:
         if attempt == MINIO_WRITE_MAX_ATTEMPTS:
             raise RuntimeError(f"Failed to write {object_name} to MinIO after {attempt} attempts")
         wait = MINIO_WRITE_BACKOFF_SECONDS * (2 ** (attempt - 1))
-        print(f"   ⚠️  MinIO write failed for {object_name} (attempt {attempt}/{MINIO_WRITE_MAX_ATTEMPTS}), retrying in {wait}s...")
+        print(
+            f"   ⚠️  MinIO write failed for {object_name} (attempt {attempt}/{MINIO_WRITE_MAX_ATTEMPTS}), retrying in {wait}s..."
+        )
         time.sleep(wait)
 
 
-def _split_by_partition_date(chunk: pd.DataFrame, partition_column: str) -> list[tuple[str, pd.DataFrame]]:
+def _split_by_partition_date(
+    chunk: pd.DataFrame, partition_column: str
+) -> list[tuple[str, pd.DataFrame]]:
     """Splits a fetched batch into one group per distinct partition date, so each group can be
     written to its own Hive-style date partition. `partition_column` is a fact table's own
     event-date column (`FACT_EVENT_DATE_COLUMNS`) or `created_at` for dimensions. Fact
@@ -295,7 +300,13 @@ def _split_by_partition_date(chunk: pd.DataFrame, partition_column: str) -> list
 
 
 def ingest_table(
-    raw_conn, engine, schema: str, table: str, run_date: str, run_ts: str, chunksize: int = DEFAULT_CHUNKSIZE
+    raw_conn,
+    engine,
+    schema: str,
+    table: str,
+    run_date: str,
+    run_ts: str,
+    chunksize: int = DEFAULT_CHUNKSIZE,
 ) -> int:
     """Streams `schema.table` into MinIO landing as one Parquet part per partition-date found in
     each fetched batch, via a named psycopg2 cursor so Postgres paginates server-side instead of
@@ -319,8 +330,10 @@ def ingest_table(
     """
     has_audit_columns = _has_audit_columns(engine, schema, table)
     watermark = get_watermark(engine, schema, table) if has_audit_columns else None
-    partition_column = FACT_EVENT_DATE_COLUMNS.get((schema, table), "created_at" if has_audit_columns else None)
-    extract_start = datetime.now(timezone.utc)
+    partition_column = FACT_EVENT_DATE_COLUMNS.get(
+        (schema, table), "created_at" if has_audit_columns else None
+    )
+    extract_start = datetime.now(UTC)
 
     total_rows = 0
     with raw_conn.cursor(name=f"ingest_{schema}_{table}") as cur:
@@ -334,7 +347,9 @@ def ingest_table(
             cur.execute(f'SELECT * FROM "{schema}"."{table}"')
         columns = None  # a named cursor's .description is only populated after the first fetch
         part = 0
-        buffered: dict[str, list[pd.DataFrame]] = {}  # partition date -> normalized groups awaiting flush
+        buffered: dict[
+            str, list[pd.DataFrame]
+        ] = {}  # partition date -> normalized groups awaiting flush
         buffered_rows = 0
 
         def flush() -> None:
@@ -351,7 +366,9 @@ def ingest_table(
                 total_rows += len(written)
                 part += 1
                 files += 1
-            print(f"   flushed {buffered_rows:,} rows -> {files:,} parts across {files:,} date partitions ({total_rows:,} total)")
+            print(
+                f"   flushed {buffered_rows:,} rows -> {files:,} parts across {files:,} date partitions ({total_rows:,} total)"
+            )
             buffered.clear()
             buffered_rows = 0
 
@@ -363,7 +380,9 @@ def ingest_table(
                 columns = [d.name for d in cur.description]
             raw_chunk = pd.DataFrame(rows, columns=columns)
             partitions = (
-                _split_by_partition_date(raw_chunk, partition_column) if partition_column else [(run_date, raw_chunk)]
+                _split_by_partition_date(raw_chunk, partition_column)
+                if partition_column
+                else [(run_date, raw_chunk)]
             )
             for partition_date, group in partitions:
                 normalized = _normalize_object_columns(group)
@@ -398,7 +417,7 @@ def ingest_schema(schema: str, chunksize: int = DEFAULT_CHUNKSIZE) -> None:
     psycopg2.extras.register_default_jsonb(raw_conn.dbapi_connection, loads=lambda raw: raw)
     psycopg2.extras.register_default_json(raw_conn.dbapi_connection, loads=lambda raw: raw)
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         run_date = now.strftime("%Y-%m-%d")
         run_ts = now.strftime("%Y%m%dT%H%M%SZ")
         tables = list_schema_tables(engine, schema)
@@ -409,7 +428,9 @@ def ingest_schema(schema: str, chunksize: int = DEFAULT_CHUNKSIZE) -> None:
 
         total_rows = 0
         for table in tables:
-            rows = ingest_table(raw_conn, engine, schema, table, run_date, run_ts, chunksize=chunksize)
+            rows = ingest_table(
+                raw_conn, engine, schema, table, run_date, run_ts, chunksize=chunksize
+            )
             total_rows += rows
             print(f"✅ {schema}.{table}: {rows:,} new/changed rows landed")
 

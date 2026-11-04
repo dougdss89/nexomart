@@ -1,0 +1,172 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, devbranch ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-python:
+    name: Python Linting
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd data_plataform
+        python -m pip install --upgrade pip
+        pip install ruff black isort flake8 mypy
+
+    - name: Run Ruff (Fast linter)
+      run: cd data_plataform && ruff check .
+      continue-on-error: true
+
+    - name: Run Black (Code formatter check)
+      run: cd data_plataform && black --check --diff .
+      continue-on-error: true
+
+    - name: Run isort (Import sorter check)
+      run: cd data_plataform && isort --check-only --diff .
+      continue-on-error: true
+
+    - name: Run Flake8 (Style guide)
+      run: cd data_plataform && flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      continue-on-error: true
+
+  lint-sql:
+    name: SQL Linting
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install SQLFluff
+      run: |
+        pip install sqlfluff sqlfluff-templater-dbt
+
+    - name: Run SQLFluff on dbt models
+      run: |
+        cd data_plataform
+        sqlfluff lint ../dbt/models/ --dialect postgres
+      continue-on-error: true
+
+    - name: Run SQLFluff on SQL scripts
+      run: |
+        cd data_plataform
+        sqlfluff lint postgres/ --dialect postgres
+      continue-on-error: true
+
+  test-python:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    needs: [lint-python]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install DBAPI dependencies
+      run: |
+        cd data_plataform
+        pip install pytest pytest-cov pytest-asyncio httpx
+        pip install fastapi sqlalchemy pydantic
+      continue-on-error: true
+
+    - name: Run DBAPI tests
+      run: |
+        cd data_plataform
+        pytest dbapi/tests/ --cov=dbapi --cov-report=xml --cov-report=term
+      continue-on-error: true
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./data_plataform/coverage.xml
+        flags: dbapi
+        name: dbapi-coverage
+      continue-on-error: true
+
+  dbt-check:
+    name: DBT Validation
+    runs-on: ubuntu-latest
+    needs: [lint-sql]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dbt dependencies
+      run: |
+        pip install -r dbt/requirements.txt
+
+    - name: DBT Parse (validate models)
+      run: |
+        cd dbt
+        dbt parse
+      continue-on-error: true
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install security tools
+      run: |
+        pip install bandit safety
+
+    - name: Run Bandit (security linter)
+      run: |
+        cd data_plataform
+        bandit -r . -f json -o bandit-report.json
+      continue-on-error: true
+
+    - name: Run Safety (dependency checker)
+      run: |
+        cd data_plataform
+        safety check --json
+      continue-on-error: true
+
+    - name: Upload Bandit results
+      uses: actions/upload-artifact@v4
+      with:
+        name: bandit-report
+        path: data_plataform/bandit-report.json
+      if: always()

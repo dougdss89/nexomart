@@ -1,0 +1,98 @@
+# ============================================================================
+# TEMPLATE — landing zone contract (MinIO, parquet, schema-on-read)
+# Real ODCS v3.1.0 (https://bitol-io.github.io/open-data-contract-standard/v3.1.0/).
+# Copy to <schema>/<table>.yml and fill in.
+# ============================================================================
+
+apiVersion: v3.1.0
+kind: DataContract
+id: raw.<schema>.<table>
+name: "<Readable name>"
+version: 1.0.0
+status: draft
+domain: <schema>
+
+description:
+  purpose: >
+    What lands here and where it comes from (which Postgres table, which
+    ingestion script).
+
+tags: []
+
+team:
+  name: data-engineering
+  members:
+    - username: <your email or channel>
+      role: Owner
+
+servers:
+  - server: landing-minio
+    type: s3
+    location: "s3://landing/<schema>/<table>/{run_date}/part-{run_ts}-{part:05d}.parquet"
+    format: parquet
+
+schema:
+  - id: <table>_raw
+    name: <table>
+    physicalType: file
+    description: "<what this dataset is>"
+    # The landing zone is incremental by watermark, not full-refresh — make
+    # that explicit here, since it changes the semantics of "when does a
+    # row show up in this dataset".
+    dataGranularityDescription: "<e.g. one row per source-table row as of the extraction watermark>"
+
+    customProperties:
+      - property: extractionStrategy
+        value: incremental_watermark
+      - property: watermarkColumn
+        value: "COALESCE(updated_at, created_at)"
+      - property: watermarkTable
+        value: ingestion_control.watermarks
+      - property: fullBackfillCondition
+        value: "first run, or watermark manually reset"
+      - property: ingestionScript
+        value: dbapi/api/seeder/ingestions/<file>.py
+
+    properties:
+      - name: <field>
+        logicalType: string | integer | number | boolean | date | object
+        physicalType: "<engine-specific type, e.g. varchar(100), int4, timestamp, jsonb, uuid>"
+        required: true | false
+        description: "Same field as the API/database contract, or a note about the divergence."
+        # One thing this project already learned the hard way: JSONB fields
+        # from Postgres arrive here as a raw JSON STRING, not a parquet
+        # struct — a deliberate choice for performance (see
+        # ingestion_common.py, the psycopg2->pyarrow round-trip fix).
+        # Document this per field when relevant:
+        # customProperties:
+        #   - property: rawType
+        #     value: json_string  # not "struct" — real parsing happens in silver
+        # relationships:                          # only on FK columns
+        #   - to: <schema>.<table>.<column>
+
+    quality:
+      - id: <name>
+        type: text
+        description: "What is expected at this stage — usually little beyond 'it arrived and is valid parquet'."
+        severity: warning
+
+slaProperties:
+  - property: latency
+    value: <minutes>
+    unit: m
+    element: <table>.<watermark_column>
+
+support:
+  - channel: <your email or channel>
+    tool: email
+
+customProperties:
+  - property: lineageUpstream
+    value: [api_contract/<schema>/<table>.yml]
+  - property: lineageDownstream
+    value: [silver_contract/<schema>/<table>.yml]
+  - property: changelog
+    value:
+      - version: 1.0.0
+        date: "<YYYY-MM-DD>"
+        change: "Initial version."

@@ -14,9 +14,13 @@ from api.seeder.ingestions.ingestion_common import DEFAULT_CHUNKSIZE, ingest_sch
 SCHEMA = "purchasing"
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=f"Lands the '{SCHEMA}' schema into the nexomart landing zone")
+    parser = argparse.ArgumentParser(
+        description=f"Lands the '{SCHEMA}' schema into the nexomart landing zone"
+    )
     parser.add_argument(
-        "--chunksize", type=int, default=DEFAULT_CHUNKSIZE,
+        "--chunksize",
+        type=int,
+        default=DEFAULT_CHUNKSIZE,
         help=f"Rows per Parquet part file (default: {DEFAULT_CHUNKSIZE:,})",
     )
     args = parser.parse_args()

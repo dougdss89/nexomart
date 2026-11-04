@@ -1,17 +1,17 @@
-from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+from api.models.warehouse.productinventory import WarehouseProductInventoryModel
 from api.repositories.warehouse.product_inventory_repository import ProductInventoryRepository
 from api.schemas.warehouse.warehouse_productinventory import ProductInventorySchema
-from api.models.warehouse.productinventory import WarehouseProductInventoryModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 class ProductInventoryService:
     def __init__(self, session: AsyncSession):
         self.repository = ProductInventoryRepository(session)
 
-    async def list_inventory(self, limit: int = 100) -> List[WarehouseProductInventoryModel]:
+    async def list_inventory(self, limit: int = 100) -> list[WarehouseProductInventoryModel]:
         return await self.repository.get_all(limit=limit)
 
-    async def restock_inventory(self, items: List[ProductInventorySchema]):
+    async def restock_inventory(self, items: list[ProductInventorySchema]):
         """
         Performs the initial load or bulk restocking of inventory.
         """
@@ -34,10 +34,12 @@ class ProductInventoryService:
         """
         inventory = await self.repository.get_by_product_and_location(product_id, location_id)
         if not inventory:
-            raise ValueError(f"Inventory not found for product {product_id} at location {location_id}")
+            raise ValueError(
+                f"Inventory not found for product {product_id} at location {location_id}"
+            )
 
         new_qty = inventory.quantity + quantity_change
         if new_qty < 0:
             raise ValueError("Stock balance cannot be negative after the operation.")
-            
+
         await self.repository.update_quantity(inventory.inventory_id, new_qty)

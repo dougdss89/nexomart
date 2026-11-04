@@ -311,6 +311,37 @@ stmt = insert(SalesOrderModel).values(orders_with_chaos)
 
 ---
 
+## Dimension created_at — historical spread (2020 to now)
+
+Volume and chaos are not the only randomized axis. Dimension rows also get a randomized
+**`created_at`**, drawn uniformly from `[2020-01-01, now]`, so the landing zone (which partitions
+dimensions by `created_at`) gains a full multi-year history instead of only the days the DAG ran.
+This matches the window the fact seeders already use for their event dates, so facts spanning
+2020 to now have dimension rows to join against for every date.
+
+Use the shared helpers in `api/utils/cli_common.py`:
+
+```python
+from api.utils.cli_common import stamp_dimension_history, stamp_dimension_history_objs
+
+# dict payloads (most seeders):
+stmt = insert(ProductModel).values(stamp_dimension_history(products))
+
+# Pydantic-schema payloads (seeders that hand schemas to a service):
+stamp_dimension_history_objs(schema_objects)
+```
+
+`stamp_dimension_history` also sets `updated_at = now()` — mandatory, because incremental
+ingestion selects rows via `COALESCE(updated_at, created_at) > watermark`; a backdated
+`created_at` alone would fall below the watermark and never land. Seeders that insert through
+`bulk_copy()` / `insert_in_batches()` get this applied automatically.
+
+**Not backdated** (`cli_common._NO_BACKDATE_TABLES`): the 6 fact tables and
+`purchasing.purchaseorderdetail` / `purchaseorderaudit` (RANGE-partitioned in Postgres by
+`created_at`). See `docs/INGESTION_INCREMENTAL.md` for the full rationale.
+
+---
+
 ## 🐛 Troubleshooting
 
 ### Problem 1: Values aren't being randomized

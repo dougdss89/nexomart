@@ -1,8 +1,8 @@
-from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+from api.models.sales.specialoffer import SpecialOfferModel
 from api.repositories.sales.special_offer_repository import SpecialOfferRepository
 from api.schemas.sales.sales_special_offer import SpecialOffer as SpecialOfferSchema
-from api.models.sales.specialoffer import SpecialOfferModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 class SpecialOfferService:
     def __init__(self, session: AsyncSession):
@@ -12,12 +12,12 @@ class SpecialOfferService:
         offer = SpecialOfferModel(**schema.model_dump())
         return await self.repository.create(offer)
 
-    async def bulk_create_offers(self, schemas: List[SpecialOfferSchema]) -> None:
+    async def bulk_create_offers(self, schemas: list[SpecialOfferSchema]) -> None:
         payloads = [schema.model_dump() for schema in schemas]
         await self.repository.bulk_create(payloads)
 
-    async def get_offer(self, offer_id: int) -> Optional[SpecialOfferModel]:
+    async def get_offer(self, offer_id: int) -> SpecialOfferModel | None:
         return await self.repository.get_by_id(offer_id)
 
-    async def list_active(self) -> List[SpecialOfferModel]:
+    async def list_active(self) -> list[SpecialOfferModel]:
         return await self.repository.list_active_offers()

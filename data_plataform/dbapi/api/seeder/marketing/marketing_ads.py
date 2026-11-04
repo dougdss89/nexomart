@@ -1,24 +1,28 @@
-import uuid
-import random
 import asyncio
-import sys
 import os
+import random
+import sys
+import uuid
 from datetime import datetime
-from faker import Faker
-from sqlalchemy import select, insert
+
 from api.database import AsyncSessionLocal
-from api.schemas.marketing.marketing_ads import MarketingAd, MarketingStatus, MarketingMediaType
 from api.models.marketing.marketing_adgroup import MarketingAdGroupModel
 from api.models.marketing.marketing_advertise import MarketingAdvertiseModel
+from api.schemas.marketing.marketing_ads import MarketingAd, MarketingMediaType, MarketingStatus
 from api.seeder.chaos import apply_ads_chaos
-from api.utils.cli_common import build_parser, add_chaos_args, resolve_chaos_args, insert_in_batches
+from api.utils.cli_common import add_chaos_args, build_parser, insert_in_batches, resolve_chaos_args
+from faker import Faker
+from sqlalchemy import select
 
 # Adjust path to import API modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-fake = Faker('pt_BR')
+fake = Faker("pt_BR")
 
-def generate_ad_payloads(real_adgroups: list[dict], chaos_rate: float = 0.05, apply_chaos: bool = True) -> list[dict]:
+
+def generate_ad_payloads(
+    real_adgroups: list[dict], chaos_rate: float = 0.05, apply_chaos: bool = True
+) -> list[dict]:
     """
     Generates Ad payloads based on REAL AdGroups from the database.
     """
@@ -27,7 +31,7 @@ def generate_ad_payloads(real_adgroups: list[dict], chaos_rate: float = 0.05, ap
     for adgroup in real_adgroups:
         num_ads = random.randint(1, 3)
         adgroup_name = adgroup["ad_group_name"]
-        
+
         for i in range(num_ads):
             if "GSN" in adgroup_name.upper():
                 media_type = MarketingMediaType.TEXT
@@ -41,15 +45,22 @@ def generate_ad_payloads(real_adgroups: list[dict], chaos_rate: float = 0.05, ap
 
             media_assets = []
             if media_type == MarketingMediaType.VIDEO:
-                media_assets.append({"url": f"https://cdn.example.com/ad_{uuid.uuid4().hex[:6]}.mp4", "duration_seconds": 30})
+                media_assets.append(
+                    {
+                        "url": f"https://cdn.example.com/ad_{uuid.uuid4().hex[:6]}.mp4",
+                        "duration_seconds": 30,
+                    }
+                )
             elif media_type == MarketingMediaType.IMAGE:
-                media_assets.append({"url": f"https://cdn.example.com/ad_{uuid.uuid4().hex[:6]}.jpg"})
+                media_assets.append(
+                    {"url": f"https://cdn.example.com/ad_{uuid.uuid4().hex[:6]}.jpg"}
+                )
 
             status = random.choice(list(MarketingStatus))
             payload = {
                 "ad_id": ad_id_counter,  # placeholder for Pydantic validation (gt=0); removed before insert
                 "ad_group_id": adgroup["ad_group_id"],
-                "ad_name": f"AD_{i+1}_{adgroup_name}",
+                "ad_name": f"AD_{i + 1}_{adgroup_name}",
                 "external_id": f"EXT-AD-{uuid.uuid4().hex[:10].upper()}",
                 "utm_content": f"ad-{uuid.uuid4().hex[:4]}",
                 "utm_medium": "cpc",
@@ -59,12 +70,12 @@ def generate_ad_payloads(real_adgroups: list[dict], chaos_rate: float = 0.05, ap
                     "description": fake.text(max_nb_chars=150),
                     "final_url": "https://www.example.com/lp",
                     "media_type": media_type,
-                    "media_assets": media_assets
+                    "media_assets": media_assets,
                 },
                 "created_at": datetime.now(),
                 "updated_at": datetime.now(),
                 "is_active": status == MarketingStatus.ACTIVE,
-                "row_guid": uuid.uuid4()
+                "row_guid": uuid.uuid4(),
             }
             ad_obj = MarketingAd(**payload)
             validated_ad = ad_obj.model_dump()
@@ -79,6 +90,7 @@ def generate_ad_payloads(real_adgroups: list[dict], chaos_rate: float = 0.05, ap
 
     return batch
 
+
 async def seed_marketing_ads(chaos_rate: float = 0.05, apply_chaos: bool = True):
     """
     Runs the Ads load consuming REAL AdGroups from the database.
@@ -89,19 +101,28 @@ async def seed_marketing_ads(chaos_rate: float = 0.05, apply_chaos: bool = True)
         # on more without violating any constraint, but grows unbounded every run and
         # eventually blows past asyncpg's 32767-param limit via the unbatched INSERT).
         already_has_ad = set(
-            (await session.execute(select(MarketingAdvertiseModel.ad_group_id.distinct()))).scalars().all()
+            (await session.execute(select(MarketingAdvertiseModel.ad_group_id.distinct())))
+            .scalars()
+            .all()
         )
-        result = await session.execute(select(MarketingAdGroupModel.ad_group_id, MarketingAdGroupModel.ad_group_name))
+        result = await session.execute(
+            select(MarketingAdGroupModel.ad_group_id, MarketingAdGroupModel.ad_group_name)
+        )
         real_adgroups = [
             {"ad_group_id": row[0], "ad_group_name": row[1]}
-            for row in result.all() if row[0] not in already_has_ad
+            for row in result.all()
+            if row[0] not in already_has_ad
         ]
 
         if not real_adgroups:
-            print("⚠️ No AdGroup pending an Ad! Run the MarketingAdGroup seeder first (or everyone already has one).")
+            print(
+                "⚠️ No AdGroup pending an Ad! Run the MarketingAdGroup seeder first (or everyone already has one)."
+            )
             return
 
-        print(f"📣 Seeding Ads for {len(real_adgroups)} groups pending one | chaos={chaos_rate:.2%}")
+        print(
+            f"📣 Seeding Ads for {len(real_adgroups)} groups pending one | chaos={chaos_rate:.2%}"
+        )
         ads = generate_ad_payloads(real_adgroups, chaos_rate=chaos_rate, apply_chaos=apply_chaos)
 
         try:
@@ -111,6 +132,7 @@ async def seed_marketing_ads(chaos_rate: float = 0.05, apply_chaos: bool = True)
             await session.rollback()
             print(f"❌ Error seeding Ads: {e}")
             raise RuntimeError(f"Marketing ads seeding aborted: {e}") from e
+
 
 if __name__ == "__main__":
     parser = build_parser("Seeder for marketing.marketing_advertise (fan-out of real adgroups)")

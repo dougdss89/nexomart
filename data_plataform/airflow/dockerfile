@@ -2,8 +2,15 @@ FROM quay.io/astronomer/astro-runtime:11.4.0-python-3.12
 
 USER root
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+# Debian 11 (bullseye) is EOL: deb.debian.org/debian-security no longer serves its packages (404).
+# Switch apt to the snapshot.debian.org entries that the base image already ships commented out
+# (pinned to 2024-05-13). The ONBUILD hook that reads packages.txt is skipped because the file is
+# empty, so the packages it used to hold are installed here instead.
+RUN sed -i -e 's|^deb |#deb |' -e 's|^# deb http://snapshot|deb http://snapshot|' /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99snapshot && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      default-jdk krb5-user krb5-config sudo wget vim net-tools iputils-ping \
       openjdk-17-jre-headless \
       curl \
       tar && \

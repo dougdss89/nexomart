@@ -80,6 +80,29 @@ that change, made the same day). Incremental extraction only changes *which rows
 it doesn't change where they land. A run that picks up zero new/changed rows for a table simply
 writes zero parts for it that day — no empty files.
 
+## Dimension `created_at` spans 2020→now (added 2026-10-06)
+
+The `<YYYY-MM-DD>` partition is a fact table's own event-date column (`order_date`, etc.) or, for
+every dimension, `created_at`. Dimensions used to stamp `created_at = now()` at seed time, so a
+dimension's landing only ever had partitions for the days the DAG actually ran (e.g. `person.customer`
+sat in ~5 recent days), while the facts span 2020→now — so a join against older facts found no
+dimension rows for them. Dimension seeders now **backdate** `created_at` to a uniform point in
+`[2020-01-01, now]` (helpers `stamp_dimension_history` / `stamp_dimension_history_objs` in
+`api/utils/cli_common.py`), giving each dimension a full 2020→now partition spread in the landing.
+
+Crucial interaction with this watermark: the same helper also sets `updated_at = now()`. Because
+extraction filters on `COALESCE(updated_at, created_at) > watermark`, a freshly-seeded row whose
+only timestamp were a backdated `created_at` (say 2021) would be *below* the current watermark and
+never ingested — `updated_at = now()` keeps the row selectable while `created_at` still drives which
+partition it lands in.
+
+Excluded from backdating (`cli_common._NO_BACKDATE_TABLES`): the 6 fact tables (they partition by
+their own event-date column), plus `purchasing.purchaseorderdetail`/`purchaseorderaudit` — the
+latter two are RANGE-partitioned in Postgres *by* `created_at`, so a backdated value would need a
+matching historical partition to exist and the 45-day retention would drop it anyway. A one-time
+migration on 2026-10-06 re-dated the existing dimension rows and re-landed them (~33.8M rows across
+22 tables); `person.customer` went from ~5 landing partitions to 2,471 (2020-01-01 → 2026-10-06).
+
 ## Measured, live, same day (2026-09-04)
 
 `humanresources` (small schema, safe to iterate on quickly):

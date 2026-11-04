@@ -98,11 +98,12 @@ with DAG(
             title="Backfill tables",
             description="Comma-separated schema.table list to re-land fully, e.g. product.product,person.countryregion. Leave empty for normal incremental ingestion.",
         ),
-        "chunksize": Param(default=100_000, type="integer", title="Rows per Parquet part (backfill only)"),
+        "chunksize": Param(
+            default=100_000, type="integer", title="Rows per Parquet part (backfill only)"
+        ),
     },
     tags=["ingestion", "nexomart", "landing"],
 ) as dag:
-
     start_ingestion = DummyOperator(task_id="start_ingestion")
 
     # Branch on the backfill_tables param (see _choose_mode). Only the chosen downstream
@@ -110,7 +111,8 @@ with DAG(
     choose_mode = BranchPythonOperator(task_id="choose_mode", python_callable=_choose_mode)
 
     ingest_tasks: list[BashOperator] = [
-        ingestion_task(f"ingest_{schema}", f"ingestions/{schema}_ingestion.py") for schema in SCHEMAS
+        ingestion_task(f"ingest_{schema}", f"ingestions/{schema}_ingestion.py")
+        for schema in SCHEMAS
     ]
 
     # Reuses the exact ingest_table path the per-schema tasks use (resets watermark -> EPOCH ->
@@ -127,7 +129,9 @@ with DAG(
 
     # all_success would get skipped when the branch skips one side, so require only that nothing
     # upstream failed and at least one upstream succeeded (i.e. whichever branch actually ran).
-    end_ingestion = DummyOperator(task_id="end_ingestion", trigger_rule="none_failed_min_one_success")
+    end_ingestion = DummyOperator(
+        task_id="end_ingestion", trigger_rule="none_failed_min_one_success"
+    )
 
     start_ingestion >> choose_mode
     choose_mode >> ingest_tasks >> end_ingestion

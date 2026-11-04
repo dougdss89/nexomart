@@ -1,6 +1,6 @@
 import asyncio
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from api.database import AsyncSessionLocal
 from api.models.humanresources.employee import HumanResourcesEmployeeModel  # noqa: F401
@@ -35,16 +35,17 @@ def apply_updates(rows: list[dict]) -> list[dict]:
         status = random.choice(STATUS_TRANSITIONS)
         row["status"] = status
         if status in ("Shipped", "Completed"):
-            row["ship_date"] = datetime.now(timezone.utc) - timedelta(days=random.randint(0, 10))
+            row["ship_date"] = datetime.now(UTC) - timedelta(days=random.randint(0, 10))
         if status == "Completed":
-            row["orderfinished_date"] = datetime.now(timezone.utc)
+            row["orderfinished_date"] = datetime.now(UTC)
     return rows
 
 
 async def mutate(count: int, delete_ratio: float, batch_size: int):
     async with AsyncSessionLocal() as session:
         await run_mutation(
-            session, PurchaseOrderHeaderModel,
+            session,
+            PurchaseOrderHeaderModel,
             label=TABLE_NAME,
             count=count,
             delete_ratio=delete_ratio,
@@ -58,5 +59,7 @@ if __name__ == "__main__":
     parser = build_parser(f"CDC mutation seeder (UPDATE/DELETE) for {TABLE_NAME}")
     add_mutation_args(parser, schema=SCHEMA_NAME, table=TABLE_NAME)
     args = parser.parse_args()
-    count, delete_ratio, batch_size = resolve_mutation_args(args, schema=SCHEMA_NAME, table=TABLE_NAME)
+    count, delete_ratio, batch_size = resolve_mutation_args(
+        args, schema=SCHEMA_NAME, table=TABLE_NAME
+    )
     asyncio.run(mutate(count, delete_ratio, batch_size))
