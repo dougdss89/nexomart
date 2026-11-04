@@ -1,4 +1,4 @@
-# AI/ML — Use-Case Roadmap (IcebergLake)
+# AI/ML — Use-Case Roadmap (NexoMart)
 
 > **Status**: Planning only. Nothing here has been implemented yet — brainstorm session on 2026-07-12, with the explicit goal of "laying the groundwork" before building any piece. Revisit this doc when it's time to start.
 
@@ -38,7 +38,7 @@ Doesn't depend on an LLM/GPU — it's classic ML, a tangible result, a good firs
 - Enable `CREATE EXTENSION vector` in Postgres, generate real embeddings (currently only mocked) for `product.productembedding.description_vector`.
 - Local embedding model via Ollama (e.g. `nomic-embed-text`, 768 dim — note: would require migrating the column, currently at 1536) or an external API.
 - Natural-language search over the catalog ("red bike for trails") via `<=>` (cosine distance) in pgvector.
-- Possible extension: **text-to-SQL over Gold** (Iceberg/Trino) — user asks in Portuguese, a small model generates SQL against `iceberglake.gold`/`nexo`. Uses the whole stack (Spark, Iceberg, Trino, UC) — good for an architectural demo.
+- Possible extension: **text-to-SQL over Gold** (Delta/Trino) — user asks in Portuguese, a small model generates SQL against `nexomart` (Gold). Uses the whole stack (Spark, Delta, Trino) — good for an architectural demo.
 
 ### 3. Secondary ideas (backlog, no detailed design yet)
 

@@ -1,6 +1,10 @@
-# Data Platform — IcebergLake
+# NexoMart
 
-Open-source data platform built from scratch for the **IcebergLake** case study — a multi-channel Brazilian marketplace processing between 100 thousand and 50 million orders per cycle. The goal is to separate the transactional layer (OLTP) from the analytical layer (OLAP) without depending on any proprietary cloud.
+Open-source data platform built from scratch around **NexoMart**, a fictional multi-channel Brazilian marketplace. The goal is to separate the transactional layer (OLTP) from the analytical layer (OLAP) without depending on any proprietary cloud, and to practice the full data engineering lifecycle: synthetic data with controlled chaos, orchestration, incremental ingestion, a Delta Lake medallion, SQL federation, and data contracts.
+
+Everything runs locally in Docker. Every analytical table is **Delta Lake**; the catalog is the **Hive Metastore**.
+
+> **Status:** Landing zone is live and validated (~40M rows across 7 schemas). Bronze and Silver for NexoMart are under construction; Gold and dbt marts are planned. See [Roadmap](#roadmap--release-checklist).
 
 ---
 
@@ -18,107 +22,112 @@ Open-source data platform built from scratch for the **IcebergLake** case study 
 │           Apache Airflow 2.9 (CeleryExecutor + Redis)        │
 ├──────────────────────────────────────────────────────────────┤
 │              DISTRIBUTED PROCESSING (Spark 3.5.8)            │
-│  Landing → Bronze → Silver (Delta Lake) → Gold (Iceberg)     │
+│          Landing (Parquet) → Bronze → Silver → Gold          │
 ├──────────────────────────────────────────────────────────────┤
 │                   ANALYTICAL STORAGE                         │
-│       Delta Lake + Apache Iceberg + MinIO (S3-compatible)    │
+│              Delta Lake 3.2.1 on MinIO (S3-compatible)       │
 ├──────────────────────────────────────────────────────────────┤
 │                  CATALOG & METASTORE                         │
-│           Hive Metastore 4.0 (PostgreSQL backend)           │
+│           Hive Metastore 4.0 (PostgreSQL backend)            │
 ├──────────────────────────────────────────────────────────────┤
 │                   QUERY FEDERATION                           │
-│    Apache Trino 482 (delta_lake + iceberg + nexo catalogs)   │
+│          Apache Trino (delta_lake + postgres catalogs)       │
 ├──────────────────────────────────────────────────────────────┤
 │                 ANALYTICAL TRANSFORMATIONS                   │
-│                  dbt-trino 1.10 / dbt-core 1.11               │
+│                 dbt-trino 1.10 / dbt-core 1.11               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ### Data Pipeline (Medallion Architecture)
 
 ```
-PostgreSQL (OLTP)
-      │
+PostgreSQL (OLTP, nexomart_db)
+      │  nexomart_ingestion_dag (incremental, watermark-based)
       ▼
- Landing  (raw Parquet,   s3a://landing/)
-      │  spark/jobs/landing_layer_scripts/
+ Landing  (raw Parquet, s3a://landing/nexomart/<schema>/<table>/)
+      │  Spark jobs (reader → validators → transformers → writer)
       ▼
- Bronze   (Delta Lake,     s3a://bronze/)
-      │  spark/jobs/raw_layer_extract_scripts/
+ Bronze   (Delta Lake, as-landed + audit/metadata columns)
       ▼
- Silver   (Delta Lake + surrogate keys, s3a://silver/)
-      │  spark/jobs/silver_layer_advworks_scripts/
+ Silver   (Delta Lake, cleaned, typed, deduplicated; rejected rows → quarantine)
       ▼
- Gold     (Apache Iceberg, s3a://deltadw/iceberglake/)
-      │  spark/jobs/gold_layer_scripts/
-      │  catalog: iceberglake (HiveCatalog → HMS)
+ Gold     (Delta Lake, dimensional model: dims + facts)
       ▼
- Trino ──► dbt (analytical views/marts in the nexo.gold catalog)
+ Trino ──► dbt (marts) ──► Postgres serving DB (golddw) ──► BI
 ```
 
 **Format per layer:**
 
-| Layer | Format | Spark Catalog | Trino Catalog |
-|-------|--------|----------------|----------------|
-| Landing | Raw Parquet | — | `minio` |
-| Bronze | Delta Lake | `spark_catalog` | `delta` |
-| Silver | Delta Lake | `spark_catalog` | `delta` |
-| Gold | Apache Iceberg | `iceberglake` | `nexo` |
-| dbt marts | Trino views | — | `nexo` |
+| Layer | Format | Spark location | Trino catalog |
+|-------|--------|----------------|---------------|
+| Landing | Raw Parquet | `s3a://landing/` | — |
+| Quarantine | Parquet (`payload` column) | `s3a://quarantine/` | — |
+| Bronze | Delta Lake | `spark_catalog.nexomart_bronze.<schema>_<table>` | `nexomart` |
+| Silver | Delta Lake | `spark_catalog.nexomart_silver.<schema>_<table>` | `nexomart` |
+| Gold | Delta Lake | `spark_catalog.nexomart_gold.<schema>_<table>` | `nexomart` |
+| Serving (BI) | Postgres | `golddw` database | `postgres` |
+
+Layer status: Landing done, Bronze/Silver in progress, Gold planned (see roadmap).
 
 ---
 
 ## Catalogs
 
-### Spark — 3 simultaneous catalogs
+### Spark
 
-| Catalog | Implementation | Use |
-|---------|-----------------|-----|
-| `spark_catalog` | DeltaCatalog (default) | Landing, Bronze, Silver in Delta Lake |
-| `iceberglake` | IcebergHiveCatalog (HMS) | Gold writes in Iceberg |
+A single catalog, `spark_catalog`, backed by `DeltaCatalog` and the Hive Metastore. Delta's catalog only works when registered under that exact name, so there is no per-project Spark catalog. Instead each project/layer pair gets its own Hive database, `<project>_<layer>` (for example `nexomart_silver`), with tables named `<schema>_<table>`.
+
+The helpers in `spark/src/common/delta.py` hide this naming:
 
 ```python
-# Gold — Iceberg write via HiveCatalog
-df.writeTo("iceberglake.gold.gold_dim_productcategory").createOrReplace()
+from spark.src.common.delta import qualified_table_name, resolved_table_name
 
-# Read Gold via the Iceberg (Hive Metastore) catalog
-spark.sql("SELECT * FROM iceberglake.gold.gold_dim_productcategory")
+# compact name used by write_delta(): "<project>.<layer>.<schema>_<table>"
+qualified_table_name("nexomart", "silver", "person", "customer")
+# literal name Spark can resolve: spark_catalog.nexomart_silver.person_customer
+resolved_table_name("nexomart", "silver", "person", "customer")
 ```
 
-### Trino — 4 catalogs
+### Trino
 
 | Catalog | Connector | Use |
 |---------|-----------|-----|
-| `delta` | `delta_lake` + HMS | Bronze and Silver |
-| `iceberglake` | `iceberg` + HMS | Gold direct access (ops/debug) |
-| `nexo` | `delta_lake` + HMS | Gold (reads and dbt) — official read path |
-| `minio` | `delta_lake` + HMS | Landing / raw exploration |
+| `nexomart` | `delta_lake` + HMS | NexoMart Bronze / Silver / Gold (the project's read path) |
+| `nexo` | `delta_lake` + HMS | Platform-level catalog, default target of dbt |
+| `postgres` | `postgresql` | Serving layer for BI (`golddw`) |
 
 ```sql
--- Query Gold via Trino
-SELECT * FROM nexo.gold.gold_dim_productcategory LIMIT 10;
-SHOW TABLES IN nexo.gold;
+SHOW SCHEMAS IN nexomart;
+SELECT * FROM nexomart.nexomart_silver.person_customer LIMIT 10;
 ```
+
+Schema names are the Hive databases, so Trino sees `nexomart_<layer>` as the schema.
+
+> **Legacy:** `iceberglake` and `minio` Trino catalogs, the `iceberglake` Spark catalog and the Iceberg runtime JAR still exist from the old AdventureWorks (`advworks`) pipeline. They are **not used** by NexoMart and are scheduled for removal (see roadmap).
+
+---
 
 ## Business Domains
 
 | Schema | Domain | Description |
 |--------|--------|-------------|
 | `product` | Product | Catalog, models, categories, semantic search via pgvector |
-| `person` | Person | Customers, sellers, addresses, contacts |
-| `sales` | Sales | Orders, line items (multi-seller JSONB), returns, payments |
+| `person` | Person | Customers, addresses, contacts |
+| `sales` | Sales | Orders, line items (JSONB), returns, payments |
 | `marketing` | Marketing | Campaigns, ads, per-channel performance (4 levels) |
 | `humanresources` | HR | Employees, departments, job history (SCD Type 2) |
 | `purchasing` | Purchasing | Purchase orders, vendors, receiving |
 | `warehouse` | Warehouse | Inventory, transfers, movement history |
+
+31 tables across the 7 schemas, all with `AuditMixin` (`created_at`, `updated_at`, `is_active`, `row_guid`).
 
 ---
 
 ## Repository Structure
 
 ```
-data_plataform/
-├── dbapi/                  # Ingestion API (FastAPI)
+nexomart/
+├── dbapi/                  # Ingestion API (FastAPI) + seeders
 │   └── api/
 │       ├── models/         # SQLAlchemy models per domain
 │       ├── schemas/        # Pydantic schemas
@@ -126,29 +135,39 @@ data_plataform/
 │       ├── services/       # Business logic
 │       ├── routers/        # FastAPI endpoints
 │       ├── seeder/         # Data generators with chaos engineering
-│       └── samples/        # Reference data per domain
-├── postgres/               # PostgreSQL 16 + init scripts
-├── minio/                  # S3-compatible object storage
+│       │   └── ingestions/ # Postgres → landing (incremental)
+│       ├── samples/        # Reference data per domain
+│       └── utils/          # Shared modules (cli_common, mutator_common, quarantine)
 ├── airflow/
-│   ├── dags/               # Airflow DAGs
+│   ├── dags/
+│   │   ├── nexomart/       # seeder, mutator, ingestion, streaming DAGs
+│   │   └── advworks/       # legacy AdventureWorks DAGs (to be removed)
 │   └── dockerfile          # Astro Runtime 11.4 with Spark 3.5.8 embedded
 ├── spark/
-│   ├── jobs/               # PySpark scripts per layer
-│   │   ├── landing_layer_scripts/
-│   │   ├── raw_layer_extract_scripts/    # bronze
-│   │   ├── silver_layer_advworks_scripts/
-│   │   └── gold_layer_scripts/           # Iceberg via iceberglake
+│   ├── src/                # Reusable Spark framework
+│   │   ├── common/         # reader, writer, delta helpers, validators, logger
+│   │   ├── transformers/   # composable DataFrame transformers
+│   │   └── domains/        # per-layer, per-domain logic (bronze/, silver/)
+│   ├── jobs/               # Spark entrypoints (advworks/ is legacy)
 │   └── conf/
 │       └── spark-defaults.conf.template  # generated via envsubst
+├── nexomart_contract/      # Data contracts (api / raw / silver / gold) in YAML
+├── tests/
+│   ├── contracts/          # Contract vs Pydantic vs SQLAlchemy vs live DB drift tests
+│   └── seeder/             # Seeder and quarantine tests
+├── dbt/                    # dbt-trino project (Gold marts)
+├── postgres/               # PostgreSQL 16 + init scripts
+├── minio/                  # S3-compatible object storage + bucket provisioning
 ├── hive/                   # Hive Metastore 4.0 (PostgreSQL backend)
 ├── trino/
-│   └── catalog/             # delta.properties, iceberglake.properties, nexomart.properties, nexo.properties, minio.properties
+│   └── catalog/            # nexomart, nexo, postgres (+ legacy iceberglake, minio)
 ├── configs/
-│   ├── .env                # Job paths, MinIO buckets, connections
-│   ├── secrets.env         # Credentials (not committed)
-│   ├── profiles.yml        # dbt target: nexo.gold via Trino
-│   ├── dbt/                # dbt-trino project (gold models)
-│   └── configconnections_loader.py
+│   ├── secrets.env         # Credentials (not committed; mirrored in secrets.env.example)
+│   ├── seeders/            # Per-run volume and chaos ranges (single source of truth)
+│   ├── postgresql/         # GUC tuning notes + partitioning migrations
+│   └── profiles.yml        # dbt profile (Trino)
+├── scripts/                # lint, bind-mount staging, Windows disk-mount / maintenance tasks
+├── docs/                   # Design notes, postmortems, guides
 └── Makefile                # Stack operation commands
 ```
 
@@ -168,14 +187,18 @@ data_plataform/
 ### First time
 
 ```bash
-# 1. Set up credentials (never committed)
+# 1. Clone
+git clone git@github.com:dougdss89/nexomart.git
+cd nexomart
+
+# 2. Set up credentials (never committed)
 cp configs/secrets.env.example configs/secrets.env
 # edit secrets.env with real values
 
-# 2. Create network, volumes, and build images
+# 3. Create network, volumes, and build images
 make setup
 
-# 3. Bring up the whole stack (generates configs and starts services in order)
+# 4. Bring up the whole stack (generates configs and starts services in order)
 make up
 ```
 
@@ -186,7 +209,8 @@ make up          # brings everything up (creates containers)
 make down        # stops AND REMOVES all containers in the stack
 make stop        # just STOPS containers (no removal) — faster to resume
 make start       # restarts containers stopped with `make stop` (no recreation)
-make start WORKERS=3   # same, but scales spark-worker to 3 replicas as it restarts
+make start-dev   # only the essentials: postgres, minio, hive, airflow (no spark/trino/dbapi)
+make start WORKERS=3         # same as start, but scales spark-worker to 3 replicas
 make scale-spark WORKERS=3   # scale spark-worker up/down without touching anything else
 make ps          # lists running containers with status and ports
 make logs s=trino-coordinator   # tail logs for one container
@@ -194,9 +218,9 @@ make restart s=spark-master     # restart one container
 make clean       # ⚠️  removes containers AND volumes (destroys data)
 ```
 
-`make down` removes containers, but it **does not** delete data — everything that matters (Postgres, `dockervol`, Spark caches) lives in named Docker volumes (`postgres_pgprojeto_data`, etc.); MinIO data lives on the dedicated disk bind-mounted at `MINIO_DATA_DIR` (see Known Issues #9), which are only removed with an explicit `-v`/`--volumes` flag — something no target other than `clean` (⚠️ intentionally destructive) does. Use `make down`/`make up` when you edit a `docker-compose.yml` (the container needs to be recreated to pick up the change); use `make stop`/`make start` for day-to-day work (e.g. pausing before shutting down your machine) — faster to resume, same data-preservation guarantee.
+`make down` removes containers, but it **does not** delete data. Postgres, `dockervol` and the Spark caches live in Docker volumes, and MinIO data lives on a dedicated disk bind-mounted at `MINIO_DATA_DIR` (see Known Issues #7 and #8). These are only removed with an explicit `-v`/`--volumes` flag, which only `clean` uses (intentionally destructive). Use `make down`/`make up` after editing a `docker-compose.yml`; use `make stop`/`make start` for day-to-day pauses.
 
-`spark-worker` (`spark/docker-compose.yml`) is sized at 4 cores / 8GB per replica (`SPARK_WORKER_CORES`/`SPARK_WORKER_MEMORY`/`SPARK_WORKER_MEM_LIMIT` in `configs/secrets.env`) specifically so it can scale to 3 replicas — 12 cores / 24GB total — without starving the rest of the stack. `WORKERS` defaults to `1` for normal day-to-day use; pass `WORKERS=N` to `make start` or `make scale-spark` to scale out for heavier jobs, then scale back down (`make scale-spark WORKERS=1`) when done. `docker compose start` can't create new replicas (it only restarts containers that already exist), so both targets use `up -d --scale` under the hood instead — which also means they're safe to call any time, not just after a `make stop`.
+`spark-worker` is sized at 4 cores / 8GB per replica (`SPARK_WORKER_CORES`/`SPARK_WORKER_MEMORY`/`SPARK_WORKER_MEM_LIMIT` in `configs/secrets.env`) so it can scale to 3 replicas (12 cores / 24GB) without starving the rest of the stack. `WORKERS` defaults to `1`; scale out for heavy jobs, then back down (`make scale-spark WORKERS=1`). Both scale targets use `up -d --scale`, so they are safe to call at any time.
 
 ### Individual services
 
@@ -210,34 +234,37 @@ make up-airflow
 make up-dbapi
 ```
 
+### Quality gates
+
+```bash
+make lint        # ruff, black, isort, flake8, sqlfluff
+make test        # pytest
+make ci          # lint + test + security, same as the GitHub Actions pipeline
+```
+
 ---
 
 ## MinIO Buckets
 
-Buckets are provisioned automatically by the `minio-init` service (`minio/docker-compose.yml`) every time MinIO comes up (`make up` or `make up-minio`) — there's no need to create them manually. It's a one-shot container that runs `mc mb --ignore-existing` for each bucket and exits (same pattern as `airflow-init`); idempotent, so running it again against buckets that already exist doesn't error.
+Buckets are provisioned automatically by the `minio-init` one-shot container (`minio/docker-compose.yml`) every time MinIO comes up. It runs `mc mb --ignore-existing`, so it is idempotent.
 
-- **`spark-events`** is mandatory and hardcoded in `minio-init` (it does not live in the list below): the Spark History Server reads `spark.eventLog.dir=s3a://spark-events/apps` (`spark/conf/spark-defaults.conf.template`) and fails on boot if the bucket/prefix doesn't exist.
-- **Everything else comes from `MINIO_EXTRA_BUCKETS`** in `configs/secrets.env` — a comma-separated list, no spaces. Currently:
+- **`spark-events`** is hardcoded in `minio-init`: the Spark History Server reads `spark.eventLog.dir=s3a://spark-events/apps` and fails on boot without it.
+- **Everything else comes from `MINIO_EXTRA_BUCKETS`** in `configs/secrets.env` (comma-separated, no spaces):
 
   ```bash
   MINIO_EXTRA_BUCKETS=landing,bronze,silver,iceberg,deltadw,quarantine
   ```
 
-  `quarantine` holds the rows that seeders reject at validation time, as Parquet with a `payload` column (see [`docs/MINIO.md`](docs/MINIO.md)).
+  `quarantine` holds the rows that seeders reject at validation time, as Parquet with a `payload` column (see [`docs/MINIO.md`](docs/MINIO.md)). `iceberg` is a leftover from the legacy pipeline.
 
-  When adding a new pipeline or layer that writes to a bucket that isn't provisioned yet (e.g. `s3a://a-new-bucket/...` in a new Spark job), just append the name to this variable in `secrets.env` **and** in `secrets.env.example` — no code or compose file needs to change. The bucket is created automatically on the next `make up`/`make up-minio`.
-
-```bash
-# Re-provision buckets without touching the rest of the stack (e.g. after editing MINIO_EXTRA_BUCKETS)
-make up-minio
-```
+  To add a bucket, append its name to this variable in `secrets.env` **and** `secrets.env.example`, then run `make up-minio`. No code or compose change is needed.
 
 ---
 
 ## Service URLs
 
 | Service | URL | Credentials |
-|---------|-----|--------------|
+|---------|-----|-------------|
 | MinIO Console | http://localhost:9001 | per `secrets.env` |
 | Spark Master UI | http://localhost:9090 | — |
 | Spark History Server | http://localhost:18080 | — |
@@ -249,78 +276,68 @@ make up-minio
 
 ---
 
-## End-to-End Integration DAG
+## NexoMart Pipeline (Airflow)
 
-`integration_e2e_test` — full pipeline sequence:
-
-```
-start → seed_postgres → pg_landing → pg_bronze → pg_silver
-      → pg_gold → trino_validate → dbt_run → dbt_test → end
-```
-
-`pg_gold` uses `SparkSubmitOperator` in **client mode** (driver on `airflow_worker`). The job writes to `iceberglake.gold.gold_dim_productcategory` via Iceberg + HiveCatalog.
-
-```bash
-# Trigger via CLI
-docker exec airflow_scheduler airflow dags trigger integration_e2e_test
-
-# Monitor
-docker exec airflow_scheduler airflow tasks states-for-dag-run \
-  integration_e2e_test <run_id>
-```
-
----
-
-## NexoMart Production Pipeline
-
-Three Airflow DAGs simulate a live OLTP workload against the `nexomart_db` schemas (see [Business Domains](#business-domains)). The seeder and mutator run on their own schedules; ingestion has no schedule and is triggered by the seeder:
+Four DAGs under `airflow/dags/nexomart/` simulate a live OLTP workload against `nexomart_db` and land it in the lake:
 
 | DAG | Schedule | Purpose |
 |-----|----------|---------|
 | `nexomart_seeder_dag` | every 15 minutes (`*/15 * * * *`) | Inserts new rows across all 7 domains, with chaos engineering (see [Chaos Engineering](#chaos-engineering)) |
-| `nexomart_mutator_dag` | hourly (`0 * * * *`) | Applies UPDATE and, where safe, DELETE to rows the seeder already inserted, to give a future CDC pipeline realistic update/delete events, not just inserts |
-| `nexomart_ingestion_dag` | none (`schedule=None`), triggered by the last task of `nexomart_seeder_dag` | Reads from `nexomart_db` and lands raw Parquet into MinIO's `landing` bucket, one file per table per run. You can also trigger it by hand |
+| `nexomart_mutator_dag` | hourly (`0 * * * *`) | Applies UPDATE and, where safe, DELETE to rows the seeder already inserted, so a future CDC pipeline gets realistic update/delete events |
+| `nexomart_ingestion_dag` | none (triggered by the seeder, or by hand) | Reads from `nexomart_db` and lands raw Parquet into MinIO's `landing` bucket, one file per table per run. Supports a backfill mode |
+| `nexomart_streaming_dag` | `@continuous`, created paused | Low-volume, back-to-back variant of the seeder for streaming studies. Pause `nexomart_seeder_dag` while it runs |
 
-Both `nexomart_seeder_dag` and `nexomart_mutator_dag` use `max_active_runs=1` so a slow run can never overlap with the next tick. `nexomart_seeder_dag` starts with a `contract_drift_check` task that runs `tests/contracts` (data contract YAML vs Pydantic schema vs SQLAlchemy model) and blocks the run on any drift. It also caps `max_active_tasks=8` to avoid disk I/O contention between the heaviest bulk-insert tasks.
+**Concurrency.** The seeder and mutator use `max_active_runs=1`, so a slow run never overlaps the next tick. The seeder also caps `max_active_tasks=8` to avoid disk I/O contention.
 
-The seeder ends with a `trigger_ingestion` task using `wait_for_completion=True`, and both DAGs use `max_active_runs=1`, so the next seeder tick cannot start until ingestion for the current one has finished. This trigger was removed and then reinstated on 2026-09-04: it originally fired without waiting while ingestion re-read every table in full, so runs stacked up in the queue. With incremental ingestion (below) a run only reads what changed.
+**Contract gate.** The seeder starts with a `contract_drift_check` task that runs `tests/contracts` (data contract YAML vs Pydantic schema vs SQLAlchemy model vs live Postgres). Any drift blocks the run before data is written.
 
-Ingestion reads only rows that are new or changed since the last successful run, using a `COALESCE(updated_at, created_at) > watermark` filter per table, not a full table scan every time. Watermarks live in `ingestion_control.watermarks` inside `nexomart_db`. Full details, including the two real bugs found chasing a stuck backfill (a MinIO client with no timeout, and an unnecessary JSON decode/re-encode round trip in the Postgres read path): [`docs/INGESTION_INCREMENTAL.md`](docs/INGESTION_INCREMENTAL.md).
+**Seeder → ingestion coupling.** The seeder ends with a `trigger_ingestion` task using `wait_for_completion=True`, so the next seeder tick cannot start until ingestion for the current one has finished.
 
-`nexomart_mutator_dag` never issues a hard DELETE against a row that is still a foreign-key target, or against the two fan-out parent tables (`person.customer`, `purchasing.purchaseorderheader`) whose FK no longer exists at the database level after partitioning. Those get a soft delete (`is_active = false`) instead. Full postmortem: [`docs/MUTATOR_DAG_FIXES.md`](docs/MUTATOR_DAG_FIXES.md).
+**Incremental ingestion.** Ingestion reads only rows that are new or changed since the last successful run, with a `COALESCE(updated_at, created_at) > watermark` filter per table. Watermarks live in `ingestion_control.watermarks` inside `nexomart_db`. Details and the bugs found building it: [`docs/INGESTION_INCREMENTAL.md`](docs/INGESTION_INCREMENTAL.md).
 
-Per-run volumes were originally sized for a daily cron and had to be rescaled for a 10-15 minute cadence; three seeders that scaled with total accumulated history (not with the work needed that run) also had to be rewritten. Full analysis and measurements: [`docs/SEEDER_MICROBATCHING.md`](docs/SEEDER_MICROBATCHING.md).
+**Historical depth.** Dimension seeders backdate `created_at` to a random point in `[2020-01-01, now]` (and set `updated_at = now()` so the watermark still picks the row up). Fact tables partition by their own event date and are never backdated. This gives the lake deep history to join facts against.
 
-`SEEDER_ROOT` and `UV_PROJECT` (the paths each DAG uses to shell out to a seeder script via `uv run`) are read from `configs/secrets.env`, not hardcoded in the DAG files.
+**Mutator safety.** The mutator never hard-deletes a row that is still a foreign-key target, nor the two fan-out parents (`person.customer`, `purchasing.purchaseorderheader`). Those get a soft delete (`is_active = false`). Postmortem: [`docs/MUTATOR_DAG_FIXES.md`](docs/MUTATOR_DAG_FIXES.md).
+
+**Volumes.** Per-run volumes are sized for a 10-15 minute cadence (not a daily cron) and live in `configs/seeders/config.py`. Analysis: [`docs/SEEDER_MICROBATCHING.md`](docs/SEEDER_MICROBATCHING.md).
+
+`SEEDER_ROOT` and `UV_PROJECT` (paths each DAG uses to shell out to a seeder via `uv run`) come from `configs/secrets.env`, not from the DAG files.
+
+```bash
+# Trigger by hand
+docker exec airflow_scheduler airflow dags trigger nexomart_ingestion_dag
+```
 
 ---
 
-## Spark Query Monitoring
+## Spark Framework
 
-### DataFlint — enriched execution plans
+`spark/src/` is a small reusable framework so each Bronze/Silver job is mostly composition:
+
+| Module | Role |
+|--------|------|
+| `common/reader.py` | Reads landing/Bronze/Silver sources |
+| `common/writer.py` | `DeltaTableWriter` (append) and `DeltaMergeWriter` (MERGE on natural key), with partition support |
+| `common/delta.py` | Table naming helpers and Delta write patterns |
+| `common/column_validator.py`, `table_validator.py` | Fail early when expected columns are missing |
+| `common/transformer.py` | Base class for composable transformers |
+| `transformers/` | `parseJson`, `flatten`, `explode`, `email` flag, `splitname`, `extractsize`, `fillnullvalues`, `normalizegender`, `normalizemaritalstatus`, `tofloat`, `totimestamp`, `tolower`, `audit`, `metadata` |
+| `domains/<layer>/<schema>/` | Per-domain logic (started: `bronze/person`, `silver/sales`) |
+
+### Spark Query Monitoring (DataFlint)
 
 DataFlint (JAR baked into the Spark images) adds visual query-plan analysis.
 
-**Live view** (while a job is running):
-```
-http://localhost:4040/dataflint
-```
-Port 4040 stays active while the job's driver is running on `airflow_worker`.
+- **Live** (while a job runs): `http://localhost:4040/dataflint`
+- **History** (completed jobs): `http://localhost:18080` → click an app → "DataFlint" tab
 
-**History view** (completed jobs):
-```
-http://localhost:18080  → click an app → "DataFlint" tab
-                        → "SQL / DataFrame" tab (Spark's default view)
-```
-
-**Interactive PySpark** (a standing driver for exploration):
 ```bash
+# Interactive PySpark (a standing driver for exploration)
 docker exec -it airflow_worker /opt/spark/bin/pyspark \
   --master spark://spark-master:7077 \
   --conf spark.driver.host=172.18.0.12 \
   --conf spark.driver.bindAddress=0.0.0.0
 ```
-While the shell is open, `localhost:4040/dataflint` stays reachable.
 
 ---
 
@@ -328,14 +345,13 @@ While the shell is open, `localhost:4040/dataflint` stays reachable.
 
 ### spark-defaults.conf
 
-Generated by `make up` via `envsubst` from the template. **Never edit the `.conf` directly** — edit the `.template` and regenerate:
+Generated by `make up` via `envsubst` from the template. **Never edit the `.conf` directly**: edit `spark/conf/spark-defaults.conf.template` and regenerate.
 
 ```bash
-export $(grep -v '^#' configs/secrets.env | xargs)
-envsubst < spark/conf/spark-defaults.conf.template > spark/conf/spark-defaults.conf
+make generate-confs
 ```
 
-Required keys:
+Key settings:
 
 ```properties
 # External metastore (without this, Spark falls back to local Derby)
@@ -343,57 +359,35 @@ spark.sql.catalogImplementation      hive
 spark.sql.warehouse.dir              s3a://deltadw/warehouse/
 spark.hadoop.hive.metastore.uris     thrift://hive-metastore:9083
 
-# Iceberg catalog via HMS (Gold writes)
-spark.sql.catalog.iceberglake                   org.apache.iceberg.spark.SparkCatalog
-spark.sql.catalog.iceberglake.catalog-impl      org.apache.iceberg.hive.HiveCatalog
-spark.sql.catalog.iceberglake.uri               thrift://hive-metastore:9083
-spark.sql.catalog.iceberglake.hive.lock-enabled false
+# Delta Lake as the default catalog
+spark.sql.extensions                 io.delta.sql.DeltaSparkSessionExtension
+spark.sql.catalog.spark_catalog      org.apache.spark.sql.delta.catalog.DeltaCatalog
 
-# MinIO credentials
-spark.hadoop.fs.s3a.access.key       minioadmin
-spark.hadoop.fs.s3a.secret.key       minioadmin
+# MinIO
 spark.hadoop.fs.s3a.endpoint         http://minio:9000
 ```
 
-### dbt — Gold Models
+Credentials and endpoints come from `configs/secrets.env`. Nothing is hardcoded in config files (see "Zero hardcode" in `CLAUDE.md`).
 
-Target: `nexo.gold` via Trino (`configs/profiles.yml`).
+### dbt
 
-```yaml
-data_platform:
-  target: dev
-  outputs:
-    dev:
-      type: trino
-      database: nexo
-      schema: gold
-```
+The dbt project lives in `dbt/` and uses the profile in `configs/profiles.yml` (Trino, catalog `nexo`, schema `gold`). Models are not written yet. Marts that serve BI override `database: postgres` to materialize in the `golddw` serving database via cross-catalog CTAS.
 
-Use `materialized='view'` for marts that are direct projections — no S3 writes, no `__dbt_tmp` / `__dbt_backup` leftovers.
+### PostgreSQL tuning, partitioning and retention
 
-Sources declared in `configs/dbt/models/gold/sources.yml`:
-- `gold` → `nexo.gold` (Iceberg tables written by Spark via iceberglake, read by Trino via nexo/UC REST)
-- `gold_iceberg` → alias for future domains (buyer)
-
-### PostgreSQL tuning and partitioning
-
-`pgprojeto` runs with 13 non-default GUCs (memory, WAL, and I/O settings tuned for the container's resource limits and the WSL2-virtualized disk) set via `postgres/docker-compose.yml` and `configs/secrets.env`, so they survive a container recreation instead of living only in the data volume. Five of the largest tables (`person.customer`, `sales.salesorder`, `warehouse.transactionhistory`, `purchasing.purchaseorderheader`, `marketing.dailyperformance`) are natively partitioned to keep each partition's working set cache-resident. Partitioning migrations live in `configs/postgresql/migrations/` and are safe to re-run against an empty or a populated database. Full detail: [`configs/postgresql/README.md`](configs/postgresql/README.md).
+`pgprojeto` runs with non-default GUCs (memory, WAL and I/O tuned for the container limits and the WSL2 virtual disk), set through `postgres/docker-compose.yml` and `configs/secrets.env` so they survive container recreation. Five of the largest tables (`person.customer`, `sales.salesorder`, `warehouse.transactionhistory`, `purchasing.purchaseorderheader`, `marketing.dailyperformance`) are natively partitioned. Partition migrations live in `configs/postgresql/migrations/`. A 45-day retention policy plus a nightly offline VHD compaction keep the data disk bounded. Full detail: [`configs/postgresql/README.md`](configs/postgresql/README.md).
 
 ---
 
 ## Known Issues and Fixes
 
-### 1. Hive Metastore schema incomplete: Iceberg commit locking fails with `Internal error processing lock`
+### 1. Hive Metastore schema incomplete (`HIVE_LOCKS` does not exist)
 
-**Symptom:** Spark writes to Iceberg tables (`iceberglake.*`) commit successfully but then hang or fail during the post-commit lock check, with `org.apache.thrift.TApplicationException: Internal error processing lock` on the Airflow/Spark side, and `relation "HIVE_LOCKS" does not exist` (`BadSqlGrammarException`) in the Hive Metastore's own log (`/tmp/hive/hive.log` inside the `hive-metastore` container).
+**Symptom:** a lock call against the metastore fails with `TApplicationException: Internal error processing lock`, and the metastore log shows `relation "HIVE_LOCKS" does not exist`.
 
-**Root cause:** `hive/docker-compose.yml` had `IS_RESUME: "true"` hardcoded, which makes the base image's entrypoint skip `schematool` entirely on every boot — for Hive 4.x this should instead run `schematool -initOrUpgradeSchema`, which is idempotent (version-checks and only initializes/upgrades what's missing) and safe to run on every start. Combined with `datanucleus.schema.autoCreateAll=true` in `hive/conf/hive-site.xml`, the Metastore silently self-provisioned only the tables mapped through its ORM layer on first use, but never the raw-SQL-only tables (`TXNS`, `HIVE_LOCKS`, `WM_*`, etc.) that Iceberg's `HiveCatalog`/`MetastoreLock` needs for commit locking. The `VERSION` table stayed empty — confirming schema init had, in fact, never properly run, even though the Metastore appeared to work fine for plain catalog reads/writes.
+**Cause:** `hive/docker-compose.yml` had `IS_RESUME: "true"`, which makes the entrypoint skip `schematool` on every boot. With `datanucleus.schema.autoCreateAll=true`, the metastore self-provisioned only ORM-mapped tables and never the raw-SQL ones (`TXNS`, `HIVE_LOCKS`, `WM_*`). The `VERSION` table stayed empty.
 
-Note that `spark.sql.catalog.iceberglake.hive.lock-enabled=false` is already set in `spark-defaults.conf.template` — but it wasn't sufficient on its own to avoid the failure; Iceberg's lock manager still attempted a `showLocks` call that failed against the incomplete schema.
-
-**Fix:**
-1. `hive/docker-compose.yml` — `IS_RESUME` set to `"false"` so `schematool -initOrUpgradeSchema` runs on every boot.
-2. One-time: drop and recreate the `metastore` Postgres database, then let the container run a full `schematool -initSchema` against the clean database, producing a complete schema (confirm with `SELECT * FROM "VERSION"` returning one row, and `\dt` showing `TXNS`/`HIVE_LOCKS`/`WM_*`).
+**Fix:** `IS_RESUME` is now `"false"`, so `schematool -initOrUpgradeSchema` runs on every boot (idempotent). On an already-broken environment, recreate the `metastore` database once:
 
 ```bash
 docker stop hive-metastore
@@ -404,48 +398,46 @@ docker exec pgprojeto psql -U admin -d postgres -c "CREATE DATABASE metastore;"
 docker compose --env-file configs/secrets.env -f hive/docker-compose.yml up -d --force-recreate
 ```
 
-With this fix in place, a fresh environment (new `metastore` DB) will self-initialize correctly on first `make up` — this was previously a silent trap that only surfaced the first time an Iceberg write actually attempted a commit lock.
+Check: `SELECT * FROM "VERSION"` returns one row and `\dt` lists `TXNS`/`HIVE_LOCKS`/`WM_*`.
 
 ---
 
-### 2. Trino: `HIVE_CANNOT_OPEN_SPLIT` after recreating a Gold table (Delta)
+### 2. Trino: `HIVE_CANNOT_OPEN_SPLIT` after recreating a Delta table
 
-**Symptom:** `SELECT *` on the Gold Delta table fails with `Error opening Hive split`. `SELECT count(*)` succeeds.
+**Symptom:** `SELECT *` fails with `Error opening Hive split`; `SELECT count(*)` works.
 
-**Cause:** Trino caches `_delta_log/00000000000000000000.json` in memory. If the table is dropped and recreated at the same path, the Delta Log restarts at version 0 (same file name) but Trino still serves the old cached content.
+**Cause:** Trino caches `_delta_log/00000000000000000000.json`. If a table is dropped and recreated at the same path, the Delta log restarts at version 0 but Trino serves the old cached content.
 
-**Note:** The Gold layer has since migrated to Iceberg (`iceberglake`), eliminating this problem for Gold tables. Still relevant for Bronze/Silver.
+**Fix:**
 
-**Emergency fix:**
 ```bash
-docker restart trino-coordinator trino-trino-worker-1
-
-# Or via procedure (no restart):
+# Without restart:
 docker exec trino-coordinator trino \
-  --execute "CALL delta.system.flush_metadata_cache(schema_name => 'gold', table_name => '<table>')" \
+  --execute "CALL nexomart.system.flush_metadata_cache(schema_name => 'nexomart_silver', table_name => '<table>')" \
   --server http://localhost:8080 --user admin
+
+# Or restart Trino:
+docker restart trino-coordinator trino-trino-worker-1
 ```
 
 ---
 
 ### 3. Hive Metastore 4.0: Thrift timeout on `createTable`
 
-**Symptom:** `RetryingMetaStoreClient: MetaStoreClient lost connection. createTable` with `TTransportException: Read timed out`. Gold-layer jobs fail after ~1 min.
+**Symptom:** `RetryingMetaStoreClient: MetaStoreClient lost connection. createTable` with `TTransportException: Read timed out`.
 
 **Cause:** PostgreSQL transactions stuck `idle in transaction` block DDL on the metastore.
 
 **Fix:**
-1. `hive/conf/hive-site.xml` — widened thread pool:
-```xml
-<property><name>hive.metastore.server.max.threads</name><value>200</value></property>
-<property><name>hive.metastore.client.socket.timeout</name><value>120</value></property>
-```
-2. PostgreSQL — auto-kill stuck sessions:
+1. `hive/conf/hive-site.xml`: `hive.metastore.server.max.threads=200`, `hive.metastore.client.socket.timeout=120`.
+2. Auto-kill stuck sessions:
+
 ```sql
 ALTER DATABASE metastore SET idle_in_transaction_session_timeout = '2min';
 ```
 
 **Diagnosis:**
+
 ```bash
 docker exec pgprojeto psql -U admin -d metastore -c "
 SELECT pid, state, now() - query_start AS duration, query
@@ -458,86 +450,55 @@ ORDER BY duration DESC;"
 
 ### 4. WSL2: stale bind mount after `docker restart`
 
-**Symptom:** `docker restart <container>` fails with `OCI runtime create failed: unable to start container process: error mounting "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/..."`.
+**Symptom:** `docker restart <container>` fails with `OCI runtime create failed ... error mounting "/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/..."`. It can also show up as `flags: 0x1000: no such file or directory` on a fresh `up` after a Docker Desktop/WSL2 restart.
 
-**Cause:** Docker Desktop on WSL2 uses hashes for bind mounts; a `restart` tries to reuse the old (now-stale) hash. This isn't limited to `docker restart` — it can also surface as `error mounting ... flags: 0x1000: no such file or directory` on a fresh `up` after a Docker Desktop/WSL2 restart, for any volume using a `local` driver with `type: none, o: bind` (e.g. `spark-jobs`, `spark-configs`).
+**Cause:** Docker Desktop on WSL2 uses hashes for bind mounts, and a `restart` reuses the old (now stale) hash.
 
-**Fix:**
+**Fix:** never `docker restart` containers with WSL2 bind mounts. Remove and recreate instead:
+
 ```bash
-# Never use `docker restart` on containers with WSL2 bind mounts
 docker rm -f <container>
 docker compose --env-file configs/secrets.env -f <service>/docker-compose.yml up -d <service>
-
-# Example for airflow_worker (critical: loads spark-defaults.conf via bind mount)
-docker rm -f airflow_worker
-docker compose --env-file configs/secrets.env -f airflow/docker-compose.yaml up -d --force-recreate airflow-worker
 ```
 
-If the stale-mount error happens on a bind-mounted named volume (not a live container) instead, remove and let Compose recreate the volume itself:
+If the stale mount is on a named volume, remove the containers using it, `docker volume rm <volume-name>`, and let Compose recreate it.
+
+---
+
+### 5. Airflow worker with an empty `SQL_ALCHEMY_CONN`
+
+**Symptom:** `airflow_worker` crashes with `FATAL: role "astro" does not exist`; `${POSTGRES_USER}`-style variables are not expanded.
+
+**Fix:** always start through the Makefile, which passes `--env-file configs/secrets.env`:
+
 ```bash
-docker rm -f <containers using the volume>
-docker volume rm <volume-name>
-docker compose --env-file configs/secrets.env -f <service>/docker-compose.yml up -d
+make up-airflow
 ```
 
 ---
 
-### 5. dbt: `Model depends on source which was not found`
+### 6. MinIO unreachable on `localhost:9000`/`:9001` while the container is healthy
 
-**Symptom:** `dbt run` fails with `Model 'gold_mart_buyer' depends on source 'gold_iceberg.gold_dim_buyer' which was not found`.
+**Symptom:** `docker ps` shows MinIO `Up (healthy)` but `curl localhost:9000` times out. `docker inspect` shows empty `NetworkSettings.Ports`.
 
-**Cause:** dbt compiles all models before running any of them — any source not declared in `sources.yml` breaks the run even when `--select` points at a different model.
-
-**Fix:** `gold_iceberg` declared as a source in `configs/dbt/models/gold/sources.yml`.
-
----
-
-### 6. dbt: `__dbt_tmp` and `__dbt_backup` leftovers in MinIO
-
-**Cause:** `materialized='table'` with dbt-trino uses an atomic rename; intermediate failures leave orphaned paths in S3.
-
-**Cleanup:**
-```bash
-docker exec trino-coordinator trino --server http://localhost:8080 --user admin \
-  --execute "DROP TABLE IF EXISTS nexo.gold.gold_mart_productcategory__dbt_backup"
-```
-
-**Prevention:** use `materialized='view'` for marts that are direct projections.
-
----
-
-### 7. Airflow worker with an empty `SQL_ALCHEMY_CONN`
-
-**Symptom:** `airflow_worker` crashes with `FATAL: role "astro" does not exist`. `${POSTGRES_USER}`-style variables not expanded.
-
-**Fix:** always use the Makefile:
-```bash
-make up-airflow   # uses: docker compose --env-file configs/secrets.env
-```
-
----
-
-### 8. MinIO unreachable on `localhost:9000`/`:9001` despite the container being healthy
-
-**Symptom:** `docker ps` shows `minio-minio-1` as `Up (healthy)`, but `curl localhost:9000`/`:9001` times out or refuses. `docker inspect minio-minio-1 --format '{{json .NetworkSettings.Ports}}'` shows empty arrays even though `HostConfig.PortBindings` correctly lists the ports.
-
-**Cause:** this can be a genuine Docker port-publish failure after a Docker Desktop/WSL2 network hiccup (container has been running since before the hiccup and its port forwarding never got reconciled) — but check for a mundane host-level port collision first: `ss -tlnp | grep -E ':9000|:9001'` to see if something else on the host (a local dev server, another container, a Jupyter kernel, etc.) already owns those ports, which silently blocks Docker's publish without raising an error at container start.
+**Cause:** either a Docker Desktop/WSL2 network hiccup that left port forwarding unreconciled, or a host process already owning the port. Check the second first: `ss -tlnp | grep -E ':9000|:9001'`.
 
 **Fix:**
+
 ```bash
-# If something else on the host owns the port, free it, then:
 docker compose --env-file configs/secrets.env -f minio/docker-compose.yml up -d --force-recreate minio
 ```
 
 ---
 
-### 9. MinIO starts empty because the data disk was not mounted
+### 7. MinIO starts empty because the data disk was not mounted
 
-**Symptom:** MinIO is healthy but the buckets (`landing`, `bronze`, ...) are empty or recreated by `minio-init`, and ingestion/Spark jobs find no data.
+**Symptom:** MinIO is healthy but buckets are empty or recreated by `minio-init`, and jobs find no data.
 
-**Cause:** MinIO data lives on a dedicated disk mounted in WSL2 at `/mnt/wsl/minio-f` (`scripts/windows/mount-minio-f.ps1`). `wsl --mount` is lost whenever the WSL VM restarts. With no disk there, Docker creates an empty directory and MinIO starts on empty storage. The real data is untouched on the disk. Even after mounting the disk later, Docker Desktop can keep reusing a stale bind mount that points at the empty directory, so recreating the container may not be enough.
+**Cause:** MinIO data lives on a dedicated disk mounted in WSL2 at `/mnt/wsl/minio-f` (`scripts/windows/mount-minio-f.ps1`). `wsl --mount` is lost whenever the WSL VM restarts. With no disk there, Docker creates an empty directory and MinIO starts on empty storage. The real data is untouched on the disk, and Docker Desktop can keep reusing a stale bind mount to the empty directory.
 
 **Fix:**
+
 ```bash
 # 1. Mount the disk from Windows (administrator PowerShell), see scripts/windows/README.md
 # 2. Remove the container and the stale bind mount, then recreate it
@@ -549,40 +510,53 @@ make up-minio
 # 3. Check: should list the real buckets with data
 docker exec minio ls /data
 ```
-`make up-minio`, `make up` and `make start` stop with an error while the disk is not mounted (`make check-minio-disk`).
+
+`make up`, `make up-minio` and `make start` now stop with an error while the disk is not mounted (`make check-minio-disk`). The same guard exists for the Postgres disk (`make check-postgres-disk`), added after an incident where Postgres initialized an empty database over the unmounted disk path.
 
 ---
 
-### 10. Every minio-f-backed volume fails to mount: `bind-mounts/<distro>/<hash> ... no such file or directory`
+### 8. Late-attached disks fail to mount: `bind-mounts/<distro>/<hash> ... no such file or directory`
 
-**Symptom:** The disk *is* mounted (`/mnt/wsl/minio-f` present with real data), but `make up`/`up-minio` fails on the very first `docker run` of `make init`, and starting any container that uses `dockervol`, `spark-logs`, `spark-ivy-cache` or the MinIO data dir throws:
-```
-error while mounting volume '.../_data': failed to mount local volume:
-mount /run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu-22.04/<hash>:...,
-flags: 0x1000: no such file or directory
-```
+**Symptom:** the disk *is* mounted, but starting any container that uses a volume on `minio-f` or `postgres-ssd` fails with `failed to mount local volume ... flags: 0x1000: no such file or directory`.
 
-**Cause:** Docker Desktop mounts a WSL-backed bind volume by first re-exporting the source path into `/mnt/wsl/docker-desktop-bind-mounts/<distro>/<sha256(source_path)>` (rshared, so it propagates into the docker-desktop VM), then bind-mounting that staging dir onto the volume's `_data`. It only creates those re-exports for disks present when its WSL integration initialised. The `minio-f` disk is attached late (`wsl --mount`), so after the WSL VM or Docker Desktop restarts the re-exports are gone and every minio-f-backed volume fails. **Restarting Docker Desktop does not fix this** — the re-exports must be recreated by hand. (The `postgres-ssd` disk is not affected; it keeps its live staging.)
+**Cause:** Docker Desktop first re-exports a WSL bind source into `/mnt/wsl/docker-desktop-bind-mounts/<distro>/<sha256(source_path)>`, then bind-mounts that onto the volume. It only creates those re-exports for disks present when its WSL integration initialized. Disks attached late (`wsl --mount`) lose them after a WSL or Docker Desktop restart. Restarting Docker Desktop does not fix it.
 
-**Fix:** the staging hash is deterministic (`sha256` of the source path), so they can be rebuilt:
+**Fix:** the hash is deterministic, so the staging can be rebuilt:
+
 ```bash
-make stage-minio-f   # idempotent: recreates any missing staging re-export as root
+make stage        # idempotent: stage-minio-f + stage-postgres
 ```
-This runs automatically as a prerequisite of `make init` (so every `make up`/`make up-*`) and of `make start`, so the stack now self-heals after a disk remount. Implementation: `scripts/stage-minio-f.sh`.
+
+This runs automatically as a prerequisite of `make init` (every `make up` / `make up-*`) and of `make start`. Implementation: `scripts/stage-minio-f.sh`.
+
+---
+
+### 9. dbt: `__dbt_tmp` / `__dbt_backup` leftovers in MinIO
+
+**Cause:** `materialized='table'` with dbt-trino uses an atomic rename; intermediate failures leave orphaned paths in S3.
+
+**Cleanup:**
+
+```bash
+docker exec trino-coordinator trino --server http://localhost:8080 --user admin \
+  --execute "DROP TABLE IF EXISTS nexo.gold.<model>__dbt_backup"
+```
+
+**Prevention:** use `materialized='view'` for marts that are direct projections.
 
 ---
 
 ## Operational Notes
 
-### `make clean` — what's destroyed and what survives
+### `make clean`: what's destroyed and what survives
 
 | Resource | `make down` | `make clean` |
 |----------|-------------|--------------|
-| Containers | ✓ removed | ✓ removed |
+| Containers | removed | removed |
 | `dockervol` volume | preserved | **destroyed** |
 | `spark-logs` volume | preserved | **destroyed** |
 | `spark-ivy-cache` volume | preserved | **destroyed** |
-| MinIO data (Delta + Iceberg) | preserved | preserved |
+| MinIO data (landing + Delta) | preserved | preserved |
 | PostgreSQL data | preserved | preserved |
 | `hadoopcluster` network | preserved | **destroyed** |
 
@@ -603,37 +577,21 @@ docker exec pgprojeto psql -U admin -d metastore -c \
 docker exec -i pgprojeto psql -U admin -d metastore -c \
   'SELECT "TBL_NAME", "TBL_TYPE" FROM "TBLS" ORDER BY "TBL_NAME";'
 
-# Full schema sanity check — should return one row and list TXNS/HIVE_LOCKS (see Known Issue #1)
+# Schema sanity check (see Known Issue #1)
 docker exec pgprojeto psql -U admin -d metastore -c 'SELECT * FROM "VERSION";'
-docker exec pgprojeto psql -U admin -d metastore -c '\dt' | grep -iE "lock|txn"
 ```
 
 ### Checking tables in Trino
 
 ```bash
-# Gold (Iceberg)
 docker exec trino-coordinator trino \
-  --execute "SHOW TABLES IN nexo.gold" \
+  --execute "SHOW SCHEMAS IN nexomart" \
   --server http://localhost:8080 --user admin
 
 docker exec trino-coordinator trino \
-  --execute "SELECT count(*) FROM nexo.gold.gold_dim_productcategory" \
-  --server http://localhost:8080 --user admin
-
-# Bronze / Silver (Delta)
-docker exec trino-coordinator trino \
-  --execute "SHOW TABLES IN delta.silver" \
+  --execute "SHOW TABLES IN nexomart.nexomart_silver" \
   --server http://localhost:8080 --user admin
 ```
-
-### Regenerating spark-defaults.conf
-
-```bash
-export $(grep -v '^#' configs/secrets.env | xargs)
-envsubst < spark/conf/spark-defaults.conf.template > spark/conf/spark-defaults.conf
-```
-
-`make up` calls `generate-confs` automatically.
 
 ---
 
@@ -645,14 +603,16 @@ Mandatory 3-layer architecture for every domain:
 Router (FastAPI) → Service (business rules) → Repository (SQLAlchemy bulk insert)
 ```
 
+In practice the runtime is batch/CLI: Airflow invokes seeders through `BashOperator` with `uv run`. The API layer exists in code and demonstrates the pattern, but it is not run as a persistent online service.
+
 ```bash
 # Run locally
 cd dbapi && uv run python api/app/main.py
 
 # Run a seeder
 uv run python dbapi/api/seeder/<domain>/<file>.py \
-  --min-count 100000 --max-count 500000 \
-  --min-chaos 0.01   --max-chaos 0.10
+  --min-count 1000 --max-count 50000 \
+  --min-chaos 0.05  --max-chaos 0.10
 
 # Run tests
 cd dbapi && uv run python api/tests/test_product_services.py
@@ -660,9 +620,15 @@ cd dbapi && uv run python api/tests/test_product_services.py
 
 ---
 
+## Data Contracts
+
+`nexomart_contract/` holds one YAML contract per table per stage (`api_contract/`, `raw_contract/`, `silver_contract/`, `gold_contract/`). Contracts record what the physical schema cannot: owner, PII, quality rules, refresh cadence, breaking-change policy. `person.customer` is filled in at all four stages as the reference example. `tests/contracts/` keeps them honest by checking contract vs Pydantic vs SQLAlchemy vs live Postgres. Details: [`nexomart_contract/README.md`](nexomart_contract/README.md).
+
+---
+
 ## Chaos Engineering
 
-Seeders inject between **1% and 10%** of controlled anomalies per run:
+Seeders inject controlled anomalies on every run, with a rate drawn per run between **5% and 10%** (per-schema maximum in `configs/seeders/config.py`):
 
 | Type | Examples |
 |------|----------|
@@ -672,11 +638,11 @@ Seeders inject between **1% and 10%** of controlled anomalies per run:
 | Incomplete processes | Orders paid but never shipped, open chargeback disputes |
 | Inventory anomalies | Negative quantities, expired products in active stock |
 
-Full documentation: [`docs/CHAOS_DOCUMENTATION.md`](docs/CHAOS_DOCUMENTATION.md)
+The anomalies are intentional and documented so the Silver layer can detect and fix them. Full catalog per table: [`docs/CHAOS_DOCUMENTATION.md`](docs/CHAOS_DOCUMENTATION.md).
 
 ---
 
-## Dimensional Model
+## Dimensional Model (planned Gold)
 
 ### Bus Matrix
 
@@ -713,32 +679,84 @@ Full documentation: [`docs/CHAOS_DOCUMENTATION.md`](docs/CHAOS_DOCUMENTATION.md)
 | Object Storage | MinIO | latest |
 | Orchestration | Apache Airflow (Astro Runtime) | 2.9 |
 | Processing | Apache Spark | 3.5.8 |
-| Landing/Bronze/Silver Format | Delta Lake | 3.2.1 |
-| Gold Format | Apache Iceberg | 1.7.1 |
+| Table Format (all layers) | Delta Lake | 3.2.1 |
 | Metastore | Hive Metastore | 4.0.0 |
 | SQL Federation | Apache Trino | 482 |
 | Transformations | dbt-core / dbt-trino | 1.11 / 1.10 |
 | Spark Observability | DataFlint | 0.9.9 |
+| Package / env manager | uv | — |
+| CI | GitHub Actions | — |
+
+---
+
+## Roadmap / Release Checklist
+
+Release numbers are a working plan, not git tags. Check items off as they land.
+
+### Shipped
+
+- [x] **v0.1 — Platform foundation:** Docker stack (Postgres, MinIO, Hive Metastore, Spark, Trino, Airflow, dbapi) on a shared network, `make` targets, secrets-driven config with zero hardcoded endpoints
+- [x] **v0.2 — Synthetic OLTP:** 7 domains, 31 tables, 3-layer dbapi, seeders with dynamic volume ranges and 5-10% chaos engineering, documented anomaly catalog
+- [x] **v0.3 — Orchestration and landing zone:** seeder, mutator, ingestion and streaming DAGs; watermark-based incremental ingestion to `s3a://landing/`; dimension history spread 2020→now; quarantine bucket
+- [x] **v0.4 — Data safety and tuning:** Postgres GUC tuning, partitioning, 45-day retention, nightly VHD compaction, disk-mount guards, bind-mount staging
+- [x] **v0.5 — Contracts and CI:** YAML data contracts, contract drift gate in the seeder DAG, GitHub Actions CI/CD
+- [x] **v0.6 — Spark framework (Delta):** reader/writer/validators, Delta partitioned and MERGE writers, composable transformers
+
+### Next
+
+- [ ] **v0.7 — Bronze layer (NexoMart)**
+  - [ ] Bronze job per table, landing → Delta, with audit/metadata columns (`person.customer` started)
+  - [ ] All 7 schemas covered
+  - [ ] Airflow DAG `nexomart_bronze_dag` triggered after ingestion
+  - [ ] Bronze contracts validated against landing
+- [ ] **v0.8 — Silver layer and data quality**
+  - [ ] Great Expectations suites built from the rules in `docs/CHAOS_DOCUMENTATION.md`
+  - [ ] Quarantine tables (`dq_rule_id`, `dq_failure_reason`, `quarantined_at`)
+  - [ ] Correction job: `auto_fix` vs `flag_only` policy, MERGE on natural key, rolling-window backfill
+  - [ ] Prototype end to end on `marketing`, then generalize to the other 6 domains
+  - [ ] Silver contracts promoted from intent to enforced
+- [ ] **v0.9 — Gold and dbt**
+  - [ ] Dimensions and facts from the bus matrix
+  - [ ] dbt models and tests on `nexomart` / `nexo` catalogs
+  - [ ] Serving layer in Postgres `golddw` for BI
+  - [ ] Gold contracts enforced
+  - [ ] Decide the post-Gold path: Trino → Postgres → Power BI, or Power BI direct on Gold
+- [ ] **v0.10 — Cleanup and hardening**
+  - [ ] Remove legacy Iceberg: `iceberglake`/`minio` Trino catalogs, Iceberg JAR and catalog in `spark-defaults.conf.template`, `iceberg` bucket, `common/iceberg.py`
+  - [ ] Remove or archive the `advworks` DAGs and Spark jobs
+  - [ ] Apply Postgres partitioning durably (re-check `pg_class.relkind` after any `create_tables.py` run)
+  - [ ] Point the git remote at the renamed `nexomart` repo and update CI paths (`cd data_plataform` in workflows)
+  - [ ] Automated tests for Spark transformers
+- [ ] **v1.0 — End-to-end release:** one command from seed to Gold, every layer under contract and DAG-orchestrated, runbook and architecture diagrams refreshed
+
+### Later
+
+- [ ] **v1.1 — Marketplace:** PJ sellers as a new dimension across sales and product
+- [ ] **v1.2 — NexoBank base:** KYC, digital account, ledger, PIX, cards
+- [ ] **v1.3 — Credit:** consumer credit and seller working capital, with scores computed in Spark and written back to Postgres (reverse ETL)
+- [ ] **v1.4 — Investments:** CDB/LCI/Treasury/funds, daily yield computed in Spark, CDI/Selic/IPCA from the Banco Central public API
+- [ ] **v1.5 — AI/ML:** demand and inventory forecasting first, then semantic search/RAG over the product catalog ([`docs/AI_ML_ROADMAP.md`](docs/AI_ML_ROADMAP.md))
+- [ ] **Backlog:** CDC/Kafka with schema registry and outbox pattern, OpenTelemetry observability, OpenLineage in DAGs, Alembic migrations ([`docs/ENGINEERING_DEBATE_AND_ROADMAP.md`](docs/ENGINEERING_DEBATE_AND_ROADMAP.md))
 
 ---
 
 ## Documentation
 
 | File | Description |
-|------|--------------|
+|------|-------------|
 | [`docs/nexomart_requisitos.md`](docs/nexomart_requisitos.md) | NexoMart functional and non-functional requirements |
-| [`docs/CYCLE_01_SCHEDULE.md`](docs/CYCLE_01_SCHEDULE.md) | Cycle 1 video schedule and scripts |
-| [`docs/ENGINEERING_DEBATE_AND_ROADMAP.md`](docs/ENGINEERING_DEBATE_AND_ROADMAP.md) | Engineering decisions and technical roadmap |
-| [`docs/AI_ML_ROADMAP.md`](docs/AI_ML_ROADMAP.md) | AI/ML use-case roadmap (demand forecasting, semantic search) |
-| [`docs/INCIDENTS.md`](docs/INCIDENTS.md) | Postmortems for bugs found in production-ish operation |
-| [`docs/SEEDER_MICROBATCHING.md`](docs/SEEDER_MICROBATCHING.md) | Rescaling the seeders and their DAG for a 10-15 minute cadence |
-| [`docs/INGESTION_INCREMENTAL.md`](docs/INGESTION_INCREMENTAL.md) | Watermark-based incremental ingestion, and the bugs found building it |
-| [`docs/MUTATOR_DAG_FIXES.md`](docs/MUTATOR_DAG_FIXES.md) | Bugs found and fixed in the UPDATE/DELETE mutation DAG |
-| [`docs/MIGRATION_GUIDE.md`](docs/MIGRATION_GUIDE.md) | Migrating a seeder to the chaos engineering + volume limits pattern |
-| [`docs/DYNAMIC_RANDOMIZATION_GUIDE.md`](docs/DYNAMIC_RANDOMIZATION_GUIDE.md) | Using dynamic volume and chaos-rate ranges in a seeder |
-| [`docs/CHAOS_DOCUMENTATION.md`](docs/CHAOS_DOCUMENTATION.md) | Every anomaly type injected by the seeders, per table |
-| [`docs/CICD_SETUP.md`](docs/CICD_SETUP.md) | GitHub Actions CI/CD pipeline setup |
-| [`configs/postgresql/README.md`](configs/postgresql/README.md) | PostgreSQL GUC tuning and table partitioning notes |
 | [`docs/AIRFLOW.md`](docs/AIRFLOW.md) | Airflow DAGs, schedules, and operational notes |
 | [`docs/MINIO.md`](docs/MINIO.md) | MinIO buckets, provisioning, and client configuration |
+| [`docs/INGESTION_INCREMENTAL.md`](docs/INGESTION_INCREMENTAL.md) | Watermark-based incremental ingestion, and the bugs found building it |
+| [`docs/SEEDER_MICROBATCHING.md`](docs/SEEDER_MICROBATCHING.md) | Rescaling the seeders and their DAG for a 10-15 minute cadence |
+| [`docs/MUTATOR_DAG_FIXES.md`](docs/MUTATOR_DAG_FIXES.md) | Bugs found and fixed in the UPDATE/DELETE mutation DAG |
+| [`docs/CHAOS_DOCUMENTATION.md`](docs/CHAOS_DOCUMENTATION.md) | Every anomaly type injected by the seeders, per table |
+| [`docs/MIGRATION_GUIDE.md`](docs/MIGRATION_GUIDE.md) | Migrating a seeder to the chaos engineering + volume limits pattern |
+| [`docs/DYNAMIC_RANDOMIZATION_GUIDE.md`](docs/DYNAMIC_RANDOMIZATION_GUIDE.md) | Using dynamic volume and chaos-rate ranges in a seeder |
+| [`docs/INCIDENTS.md`](docs/INCIDENTS.md) | Postmortems for bugs found in production-ish operation |
+| [`docs/CICD_SETUP.md`](docs/CICD_SETUP.md) | GitHub Actions CI/CD pipeline setup |
+| [`docs/ENGINEERING_DEBATE_AND_ROADMAP.md`](docs/ENGINEERING_DEBATE_AND_ROADMAP.md) | Engineering decisions and technical roadmap |
+| [`docs/AI_ML_ROADMAP.md`](docs/AI_ML_ROADMAP.md) | AI/ML use-case roadmap (demand forecasting, semantic search) |
 | [`docs/walkthrough.md`](docs/walkthrough.md) | Implementation walkthrough for the product domain |
+| [`configs/postgresql/README.md`](configs/postgresql/README.md) | PostgreSQL GUC tuning and table partitioning notes |
+| [`nexomart_contract/README.md`](nexomart_contract/README.md) | Data contract layout and drift tests |

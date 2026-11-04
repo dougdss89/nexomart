@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A data platform combining a FastAPI ingestion API (dbapi), Apache Airflow orchestration, Apache Spark distributed compute, Delta Lake and Iceberg tables (cataloged by the Hive Metastore, stored in MinIO), and Trino SQL federation — all connected via a shared Docker network (`hadoopcluster`).
+A data platform combining a FastAPI ingestion API (dbapi), Apache Airflow orchestration, Apache Spark distributed compute, Delta Lake tables (cataloged by the Hive Metastore, stored in MinIO), and Trino SQL federation — all connected via a shared Docker network (`hadoopcluster`).
 
 ## Commands
 
