@@ -23,12 +23,15 @@ HARD_DELETE_ALLOWED = False  # customer_email fans out from customer (CLAUDE.md'
 # hourly schedule. Soft-delete (is_active=false) is also the more realistic "right to be
 # forgotten" scenario in practice — deactivate, don't physically erase, while dependents exist.
 
-CUSTOMER_TYPES = ["individual", "business", "vip"]
+# customer_type is deliberately NOT mutated: it is the SC (individual) / VC (company) flag that
+# drives the engagement-derived metrics in samples/customer.py (_derive_metrics), and it must stay
+# consistent with the CPF/CNPJ and demographics.social shape. Overwriting it with random labels
+# (the old "individual"/"business"/"vip") broke the PJ-vs-PF correlation and made the column
+# inconsistent with the rest of the row.
 
 
 def apply_updates(rows: list[dict]) -> list[dict]:
     for row in rows:
-        row["customer_type"] = random.choice(CUSTOMER_TYPES)
         row["credit_limit"] = Decimal(random.uniform(0.0, 20_000.0)).quantize(Decimal("0.01"))
     return rows
 

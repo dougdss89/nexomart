@@ -25,7 +25,7 @@ elif [ "$SPARK_WORKLOAD" == "worker" ]; then
     --webui-port 8081
 
 elif [ "$SPARK_WORKLOAD" == "history" ]; then
-  # hadoop-aws e aws-java-sdk-bundle já vêm baked no $SPARK_HOME/jars/ via Dockerfile,
+  # hadoop-aws e awssdk-bundle (SDK v2) já vêm baked no $SPARK_HOME/jars/ via Dockerfile,
   # então o History Server consegue ler s3a://spark-events/ mesmo sem nenhum job ter rodado ainda.
   /opt/spark/bin/spark-class org.apache.spark.deploy.history.HistoryServer
 

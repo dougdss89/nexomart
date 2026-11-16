@@ -1,6 +1,6 @@
 services:
   trino-coordinator:
-    image: trinodb/trino:latest
+    image: trinodb/trino:483
     container_name: trino-coordinator
     ports:
       - "8070:8080"
@@ -16,7 +16,7 @@ services:
     mem_limit: 8g
 
   trino-worker:
-    image: trinodb/trino:latest
+    image: trinodb/trino:483
     env_file:
       - ../configs/secrets.env
     volumes:
