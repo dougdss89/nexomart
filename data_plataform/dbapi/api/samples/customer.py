@@ -1,11 +1,58 @@
+import math
 import random
-from datetime import datetime
+from datetime import date, timedelta
 from typing import Any
 
 from api.samples.person_demographics import INTERESTS_BANK, OCCUPATIONS, ROLES
 from faker import Faker
 
 fake = Faker("pt_BR")
+
+
+def _derive_metrics(is_company: bool, first: date | None = None) -> dict:
+    """
+    Derives the purchase metrics from one latent engagement level per customer,
+    so orders, ticket, income and recency are correlated instead of independent.
+
+    `first` pins the first-purchase date (used when re-deriving metrics for an existing
+    customer, so the date already landed in the lake does not change).
+    """
+    today = date.today()
+    if first is None:
+        first = fake.date_between(start_date=date(2020, 1, 1), end_date="today")
+
+    # Latent variable: one engagement level per customer drives everything
+    engagement = random.lognormvariate(0, 0.5)
+    pj_boost = 1.6 if is_company else 1.0
+
+    # Engaged customers bought recently: the gap since the last purchase shrinks with engagement
+    gap_days = min(int(random.expovariate(engagement / 400)), (today - first).days)
+    last = today - timedelta(days=gap_days)
+    tenure_months = max((last - first).days / 30.0, 1.0)
+
+    # Resample instead of clamping, so there are no point masses at 50k / 200k
+    while True:
+        max_income = random.lognormvariate(math.log(80_000), 0.35) * pj_boost * engagement**0.3
+        if 50_000.0 <= max_income <= 200_000.0:
+            break
+    min_income = max_income * random.uniform(0.3, 0.6)
+
+    orders_per_month = 0.5 * engagement * (2.0 if is_company else 1.0)
+    count_orders = max(
+        1, min(150, round(orders_per_month * tenure_months * random.lognormvariate(0, 0.25)))
+    )
+
+    ticket = max_income * 0.0015 * random.lognormvariate(0, 0.4) * pj_boost
+    total_purchased = round(count_orders * ticket, 2)
+
+    return {
+        "minimum_year_income": round(min_income, 2),
+        "maximum_year_income": round(max_income, 2),
+        "total_purchased": total_purchased,
+        "date_of_first_purchase": first.isoformat(),
+        "date_last_purchase": last.isoformat(),
+        "count_orders": count_orders,
+    }
 
 
 def generate_mock_customer() -> dict[str, Any]:
@@ -80,18 +127,7 @@ def generate_mock_customer() -> dict[str, Any]:
         "address_info": random.choice(["Apto 101", "Casa 2", "Fundos", ""]),
     }
 
-    # Purchase dates — widened 2026-09-05 (was -5y) so it reaches back to 2020.
-    first_purchase = fake.date_between(start_date=datetime(2020, 1, 1).date(), end_date="today")
-    last_purchase = fake.date_between(start_date=first_purchase, end_date="today")
-
-    metrics = {
-        "minimum_year_income": round(random.uniform(20000.0, 50000.0), 2),
-        "maximum_year_income": round(random.uniform(50000.0, 200000.0), 2),
-        "total_purchased": round(random.uniform(100.0, 15000.0), 2),
-        "date_of_first_purchase": first_purchase.isoformat(),
-        "date_last_purchase": last_purchase.isoformat(),
-        "count_orders": random.randint(1, 150),
-    }
+    metrics = _derive_metrics(is_company)
 
     demographics = {
         "social": social,
