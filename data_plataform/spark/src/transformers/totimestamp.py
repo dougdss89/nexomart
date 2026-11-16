@@ -26,7 +26,7 @@ class NormalizeToTimestamp(BaseTransformer):
             return df
 
         df = df.withColumns(
-            {col: (F.col(col) / 1e3).cast(TimestampType()) for col in valid_columns}
+            {col: (F.col(col) / 1e9).cast(TimestampType()) for col in valid_columns}
         )
 
         return df

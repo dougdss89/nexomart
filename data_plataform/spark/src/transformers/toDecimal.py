@@ -1,12 +1,12 @@
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
-from pyspark.sql.types import FloatType, StringType
+from pyspark.sql.types import DecimalType, StringType
 
 from spark.src.common.column_validator import ColumnValidator
 from spark.src.common.transformer import BaseTransformer
 
 
-class NormalizeToFloat(BaseTransformer):
+class NormalizeToDecimal(BaseTransformer):
     """Normalize columns to float type"""
 
     def __init__(
@@ -24,7 +24,7 @@ class NormalizeToFloat(BaseTransformer):
             return df
 
         df = df.withColumns(
-            {col_name: F.col(col_name).cast(FloatType()) for col_name in valid_columns}
+            {col_name: F.col(col_name).cast(DecimalType(19, 4)) for col_name in valid_columns}
         )
 
         return df

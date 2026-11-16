@@ -23,8 +23,10 @@ class NormalizeMaritalStatus(BaseTransformer):
 
         df = df.withColumns(
             {
-                col_name: F.when(F.lower(F.col(col_name)).isin("male", "m"), "male")
-                .when(F.lower(F.col(col_name)).isin("female", "f"), "female")
+                col_name: F.when(F.lower(F.col(col_name)).isin("single", "s"), "single")
+                .when(F.lower(F.col(col_name)).isin("married", "m"), "married")
+                .when(F.lower(F.col(col_name)).isin("married", "w"), "widowed")
+                .when(F.lower(F.col(col_name)).isin("married", "d"), "divorced")
                 .otherwise("other")
                 for col_name in valid_columns
             }

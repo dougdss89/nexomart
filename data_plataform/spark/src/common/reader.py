@@ -10,32 +10,64 @@ class LandingReader(ABC):
     """One concrete subclass per landing source. Clients depend only on this interface."""
 
     @abstractmethod
-    def read(self, spark: SparkSession, schema: str, table: str, catalog: str = "") -> DataFrame:
+    def read(
+        self,
+        spark: SparkSession,
+        schema: str,
+        table: str,
+        catalog: str = "",
+    ) -> DataFrame:
         raise NotImplementedError
 
 
 class ParquetLandingReader(LandingReader):
     """Reads Nexomart day-partitioned layout"""
 
-    def __init__(self, bucket: str = "landing", project: str = "nexomart"):
+    def __init__(
+        self,
+        bucket: str = "landing",
+        project: str = "nexomart",
+        options: dict[str, str] | None = None,
+    ):
         self._bucket = bucket
         self._project = project
+        self._options = options or {}
 
-    def read(self, spark: SparkSession, schema: str, table: str, catalog: str = "") -> DataFrame:
+    def read(
+        self,
+        spark: SparkSession,
+        schema: str,
+        table: str,
+        catalog: str = "",
+    ) -> DataFrame:
         path = f"s3a://{self._bucket}/{self._project}/{schema}/{table}/*/"
-        return spark.read.parquet(path)
+
+        return spark.read.options(**self._options).parquet(path)
 
 
 class DeltaTableReader(LandingReader):
     """Reads a Delta table already written to spark_catalog (e.g. silver reading from bronze)."""
 
-    def __init__(self, layer: str, project: str = "nexomart"):
+    def __init__(
+        self,
+        layer: str,
+        project: str = "nexomart",
+        options: dict[str, str] | None = None,
+    ):
         self._layer = layer
         self._project = project
+        self._options = options or {}
 
-    def read(self, spark: SparkSession, schema: str, table: str, catalog: str = "") -> DataFrame:
+    def read(
+        self,
+        spark: SparkSession,
+        schema: str,
+        table: str,
+        catalog: str = "",
+    ) -> DataFrame:
         target_table = resolved_table_name(self._project, self._layer, schema, table)
-        return spark.read.table(target_table)
+
+        return spark.read.options(**self._options).table(target_table)
 
 
 class LoggingReader(LandingReader):

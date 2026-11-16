@@ -2,6 +2,7 @@
 Delta Lake helpers: table naming and write patterns for the nexomart/nexo projects.
 """
 
+from delta import DeltaTable
 from pyspark.sql import DataFrame, SparkSession
 
 
@@ -9,8 +10,9 @@ def write_delta(
     spark: SparkSession,
     df: DataFrame,
     full_table: str,
-    partition_column: str,
+    partition_column: str | None = None,
     mode: str = "overwrite",
+    options: dict[str, str] | None = None,
 ) -> None:
     """Writes a DataFrame to a Delta table under nexo or nexomart.
 
@@ -37,22 +39,33 @@ def write_delta(
     namespace = f"spark_catalog.{project}_{layer}"
     bucket = f"s3a://deltadw/{project}/{layer}.db"
 
-    spark.sql(f"""CREATE DATABASE IF NOT EXISTS {namespace} 
+    spark.sql(f"""CREATE DATABASE IF NOT EXISTS {namespace}
               LOCATION '{bucket}/'""")
 
     table_path = f"{bucket}/{table}"
     target_table = f"{namespace}.{table}"
 
-    writer = df.write.format("delta").option("path", table_path).partitionBy(partition_column)
+    if partition_column is None:
+        raise ValueError("DeltaTableWriter needs partition_column")
+
+    writer = (
+        df.write.format("delta")
+        .option("path", table_path)
+        .partitionBy(partition_column)
+        .options(**(options or {}))
+    )
+
     if mode == "overwrite":
-        writer = writer.option("overwriteSchema", "true").mode("overwrite")
+        writer = (
+            writer.option("overwriteSchema", "true").mode("overwrite").options(**(options or {}))
+        )
     else:
-        writer = writer.mode("append")
+        writer = writer.mode("append").options(**(options or {}))
     writer.save()
 
     if not spark.catalog.tableExists(target_table):
-        spark.sql(f"""CREATE TABLE {target_table} USING delta 
-                  LOCATION '{table_path}' PARTITIONED BY ({partition_column})""")
+        spark.sql(f"""CREATE TABLE {target_table} 
+                        USING delta LOCATION '{table_path}' """)
 
 
 def qualified_table_name(project: str, layer: str, schema: str, table: str) -> str:
@@ -70,3 +83,25 @@ def resolved_table_name(project: str, layer: str, schema: str, table: str) -> st
     Use this for DeltaTable.forName, spark.catalog.tableExists, or any direct SQL/read — anything
     that doesn't go through write_delta()."""
     return f"spark_catalog.{project}_{layer}.{schema}_{table}"
+
+
+def create_clustered_delta(
+    spark, df, full_table: str, cluster_by: list[str], options: dict[str, str] | None = None
+) -> None:
+    """creates an empty liquid-clustered Delta table at the same location write_delta() uses."""
+
+    project, layer, table = full_table.split(".")
+
+    namespace = f"spark_catalog.{project}_{layer}"
+
+    bucket = f"s3a://deltadw/{project}/{layer}.db"
+
+    spark.sql(f"CREATE DATABASE IF NOT EXISTS {namespace} LOCATION '{bucket}/' ")
+    (
+        DeltaTable.createIfNotExists(spark)
+        .tableName(f"{project}_{layer}.{table}")
+        .location(f"{bucket}/{table}")
+        .addColumns(df.schema)
+        .clusterBy(*cluster_by)
+        .execute()
+    )

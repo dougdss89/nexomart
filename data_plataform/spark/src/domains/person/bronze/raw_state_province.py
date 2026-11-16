@@ -1,12 +1,12 @@
-from spark.src.common.incremental_reader import IncrementalReader
-from spark.src.common.transformer import CompositeTransformer
-from spark.src.common.writer import DeltaTableWriter, LoggingWriter 
-from spark.src.common.reader import LoggingReader, ParquetLandingReader 
-
 from pyspark.sql import SparkSession
 
+from spark.src.common.incremental_reader import IncrementalReader
+from spark.src.common.reader import LoggingReader, ParquetLandingReader
+from spark.src.common.transformer import CompositeTransformer
+from spark.src.common.writer import DeltaTableWriter, LoggingWriter
 from spark.src.transformers.audit import AuditTransformer
 from spark.src.transformers.metadata import MetadataTransformer
+
 
 def ingestion_stateprovince_raw(spark: SparkSession) -> dict:
     """Landing -> Bronze for person.stateprovince.
@@ -18,22 +18,20 @@ def ingestion_stateprovince_raw(spark: SparkSession) -> dict:
 
     Returns the writer result: {"status": ..., "table": ...}.
     """
-    
+
     reader = IncrementalReader(LoggingReader(ParquetLandingReader()))
     writer = LoggingWriter(DeltaTableWriter())
-    metadata = CompositeTransformer([AuditTransformer("bronze"),
-                                     MetadataTransformer("person_stateprovince")
-    ])
-    
-    df = metadata.transform(reader.read(spark,
-                                        schema = "person",
-                                        table = "stateprovince"
-    ))
-    
-    return writer.write(spark,
-                        df,
-                        layer = "bronze",
-                        schema = "person",
-                        table = "stateprovince",
-                        partition_column= "date_partition"
+    metadata = CompositeTransformer(
+        [AuditTransformer("bronze"), MetadataTransformer("person_stateprovince")]
+    )
+
+    df = metadata.transform(reader.read(spark, schema="person", table="stateprovince"))
+
+    return writer.write(
+        spark,
+        df,
+        layer="bronze",
+        schema="person",
+        table="stateprovince",
+        partition_column="date_partition",
     )

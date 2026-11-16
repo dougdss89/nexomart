@@ -6,7 +6,7 @@ from spark.src.common.column_validator import ColumnValidator
 from spark.src.common.transformer import BaseTransformer
 
 
-class NormalizeMaritalStatus(BaseTransformer):
+class NormalizeGender(BaseTransformer):
     """Normalize Marital Status values in the specified columns to 'Single', 'Married', or 'Other'."""
 
     def __init__(
@@ -23,8 +23,8 @@ class NormalizeMaritalStatus(BaseTransformer):
 
         df = df.withColumns(
             {
-                col_name: F.when(F.lower(F.col(col_name)).isin("single", "s"), "single")
-                .when(F.lower(F.col(col_name)).isin("married", "m"), "married")
+                col_name: F.when(F.lower(F.col(col_name)).isin("male", "m"), "male")
+                .when(F.lower(F.col(col_name)).isin("female", "f"), "female")
                 .otherwise("other")
                 for col_name in valid_columns
             }
