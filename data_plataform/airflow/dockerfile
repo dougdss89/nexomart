@@ -20,11 +20,11 @@ RUN sed -i -e 's|^deb |#deb |' -e 's|^# deb http://snapshot|deb http://snapshot|
     echo 'spark ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/spark
 
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-ENV SPARK_VERSION=3.5.8
+ENV SPARK_VERSION=4.1.1
 ENV SPARK_HOME=/opt/spark
 ENV PATH=$SPARK_HOME/bin:$SPARK_HOME/sbin:$PATH
 
-RUN curl -fSL https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3-scala2.13.tgz -o spark.tgz \
+RUN curl -fSL https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz -o spark.tgz \
     && mkdir -p /opt/spark \
     && tar -xzf spark.tgz -C /opt/spark --strip-components 1 \
     && rm spark.tgz \
@@ -38,6 +38,24 @@ RUN pip install --no-cache-dir "trino>=0.321.0" "dbt-core>=1.9.0" "dbt-trino>=1.
 # uv roda os seeders do dbapi numa venv isolada (ver /dockervol montado no worker),
 # sem tocar no site-packages do Airflow — dbapi usa SQLAlchemy 2.x async, incompatível
 # com o SQLAlchemy que o Airflow 2.9 pina internamente.
+# Same jars as spark/Dockerfile, baked into the driver image (the driver runs here in client mode).
+# They are no longer listed in spark.jars.packages: resolving hadoop-aws through Ivy dragged the
+# 640 MB AWS SDK v2 bundle onto every executor at each app start, and Iceberg resolved that way
+# lands in a different classloader than DataFlint. Versions must match spark/Dockerfile exactly.
+RUN M=https://repo1.maven.org/maven2 && J=/opt/spark/jars && \
+    curl -fSL $M/io/delta/delta-spark_2.13/4.1.0/delta-spark_2.13-4.1.0.jar -o $J/delta-spark_2.13-4.1.0.jar && \
+    curl -fSL $M/io/delta/delta-storage/4.1.0/delta-storage-4.1.0.jar -o $J/delta-storage-4.1.0.jar && \
+    curl -fSL $M/org/apache/hadoop/hadoop-aws/3.4.2/hadoop-aws-3.4.2.jar -o $J/hadoop-aws-3.4.2.jar && \
+    curl -fSL $M/software/amazon/awssdk/bundle/2.29.52/bundle-2.29.52.jar -o $J/awssdk-bundle-2.29.52.jar && \
+    curl -fSL $M/org/apache/iceberg/iceberg-spark-runtime-4.1_2.13/1.11.0/iceberg-spark-runtime-4.1_2.13-1.11.0.jar -o $J/iceberg-spark-runtime-4.1_2.13-1.11.0.jar && \
+    curl -fSL $M/io/dataflint/dataflint-spark4_2.13/0.9.9/dataflint-spark4_2.13-0.9.9.jar -o $J/dataflint-spark4_2.13-0.9.9.jar
+
+# The Spark provider pulls an unpinned pyspark (4.2.0 at build time), which no longer matched the
+# $SPARK_HOME tarball. The driver runs here in client mode, so pyspark/delta-spark must equal the
+# cluster's Spark/Delta versions (spark/Dockerfile). delta-spark --no-deps: it must not re-pin pyspark.
+RUN pip install --no-cache-dir "pyspark==${SPARK_VERSION}" && \
+    pip install --no-cache-dir --no-deps "delta-spark==4.1.0"
+
 RUN pip install --no-cache-dir uv
 
 COPY --chown=astro:astro airflow.cfg ${AIRFLOW_HOME}/airflow.cfg

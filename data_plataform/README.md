@@ -21,11 +21,11 @@ Everything runs locally in Docker. Every analytical table is **Delta Lake**; the
 │                      ORCHESTRATION                           │
 │           Apache Airflow 2.9 (CeleryExecutor + Redis)        │
 ├──────────────────────────────────────────────────────────────┤
-│              DISTRIBUTED PROCESSING (Spark 3.5.8)            │
+│              DISTRIBUTED PROCESSING (Spark 4.1.1)            │
 │          Landing (Parquet) → Bronze → Silver → Gold          │
 ├──────────────────────────────────────────────────────────────┤
 │                   ANALYTICAL STORAGE                         │
-│              Delta Lake 3.2.1 on MinIO (S3-compatible)       │
+│              Delta Lake 4.1.0 on MinIO (S3-compatible)       │
 ├──────────────────────────────────────────────────────────────┤
 │                  CATALOG & METASTORE                         │
 │           Hive Metastore 4.0 (PostgreSQL backend)            │
@@ -142,7 +142,7 @@ nexomart/
 │   ├── dags/
 │   │   ├── nexomart/       # seeder, mutator, ingestion, streaming DAGs
 │   │   └── advworks/       # legacy AdventureWorks DAGs (to be removed)
-│   └── dockerfile          # Astro Runtime 11.4 with Spark 3.5.8 embedded
+│   └── dockerfile          # Astro Runtime 11.4 with Spark 4.1.1 embedded
 ├── spark/
 │   ├── src/                # Reusable Spark framework
 │   │   ├── common/         # reader, writer, delta helpers, validators, logger
@@ -678,8 +678,8 @@ The anomalies are intentional and documented so the Silver layer can detect and 
 | Semantic Search | pgvector | — |
 | Object Storage | MinIO | latest |
 | Orchestration | Apache Airflow (Astro Runtime) | 2.9 |
-| Processing | Apache Spark | 3.5.8 |
-| Table Format (all layers) | Delta Lake | 3.2.1 |
+| Processing | Apache Spark | 4.1.1 |
+| Table Format (all layers) | Delta Lake | 4.1.0 |
 | Metastore | Hive Metastore | 4.0.0 |
 | SQL Federation | Apache Trino | 482 |
 | Transformations | dbt-core / dbt-trino | 1.11 / 1.10 |
