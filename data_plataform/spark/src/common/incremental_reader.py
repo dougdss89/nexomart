@@ -30,7 +30,7 @@ class IncrementalReader(LandingReader):
         tgt_stamp = F.coalesce(F.col("updated_at"), F.col("created_at"))
 
         if isinstance(tgt.schema["updated_at"].dataType, TimestampType):
-            tgt_stamp = F.unix_millis(tgt_stamp) * 1000
+            tgt_stamp = F.unix_micros(tgt_stamp) * 1000
 
         row = tgt.agg(F.max(tgt_stamp)).first()
         last = row[0] if row else None

@@ -27,6 +27,7 @@ class NormalizeMaritalStatus(BaseTransformer):
                 .when(F.lower(F.col(col_name)).isin("married", "m"), "married")
                 .when(F.lower(F.col(col_name)).isin("married", "w"), "widowed")
                 .when(F.lower(F.col(col_name)).isin("married", "d"), "divorced")
+                .when(F.lower(F.col(col_name)).isNull(), "Not Available")
                 .otherwise("other")
                 for col_name in valid_columns
             }

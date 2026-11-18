@@ -1,6 +1,6 @@
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
-from pyspark.sql.types import LongType, TimestampType
+from pyspark.sql.types import LongType
 
 from spark.src.common.column_validator import ColumnValidator
 from spark.src.common.transformer import BaseTransformer
@@ -26,7 +26,7 @@ class NormalizeToTimestamp(BaseTransformer):
             return df
 
         df = df.withColumns(
-            {col: (F.col(col) / 1e9).cast(TimestampType()) for col in valid_columns}
+            {col: F.timestamp_micros(F.expr(f"{col} div 1000")) for col in valid_columns}
         )
 
         return df

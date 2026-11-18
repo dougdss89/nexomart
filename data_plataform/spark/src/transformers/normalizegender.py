@@ -25,6 +25,7 @@ class NormalizeGender(BaseTransformer):
             {
                 col_name: F.when(F.lower(F.col(col_name)).isin("male", "m"), "male")
                 .when(F.lower(F.col(col_name)).isin("female", "f"), "female")
+                .when(F.lower(F.col(col_name)).isNull(), "Not Available")
                 .otherwise("other")
                 for col_name in valid_columns
             }

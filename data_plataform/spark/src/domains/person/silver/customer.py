@@ -71,7 +71,8 @@ def ingestion_customer_silver(spark: SparkSession) -> dict:
             ),
             LoggingTransformer(
                 NormalizeString(
-                    [   "customer_name",
+                    [
+                        "customer_name",
                         "last_name",
                         "metrics_total_purchased",
                         "metrics_maximum_year_income",
