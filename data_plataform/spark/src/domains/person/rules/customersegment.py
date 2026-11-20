@@ -25,6 +25,8 @@ class ClassifyCustomerTransformer(BaseTransformer):
     def __init__(
         self,
         thresholds: dict[str, list[float]] | None = None,
+        thresholds_by_type: dict[str, dict[str, list[float]]] | None = None,
+        type_col: str = "customer_type",
         reference_date: str | None = None,
         orders_col: str = "metrics_count_orders",
         total_col: str = "metrics_total_purchased",
@@ -33,12 +35,14 @@ class ClassifyCustomerTransformer(BaseTransformer):
         last_purchase_col: str = "metrics_date_last_purchase",
     ):
         self._t = thresholds or DEFAULT_THRESHOLDS
+        self._by_type = thresholds_by_type or {}
         self._reference_date = reference_date
         self._orders = orders_col
         self._total = total_col
         self._income_min = income_min_col
         self._income_max = income_max_col
         self._last = last_purchase_col
+        self._type = type_col
 
     @staticmethod
     def _num(col: str) -> Column:
@@ -52,6 +56,19 @@ class ClassifyCustomerTransformer(BaseTransformer):
         """1+ how many cut points the value reache: higher value, higher income"""
 
         return F.lit(1) + sum((value >= F.lit(col)).cast("int") for col in cuts)
+    
+    def _score(self, value: Column, dimension:str) -> Column:
+        """ Defaults cuts, overriden per customer_type when thresholds_by_type has that dimension"""
+        
+        score = self._ascending(value, self._t[dimension])
+        kind = F.lower(F.trim(F.col(self._type)))
+        
+        for name, cuts in self._by_type.items():
+            if dimension in cuts:
+                score = ((F.when(kind == name.lower(), self._ascending(value, cuts[dimension]))
+                            .otherwise(score)
+                        ))
+        return score
 
     def transform(self, df: DataFrame) -> DataFrame:
         if self._reference_date:
@@ -88,9 +105,9 @@ class ClassifyCustomerTransformer(BaseTransformer):
             {
                 "recency_days": F.when(valid, days),
                 "recency_score": F.when(valid, recency),
-                "frequency_score": F.when(valid, self._ascending(orders, self._t["frequency"])),
-                "monetary_score": F.when(valid, self._ascending(total, self._t["monetary"])),
-                "potential_score": F.when(valid, self._ascending(income_max, self._t["potential"])),
+                "frequency_score": F.when(valid, self._score(orders, "frequency")),
+                "monetary_score": F.when(valid, self._score(total, "monetary")),
+                "potential_score": F.when(valid, self._score(income_max, "potential")),
                 "unclassified_reason": reason,
             }
         )

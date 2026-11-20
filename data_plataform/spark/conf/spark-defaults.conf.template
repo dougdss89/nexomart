@@ -23,7 +23,7 @@ spark.driver.memory              4g
 spark.executor.cores             4
 spark.driver.cores               2
 spark.executor.memoryOverhead    2g
-spark.cores.max                  8
+spark.cores.max                  16
 
 # --- JVM Options ---
 spark.executor.extraJavaOptions  -XX:+UseG1GC -XX:+UseStringDeduplication -XX:InitiatingHeapOccupancyPercent=35 -Dlog4j.configuration=file:/opt/spark/conf/log4j.properties -Daws.java.v1.disableDeprecationAnnouncement=true

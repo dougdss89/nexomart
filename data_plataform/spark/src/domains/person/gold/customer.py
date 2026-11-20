@@ -6,6 +6,10 @@ from spark.src.common.transformer import CompositeTransformer, LoggingTransforme
 from spark.src.common.writer import DeltaTableWriter, LoggingWriter
 from spark.src.domains.person.rules.customersegment import ClassifyCustomerTransformer
 from spark.src.transformers.audit import AuditTransformer
+from spark.src.domains.person.rules.customerconsent import CustomerConsentTransformer
+from spark.src.domains.person.rules.customerlifecycle import CustomerLifecycleTransformer
+from spark.src.domains.person.rules.customervalue import CustomerValueTransformer
+
 
 GOLD_COLUMNS = [
     "customer_id",
@@ -23,14 +27,22 @@ GOLD_COLUMNS = [
     "segment",
     "growth_target",
     "unclassified_reason",
+    "can_email",
+    "can_sms",
+    "is_contactable",
+    "consent_missing",
+    "avg_order_value",
+    "annual_spend",
+    "wallet_share",
+    "lifecycle_stage",
     "reference_date",
     "_ingested_at",
     "_source_layer",
 ]
 
+
 def ingestion_customer_gold(spark: SparkSession, reference_date: str | None = None) -> dict:
     """Silver -> Gold for person.customer_segment, recomputed in full on every run.
-
     reference_date ("YYYY-MM-DD") pins the recency calculation; default is today.
     """
 
@@ -40,6 +52,9 @@ def ingestion_customer_gold(spark: SparkSession, reference_date: str | None = No
     transform = CompositeTransformer(
         [
             LoggingTransformer(ClassifyCustomerTransformer(reference_date=reference_date)),
+            LoggingTransformer(CustomerConsentTransformer()),
+            LoggingTransformer(CustomerValueTransformer()),
+            LoggingTransformer(CustomerLifecycleTransformer(reference_date=reference_date)),
             LoggingTransformer(AuditTransformer(layer="gold")),
         ]
     )

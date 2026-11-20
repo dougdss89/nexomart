@@ -133,6 +133,9 @@ services:
       # contract drift gate (nexomart_seeder_dag.contract_drift_check) reads these
       - ../tests:/dockervol/tests:ro
       - ../nexomart_contract:/dockervol/nexomart_contract:ro
+      # Spark apps submitted by the person_customer DAG (spark-submit runs here, client mode);
+      # mounted from the repo so code changes need no manual sync.
+      - ../spark/src:/dockervol/spark/src:ro
     command: airflow celery worker -H airflow-worker@airflow-worker
     ports:
       - "8793:8793"
