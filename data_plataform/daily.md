@@ -398,6 +398,56 @@ About 40M rows landed in MinIO. Three real bugs found against real data:
   - Quarantine and correction of chaos data in Silver is designed but not built
     (see section 5).
 
+### 2026-11-20: Slow Bronze `person.customer` run and runtime-config design (nothing edited)
+
+- **Diagnosis (app `app-20261120115821-0000`, `person_customer_bronze`):**
+  - Only 2 of 3 workers busy: `spark.cores.max=8` with `spark.executor.cores=4`
+    caps an app at 2 executors. Raising `spark.cores.max` to 12 uses all three.
+    (The file read in this session showed `cores.max 16` / `executor.cores 5`;
+    recheck which value the running app actually had.)
+  - Memory looks unused because the master shows reserved, not used, memory;
+    the stage only lists and reads, with no cache, shuffle or join.
+  - Stage 0: 2,511 tasks, 0 bytes read, 2-3 ms CPU per task, 48-160 s duration.
+    Thread dump shows S3A `ObjectListingIterator.next`, so the time is MinIO
+    directory listing (one task per daily folder, ~2,471 folders), not small-file reads.
+  - Not measured: why one listing takes ~90 s (MinIO CPU was ~2%).
+- **Confirmed in code:** `ParquetLandingReader` globs `.../{table}/*/`
+  (`reader.py:40`) and `IncrementalReader` filters by date afterwards
+  (`incremental_reader.py:37`), so every run re-lists every daily folder even
+  when only one day is new. First load is already full (no target table).
+  `coalesce` on read would not help; filtering by `created_at` partition would
+  lose updates to old rows.
+- **Design (not implemented): file manifest.**
+  - `ingest_table` in `ingestion_common.py` collects the paths it writes (`flush`,
+    line ~364) and the max `COALESCE(updated_at, created_at)` seen, then writes
+    `nexomart/_manifests/<schema>/<table>/<run_ts>.json` before `set_watermark`.
+  - `IncrementalReader` computes `last` from the Bronze table first, reads the
+    manifest dir (one listing), selects manifests with `max_stamp > last`, and
+    reads only those Parquet paths. Falls back to the glob when there is no
+    manifest (first load, tables without audit columns).
+  - Gotchas: Bronze stamp may be a timestamp or an int in ns, so convert the
+    manifest stamp through the same branch; explicit paths still cost one
+    `getFileStatus` per file; a crash between manifest and watermark duplicates
+    rows (same risk as the existing duplicate parts). Estimate: ~2 h.
+- **Design (not implemented): runtime config for Spark, Delta, read and write.**
+  - New `spark/src/common/run_config.py` with a `RunConfig` (spark / read / write
+    dicts), repeatable flags `--conf`, `--read-option`, `--write-option`, optional
+    `--conf-file` (JSON profile), and `build_session()` that rejects launch-only
+    keys (`spark.driver.memory`, `spark.jars.packages`, ...) with a message to use
+    `SparkSubmitOperator(conf=...)`.
+  - Precedence: `spark-defaults.conf` < conf file < flags.
+  - `person_customer_app.py` builds the session from it and passes `cfg` to the
+    three jobs, which feed `ParquetLandingReader(options=cfg.read)` and
+    `DeltaTableWriter(options=cfg.write)`.
+  - `DeltaMergeWriter` currently applies its `options` through `spark.conf.set`
+    (`writer.py:101`) while `DeltaTableWriter` uses them as writer options; the
+    design separates the two.
+- **Pending decisions:** scope of the first version (recommended: only
+  `person_customer_app.py`) and whether to keep `--conf-file`.
+- **Next action:** reply "aplica" with those two choices to write
+  `run_config.py` and adjust the entrypoint and the three jobs. The manifest
+  work starts only after that.
+
 ---
 
 ## 4. Mistakes that repeated
