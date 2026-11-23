@@ -6,7 +6,7 @@ from spark.src.common.delta import resolved_table_name
 from spark.src.common.logger import get_logger
 
 
-class LandingReader(ABC):
+class BaseReader(ABC):
     """One concrete subclass per landing source. Clients depend only on this interface."""
 
     @abstractmethod
@@ -20,7 +20,7 @@ class LandingReader(ABC):
         raise NotImplementedError
 
 
-class ParquetLandingReader(LandingReader):
+class ParquetLandingReader(BaseReader):
     """Reads Nexomart day-partitioned layout"""
 
     def __init__(
@@ -45,7 +45,7 @@ class ParquetLandingReader(LandingReader):
         return spark.read.options(**self._options).parquet(path)
 
 
-class DeltaTableReader(LandingReader):
+class DeltaTableReader(BaseReader):
     """Reads a Delta table already written to spark_catalog (e.g. silver reading from bronze)."""
 
     def __init__(
@@ -70,10 +70,10 @@ class DeltaTableReader(LandingReader):
         return spark.read.options(**self._options).table(target_table)
 
 
-class LoggingReader(LandingReader):
-    """Decorator: adds a logging layer aroung any LandingReader, without changing it."""
+class LoggingReader(BaseReader):
+    """Decorator: adds a logging layer aroung any BaseReader, without changing it."""
 
-    def __init__(self, reader: LandingReader):
+    def __init__(self, reader: BaseReader):
         self._reader = reader
         self._logger = get_logger(self.__class__.__name__)
 

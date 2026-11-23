@@ -3,15 +3,15 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import TimestampType
 
 from spark.src.common.delta import resolved_table_name
-from spark.src.common.reader import LandingReader
+from spark.src.common.reader import BaseReader
 
 
-class IncrementalReader(LandingReader):
+class IncrementalReader(BaseReader):
     """Decorator: returns only rows newer than what the target layer already holds.
     First run (target table missing) returns everything. Tables without created_at/updated_at
     are returned whole, so those can still duplicate on re-runs."""
 
-    def __init__(self, reader: LandingReader, layer: str = "bronze", project: str = "nexomart"):
+    def __init__(self, reader: BaseReader, layer: str = "bronze", project: str = "nexomart"):
         self._reader = reader
         self._layer = layer
         self._project = project

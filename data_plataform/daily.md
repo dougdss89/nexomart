@@ -48,6 +48,7 @@ Airflow (Celery) DAGs  ------>  MinIO 'landing' (Parquet, partitioned by date)
 | Schemas | Pydantic mirrors the SQL model 1:1; `str` enums; `@model_validator(mode='after')` | `dbapi/api/schemas` |
 | Seeders | argparse CLI with ranges; FKs read from the DB; chaos injection 5-10% | `dbapi/api/seeder` |
 | Shared seeder code | `cli_common`, `mutator_common`, `quarantine` | `dbapi/api/utils` |
+| Spark | Strategy on I/O: `BaseReader` (Parquet, Delta table) and `TableWriter` (append, merge) | `spark/src/common/{reader,writer}.py` |
 | Spark | Decorator on Reader / Writer / Transformer (`Logging*`, `Incremental*`) | `spark/src/common` |
 | Spark | Composite + Strategy: ordered list of small transformers | `spark/src/transformers` |
 | Spark | Domain-rule modules (segment, type) kept apart from generic transformers | `spark/src/domains/<domain>/rules` |
@@ -447,6 +448,25 @@ About 40M rows landed in MinIO. Three real bugs found against real data:
 - **Next action:** reply "aplica" with those two choices to write
   `run_config.py` and adjust the entrypoint and the three jobs. The manifest
   work starts only after that.
+
+### 2026-11-22: Reader naming and pattern clarification (`BaseReader`)
+
+- **Question:** whether having `ParquetLandingReader` and `DeltaTableReader` in
+  `reader.py` breaks a pattern. Answer: no. It is Strategy (one interface, several
+  interchangeable implementations), not Singleton. The writer side mirrors it
+  (`TableWriter` -> `DeltaTableWriter` / `DeltaMergeWriter`); the asymmetry is
+  natural because inputs vary (Parquet in Bronze, Delta in Silver and Gold) while
+  output is always Delta. `BaseTransformer` stays as is: it only maps a DataFrame
+  to a DataFrame, so it needs no read/write split.
+- **Done:** renamed the interface `LandingReader` -> `BaseReader`
+  (`reader.py`, `incremental_reader.py`; 9 lines). Matches `BaseTransformer`, and
+  the old name was misleading for `DeltaTableReader`, which does not read the
+  landing. `ParquetLandingReader` keeps its name. Jobs needed no change.
+- **Verified:** both files parse and no `.py` references `LandingReader` anymore.
+  No Spark job was run. Not committed.
+- **Not done (optional):** a `build_reader(...)` factory to replace the line
+  `IncrementalReader(LoggingReader(ParquetLandingReader()))` repeated in the 5
+  Bronze jobs; the unused `catalog` parameter in both readers is still there.
 
 ---
 
