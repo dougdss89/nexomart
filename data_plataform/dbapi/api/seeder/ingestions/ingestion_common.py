@@ -76,6 +76,15 @@ between two runs. When CDC (e.g. Debezium/logical replication) lands, it replace
 watermark with continuous WAL streaming — the day-partitioned Parquet landing structure this
 writes to doesn't need to change either way. See docs/INGESTION_INCREMENTAL.md.
 
+Part counter and compaction (2026-11-28): every run appends one part per day folder it touches,
+and since dimensions' `created_at` is spread over 2020->now (see cli_common.stamp_dimension_history)
+a run touches nearly every day folder, so folders accumulate ~one object per run (200+ after a
+couple of months). On MinIO's spinning disk every object costs several seeks (each one is a
+directory tree on disk: `part-*.parquet/<uuid>/part.1`), so reading the landing cold takes hours.
+`flush()` therefore counts parts per day folder in `ingestion_control.landing_parts`, and
+compact_landing.py (last task of nexomart_ingestion_dag) merges the folders that reach a threshold
+into one `compact-*.parquet`, keeping the day layout. See that script for details.
+
 A couple of tables predate AuditMixin and have neither column (`product.productcategory`, as of
 this writing) — `_has_audit_columns()` detects that per-table and falls back to a full scan for
 just that table rather than crashing or silently skipping it.
@@ -127,6 +136,20 @@ FACT_EVENT_DATE_COLUMNS: dict[tuple[str, str], str] = {
 
 WATERMARK_SCHEMA = "ingestion_control"
 WATERMARK_TABLE = "watermarks"
+# Per-(schema, table, day-folder) count of Parquet objects in the landing zone, maintained by
+# `flush()` and consumed by compact_landing.py. NULL = "never counted" (a folder that predates the
+# counter or was created before its table was bootstrapped), which the compactor resolves by
+# listing that one folder.
+LANDING_PARTS_TABLE = "landing_parts"
+# One row per (schema, table, run): the Parquet objects that run wrote plus the watermark window it
+# covers. This is the manifest the Bronze IncrementalReader reads instead of listing the landing.
+LANDING_RUNS_TABLE = "landing_runs"
+# Whether the extraction query is ordered by the partition date. Ordered, a flush holds a few
+# consecutive days instead of all ~2,500, so a bulk load writes ~1 object per day folder instead of
+# one per folder per flush. "auto" orders only bulk loads (watermark at EPOCH: first load or
+# backfill), where it pays for the sort; an incremental run's rows are spread over the whole
+# history whatever the order. "always"/"never" force it.
+INGEST_ORDERED = os.environ.get("INGEST_ORDERED", "auto")
 # Default watermark for a (schema, table) that has never been ingested — old enough that
 # `> EPOCH` matches every existing row, giving a full backfill on the first run.
 EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
@@ -218,6 +241,128 @@ def set_watermark(engine, schema: str, table: str, ts: datetime) -> None:
                 DO UPDATE SET last_watermark = EXCLUDED.last_watermark, updated_at = now()
             '''),
             {"schema": schema, "table": table, "ts": ts},
+        )
+
+
+def _ensure_landing_parts_table(engine) -> None:
+    """Self-bootstraps the part counter, same pattern as `_ensure_watermark_table`."""
+    with engine.begin() as conn:
+        conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{WATERMARK_SCHEMA}"'))
+        conn.execute(
+            text(f'''
+            CREATE TABLE IF NOT EXISTS "{WATERMARK_SCHEMA}"."{LANDING_PARTS_TABLE}" (
+                schema_name text NOT NULL,
+                table_name text NOT NULL,
+                day text NOT NULL,
+                parts integer,
+                updated_at timestamptz NOT NULL DEFAULT now(),
+                PRIMARY KEY (schema_name, table_name, day)
+            )
+        ''')
+        )
+        # parts counts the raw `part-*` objects only; compacts counts `compact-*` files; a folder
+        # whose parts were too young to merge gets retry_after so it isn't re-listed every run.
+        conn.execute(
+            text(f'''
+            ALTER TABLE "{WATERMARK_SCHEMA}"."{LANDING_PARTS_TABLE}"
+                ADD COLUMN IF NOT EXISTS compacts integer NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS retry_after timestamptz
+        ''')
+        )
+
+
+def _ensure_landing_runs_table(engine) -> None:
+    with engine.begin() as conn:
+        conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{WATERMARK_SCHEMA}"'))
+        conn.execute(
+            text(f'''
+            CREATE TABLE IF NOT EXISTS "{WATERMARK_SCHEMA}"."{LANDING_RUNS_TABLE}" (
+                schema_name text NOT NULL,
+                table_name text NOT NULL,
+                run_ts text NOT NULL,
+                from_wm timestamptz NOT NULL,
+                to_wm timestamptz NOT NULL,
+                max_stamp timestamptz,
+                row_count bigint NOT NULL DEFAULT 0,
+                paths text[] NOT NULL DEFAULT '{{}}',
+                created_at timestamptz NOT NULL DEFAULT now(),
+                PRIMARY KEY (schema_name, table_name, run_ts)
+            )
+        ''')
+        )
+        conn.execute(
+            text(f'''
+            CREATE INDEX IF NOT EXISTS landing_runs_to_wm_idx
+            ON "{WATERMARK_SCHEMA}"."{LANDING_RUNS_TABLE}" (schema_name, table_name, to_wm)
+        ''')
+        )
+
+
+def finish_run(
+    engine,
+    schema: str,
+    table: str,
+    run_ts: str,
+    from_wm: datetime,
+    to_wm: datetime,
+    max_stamp,
+    row_count: int,
+    paths: list[str],
+) -> None:
+    """Records the run's manifest and advances the watermark in ONE transaction, so a table's
+    watermark never moves past a run the manifest doesn't know about (the Bronze reader trusts
+    that the manifests form an unbroken chain: each run's `from_wm` is the previous `to_wm`).
+
+    `paths` are relative to `<LANDING_PREFIX>/<schema>/<table>/` (`<day>/part-<run_ts>-NNNNN.parquet`).
+    Runs that wrote nothing are recorded too (empty `paths`) so the chain has no holes."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(f'''
+                INSERT INTO "{WATERMARK_SCHEMA}"."{LANDING_RUNS_TABLE}"
+                    (schema_name, table_name, run_ts, from_wm, to_wm, max_stamp, row_count, paths)
+                VALUES (:schema, :table, :run_ts, :from_wm, :to_wm, :max_stamp, :row_count, :paths)
+                ON CONFLICT (schema_name, table_name, run_ts) DO UPDATE SET
+                    from_wm = EXCLUDED.from_wm, to_wm = EXCLUDED.to_wm,
+                    max_stamp = EXCLUDED.max_stamp, row_count = EXCLUDED.row_count,
+                    paths = EXCLUDED.paths
+            '''),
+            {
+                "schema": schema,
+                "table": table,
+                "run_ts": run_ts,
+                "from_wm": from_wm,
+                "to_wm": to_wm,
+                "max_stamp": max_stamp,
+                "row_count": row_count,
+                "paths": paths,
+            },
+        )
+        conn.execute(
+            text(f'''
+                INSERT INTO "{WATERMARK_SCHEMA}"."{WATERMARK_TABLE}" (schema_name, table_name, last_watermark)
+                VALUES (:schema, :table, :ts)
+                ON CONFLICT (schema_name, table_name)
+                DO UPDATE SET last_watermark = EXCLUDED.last_watermark, updated_at = now()
+            '''),
+            {"schema": schema, "table": table, "ts": to_wm},
+        )
+
+
+def record_parts(engine, schema: str, table: str, days: list[str]) -> None:
+    """Adds one Parquet part to each day folder in `days`. A folder seen for the first time is
+    stored as NULL (unknown count) rather than 1: it may already hold parts written before this
+    counter existed, and compact_landing.py resolves NULL by listing that single folder."""
+    if not days:
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text(f'''
+                INSERT INTO "{WATERMARK_SCHEMA}"."{LANDING_PARTS_TABLE}" (schema_name, table_name, day, parts)
+                VALUES (:schema, :table, :day, NULL)
+                ON CONFLICT (schema_name, table_name, day)
+                DO UPDATE SET parts = "{LANDING_PARTS_TABLE}".parts + 1, updated_at = now()
+            '''),
+            [{"schema": schema, "table": table, "day": day} for day in days],
         )
 
 
@@ -329,18 +474,38 @@ def ingest_table(
     Tables without both audit columns (see `_has_audit_columns`) always get a full scan.
     """
     has_audit_columns = _has_audit_columns(engine, schema, table)
+    _ensure_landing_parts_table(engine)
+    _ensure_landing_runs_table(engine)
     watermark = get_watermark(engine, schema, table) if has_audit_columns else None
     partition_column = FACT_EVENT_DATE_COLUMNS.get(
         (schema, table), "created_at" if has_audit_columns else None
     )
     extract_start = datetime.now(UTC)
 
+    # Bulk load = nothing landed yet or a backfill reset the watermark. Ordering it by the partition
+    # date makes each flush hold consecutive days, so a day folder is written once instead of once
+    # per flush (a 360M-row backfill of marketing.dailyperformance would otherwise write ~360
+    # flushes x 2,524 folders = ~900k objects). Costs a sort on the Postgres side.
+    bulk = has_audit_columns and watermark <= EPOCH
+    order_by = ""
+    if (
+        partition_column
+        and has_audit_columns
+        and (INGEST_ORDERED == "always" or (INGEST_ORDERED == "auto" and bulk))
+    ):
+        order_expr = (
+            "created_at"
+            if partition_column == "created_at"
+            else f'COALESCE("{partition_column}", created_at)'
+        )
+        order_by = f" ORDER BY {order_expr}"
+
     total_rows = 0
     with raw_conn.cursor(name=f"ingest_{schema}_{table}") as cur:
         cur.itersize = chunksize
         if has_audit_columns:
             cur.execute(
-                f'SELECT * FROM "{schema}"."{table}" WHERE COALESCE(updated_at, created_at) > %s',
+                f'SELECT * FROM "{schema}"."{table}" WHERE COALESCE(updated_at, created_at) > %s{order_by}',
                 (watermark,),
             )
         else:
@@ -351,21 +516,26 @@ def ingest_table(
             str, list[pd.DataFrame]
         ] = {}  # partition date -> normalized groups awaiting flush
         buffered_rows = 0
+        written_paths: list[str] = []  # relative to <prefix>/<schema>/<table>/, for the manifest
+        max_stamp = None  # newest COALESCE(updated_at, created_at) seen, for the manifest
 
         def flush() -> None:
             """Writes one Parquet part per buffered partition date, then empties the buffer."""
             nonlocal part, total_rows, buffered_rows
             files = 0
-            for partition_date in sorted(buffered):
+            written_days = sorted(buffered)
+            for partition_date in written_days:
                 frames = buffered[partition_date]
                 written = frames[0] if len(frames) == 1 else pd.concat(frames, ignore_index=True)
                 buffer = io.BytesIO()
                 written.to_parquet(buffer, engine="pyarrow", index=False)
                 object_name = f"{LANDING_PREFIX}/{schema}/{table}/{partition_date}/part-{run_ts}-{part:05d}.parquet"
                 _write_parquet_with_retry(object_name, buffer.getvalue())
+                written_paths.append(f"{partition_date}/part-{run_ts}-{part:05d}.parquet")
                 total_rows += len(written)
                 part += 1
                 files += 1
+            record_parts(engine, schema, table, written_days)
             print(
                 f"   flushed {buffered_rows:,} rows -> {files:,} parts across {files:,} date partitions ({total_rows:,} total)"
             )
@@ -379,6 +549,10 @@ def ingest_table(
             if columns is None:
                 columns = [d.name for d in cur.description]
             raw_chunk = pd.DataFrame(rows, columns=columns)
+            if has_audit_columns:
+                chunk_stamp = raw_chunk["updated_at"].fillna(raw_chunk["created_at"]).max()
+                if pd.notna(chunk_stamp) and (max_stamp is None or chunk_stamp > max_stamp):
+                    max_stamp = chunk_stamp
             partitions = (
                 _split_by_partition_date(raw_chunk, partition_column)
                 if partition_column
@@ -395,7 +569,17 @@ def ingest_table(
     raw_conn.commit()  # closes the read-only transaction the named cursor ran in
 
     if has_audit_columns:
-        set_watermark(engine, schema, table, extract_start)
+        finish_run(
+            engine,
+            schema,
+            table,
+            run_ts,
+            from_wm=watermark,
+            to_wm=extract_start,
+            max_stamp=max_stamp.to_pydatetime() if max_stamp is not None else None,
+            row_count=total_rows,
+            paths=written_paths,
+        )
 
     return total_rows
 

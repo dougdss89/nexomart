@@ -133,13 +133,16 @@ services:
       # contract drift gate (nexomart_seeder_dag.contract_drift_check) reads these
       - ../tests:/dockervol/tests:ro
       - ../nexomart_contract:/dockervol/nexomart_contract:ro
-      # Spark apps submitted by the person_customer DAG (spark-submit runs here, client mode);
-      # mounted from the repo so code changes need no manual sync.
-      - ../spark/src:/dockervol/spark/src:ro
+      # Spark apps run in the dedicated spark-driver container (spark/docker-compose.yml);
+      # SparkDriverSubmitOperator reaches it through the Docker API, hence the socket.
+      # Trade-off: the socket gives this worker control of the host's Docker daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
     command: airflow celery worker -H airflow-worker@airflow-worker
+    # Lets the astro user open /var/run/docker.sock (group differs per Docker Desktop install).
+    group_add:
+      - "${DOCKER_SOCK_GID}"
     ports:
       - "8793:8793"
-      - "4040:4040"
     networks:
       - hadoopcluster
     extra_hosts:

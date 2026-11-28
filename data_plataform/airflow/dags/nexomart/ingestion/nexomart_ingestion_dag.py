@@ -101,6 +101,33 @@ with DAG(
         "chunksize": Param(
             default=100_000, type="integer", title="Rows per Parquet part (backfill only)"
         ),
+        "compaction_max_seconds": Param(
+            default=600,
+            type="integer",
+            title="Compaction time budget (s)",
+            description="compact_landing stops starting new day folders after this long. 0 = no limit.",
+        ),
+        "compaction_min_parts": Param(
+            default=10,
+            type="integer",
+            title="Compaction threshold",
+            description="Merge a day folder once it holds at least this many small parts.",
+        ),
+        "compaction_fold_after": Param(
+            default=10,
+            type="integer",
+            title="Compaction fold threshold",
+            description="Fold a day folder's compact-* files into one base-* once it has this many.",
+        ),
+        "compaction_grace_hours": Param(
+            default=48,
+            type="integer",
+            title="Compaction grace window (h)",
+            description=(
+                "Parts younger than this are never merged. Must match LANDING_GRACE_HOURS in "
+                "spark/src/common/manifest.py, which relies on it to trust the manifest."
+            ),
+        ),
     },
     tags=["ingestion", "nexomart", "landing"],
 ) as dag:
@@ -133,6 +160,26 @@ with DAG(
         task_id="end_ingestion", trigger_rule="none_failed_min_one_success"
     )
 
+    # Merges the day folders this and earlier runs fragmented (one part per run per folder) so the
+    # Bronze listing stays cheap on MinIO's spinning disk. Runs inside this DAG run, so it never
+    # overlaps an ingestion (max_active_runs=1) and the seeder waits for it before the next cycle;
+    # the time budget keeps that wait bounded. See dbapi/api/seeder/ingestions/compact_landing.py.
+    compact_landing = BashOperator(
+        task_id="compact_landing",
+        bash_command=(
+            # PYTHONUNBUFFERED: piped stdout is block-buffered, so without it the task log stays
+            # empty until the run ends and a long compaction looks hung.
+            "PYTHONUNBUFFERED=1 PYTHONPATH=/dockervol:/dockervol/dbapi "
+            f"uv run --project {UV_PROJECT} python {SEEDER_ROOT}/ingestions/compact_landing.py "
+            "--max-seconds {{ params.compaction_max_seconds }} "
+            "--min-parts {{ params.compaction_min_parts }} "
+            "--fold-after {{ params.compaction_fold_after }} "
+            "--grace-hours {{ params.compaction_grace_hours }}"
+        ),
+        execution_timeout=timedelta(hours=1),
+    )
+
     start_ingestion >> choose_mode
     choose_mode >> ingest_tasks >> end_ingestion
     choose_mode >> backfill >> end_ingestion
+    end_ingestion >> compact_landing

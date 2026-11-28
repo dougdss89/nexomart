@@ -74,6 +74,52 @@ services:
       - hadoopcluster
 
 
+  # Dedicated host for Spark DRIVERS (client mode). Airflow no longer runs spark-submit itself:
+  # SparkDriverSubmitOperator (airflow/dags/nexomart/common/spark_driver.py) does a `docker exec`
+  # of spark-submit in this container, so the driver's memory/CPU is accounted here and not in
+  # airflow_worker. Standalone clusters do not support --deploy-mode cluster for Python apps,
+  # which is why this is an always-on edge container instead of a cluster-mode submit.
+  spark-driver:
+    container_name: spark-driver
+    hostname: spark-driver
+    image: sparkairflow:spark
+    entrypoint: ['sleep', 'infinity']
+
+    depends_on:
+      sparkmaster:
+        condition: service_healthy
+
+    env_file:
+      - .env.spark
+      # PGUSER/PGPWD/... read by spark/src/common/manifest.py (landing_runs JDBC read)
+      - ../dbapi/api/.env
+
+    environment:
+      # Executors connect back to the driver by this name (same Docker network).
+      - SPARK_LOCAL_HOSTNAME=spark-driver
+      # Generated spark-defaults.conf (make generate-confs) is read from the bind below, so the
+      # driver always sees the current file instead of the copy baked into the image.
+      - SPARK_CONF_DIR=/opt/spark/driver-conf
+
+    volumes:
+      - spark-ivy-cache:/home/spark/.ivy2
+      - configs:/dockervol/configs
+      - dockervol:/dockervol
+      # App code, mounted from the repo so changes need no rebuild/sync.
+      - ../spark/src:/dockervol/spark/src:ro
+      - ./conf:/opt/spark/driver-conf:ro
+
+    cpus: "2.0"
+    mem_limit: 6g
+
+    ports:
+      # Live driver UI / DataFlint (was published by airflow_worker)
+      - "4040:4040"
+
+    networks:
+      - hadoopcluster
+
+
   spark-worker:
     image: sparkairflow:spark
     entrypoint: ['./entrypoint.sh', 'worker']

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+from nexomart.common.spark_driver import SparkDriverSubmitOperator
 
 from airflow import DAG
 
@@ -15,15 +15,14 @@ DEFAULT_ARGS = {
     "retry_delay": timedelta(minutes=5)
 }
 
-def layer_task(layer: str, extra_args: list[str] | None = None) -> SparkSubmitOperator:
+def layer_task(layer: str, extra_args: list[str] | None = None) -> SparkDriverSubmitOperator:
     
-    return SparkSubmitOperator(
+    # The driver runs in the spark-driver container, not in airflow_worker.
+    return SparkDriverSubmitOperator(
         task_id = f"{layer}_person_customer",
         application=APP,
         application_args=["--layer", layer, *(extra_args or [])],
-        conn_id= "sparkconn",
         env_vars={"PYTHONPATH": "/dockervol:/dockervol/configs"},
-        verbose=True,
     )
     
     

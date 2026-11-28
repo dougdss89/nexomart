@@ -468,6 +468,123 @@ About 40M rows landed in MinIO. Three real bugs found against real data:
   `IncrementalReader(LoggingReader(ParquetLandingReader()))` repeated in the 5
   Bronze jobs; the unused `catalog` parameter in both readers is still there.
 
+### 2026-11-28: Root cause of the slow Bronze read found; landing compaction built
+
+- **Root cause (measured):** MinIO's disk is spinning (HDD) and every object is a
+  3-level directory tree (`part-*.parquet/<uuid>/part.1`). Walking one cold day
+  folder (~250 objects) took 19-27 s; the same folder warm took 0.06 s. The
+  11-20 Spark listing stage was seek-bound, not CPU or network. More cores would
+  not help on an HDD (more concurrent readers).
+- **Why so many objects:** each ingestion run writes one part per day folder it
+  touches, and dimension `created_at` is spread over 2020->now, so a run touches
+  nearly every folder. `person.customer`: 2,514 day folders, ~190-250 parts each
+  (~6 MB per day). Nothing in the old code ever merged them.
+- **Decision (user):** keep the landing partitioned by day (month partitioning
+  would cut the fan-out ~30x but changes the layout streaming studies read).
+  MinIO cannot move to SSD for now because the SSD holds Postgres.
+- **Built (not committed):**
+  - `ingestion_common.py`: `ingestion_control.landing_parts` (parts per
+    schema/table/day folder) and `record_parts()`, called from `flush()`.
+  - `dbapi/api/seeder/ingestions/compact_landing.py`: merges a day folder's small
+    parts into one `compact-<run_ts>-NNNNN.parquet` (no dedup, schema promotion for
+    all-null/missing columns, 128 MB cap per group, new file written and its size
+    checked before the parts are deleted, folder count marked unknown on failure).
+    Flags: `--min-parts` (10), `--max-seconds` (600, 0 = unlimited), `--tables`,
+    `--schemas`, `--dry-run`, `--prefix` (tests).
+  - `nexomart_ingestion_dag.py`: task `compact_landing` after `end_ingestion`, params
+    `compaction_max_seconds` / `compaction_min_parts`.
+- **Verified:** scratch-prefix test (12 parts incl. an all-null and a missing column
+  -> 1 file, 60/60 rows, counters right, 2nd run no-op, test data removed); real
+  `person.customer` runs merged 2020-01-01..2020-01-08 (~190-230 parts -> 1 each,
+  row counts matched, 0 failures); DAG imports with the new task; ruff clean.
+- **Measured cost:** ~13-23 s per backlog folder, so `person.customer` alone is
+  ~12-14 h of one-time drain (other tables not measured). Registering a table's day
+  folders is one listing, ~100 s cold, once per table.
+- **Open:**
+  - Drain the backlog with `--max-seconds 0` in a window where the PC stays on.
+    The DAG's 600 s budget only chips away at it, and until then each seeder cycle
+    is ~10 min longer.
+  - Do not run a Bronze read of a table while it is being compacted.
+  - Re-time the Bronze `person.customer` read after the drain; the manifest idea
+    (11-20 entry) is on hold until then.
+  - The `run_config.py` work is still waiting for the two answers in the 11-20 entry.
+  - Stale docstring: `ingestion_common.py` still says `product.productcategory` has
+    no audit columns; it now inherits `AuditMixin` (all 31 tables have them).
+
+### 2026-11-28 (later): Root-cause redesign on branch `feat/landing-compaction-manifest`
+
+- **Evaluation of all 31 tables** (3 sampled day folders each): ~9.3M objects in the
+  landing (estimate; `sales`/`warehouse` folder counts assumed ~2,500). Parts are tiny
+  (6-40 KB), 6 fact tables are ~74% of the objects (`marketing.dailyperformance` 2.8M,
+  `sales.salesorder` ~1.3M, `purchaseorderheader` ~1.25M, `transactionhistory` ~1.2M).
+  Hot tables get ~20 runs/day, so the landing grows by roughly 300-500k objects/day
+  (estimate). A serial drain of the backlog is ~10 days; a backfill would recreate the
+  same fan-out (360 flushes x 2,524 folders for `dailyperformance`).
+- **Decision:** remove the cause, not just the symptom. Keep day folders (user's choice).
+- **Built (not committed, branch above):**
+  1. **Manifest / control table.** `ingest_table` writes `ingestion_control.landing_runs`
+     (files written, `from_wm`/`to_wm` window, max stamp) in the same transaction as the
+     watermark (`finish_run`). Empty runs are recorded too, so consecutive runs chain.
+  2. **Ordered bulk extraction.** First loads and backfills (watermark at EPOCH) read
+     `ORDER BY` the partition date (`INGEST_ORDERED=auto|always|never`), so a day folder
+     is written once instead of once per flush.
+  3. **Tiered compactor** (`compact_landing.py`, rewritten): `part-*` -> `compact-*` ->
+     `base-*`, 48 h grace window, `--workers`, recovery journal for interrupted deletes,
+     advisory lock, manifest pruning. New DAG params `compaction_fold_after` and
+     `compaction_grace_hours`.
+  4. **Manifest read in Spark.** `IncrementalReader` asks `manifest.unconsumed_paths()`
+     (JDBC to Postgres) for the files written after the target's last stamp and loads only
+     those; it falls back to the full glob when the manifest cannot prove it is complete.
+- **Verified:**
+  - Ordered vs unordered bulk load of `marketing.marketingcampaign` (71k rows, scratch
+    prefix): 2,512 objects in 261 s vs 9,939 objects in 974 s (2,509 day folders).
+  - Compactor scenarios on a scratch prefix, all rows preserved: straight-to-base,
+    base + compact, compact + fold, young parts left alone, interrupted delete recovered
+    from the journal, 3 workers.
+  - Spark (driver in the Airflow worker, cluster at `spark-master`): first load = 5 files
+    by glob; incremental = only the 3 files of the 2 unread runs, no listing; up to date =
+    0 rows; stale manifest (grace) and broken chain both fall back to the glob.
+- **Not verified:** the compactor on real data after the rewrite (only the earlier
+  version ran on `person.customer`); a real Bronze run with the manifest (needs the new
+  `ingest_table` to have written manifests first, so the first incremental after deploy
+  still reads the glob); `INGEST_ORDERED=auto` sort cost on the 15M-row `customer`.
+- **Caveats:**
+  - Keep `LANDING_GRACE_HOURS` (`manifest.py`) equal to the compactor's `--grace-hours`.
+  - Spark driver runs in `airflow_worker` (client mode): the Spark containers'
+    `/dockervol` volume has no project code or `dbapi/api/.env`, and the worker's 6 GB is
+    shared with ingestion and compaction.
+  - `docker cp` into containers fails after the branch switch (stale file bind mount of
+    `uv.lock`); `docker exec` works.
+- **Next:** commit on the branch after a review; run the DAG once so manifests start
+  accumulating; then drain the backlog gradually with
+  `compact_landing.py --workers 4 --max-seconds 0 --tables <schema.table>`.
+
+### 2026-11-28 (later still): Spark driver moved out of `airflow_worker`
+
+- **Why:** the client-mode driver (4 GB) shared the worker's 6 GB with ingestion and
+  compaction, and Airflow held Spark responsibilities. Standalone clusters reject
+  `--deploy-mode cluster` for Python, so the driver needs a host on the Spark side.
+- **Built (not committed):**
+  - `spark-driver` service in `spark/docker-compose.yml` (same image, `sleep infinity`,
+    2 CPU / 6 GB): mounts `../spark/src` and the generated `./conf` as `SPARK_CONF_DIR`,
+    reads `dbapi/api/.env` for the manifest's Postgres settings, publishes 4040 (moved
+    from `airflow_worker`), `SPARK_LOCAL_HOSTNAME=spark-driver` for the executors.
+  - `SparkDriverSubmitOperator` (`airflow/dags/nexomart/common/spark_driver.py`):
+    `docker exec` of `spark-submit` in that container through the Docker API, streams the
+    output to the task log, `on_kill` sends SIGTERM. `nexomart_person_customer_dag` uses it.
+  - `airflow_worker` mounts `/var/run/docker.sock` and joins its group via
+    `group_add: DOCKER_SOCK_GID` (new var in `secrets.env` and `.example`; 1001 here).
+- **Verified:** tiny job (driver host `spark-driver`, executors on the 3 workers), manifest
+  JDBC read from the driver (`None` = glob fallback, no manifest rows yet), `on_kill`
+  (exit 143, pidfile removed), DAG parses with 3 `SparkDriverSubmitOperator` tasks.
+- **Found on the way:** the generated `spark/conf/spark-defaults.conf` was from 11-20
+  with `spark.executor.cores 5` (template says 4, workers have 4): no executor could be
+  placed ("Initial job has not accepted any resources"). `make generate-confs` fixed it.
+- **Trade-off:** the Docker socket gives `airflow_worker` control of the host's Docker
+  daemon. Legacy `advworks` DAGs still use `SparkSubmitOperator` in the worker, but it no
+  longer has `/dockervol/spark/src` nor the 4040 port.
+- **Not verified:** a real `person_customer` Bronze/Silver/Gold run through the DAG.
+
 ---
 
 ## 4. Mistakes that repeated

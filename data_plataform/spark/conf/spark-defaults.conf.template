@@ -111,7 +111,7 @@ spark.sql.legacy.parquet.nanosAsLong true
 
 
 # --- DataFlint Spark UI (JAR baked into image via Dockerfile) ---
-# Live UI (job em execução): http://localhost:4040/dataflint  (porta do driver no airflow_worker)
+# Live UI (job em execução): http://localhost:4040/dataflint  (porta do driver, container spark-driver)
 # History UI (job concluído): http://localhost:18080 → abra a app → aba "DataFlint"
 # Standard plan view: http://localhost:18080 → app → aba "SQL / DataFrame"
 spark.plugins                                          io.dataflint.spark.SparkDataflintPlugin
